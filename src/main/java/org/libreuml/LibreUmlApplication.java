@@ -1,13 +1,13 @@
 package org.libreuml;
 
-import org.springframework.boot.SpringApplication;
+import javafx.application.Application;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class LibreUmlApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(LibreUmlApplication.class, args);
+        Application.launch(LibreUMLFXApplication.class, args);
     }
 
 }

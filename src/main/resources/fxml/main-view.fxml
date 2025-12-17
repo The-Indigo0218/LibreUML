@@ -6,12 +6,11 @@
 <?import javafx.scene.control.Menu?>
 <?import javafx.scene.control.MenuBar?>
 <?import javafx.scene.control.MenuItem?>
-<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-
 
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" stylesheets="@../css/style.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.libreuml.ui.controller.MainController">
    <top>
@@ -43,13 +42,11 @@
          </children>
       </VBox>
    </left>
-   <center>
-      <ScrollPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-         <content>
-            <Pane fx:id="canvasPane" prefHeight="2000.0" prefWidth="2000.0" stylesheets="@../css/style.css" />
-         </content>
-      </ScrollPane>
-   </center>
+    <center>
+        <StackPane fx:id="viewport" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
+            <Pane fx:id="canvasPane" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="20000.0" prefWidth="20000.0" styleClass="canvas-area" />
+        </StackPane>
+    </center>
    <bottom>
       <HBox prefHeight="100.0" prefWidth="200.0" spacing="10.0" styleClass="status-bar" BorderPane.alignment="CENTER">
          <children>

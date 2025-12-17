@@ -27,12 +27,12 @@
 .menu-bar {
     -fx-background-color: -color-bg-app;
     -fx-border-color: -color-border;
-    -fx-border-width: 0 0 1 0; /* Solo borde inferior */
+    -fx-border-width: 0 0 1 0;
     -fx-padding: 5 10 5 10;
 }
 
 .menu-button:hover, .menu-button:showing, .menu-item:hover {
-    -fx-background-color: #3e3e42; /* Highlight sutil */
+    -fx-background-color: #3e3e42;
 }
 
 .menu-item .label {
@@ -68,14 +68,6 @@
     -fx-font-weight: bold;
 }
 
-.canvas-area {
-    -fx-background-color: -color-bg-canvas;
-
-    /* Truco para la Grilla de Puntos */
-    -fx-background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2NkYGA4AxIwMIAwcXAAQwUA9cQA9xg2mW8AAAAASUVORK5CYII=");
-    -fx-background-repeat: repeat;
-}
-
 .viewport {
     -fx-background-color: -color-bg-canvas;
 }
@@ -91,5 +83,5 @@
 .status-label {
     -fx-text-fill: -color-text-muted;
     -fx-font-size: 12px;
-    -fx-font-family: 'Consolas', 'Monospaced', monospace; /* Look técnico */
+    -fx-font-family: 'Consolas', 'Monospaced', monospace;
 }

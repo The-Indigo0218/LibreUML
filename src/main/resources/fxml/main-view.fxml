@@ -13,7 +13,7 @@
 <?import javafx.scene.layout.VBox?>
 
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.libreuml.ui.controller.MainController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" stylesheets="@../css/style.css" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.libreuml.ui.controller.MainController">
    <top>
       <MenuBar BorderPane.alignment="CENTER">
         <menus>
@@ -36,24 +36,24 @@
       </MenuBar>
    </top>
    <left>
-      <VBox prefHeight="200.0" prefWidth="150.0" spacing="10.0" BorderPane.alignment="TOP_CENTER">
+      <VBox prefHeight="200.0" prefWidth="150.0" spacing="10.0" styleClass="tool-palette" BorderPane.alignment="TOP_CENTER">
          <children>
-            <Button mnemonicParsing="false" text="Clase" />
-            <Button mnemonicParsing="false" text="Interfaz" />
+            <Button mnemonicParsing="false" styleClass="tool-button" text="Clase" />
+            <Button mnemonicParsing="false" styleClass="tool-button" text="Interfaz" />
          </children>
       </VBox>
    </left>
    <center>
       <ScrollPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
          <content>
-            <Pane fx:id="canvasPane" prefHeight="2000.0" prefWidth="2000.0" style="-fx-background-color: #f0f0f0;;" />
+            <Pane fx:id="canvasPane" prefHeight="2000.0" prefWidth="2000.0" stylesheets="@../css/style.css" />
          </content>
       </ScrollPane>
    </center>
    <bottom>
-      <HBox prefHeight="100.0" prefWidth="200.0" spacing="10.0" BorderPane.alignment="CENTER">
+      <HBox prefHeight="100.0" prefWidth="200.0" spacing="10.0" styleClass="status-bar" BorderPane.alignment="CENTER">
          <children>
-            <Label text="Listo" />
+            <Label styleClass="status-label" text="Listo" />
          </children>
          <padding>
             <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />

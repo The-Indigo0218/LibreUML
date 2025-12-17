@@ -1,0 +1,95 @@
+.root {
+    /* --- Paleta LibreUML Dark --- */
+    -fx-base: #1e1e1e;              /* Color base de controles */
+    -fx-background: #1e1e1e;        /* Color de fondo de ventanas */
+
+    /* Colores Específicos */
+    -color-bg-app: #1e1e1e;         /* Gunmetal Dark */
+    -color-bg-canvas: #252526;      /* Un poco más claro que el fondo */
+    -color-bg-panel: #2b2d30;       /* Paneles laterales */
+
+    -color-accent: #3b82f6;         /* Electric Blue (Botones activos) */
+    -color-text-primary: #e0e0e0;   /* Blanco suave */
+    -color-text-muted: #8c8c8c;     /* Gris para textos secundarios */
+
+    -color-border: #3e3e42;         /* Bordes sutiles */
+
+    /* Configuración Global de Fuente */
+    -fx-font-family: 'Segoe UI', 'Inter', sans-serif;
+    -fx-font-size: 14px;
+}
+
+/* Fondo general de la aplicación */
+.root {
+    -fx-background-color: -color-bg-app;
+}
+
+.menu-bar {
+    -fx-background-color: -color-bg-app;
+    -fx-border-color: -color-border;
+    -fx-border-width: 0 0 1 0; /* Solo borde inferior */
+    -fx-padding: 5 10 5 10;
+}
+
+.menu-button:hover, .menu-button:showing, .menu-item:hover {
+    -fx-background-color: #3e3e42; /* Highlight sutil */
+}
+
+.menu-item .label {
+    -fx-text-fill: -color-text-primary;
+}
+
+/* El contenedor VBox de la izquierda */
+.tool-palette {
+    -fx-background-color: -color-bg-panel;
+    -fx-border-color: -color-border;
+    -fx-border-width: 0 1 0 0; /* Solo borde derecho */
+    -fx-padding: 10;
+}
+
+/* Los botones de la izquierda */
+.tool-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: -color-text-primary;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 8 15;
+    -fx-cursor: hand;
+    -fx-background-radius: 6;
+}
+
+.tool-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Clase especial para cuando una herramienta está seleccionada */
+.tool-button:selected, .tool-button:pressed {
+    -fx-background-color: -color-accent;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.canvas-area {
+    -fx-background-color: -color-bg-canvas;
+
+    /* Truco para la Grilla de Puntos */
+    -fx-background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVQYV2NkYGA4AxIwMIAwcXAAQwUA9cQA9xg2mW8AAAAASUVORK5CYII=");
+    -fx-background-repeat: repeat;
+}
+
+.viewport {
+    -fx-background-color: -color-bg-canvas;
+}
+
+/* Barra de estado (Bottom) */
+.status-bar {
+    -fx-background-color: -color-bg-app;
+    -fx-border-color: -color-border;
+    -fx-border-width: 1 0 0 0; /* Borde superior fino */
+    -fx-padding: 5 10;
+}
+
+.status-label {
+    -fx-text-fill: -color-text-muted;
+    -fx-font-size: 12px;
+    -fx-font-family: 'Consolas', 'Monospaced', monospace; /* Look técnico */
+}

@@ -4,43 +4,52 @@ import javafx.fxml.FXML;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.shape.Rectangle;
-import org.libreuml.ui.canvas.CanvasNavigator; // Asegúrate de importar esto
+import org.libreuml.ui.canvas.CanvasNavigator;
+import org.libreuml.ui.components.UmlClassBox;
+import javafx.event.ActionEvent;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MainController {
 
     @FXML
-    private StackPane viewport; // La ventana (necesita fx:id="viewport" en el FXML)
+    private StackPane viewport;
 
     @FXML
-    private Pane canvasPane;    // El lienzo (necesita fx:id="canvasPane" en el FXML)
+    private Pane canvasPane;
 
     private CanvasNavigator navigator;
+    private static final double GRID_SIZE = 50000;
 
     public void initialize() {
-        // 1. EL LIENZO GIGANTE (Hijo)
-        // Le decimos que MIDA 50,000 sí o sí.
-        double gridSize = 50000;
-        canvasPane.setPrefSize(gridSize, gridSize);
-        canvasPane.setMinSize(gridSize, gridSize);
-        canvasPane.setMaxSize(gridSize, gridSize);
 
-        // 2. EL VISOR (Padre) - ¡ESTO ES LO QUE FALTABA!
-        // Le decimos al StackPane: "Tú no crezcas. Tú mide lo que quepa en la ventana (0 mínimo)".
-        // Esto evita que el padre intente igualar el tamaño del hijo gigante.
+        canvasPane.setPrefSize(MainController.GRID_SIZE, MainController.GRID_SIZE);
+        canvasPane.setMinSize(MainController.GRID_SIZE, MainController.GRID_SIZE);
+        canvasPane.setMaxSize(MainController.GRID_SIZE, MainController.GRID_SIZE);
+
+        viewport.setPrefSize(800, 600);
+
         viewport.setMinSize(0, 0);
-        viewport.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE); // Opcional, para asegurar que crezca con la ventana
+        viewport.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
 
-        // 3. LA TIJERA (Clipping)
-        // Esto corta visualmente lo que sobresalga del visor para no tapar los menús.
         Rectangle clip = new Rectangle();
         clip.widthProperty().bind(viewport.widthProperty());
         clip.heightProperty().bind(viewport.heightProperty());
         viewport.setClip(clip);
 
-        // 4. INICIAR NAVEGACIÓN
+
         this.navigator = new CanvasNavigator(canvasPane);
         canvasPane.setOnMouseReleased(e -> navigator.onMouseReleased());
+    }
+
+    @FXML
+    public void handleCreateClass(ActionEvent event) {
+        UmlClassBox newBox = new UmlClassBox("Nueva Clase");
+        double centerX = GRID_SIZE / 2;
+        double centerY = GRID_SIZE / 2;
+        double offset = (Math.random() * 40) - 20;
+        newBox.setLayoutX(centerX + offset);
+        newBox.setLayoutY(centerY + offset);
+        canvasPane.getChildren().add(newBox);
     }
 }

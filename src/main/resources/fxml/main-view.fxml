@@ -34,17 +34,20 @@
         </menus>
       </MenuBar>
    </top>
-   <left>
-      <VBox prefHeight="200.0" prefWidth="150.0" spacing="10.0" styleClass="tool-palette" BorderPane.alignment="TOP_CENTER">
-         <children>
-            <Button mnemonicParsing="false" styleClass="tool-button" text="Clase" />
-            <Button mnemonicParsing="false" styleClass="tool-button" text="Interfaz" />
-         </children>
-      </VBox>
-   </left>
+    <left>
+        <VBox prefHeight="200.0" prefWidth="150.0" spacing="10.0" styleClass="tool-palette" BorderPane.alignment="TOP_CENTER">
+            <children>
+                <Button mnemonicParsing="false" onAction="#handleCreateClass" styleClass="tool-button" text="Clase" />
+
+                <Button mnemonicParsing="false" styleClass="tool-button" text="Interfaz" />
+            </children>
+        </VBox>
+    </left>
     <center>
         <StackPane fx:id="viewport" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
-            <Pane fx:id="canvasPane" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="20000.0" prefWidth="20000.0" styleClass="canvas-area" />
+            <children>
+                <Pane fx:id="canvasPane" prefHeight="2000.0" prefWidth="2000.0" stylesheets="@../css/style.css" />
+            </children>
         </StackPane>
     </center>
    <bottom>

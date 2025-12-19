@@ -12,7 +12,7 @@ LibreUML follows a **Modular Monolith** architecture, decoupling the UI from the
 * **UI Framework:** JavaFX 21 - Hardware-accelerated graphics for rendering the diagram canvas.
 * **Persistence:** SQLite - Serverless, zero-configuration local storage engine.
 
-### Architectural Patterns
+### Architectural Patterns:
 1.  **Spring-JavaFX Integration:**
     * The application bootstraps via a custom `ApplicationContext`.
     * JavaFX Controllers are managed as Spring Beans, allowing full `@Autowired` injection of services into UI components.

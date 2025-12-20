@@ -1,34 +1,61 @@
 # LibreUML
 
-**LibreUML** is a lightweight, local-first, open-source UML modeling tool built for developers who prioritize performance and privacy. Unlike heavy web-based alternatives, LibreUML runs natively on the desktop, leveraging the robustness of the JVM ecosystem.
+**LibreUML** is an open-source, professional UML diagram editor designed for scalability and clean architecture.
 
-## 🏗 Architecture & Stack
+## 🏗 Architecture Pivot
 
-LibreUML follows a **Modular Monolith** architecture, decoupling the UI from the business logic using an Event-Driven approach.
+This project has migrated from a Monolithic JavaFX architecture to a **Decoupled Client-Server Architecture**:
 
-### Core Technologies
-* **Language:** Java 21 (LTS) - Leveraging Records, Pattern Matching, and Virtual Threads.
-* **Application Framework:** Spring Boot 3.x - Manages the Dependency Injection (DI) container, application lifecycle, and transaction management.
-* **UI Framework:** JavaFX 21 - Hardware-accelerated graphics for rendering the diagram canvas.
-* **Persistence:** SQLite - Serverless, zero-configuration local storage engine.
+* **Backend:** Java 21+ with Spring Boot (REST API). Adheres to Hexagonal Architecture principles.
+* **Frontend:** React 18+ with TypeScript and Vite. Uses React Flow for the diagramming canvas.
 
-### Architectural Patterns:
-1.  **Spring-JavaFX Integration:**
-    * The application bootstraps via a custom `ApplicationContext`.
-    * JavaFX Controllers are managed as Spring Beans, allowing full `@Autowired` injection of services into UI components.
-2.  **MVVM (Model-View-ViewModel):**
-    * Separation of UI definition (`.fxml`), presentation logic (ViewModel/Controller), and domain data (Model).
-3.  **Command Pattern:**
-    * All canvas operations (Add, Move, Delete, Resize) are encapsulated as `Command` objects to support an infinite Undo/Redo stack.
-4.  **Observer Pattern:**
-    * The UI reacts to model changes via reactive bindings (JavaFX Properties) and Application Events.
+This separation allows for independent scaling, modern UI development, and robust API management.
+
+## 🛠 Tech Stack
+
+### Backend (`/backend`)
+* **Language:** Java 21
+* **Framework:** Spring Boot 3.5.9
+* **Architecture:** Hexagonal (Ports & Adapters)
+* **Database:** PostgreSQL / H2 (Dev)
+* **Build Tool:** Maven
+
+### Frontend (`/frontend`)
+* **Framework:** React
+* **Language:** TypeScript (Strict Mode)
+* **Build Tool:** Vite
+* **Styling:** Tailwind CSS
+* **Core Library:** React Flow
+
+## 📂 Project Structure
+
+```text
+LibreUML/
+├── backend/            # Spring Boot Application (API)
+│   ├── src/
+│   └── pom.xml
+├── frontend/           # React Application (UI)
+│   ├── src/
+│   └── package.json
+└── README.md           # Project Documentation
+```
 
 ## 🚀 Getting Started
 
-### Prerequisites
-* JDK 21+
-* Maven 3.8+
+### Backend
+Navigate to `/backend`.
 
-### Build & Run
-```bash
-mvn clean javafx:run
+Configure your `application.properties` (or use the default dev profile).
+
+Run `mvn spring-boot:run`.
+
+### Frontend
+Navigate to `/frontend`.
+
+Run `npm install`.
+
+Run `npm run dev`.
+
+---
+
+Developed by Miguel Gonzalez

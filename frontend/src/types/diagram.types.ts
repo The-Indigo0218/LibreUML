@@ -10,6 +10,7 @@ export interface UmlClassData {
   stereotype?: string; 
 }
 
+// UML Class Node Type for React Flow
 export interface UmlClassNode {
   id: string;
   type: 'umlClass'; 

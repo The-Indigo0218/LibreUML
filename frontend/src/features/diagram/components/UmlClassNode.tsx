@@ -9,12 +9,12 @@ import { type UmlClassData } from '../../../types/diagram.types';
  */
 const UmlClassNode = ({ data }: NodeProps<UmlClassData>) => {
   return (
-    <div className="bg-white border-2 border-black rounded-sm min-w-[150px] shadow-md">
+    <div className="bg-white border-2 border-black rounded-sm min-w-37.5 shadow-md">
 
-      <Handle type="target" position={Position.Top} className="w-2 h-2 !bg-black" />
-      <Handle type="source" position={Position.Bottom} className="w-2 h-2 !bg-black" />
-      <Handle type="source" position={Position.Right} className="w-2 h-2 !bg-black" />
-      <Handle type="target" position={Position.Left} className="w-2 h-2 !bg-black" />
+      <Handle type="target" position={Position.Top} className="w-2 h-2 bg-black!" />
+      <Handle type="source" position={Position.Bottom} className="w-2 h-2 bg-black!" />
+      <Handle type="source" position={Position.Right} className="w-2 h-2 bg-black!" />
+      <Handle type="target" position={Position.Left} className="w-2 h-2 bg-black!" />
 
       {/* HEADER: Stereotype & Class Name */}
       <div className="bg-yellow-100 p-2 border-b-2 border-black text-center">

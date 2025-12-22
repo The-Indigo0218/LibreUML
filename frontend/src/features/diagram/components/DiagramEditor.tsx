@@ -73,20 +73,17 @@ export default function DiagramEditor() {
     []
   );
 
-  const isValidConnection = useCallback(
+const isValidConnection = useCallback(
   (connection: Connection) => {
-    if (connection.source === connection.target) {
-      return false;
-    }
+    if (connection.source === connection.target) return false;
 
-
-    const isDuplicate = edges.some(
+    const isExactDuplicate = edges.some(
       (edge) => edge.source === connection.source && edge.target === connection.target
     );
 
-    return !isDuplicate;
+    return !isExactDuplicate;
   },
-  [edges] 
+  [edges]
 );
 
   return (

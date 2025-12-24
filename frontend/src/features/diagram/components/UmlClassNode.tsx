@@ -1,13 +1,21 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Handle, Position, type NodeProps } from 'reactflow';
 import { type UmlClassData } from '../../../types/diagram.types';
+import { useDiagramStore } from '../../../store/diagramStore';
 
 /**
  * UmlClassNode Component
  * * Represents a standard UML Class box in the visual editor.
  * It consumes the "UmlClassData" contract we defined earlier.
  */
-const UmlClassNode = ({ data }: NodeProps<UmlClassData>) => {
+
+const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
+  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateNodeData(id, { label: e.target.value });
+  };
   return (
     <div className="bg-white border-2 border-black rounded-sm min-w-37.5 shadow-md">
 
@@ -16,16 +24,23 @@ const UmlClassNode = ({ data }: NodeProps<UmlClassData>) => {
       <Handle type="source" position={Position.Right} className="w-2 h-2 bg-black!" />
       <Handle type="target" position={Position.Left} className="w-2 h-2 bg-black!" />
 
-      {/* HEADER: Stereotype & Class Name */}
-      <div className="bg-yellow-100 p-2 border-b-2 border-black text-center">
-        {data.stereotype && (
-          <small className="text-gray-600 block italic text-xs">
-            {data.stereotype}
-          </small>
+      {/* HEADER: Label */}
+      <div 
+        className="bg-yellow-100 p-2 border-b-2 border-black text-center cursor-pointer"
+        onDoubleClick={() => setIsEditing(true)}
+      >
+        {isEditing ? (
+          <input
+            autoFocus
+            className="w-full text-center font-bold text-sm bg-transparent border-none outline-none"
+            value={data.label}
+            onChange={handleLabelChange}
+            onBlur={() => setIsEditing(false)}
+            onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
+          />
+        ) : (
+          <strong className="font-bold text-sm block">{data.label}</strong>
         )}
-        <strong className="font-bold text-sm block">
-          {data.label}
-        </strong>
       </div>
 
       {/* BODY: Attributes */}

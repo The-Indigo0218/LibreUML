@@ -1,7 +1,7 @@
-import { memo, useState } from 'react';
-import { Handle, Position, type NodeProps } from 'reactflow';
-import { type UmlClassData } from '../../../types/diagram.types';
-import { useDiagramStore } from '../../../store/diagramStore';
+import { memo, useState, useEffect } from "react";
+import { Handle, Position, type NodeProps } from "reactflow";
+import { type UmlClassData } from "../../../types/diagram.types";
+import { useDiagramStore } from "../../../store/diagramStore";
 
 /**
  * UmlClassNode Component
@@ -10,22 +10,44 @@ import { useDiagramStore } from '../../../store/diagramStore';
  */
 
 const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
-  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
+ const updateNodeData = useDiagramStore((s) => s.updateNodeData);
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (data.label === 'NewClass') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsEditing(true);
+    }
+  }, []); 
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateNodeData(id, { label: e.target.value });
   };
   return (
-    <div className="bg-white border-2 border-black rounded-sm min-w-37.5 shadow-md">
-
-      <Handle type="target" position={Position.Top} className="w-2 h-2 bg-black!" />
-      <Handle type="source" position={Position.Bottom} className="w-2 h-2 bg-black!" />
-      <Handle type="source" position={Position.Right} className="w-2 h-2 bg-black!" />
-      <Handle type="target" position={Position.Left} className="w-2 h-2 bg-black!" />
+    <div className="bg-white border-2 border-black rounded-sm w-64 shadow-md overflow-hidden">
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="w-2 h-2 bg-black!"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="w-2 h-2 bg-black!"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="w-2 h-2 bg-black!"
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-2 h-2 bg-black!"
+      />
 
       {/* HEADER: Label */}
-      <div 
+      <div
         className="bg-yellow-100 p-2 border-b-2 border-black text-center cursor-pointer"
         onDoubleClick={() => setIsEditing(true)}
       >
@@ -36,7 +58,7 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
             value={data.label}
             onChange={handleLabelChange}
             onBlur={() => setIsEditing(false)}
-            onKeyDown={(e) => e.key === 'Enter' && setIsEditing(false)}
+            onKeyDown={(e) => e.key === "Enter" && setIsEditing(false)}
           />
         ) : (
           <strong className="font-bold text-sm block">{data.label}</strong>

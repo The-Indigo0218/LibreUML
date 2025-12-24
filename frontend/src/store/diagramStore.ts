@@ -50,6 +50,7 @@ interface DiagramState {
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
+  addNode: (position: { x: number; y: number }) => void;
 }
 
 export const useDiagramStore = create<DiagramState>((set, get) => ({
@@ -73,15 +74,43 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       edges: addEdge(connection, get().edges),
     });
   },
+  
+  addNode: (position) => {
+    const { nodes } = get();
+  
+  const W = 260; 
+  const H = 200; 
+
+  const hasCollision = nodes.some((node) => {
+    return (
+      position.x < node.position.x + W &&
+      position.x + W > node.position.x &&
+      position.y < node.position.y + H &&
+      position.y + H > node.position.y
+    );
+  });
+
+  if (hasCollision) return; 
+
+    const newNode: Node<UmlClassData> = {
+      id: crypto.randomUUID(),
+      type: 'umlClass',
+      position,
+      data: {
+        label: 'NewClass', 
+        attributes: [],
+        methods: [],
+      },
+    };
+
+    set({ nodes: [...nodes, newNode] });
+  },
 
   updateNodeData: (nodeId, newData) => {
     set({
-      nodes: get().nodes.map((node) => {
-        if (node.id === nodeId) {
-          return { ...node, data: { ...node.data, ...newData } };
-        }
-        return node;
-      }),
+      nodes: get().nodes.map((node) => 
+        node.id === nodeId ? { ...node, data: { ...node.data, ...newData } } : node
+      ),
     });
   },
 }));

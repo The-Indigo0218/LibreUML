@@ -15,12 +15,14 @@ Este documento detalla la evolución del editor de diagramas UML. El enfoque es 
 
 ---
 
-## 🟡 Fase 2: Interacción y UI del Editor
+## 🟡 Fase 2: Interacción y Lógica de Creación (Refinada)
 
-- [ ] **Toolbar de Creación:** Barra lateral para arrastrar y soltar (drag & drop) nuevas clases al lienzo.
-- [ ] **Edición en Línea (Inline Editing):** Doble clic para editar el nombre de la clase, atributos o métodos directamente en el nodo.
-- [ ] **Panel de Propiedades:** Sidebar derecha para configurar estereotipos, visibilidad (+, -, #) y tipos de datos.
-- [ ] **Gestión de Selección:** Acciones rápidas al seleccionar nodos (borrar, duplicar).
+- [x] ✅ **Edición en Línea (Inline Editing):** Implementado el doble clic para editar el nombre de la clase mediante el Store de Zustand.
+- [ ] **Lógica de Creación Dinámica:** Desarrollar la acción `addNode` en el Store para inyectar nuevos objetos `UmlClassData` en el canvas basándose en coordenadas dinámicas del mouse.
+- [ ] **Sistema de Prevención de Colisiones:** Implementar validación lógica en el Store para evitar el solapamiento visual de nodos al momento de la creación.
+- [ ] **Menú Contextual (Clic Derecho):** Crear una interfaz flotante para acciones rápidas (Borrar, Duplicar, Cancelar conexiones) activada por `onPaneContextMenu`.
+- [ ] **Editor de Contenido (Modals):** Implementar ventanas emergentes para la gestión avanzada y cómoda de listas extensas de atributos y métodos.
+- [ ] **Toolbar & Shell UI:** Maquetación final de la barra lateral de herramientas y el diseño general de la aplicación una vez consolidada la funcionalidad.
 
 ---
 

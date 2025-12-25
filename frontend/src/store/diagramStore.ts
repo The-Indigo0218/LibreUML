@@ -51,8 +51,8 @@ interface DiagramState {
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
   addNode: (position: { x: number; y: number }) => void;
   deleteNode: (nodeId: string) => void;
-  duplicateNode: (nodeId: string) => void; // Nueva
-  clearCanvas: () => void; // Nueva
+  duplicateNode: (nodeId: string) => void; 
+  clearCanvas: () => void; 
 }
 
 export const useDiagramStore = create<DiagramState>((set, get) => ({

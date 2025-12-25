@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 import {
   addEdge,
   applyNodeChanges,
@@ -9,52 +9,54 @@ import {
   type OnEdgesChange,
   type OnConnect,
   type NodeChange,
-} from 'reactflow';
+} from "reactflow";
 
-import type { UmlClassData } from '../types/diagram.types';
+import type { UmlClassData } from "../types/diagram.types";
 
 // --- MOCKS (Initial Data) ---
 const initialNodes: Node<UmlClassData>[] = [
   {
-    id: '1',
-    type: 'umlClass', 
+    id: "1",
+    type: "umlClass",
     position: { x: 250, y: 50 },
     data: {
-      label: 'Persona',
-      attributes: ['+ nombre: String', '+ edad: int'],
-      methods: ['+ caminar(): void'],
-      stereotype: 'Entity'
+      label: "Persona",
+      attributes: ["+ nombre: String", "+ edad: int"],
+      methods: ["+ caminar(): void"],
+      stereotype: "Entity",
     },
   },
   {
-    id: '2',
-    type: 'umlClass',
+    id: "2",
+    type: "umlClass",
     position: { x: 250, y: 250 },
     data: {
-      label: 'Estudiante',
-      attributes: ['+ codigo: String', '+ promedio: float'],
-      methods: ['+ estudiar(): void'],
+      label: "Estudiante",
+      attributes: ["+ codigo: String", "+ promedio: float"],
+      methods: ["+ estudiar(): void"],
     },
   },
 ];
 
 const initialEdges: Edge[] = [
-  { id: 'e1-2', source: '1', target: '2', animated: true }
+  { id: "e1-2", source: "1", target: "2", animated: true },
 ];
-// ----------------------------------------
 
 interface DiagramState {
-  nodes: Node[];
+  nodes: Node<UmlClassData>[]; 
   edges: Edge[];
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
   addNode: (position: { x: number; y: number }) => void;
+  deleteNode: (nodeId: string) => void;
+  duplicateNode: (nodeId: string) => void; // Nueva
+  clearCanvas: () => void; // Nueva
 }
 
 export const useDiagramStore = create<DiagramState>((set, get) => ({
-  nodes: initialNodes, 
+  nodes: initialNodes,
   edges: initialEdges,
 
   onNodesChange: (changes: NodeChange[]) => {
@@ -74,30 +76,29 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       edges: addEdge(connection, get().edges),
     });
   },
-  
+
   addNode: (position) => {
     const { nodes } = get();
-  
-  const W = 260; 
-  const H = 200; 
+    const W = 260;
+    const H = 200;
 
-  const hasCollision = nodes.some((node) => {
-    return (
-      position.x < node.position.x + W &&
-      position.x + W > node.position.x &&
-      position.y < node.position.y + H &&
-      position.y + H > node.position.y
-    );
-  });
+    const hasCollision = nodes.some((node) => {
+      return (
+        position.x < node.position.x + W &&
+        position.x + W > node.position.x &&
+        position.y < node.position.y + H &&
+        position.y + H > node.position.y
+      );
+    });
 
-  if (hasCollision) return; 
+    if (hasCollision) return;
 
     const newNode: Node<UmlClassData> = {
       id: crypto.randomUUID(),
-      type: 'umlClass',
+      type: "umlClass",
       position,
       data: {
-        label: 'NewClass', 
+        label: "NewClass",
         attributes: [],
         methods: [],
       },
@@ -108,9 +109,43 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
 
   updateNodeData: (nodeId, newData) => {
     set({
-      nodes: get().nodes.map((node) => 
-        node.id === nodeId ? { ...node, data: { ...node.data, ...newData } } : node
+      nodes: get().nodes.map((node) =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, ...newData } }
+          : node
       ),
     });
+  },
+
+  deleteNode: (nodeId: string) => {
+    set({
+      nodes: get().nodes.filter((node) => node.id !== nodeId),
+      edges: get().edges.filter(
+        (edge) => edge.source !== nodeId && edge.target !== nodeId
+      ),
+    });
+  },
+
+  duplicateNode: (nodeId: string) => {
+    const nodeToDuplicate = get().nodes.find((n) => n.id === nodeId);
+    if (!nodeToDuplicate) return;
+
+    const newNode: Node<UmlClassData> = {
+      ...nodeToDuplicate,
+      id: crypto.randomUUID(),
+      position: {
+        x: nodeToDuplicate.position.x + 40,
+        y: nodeToDuplicate.position.y + 40,
+      },
+      data: { ...nodeToDuplicate.data },
+    };
+
+    set({ nodes: [...get().nodes, newNode] });
+  },
+
+  clearCanvas: () => {
+    if (window.confirm("¿Estás seguro de que quieres borrar todo el diagrama?")) {
+      set({ nodes: [], edges: [] });
+    }
   },
 }));

@@ -18,7 +18,7 @@ Este documento detalla la evolución del editor de diagramas UML. El enfoque es 
 ## 🟡 Fase 2: Interacción y Lógica de Creación (Refinada)
 
 - [x] ✅ **Edición en Línea (Inline Editing):** Implementado el doble clic para editar el nombre de la clase mediante el Store de Zustand.
-- [ ] **Lógica de Creación Dinámica:** Desarrollar la acción `addNode` en el Store para inyectar nuevos objetos `UmlClassData` en el canvas basándose en coordenadas dinámicas del mouse.
+- [X] ✅ **Lógica de Creación Dinámica:** Desarrollar la acción `addNode` en el Store para inyectar nuevos objetos `UmlClassData` en el canvas basándose en coordenadas dinámicas del mouse.
 - [ ] **Sistema de Prevención de Colisiones:** Implementar validación lógica en el Store para evitar el solapamiento visual de nodos al momento de la creación.
 - [ ] **Menú Contextual (Clic Derecho):** Crear una interfaz flotante para acciones rápidas (Borrar, Duplicar, Cancelar conexiones) activada por `onPaneContextMenu`.
 - [ ] **Editor de Contenido (Modals):** Implementar ventanas emergentes para la gestión avanzada y cómoda de listas extensas de atributos y métodos.

@@ -32,6 +32,7 @@ export interface UmlEdge {
   animated?: boolean;  
 }
 
+// Complete Diagram State to be saved/loaded (API or LocalStorage)
 export interface DiagramState {
   id: string;
   name: string;

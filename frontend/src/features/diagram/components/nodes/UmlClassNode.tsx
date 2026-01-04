@@ -1,8 +1,7 @@
 import { memo, useState, useEffect } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
-import { type UmlClassData } from "../../../types/diagram.types";
-import { useDiagramStore } from "../../../store/diagramStore";
-
+import type { UmlClassData } from "../../../../types/diagram.types";
+import { useDiagramStore } from "../../../../store/diagramStore";
 /**
  * UmlClassNode Component
  * * Represents a standard UML Class box in the visual editor.

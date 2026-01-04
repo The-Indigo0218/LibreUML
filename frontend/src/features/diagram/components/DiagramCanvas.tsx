@@ -7,8 +7,9 @@ import { useContextMenu } from "../hooks/useContextMenu";
 import { useState } from "react";
 import ClassEditorModal from "./ClassEditorModal";
 
-const nodeTypes = { umlClass: UmlClassNode };
 
+
+const nodeTypes = { umlClass: UmlClassNode };
 export default function DiagramCanvas() {
   const {
     nodes,
@@ -38,7 +39,17 @@ export default function DiagramCanvas() {
           {
             label: "Add Class",
             onClick: () =>
-              addNode(screenToFlowPosition({ x: menu.x, y: menu.y })),
+              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), 'class'),
+          },
+          {
+            label: "Add Interface",
+            onClick: () =>
+              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), 'interface'),
+          },
+          {
+            label: "Add Abstract Class",
+            onClick: () =>
+              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), 'abstract'),
           },
           {
             label: "Clean Canvas",
@@ -88,7 +99,6 @@ export default function DiagramCanvas() {
         <Background />
         <Controls />
       </ReactFlow>
-
       {menu && (
         <ContextMenu
           x={menu.x}

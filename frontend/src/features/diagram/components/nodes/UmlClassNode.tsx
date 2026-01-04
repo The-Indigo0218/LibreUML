@@ -2,26 +2,25 @@ import { memo, useState, useEffect } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import type { UmlClassData } from "../../../../types/diagram.types";
 import { useDiagramStore } from "../../../../store/diagramStore";
-/**
- * UmlClassNode Component
- * * Represents a standard UML Class box in the visual editor.
- * It consumes the "UmlClassData" contract we defined earlier.
- */
 
 const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
- const updateNodeData = useDiagramStore((s) => s.updateNodeData);
+  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    if (data.label === 'NewClass') {
+    if (data.label === "NewClass") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsEditing(true);
     }
-  }, []); 
+  }, []);
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateNodeData(id, { label: e.target.value });
   };
+
+  const isInterface = data.stereotype === "interface";
+  const isAbstract = data.stereotype === "abstract";
+
   return (
     <div className="bg-white border-2 border-black rounded-sm w-64 shadow-md overflow-hidden">
       <Handle
@@ -50,6 +49,18 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
         className="bg-yellow-100 p-2 border-b-2 border-black text-center cursor-pointer"
         onDoubleClick={() => setIsEditing(true)}
       >
+        {isInterface && (
+          <small className="block text-[10px] leading-tight mb-0.5 text-slate-700">
+            &lt;&lt;interface&gt;&gt;
+          </small>
+        )}
+        
+        {isAbstract && (
+          <small className="block text-[10px] leading-tight mb-0.5 text-slate-700 italic">
+            &lt;&lt;abstract&gt;&gt;
+          </small>
+        )}
+
         {isEditing ? (
           <input
             autoFocus

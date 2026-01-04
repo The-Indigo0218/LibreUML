@@ -7,13 +7,15 @@ export interface UmlClassData {
   label: string;
   attributes: string[];
   methods: string[];
-  stereotype?: string; 
+  stereotype: stereotype; 
 }
+
+export type stereotype = 'class' | 'interface' | 'abstract';
 
 // UML Class Node Type for React Flow
 export interface UmlClassNode {
   id: string;
-  type: 'umlClass'; 
+  type: 'umlClass';
   position: { 
     x: number; 
     y: number; 

@@ -22,15 +22,14 @@ Este documento detalla la evolución del editor de diagramas UML. El enfoque es 
 - [x] ✅ **Sistema de Prevención de Colisiones:** Implementar validación lógica en el Store para evitar el solapamiento visual de nodos al momento de la creación.
 - [x] ✅ **Menú Contextual (Clic Derecho):** Crear una interfaz flotante para acciones rápidas (Borrar, Duplicar, Editar) activada por `onPaneContextMenu`.
 - [x] ✅ **Editor de Contenido (Modals):** Implementar ventanas emergentes para la gestión avanzada y cómoda de listas extensas de atributos y métodos.
-- [ ] ✅ **Toolbar & Shell UI:** Maquetación final de la barra lateral de herramientas y el diseño general de la aplicación una vez consolidada la funcionalidad.
-
 ---
 
 ## 🟠 Fase 3: Elementos UML Avanzados (Community Issues)
-
+- [ ] **Toolbar:** Maquetación final de la barra lateral de herramientas.
 - [ ] **Refactor de Tipos de Nodos:** Soporte explícito para Interface, Abstract Class y Enum (puede quedar como issue).
 - [ ] **Relaciones Especializadas:** Implementación visual de Herencia, Realización, Agregación y Composición (flechas personalizadas).
 - [ ] **Notas y Comentarios:** Nodos de texto libre para documentar el diagrama.
+- [ ] **Shell UI:** Diseño general de la aplicación una vez consolidada las funcionalidades.
 
 ---
 

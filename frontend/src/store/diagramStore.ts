@@ -11,7 +11,7 @@ import {
   type NodeChange,
 } from "reactflow";
 
-import type { UmlClassData } from "../types/diagram.types";
+import type { UmlClassData, stereotype } from "../types/diagram.types";
 
 // --- MOCKS (Initial Data) ---
 const initialNodes: Node<UmlClassData>[] = [
@@ -23,7 +23,7 @@ const initialNodes: Node<UmlClassData>[] = [
       label: "Persona",
       attributes: ["+ nombre: String", "+ edad: int"],
       methods: ["+ caminar(): void"],
-      stereotype: "Entity",
+      stereotype: 'class',
     },
   },
   {
@@ -34,6 +34,7 @@ const initialNodes: Node<UmlClassData>[] = [
       label: "Estudiante",
       attributes: ["+ codigo: String", "+ promedio: float"],
       methods: ["+ estudiar(): void"],
+      stereotype: 'interface',
     },
   },
 ];
@@ -49,7 +50,7 @@ interface DiagramState {
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
-  addNode: (position: { x: number; y: number }) => void;
+  addNode: (position: { x: number; y: number }, stereotype?: stereotype ) => void;
   deleteNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => void; 
   clearCanvas: () => void; 
@@ -77,7 +78,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     });
   },
 
-  addNode: (position) => {
+  addNode: (position, stereotype = 'class') => {
     const { nodes } = get();
     const W = 260;
     const H = 200;
@@ -98,9 +99,10 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       type: "umlClass",
       position,
       data: {
-        label: "NewClass",
+        label: `New ${stereotype}`,
         attributes: [],
         methods: [],
+        stereotype: stereotype,
       },
     };
 

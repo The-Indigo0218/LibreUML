@@ -19,16 +19,16 @@ Este documento detalla la evolución del editor de diagramas UML. El enfoque es 
 
 - [x] ✅ **Edición en Línea (Inline Editing):** Implementado el doble clic para editar el nombre de la clase mediante el Store de Zustand.
 - [X] ✅ **Lógica de Creación Dinámica:** Desarrollar la acción `addNode` en el Store para inyectar nuevos objetos `UmlClassData` en el canvas basándose en coordenadas dinámicas del mouse.
-- [ ] **Sistema de Prevención de Colisiones:** Implementar validación lógica en el Store para evitar el solapamiento visual de nodos al momento de la creación.
-- [ ] **Menú Contextual (Clic Derecho):** Crear una interfaz flotante para acciones rápidas (Borrar, Duplicar, Cancelar conexiones) activada por `onPaneContextMenu`.
-- [ ] **Editor de Contenido (Modals):** Implementar ventanas emergentes para la gestión avanzada y cómoda de listas extensas de atributos y métodos.
-- [ ] **Toolbar & Shell UI:** Maquetación final de la barra lateral de herramientas y el diseño general de la aplicación una vez consolidada la funcionalidad.
+- [x] ✅ **Sistema de Prevención de Colisiones:** Implementar validación lógica en el Store para evitar el solapamiento visual de nodos al momento de la creación.
+- [x] ✅ **Menú Contextual (Clic Derecho):** Crear una interfaz flotante para acciones rápidas (Borrar, Duplicar, Editar) activada por `onPaneContextMenu`.
+- [x] ✅ **Editor de Contenido (Modals):** Implementar ventanas emergentes para la gestión avanzada y cómoda de listas extensas de atributos y métodos.
+- [ ] ✅ **Toolbar & Shell UI:** Maquetación final de la barra lateral de herramientas y el diseño general de la aplicación una vez consolidada la funcionalidad.
 
 ---
 
 ## 🟠 Fase 3: Elementos UML Avanzados (Community Issues)
 
-- [ ] **Refactor de Tipos de Nodos:** Soporte explícito para Interface, Abstract Class y Enum.
+- [ ] **Refactor de Tipos de Nodos:** Soporte explícito para Interface, Abstract Class y Enum (puede quedar como issue).
 - [ ] **Relaciones Especializadas:** Implementación visual de Herencia, Realización, Agregación y Composición (flechas personalizadas).
 - [ ] **Notas y Comentarios:** Nodos de texto libre para documentar el diagrama.
 

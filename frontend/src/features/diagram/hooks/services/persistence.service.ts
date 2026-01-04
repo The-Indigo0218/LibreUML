@@ -1,4 +1,4 @@
-import type { DiagramState } from "../../../types/diagram.types";
+import type { DiagramState } from "../../../../types/diagram.types";
 
 export interface PersistenceService {
   save(state: DiagramState): Promise<void>;

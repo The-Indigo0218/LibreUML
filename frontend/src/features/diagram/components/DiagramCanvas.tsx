@@ -1,58 +1,75 @@
-// src/features/diagram/components/DiagramCanvas.tsx
-import { useState, useCallback } from 'react';
-import ReactFlow, { Background, Controls, useReactFlow, type Node } from 'reactflow';
-import 'reactflow/dist/style.css';
-import { useDiagramStore } from '../../../store/diagramStore';
-import type { UmlClassData } from '../../../types/diagram.types';
-import UmlClassNode from './UmlClassNode';
-import ContextMenu from './ContextMenu';
+import ReactFlow, { Background, Controls, useReactFlow } from "reactflow";
+import "reactflow/dist/style.css";
+import { useDiagramStore } from "../../../store/diagramStore";
+import UmlClassNode from "./nodes/UmlClassNode";
+import ContextMenu from "./ContextMenu";
+import { useContextMenu } from "../hooks/useContextMenu";
+import { useState } from "react";
+import ClassEditorModal from "./ClassEditorModal";
 
 const nodeTypes = { umlClass: UmlClassNode };
 
 export default function DiagramCanvas() {
-  const { 
-    nodes, edges, onNodesChange, onEdgesChange, onConnect, 
-    addNode, deleteNode, duplicateNode, clearCanvas 
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    addNode,
+    deleteNode,
+    duplicateNode,
+    clearCanvas,
+    updateNodeData,
   } = useDiagramStore();
 
   const { screenToFlowPosition } = useReactFlow();
-  const [menu, setMenu] = useState<{ x: number; y: number; type: 'pane' | 'node'; nodeId?: string } | null>(null);
 
-  const onPaneContextMenu = useCallback((event: React.MouseEvent) => {
-    event.preventDefault();
-    setMenu({ x: event.clientX, y: event.clientY, type: 'pane' });
-  }, []);
+  const { menu, onPaneContextMenu, onNodeContextMenu, closeMenu } =
+    useContextMenu();
 
-  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node<UmlClassData>) => {
-    event.preventDefault();
-    setMenu({ x: event.clientX, y: event.clientY, type: 'node', nodeId: node.id });
-  }, []);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const editingNode = nodes.find((n) => n.id === editingNodeId);
 
-  const closeMenu = () => setMenu(null);
-
-  const menuOptions = menu?.type === 'pane' 
-    ? [
-        { 
-          label: 'Add Class', 
-          onClick: () => addNode(screenToFlowPosition({ x: menu.x, y: menu.y })) 
-        },
-        { 
-          label: 'Clean Canvas', 
-          onClick: () => clearCanvas(), 
-          danger: true 
-        },
-      ]
-    : [
-        { 
-          label: 'Duplicate', 
-          onClick: () => { if (menu?.nodeId) duplicateNode(menu.nodeId); } 
-        },
-        { 
-          label: 'Delete', 
-          onClick: () => { if (menu?.nodeId) deleteNode(menu.nodeId); }, 
-          danger: true 
-        },
-      ];
+  const menuOptions =
+    menu?.type === "pane"
+      ? [
+          {
+            label: "Add Class",
+            onClick: () =>
+              addNode(screenToFlowPosition({ x: menu.x, y: menu.y })),
+          },
+          {
+            label: "Clean Canvas",
+            onClick: () => clearCanvas(),
+            danger: true,
+          },
+        ]
+      : [
+          {
+            label: "Duplicate",
+            onClick: () => {
+              if (menu?.nodeId) duplicateNode(menu.nodeId);
+            },
+          },
+          {
+            label: "Edit Properties",
+            onClick: () => {
+              if (menu?.nodeId) {
+                setEditingNodeId(menu.nodeId);
+                setIsModalOpen(true);
+              }
+            },
+          },
+          {
+            label: "Delete",
+            onClick: () => {
+              if (menu?.nodeId) deleteNode(menu.nodeId);
+            },
+            danger: true,
+          },
+        ];
 
   return (
     <div className="w-screen h-screen bg-gray-50">
@@ -68,12 +85,33 @@ export default function DiagramCanvas() {
         onPaneClick={closeMenu}
         fitView
       >
-        <Background/>
+        <Background />
         <Controls />
       </ReactFlow>
 
       {menu && (
-        <ContextMenu x={menu.x} y={menu.y} options={menuOptions} onClose={closeMenu} />
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          options={menuOptions}
+          onClose={closeMenu}
+        />
+      )}
+      {isModalOpen && editingNode && (
+        <ClassEditorModal
+          key={editingNodeId}
+          isOpen={isModalOpen}
+          umlData={editingNode.data}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingNodeId(null);
+          }}
+          onSave={(newData) => {
+            updateNodeData(editingNode.id, newData);
+            setIsModalOpen(false);
+            setEditingNodeId(null);
+          }}
+        />
       )}
     </div>
   );

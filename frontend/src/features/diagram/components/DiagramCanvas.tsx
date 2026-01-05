@@ -4,10 +4,9 @@ import { useDiagramStore } from "../../../store/diagramStore";
 import UmlClassNode from "./nodes/UmlClassNode";
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import ClassEditorModal from "./ClassEditorModal";
-
-
+import type { stereotype } from "../../../types/diagram.types";
 
 const nodeTypes = { umlClass: UmlClassNode };
 export default function DiagramCanvas() {
@@ -26,6 +25,29 @@ export default function DiagramCanvas() {
 
   const { screenToFlowPosition } = useReactFlow();
 
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      const type = event.dataTransfer.getData(
+        "application/reactflow"
+      ) as stereotype;
+      if (typeof type === "undefined" || !type) {
+        return;
+      }
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+      addNode(position, type);
+    },
+    [addNode, screenToFlowPosition]
+  );
+
   const { menu, onPaneContextMenu, onNodeContextMenu, closeMenu } =
     useContextMenu();
 
@@ -39,17 +61,23 @@ export default function DiagramCanvas() {
           {
             label: "Add Class",
             onClick: () =>
-              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), 'class'),
+              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "class"),
           },
           {
             label: "Add Interface",
             onClick: () =>
-              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), 'interface'),
+              addNode(
+                screenToFlowPosition({ x: menu.x, y: menu.y }),
+                "interface"
+              ),
           },
           {
             label: "Add Abstract Class",
             onClick: () =>
-              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), 'abstract'),
+              addNode(
+                screenToFlowPosition({ x: menu.x, y: menu.y }),
+                "abstract"
+              ),
           },
           {
             label: "Clean Canvas",
@@ -83,7 +111,7 @@ export default function DiagramCanvas() {
         ];
 
   return (
-    <div className="w-screen h-screen bg-gray-50">
+    <div className="w-full h-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -94,6 +122,9 @@ export default function DiagramCanvas() {
         onPaneContextMenu={onPaneContextMenu}
         onNodeContextMenu={onNodeContextMenu}
         onPaneClick={closeMenu}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+
         fitView
       >
         <Background />

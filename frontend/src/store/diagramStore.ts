@@ -13,6 +13,26 @@ import {
 
 import type { UmlClassData, stereotype } from "../types/diagram.types";
 
+export const NODE_WIDTH = 250; 
+export const NODE_HEIGHT = 200; 
+
+export const checkCollision = (
+  position: { x: number; y: number },
+  nodes: Node[]
+) => {
+  return nodes.some((node) => {
+    const nodeW = node.width || NODE_WIDTH;
+    const nodeH = node.height || NODE_HEIGHT;
+
+    return (
+      position.x < node.position.x + nodeW &&
+      position.x + NODE_WIDTH > node.position.x &&
+      position.y < node.position.y + nodeH &&
+      position.y + NODE_HEIGHT > node.position.y
+    );
+  });
+};
+
 // --- MOCKS (Initial Data) ---
 const initialNodes: Node<UmlClassData>[] = [
   {
@@ -23,7 +43,7 @@ const initialNodes: Node<UmlClassData>[] = [
       label: "Persona",
       attributes: ["+ nombre: String", "+ edad: int"],
       methods: ["+ caminar(): void"],
-      stereotype: 'class',
+      stereotype: "class",
     },
   },
   {
@@ -34,7 +54,7 @@ const initialNodes: Node<UmlClassData>[] = [
       label: "Estudiante",
       attributes: ["+ codigo: String", "+ promedio: float"],
       methods: ["+ estudiar(): void"],
-      stereotype: 'interface',
+      stereotype: "interface",
     },
   },
 ];
@@ -44,16 +64,19 @@ const initialEdges: Edge[] = [
 ];
 
 interface DiagramState {
-  nodes: Node<UmlClassData>[]; 
+  nodes: Node<UmlClassData>[];
   edges: Edge[];
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
-  addNode: (position: { x: number; y: number }, stereotype?: stereotype ) => void;
+  addNode: (
+    position: { x: number; y: number },
+    stereotype?: stereotype
+  ) => void;
   deleteNode: (nodeId: string) => void;
-  duplicateNode: (nodeId: string) => void; 
-  clearCanvas: () => void; 
+  duplicateNode: (nodeId: string) => void;
+  clearCanvas: () => void;
 }
 
 export const useDiagramStore = create<DiagramState>((set, get) => ({
@@ -78,21 +101,13 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     });
   },
 
-  addNode: (position, stereotype = 'class') => {
+  addNode: (position, stereotype = "class") => {
     const { nodes } = get();
-    const W = 260;
-    const H = 200;
 
-    const hasCollision = nodes.some((node) => {
-      return (
-        position.x < node.position.x + W &&
-        position.x + W > node.position.x &&
-        position.y < node.position.y + H &&
-        position.y + H > node.position.y
-      );
-    });
-
-    if (hasCollision) return;
+    if (checkCollision(position, nodes)) {
+      console.warn("Collision detected via Store. Operation blocked.");
+      return;
+    }
 
     const newNode: Node<UmlClassData> = {
       id: crypto.randomUUID(),
@@ -132,13 +147,15 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     const nodeToDuplicate = get().nodes.find((n) => n.id === nodeId);
     if (!nodeToDuplicate) return;
 
+    const newPos = {
+        x: nodeToDuplicate.position.x + 40,
+        y: nodeToDuplicate.position.y + 40
+    };
+
     const newNode: Node<UmlClassData> = {
       ...nodeToDuplicate,
       id: crypto.randomUUID(),
-      position: {
-        x: nodeToDuplicate.position.x + 40,
-        y: nodeToDuplicate.position.y + 40,
-      },
+      position: newPos,
       data: { ...nodeToDuplicate.data },
     };
 
@@ -146,7 +163,9 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   },
 
   clearCanvas: () => {
-    if (window.confirm("¿Estás seguro de que quieres borrar todo el diagrama?")) {
+    if (
+      window.confirm("¿Estás seguro de que quieres borrar todo el diagrama?")
+    ) {
       set({ nodes: [], edges: [] });
     }
   },

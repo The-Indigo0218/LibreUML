@@ -1,10 +1,15 @@
 import ReactFlow, { Background, Controls, useReactFlow } from "reactflow";
 import "reactflow/dist/style.css";
-import { useDiagramStore } from "../../../store/diagramStore";
+import {
+  useDiagramStore,
+  checkCollision,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+} from "../../../store/diagramStore";
 import UmlClassNode from "./nodes/UmlClassNode";
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import ClassEditorModal from "./ClassEditorModal";
 import type { stereotype } from "../../../types/diagram.types";
 
@@ -25,10 +30,39 @@ export default function DiagramCanvas() {
 
   const { screenToFlowPosition } = useReactFlow();
 
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-  }, []);
+  const nodesRef = useRef(nodes);
+
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
+  const getCenteredPosition = useCallback(
+    (clientX: number, clientY: number) => {
+      const rawPos = screenToFlowPosition({ x: clientX, y: clientY });
+      return {
+        x: rawPos.x - NODE_WIDTH / 2,
+        y: rawPos.y - NODE_HEIGHT / 2,
+      };
+    },
+    [screenToFlowPosition]
+  );
+
+  const onDragOver = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const position = getCenteredPosition(event.clientX, event.clientY);
+
+      const isColliding = checkCollision(position, nodesRef.current);
+
+      if (isColliding) {
+        event.dataTransfer.dropEffect = "none";
+      } else {
+        event.dataTransfer.dropEffect = "move";
+      }
+    },
+    [getCenteredPosition] 
+  );
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -36,16 +70,19 @@ export default function DiagramCanvas() {
       const type = event.dataTransfer.getData(
         "application/reactflow"
       ) as stereotype;
-      if (typeof type === "undefined" || !type) {
+
+      if (!type) return;
+
+      const position = getCenteredPosition(event.clientX, event.clientY);
+
+      if (checkCollision(position, nodesRef.current)) {
+        console.warn("Cannot drop here: Collision detected");
         return;
       }
-      const position = screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
+
       addNode(position, type);
     },
-    [addNode, screenToFlowPosition]
+    [addNode, getCenteredPosition]
   );
 
   const { menu, onPaneContextMenu, onNodeContextMenu, closeMenu } =
@@ -124,7 +161,6 @@ export default function DiagramCanvas() {
         onPaneClick={closeMenu}
         onDragOver={onDragOver}
         onDrop={onDrop}
-
         fitView
       >
         <Background />

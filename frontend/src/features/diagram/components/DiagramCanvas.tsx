@@ -1,13 +1,17 @@
 import ReactFlow, { Background, Controls, useReactFlow } from "reactflow";
 import "reactflow/dist/style.css";
-import { useDiagramStore } from "../../../store/diagramStore";
+import {
+  useDiagramStore,
+  checkCollision,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+} from "../../../store/diagramStore";
 import UmlClassNode from "./nodes/UmlClassNode";
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
-import { useState } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import ClassEditorModal from "./ClassEditorModal";
-
-
+import type { stereotype } from "../../../types/diagram.types";
 
 const nodeTypes = { umlClass: UmlClassNode };
 export default function DiagramCanvas() {
@@ -26,6 +30,61 @@ export default function DiagramCanvas() {
 
   const { screenToFlowPosition } = useReactFlow();
 
+  const nodesRef = useRef(nodes);
+
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
+  const getCenteredPosition = useCallback(
+    (clientX: number, clientY: number) => {
+      const rawPos = screenToFlowPosition({ x: clientX, y: clientY });
+      return {
+        x: rawPos.x - NODE_WIDTH / 2,
+        y: rawPos.y - NODE_HEIGHT / 2,
+      };
+    },
+    [screenToFlowPosition]
+  );
+
+  const onDragOver = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const position = getCenteredPosition(event.clientX, event.clientY);
+
+      const isColliding = checkCollision(position, nodesRef.current);
+
+      if (isColliding) {
+        event.dataTransfer.dropEffect = "none";
+      } else {
+        event.dataTransfer.dropEffect = "move";
+      }
+    },
+    [getCenteredPosition] 
+  );
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      const type = event.dataTransfer.getData(
+        "application/reactflow"
+      ) as stereotype;
+
+      if (!type) return;
+
+      const position = getCenteredPosition(event.clientX, event.clientY);
+
+      if (checkCollision(position, nodesRef.current)) {
+        console.warn("Cannot drop here: Collision detected");
+        return;
+      }
+
+      addNode(position, type);
+    },
+    [addNode, getCenteredPosition]
+  );
+
   const { menu, onPaneContextMenu, onNodeContextMenu, closeMenu } =
     useContextMenu();
 
@@ -39,17 +98,23 @@ export default function DiagramCanvas() {
           {
             label: "Add Class",
             onClick: () =>
-              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), 'class'),
+              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "class"),
           },
           {
             label: "Add Interface",
             onClick: () =>
-              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), 'interface'),
+              addNode(
+                screenToFlowPosition({ x: menu.x, y: menu.y }),
+                "interface"
+              ),
           },
           {
             label: "Add Abstract Class",
             onClick: () =>
-              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), 'abstract'),
+              addNode(
+                screenToFlowPosition({ x: menu.x, y: menu.y }),
+                "abstract"
+              ),
           },
           {
             label: "Clean Canvas",
@@ -83,7 +148,7 @@ export default function DiagramCanvas() {
         ];
 
   return (
-    <div className="w-screen h-screen bg-gray-50">
+    <div className="w-full h-full">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -94,6 +159,8 @@ export default function DiagramCanvas() {
         onPaneContextMenu={onPaneContextMenu}
         onNodeContextMenu={onNodeContextMenu}
         onPaneClick={closeMenu}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
         fitView
       >
         <Background />

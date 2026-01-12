@@ -61,7 +61,8 @@ Este documento detalla la evolución del editor de diagramas UML. El enfoque es 
 ### ⏳ Pendientes de UX / Polishing (Post-MVP)
 - [ ] **Dynamic Ghost:** El elemento fantasma al arrastrar debe reflejar el tipo específico (ej: mostrar `<<interface>>` o cursiva) en lugar de un genérico "New Class...".
 - [ ] **Real-time Collision Feedback (Move):** Implementar lógica en `onNodeDrag` para evitar que nodos existentes se solapen al moverlos (similar a la validación de creación).
-      
+- [ ] **Logo:** Agregar el logo al header.
+- [ ] **Buscar Nodo:** Buscar el nodo/clases por el nombre.
 ---
 
 ## 📝 Notas de Arquitectura

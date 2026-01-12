@@ -25,7 +25,7 @@ Este documento detalla la evolución del editor de diagramas UML. El enfoque es 
 ---
 
 ## 🟠 Fase 3: Elementos UML Avanzados (Community Issues)
-- [x] **Toolbar:** Maquetación final de la barra lateral de herramientas.
+- [x] ✅ **Toolbar:** Maquetación final de la barra lateral de herramientas.
 - [x] ✅ **Refactor de Tipos de Nodos:** Soporte explícito para Interface, Abstract Class.
 - [ ] **Relaciones Especializadas:** Implementación visual de Herencia, Realización, Agregación y Composición (flechas personalizadas).
 - [ ] **Notas y Comentarios:** Nodos de texto libre para documentar el diagrama.

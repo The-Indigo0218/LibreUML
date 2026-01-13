@@ -1,7 +1,5 @@
-/**
- * Shared Domain Types.
- * Matches the JSON structure expected from the Backend.
- */
+export type stereotype = 'class' | 'interface' | 'abstract';
+export type UmlRelationType = 'association' | 'inheritance' | 'implementation' | 'dependency';
 
 export interface UmlClassData {
   label: string;
@@ -10,7 +8,6 @@ export interface UmlClassData {
   stereotype: stereotype; 
 }
 
-export type stereotype = 'class' | 'interface' | 'abstract';
 
 // UML Class Node Type for React Flow
 export interface UmlClassNode {

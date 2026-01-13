@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import type { stereotype } from "../../../types/diagram.types"; 
+import type { stereotype } from "../../../types/diagram.types";
 import {
   Box,
   FileCode,
@@ -12,13 +12,16 @@ import {
   MousePointer2,
 } from "lucide-react";
 
-import { DraggableItem, StaticItem } from "./SidebarItem";
+import { DraggableItem, ClickableItem } from "./SidebarItem";
+import { useDiagramStore } from "../../../store/diagramStore";
 
 export default function Sidebar() {
   const [openSections, setOpenSections] = useState<{ [key: string]: boolean }>({
     structure: true,
     relationships: true,
   });
+
+  const { activeConnectionMode, setConnectionMode } = useDiagramStore();
 
   const ghostRef = useRef<HTMLDivElement>(null);
 
@@ -85,38 +88,36 @@ export default function Sidebar() {
         </div>
 
         {/* SECTION: RELATIONSHIPS */}
-        <div className="mb-2">
-          <button
-            onClick={() => toggleSection("relationships")}
-            className="flex items-center w-full p-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-300 transition-colors mb-1"
-          >
-            {openSections["relationships"] ? (
-              <ChevronDown className="w-4 h-4 mr-1" />
-            ) : (
-              <ChevronRight className="w-4 h-4 mr-1" />
-            )}
-            Relationships
-          </button>
-
-          {openSections["relationships"] && (
-            <div className="grid grid-cols-1 gap-2 pl-2 opacity-70">
-              <StaticItem
-                label="Association"
-                icon={<ArrowRight className="w-4 h-4" />}
-              />
-              <StaticItem
-                label="Inheritance"
-                icon={<ArrowUpFromLine className="w-4 h-4" />}
-              />
-              <StaticItem
-                label="Implementation"
-                icon={
-                  <GitCommitHorizontal className="w-4 h-4 border-b border-dashed border-transparent" />
-                }
-              />
-            </div>
-          )}
-        </div>
+        {openSections["relationships"] && (
+          <div className="grid grid-cols-1 gap-2 pl-2">
+            <ClickableItem
+              label="Association"
+              icon={<ArrowRight className="w-4 h-4" />}
+              isActive={activeConnectionMode === "association"}
+              onClick={() => setConnectionMode("association")}
+            />
+            <ClickableItem
+              label="Inheritance"
+              icon={<ArrowUpFromLine className="w-4 h-4" />}
+              isActive={activeConnectionMode === "inheritance"}
+              onClick={() => setConnectionMode("inheritance")}
+            />
+            <ClickableItem
+              label="Implementation"
+              icon={<GitCommitHorizontal className="w-4 h-4" />}
+              isActive={activeConnectionMode === "implementation"}
+              onClick={() => setConnectionMode("implementation")}
+            />
+            <ClickableItem
+              label="Dependency"
+              icon={
+                <ArrowRight className="w-4 h-4 border-b border-dashed border-transparent" />
+              }
+              isActive={activeConnectionMode === "dependency"}
+              onClick={() => setConnectionMode("dependency")}
+            />
+          </div>
+        )}
       </div>
 
       {/* FOOTER */}

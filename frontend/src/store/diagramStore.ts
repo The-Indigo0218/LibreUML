@@ -3,15 +3,18 @@ import {
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
+  MarkerType,
   type Node,
   type Edge,
   type OnNodesChange,
   type OnEdgesChange,
   type OnConnect,
   type NodeChange,
+  type Connection,
+  type DefaultEdgeOptions
 } from "reactflow";
 
-import type { UmlClassData, stereotype } from "../types/diagram.types";
+import type { UmlClassData, stereotype, UmlRelationType } from "../types/diagram.types";
 
 export const NODE_WIDTH = 250; 
 export const NODE_HEIGHT = 200; 
@@ -59,9 +62,7 @@ const initialNodes: Node<UmlClassData>[] = [
   },
 ];
 
-const initialEdges: Edge[] = [
-  { id: "e1-2", source: "1", target: "2", animated: true },
-];
+const initialEdges: Edge[] = [];
 
 interface DiagramState {
   nodes: Node<UmlClassData>[];
@@ -69,6 +70,7 @@ interface DiagramState {
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;
+  activeConnectionMode: UmlRelationType;
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
   addNode: (
     position: { x: number; y: number },
@@ -77,11 +79,14 @@ interface DiagramState {
   deleteNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => void;
   clearCanvas: () => void;
+  setConnectionMode: (mode: UmlRelationType) => void; 
 }
 
 export const useDiagramStore = create<DiagramState>((set, get) => ({
   nodes: initialNodes,
   edges: initialEdges,
+  activeConnectionMode: 'association',
+
 
   onNodesChange: (changes: NodeChange[]) => {
     set({
@@ -95,11 +100,70 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     });
   },
 
-  onConnect: (connection) => {
+  onConnect: (connection: Connection) => {
+    const { activeConnectionMode } = get();
+    
+    let edgeOptions: DefaultEdgeOptions = {
+      type: 'smoothstep', 
+      style: { stroke: 'black', strokeWidth: 1.5 },
+    };
+
+    switch (activeConnectionMode) {
+      case 'inheritance':
+        edgeOptions = {
+          ...edgeOptions,
+          markerEnd: {
+            type: MarkerType.ArrowClosed, 
+            width: 20,
+            height: 20,
+            color: 'black', 
+          },
+          style: { ...edgeOptions.style }, 
+        };
+        break;
+
+      case 'implementation':
+        edgeOptions = {
+          ...edgeOptions,
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: 'black',
+          },
+          style: { ...edgeOptions.style, strokeDasharray: '5,5' }, 
+        };
+        break;
+
+      case 'dependency':
+        edgeOptions = {
+          ...edgeOptions,
+          markerEnd: {
+            type: MarkerType.Arrow, 
+            color: 'black',
+          },
+          style: { ...edgeOptions.style, strokeDasharray: '5,5' }, 
+        };
+        break;
+
+      case 'association':
+      default:
+        edgeOptions = {
+          ...edgeOptions,
+          markerEnd: {
+            type: MarkerType.Arrow, 
+            color: 'black',
+          },
+        };
+        break;
+    }
+
     set({
-      edges: addEdge(connection, get().edges),
+      edges: addEdge({ ...connection, ...edgeOptions }, get().edges),
     });
   },
+
+ 
 
   addNode: (position, stereotype = "class") => {
     const { nodes } = get();
@@ -169,4 +233,6 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       set({ nodes: [], edges: [] });
     }
   },
+    setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
+
 }));

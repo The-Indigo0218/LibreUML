@@ -7,10 +7,13 @@ interface DraggableItemProps {
   onDragStart: (event: React.DragEvent, nodeType: stereotype) => void;
 }
 
-interface StaticItemProps {
+interface ClickableItemProps {
   label: string;
   icon: React.ReactNode;
+  isActive?: boolean;
+  onClick: () => void;
 }
+
 
 
 export function DraggableItem({ label, type, icon, onDragStart }: DraggableItemProps) {
@@ -30,11 +33,22 @@ export function DraggableItem({ label, type, icon, onDragStart }: DraggableItemP
   );
 }
 
-export function StaticItem({ label, icon }: StaticItemProps) {
+export function ClickableItem({ label, icon, isActive, onClick }: ClickableItemProps) {
   return (
-    <div className="flex items-center gap-3 p-2 rounded-md border border-transparent hover:bg-slate-800/50 cursor-not-allowed transition-all">
-      <div className="p-1.5 text-slate-500">{icon}</div>
-      <span className="text-sm text-slate-500">{label}</span>
+    <div
+      onClick={onClick}
+      className={`flex items-center gap-3 p-2 rounded-md border cursor-pointer transition-all ${
+        isActive
+          ? "bg-blue-900/40 border-blue-500 shadow-sm" // Estilo ACTIVO
+          : "border-transparent hover:bg-slate-800"    // Estilo INACTIVO
+      }`}
+    >
+      <div className={`p-1.5 rounded ${isActive ? "text-blue-400" : "text-slate-500"}`}>
+        {icon}
+      </div>
+      <span className={`text-sm ${isActive ? "text-white font-medium" : "text-slate-500"}`}>
+        {label}
+      </span>
     </div>
   );
 }

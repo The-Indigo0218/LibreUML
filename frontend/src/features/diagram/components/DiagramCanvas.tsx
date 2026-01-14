@@ -21,16 +21,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import ClassEditorModal from "./ClassEditorModal";
 import type { stereotype } from "../../../types/diagram.types";
 
+import { canvasConfig, miniMapColors } from "../../../config/theme.config";
+
 const nodeTypes = {
   umlClass: UmlClassNode,
   umlNote: UmlNoteNode,
-};
-
-const proBackgroundConfig = {
-  size: 1.5,
-  gap: 20,
-  color: "#94a3b8",
-  style: { opacity: 0.2 },
 };
 
 export default function DiagramCanvas() {
@@ -49,7 +44,6 @@ export default function DiagramCanvas() {
   } = useDiagramStore();
 
   const { screenToFlowPosition } = useReactFlow();
-
   const nodesRef = useRef(nodes);
 
   useEffect(() => {
@@ -72,12 +66,7 @@ export default function DiagramCanvas() {
       event.preventDefault();
       const position = getCenteredPosition(event.clientX, event.clientY);
       const isColliding = checkCollision(position, nodesRef.current);
-
-      if (isColliding) {
-        event.dataTransfer.dropEffect = "none";
-      } else {
-        event.dataTransfer.dropEffect = "move";
-      }
+      event.dataTransfer.dropEffect = isColliding ? "none" : "move";
     },
     [getCenteredPosition]
   );
@@ -85,88 +74,39 @@ export default function DiagramCanvas() {
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      const type = event.dataTransfer.getData(
-        "application/reactflow"
-      ) as stereotype;
-
+      const type = event.dataTransfer.getData("application/reactflow") as stereotype;
       if (!type) return;
 
       const position = getCenteredPosition(event.clientX, event.clientY);
-
       if (checkCollision(position, nodesRef.current)) {
-        console.warn("Cannot drop here: Collision detected");
+        console.warn("Collision detected");
         return;
       }
-
       addNode(position, type);
     },
     [addNode, getCenteredPosition]
   );
 
-  const { menu, onPaneContextMenu, onNodeContextMenu, closeMenu } =
-    useContextMenu();
-
+  const { menu, onPaneContextMenu, onNodeContextMenu, closeMenu } = useContextMenu();
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const editingNode = nodes.find((n) => n.id === editingNodeId);
 
-  const menuOptions =
-    menu?.type === "pane"
+  const menuOptions = menu?.type === "pane"
       ? [
-          {
-            label: "Add Class",
-            onClick: () =>
-              addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "class"),
-          },
-          {
-            label: "Add Interface",
-            onClick: () =>
-              addNode(
-                screenToFlowPosition({ x: menu.x, y: menu.y }),
-                "interface"
-              ),
-          },
-          {
-            label: "Add Abstract Class",
-            onClick: () =>
-              addNode(
-                screenToFlowPosition({ x: menu.x, y: menu.y }),
-                "abstract"
-              ),
-          },
-          {
-            label: "Clean Canvas",
-            onClick: () => clearCanvas(),
-            danger: true,
-          },
+          { label: "Add Class", onClick: () => addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "class") },
+          { label: "Add Interface", onClick: () => addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "interface") },
+          { label: "Add Abstract Class", onClick: () => addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "abstract") },
+          { label: "Clean Canvas", onClick: () => clearCanvas(), danger: true },
         ]
       : [
-          {
-            label: "Duplicate",
-            onClick: () => {
-              if (menu?.nodeId) duplicateNode(menu.nodeId);
-            },
-          },
-          {
-            label: "Edit Properties",
-            onClick: () => {
-              if (menu?.nodeId) {
-                setEditingNodeId(menu.nodeId);
-                setIsModalOpen(true);
-              }
-            },
-          },
-          {
-            label: "Delete",
-            onClick: () => {
-              if (menu?.nodeId) deleteNode(menu.nodeId);
-            },
-            danger: true,
-          },
+          { label: "Duplicate", onClick: () => menu?.nodeId && duplicateNode(menu.nodeId) },
+          { label: "Edit Properties", onClick: () => { if (menu?.nodeId) { setEditingNodeId(menu.nodeId); setIsModalOpen(true); } } },
+          { label: "Delete", onClick: () => menu?.nodeId && deleteNode(menu.nodeId), danger: true },
         ];
 
   return (
-    <div className="w-full h-full bg-slate-50/50">
+    <div className="w-full h-full bg-canvas-base">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -184,52 +124,58 @@ export default function DiagramCanvas() {
       >
         <Background
           variant={BackgroundVariant.Dots}
-          gap={proBackgroundConfig.gap}
-          size={proBackgroundConfig.size}
-          color={proBackgroundConfig.color}
-          style={proBackgroundConfig.style}
+          gap={24}
+          size={1.5}
+          color={canvasConfig.gridColor} 
+          style={{ opacity: canvasConfig.gridOpacity }}
         />
 
-        <Controls className="bg-white border border-slate-200 shadow-sm" />
+        <Controls 
+          className="shadow-xl rounded-md overflow-hidden border border-surface-border bg-surface-primary" 
+        >
 
-       {showMiniMap && (
+           <style>{`
+             .react-flow__controls-button {
+                background-color: transparent !important;
+                border-bottom: 1px solid #2A3358 !important;
+                fill: #AAB0C5 !important;
+             }
+             .react-flow__controls-button:hover {
+                background-color: #1C2440 !important;
+                fill: #E6E9F2 !important;
+             }
+             .react-flow__controls-button:last-child {
+                border-bottom: none !important;
+             }
+           `}</style>
+        </Controls>
+
+        {showMiniMap && (
           <MiniMap 
-            style={{ height: 100, width: 150 }} 
+            style={{ height: 120, width: 180 }} 
             zoomable 
             pannable 
-            className="border border-slate-200 shadow-sm rounded-lg overflow-hidden bg-white"
+            className="shadow-2xl rounded-lg overflow-hidden border border-surface-border bg-surface-primary !bottom-4 !right-4"
+            maskColor="rgba(11, 15, 26, 0.7)" 
             nodeColor={(node) => {
-               if (node.type === 'umlNote') return '#fef08a';
-               if (node.data.stereotype === 'interface') return '#d8b4fe';
-               if (node.data.stereotype === 'abstract') return '#bfdbfe';
-               return '#e2e8f0';
+               if (node.type === 'umlNote') return miniMapColors.note;
+               if (node.data.stereotype === 'interface') return miniMapColors.interface;
+               if (node.data.stereotype === 'abstract') return miniMapColors.abstract;
+               return miniMapColors.class;
             }}
           />
         )}
       </ReactFlow>
 
-      {menu && (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          options={menuOptions}
-          onClose={closeMenu}
-        />
-      )}
+      {menu && <ContextMenu x={menu.x} y={menu.y} options={menuOptions} onClose={closeMenu} />}
+      
       {isModalOpen && editingNode && (
         <ClassEditorModal
           key={editingNodeId}
           isOpen={isModalOpen}
           umlData={editingNode.data}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingNodeId(null);
-          }}
-          onSave={(newData) => {
-            updateNodeData(editingNode.id, newData);
-            setIsModalOpen(false);
-            setEditingNodeId(null);
-          }}
+          onClose={() => { setIsModalOpen(false); setEditingNodeId(null); }}
+          onSave={(newData) => { updateNodeData(editingNode.id, newData); setIsModalOpen(false); setEditingNodeId(null); }}
         />
       )}
     </div>

@@ -1,8 +1,52 @@
 @import "tailwindcss";
 
-html, body, #root {
+@theme {
+  /* --- PALETA DARK TECH --- */
+
+  /* Canvas */
+  --color-canvas-base: #0b0f1a;
+  --color-canvas-dots: #475569;
+
+  /* Surface (Paneles, Sidebar) */
+  --color-surface-primary: #121826;
+  --color-surface-secondary: #161d2f;
+  --color-surface-border: #2a3358;
+  --color-surface-hover: #1c2440;
+
+  /* Texto */
+  --color-text-primary: #e6e9f2;
+  --color-text-secondary: #aab0c5;
+  --color-text-muted: #6e7590;
+
+  /* Class */
+  --color-uml-class-border: #7c83ff;
+  --color-uml-class-bg: #141833;
+
+  /* Interface */
+  --color-uml-interface-border: #22d3ee;
+  --color-uml-interface-bg: #0f1e2a;
+
+  /* Abstract */
+  --color-uml-abstract-border: #60a5fa;
+  --color-uml-abstract-bg: #141833;
+
+  /* Note */
+  --color-uml-note-border: #38bdf8;
+  --color-uml-note-bg: #0b1c2d;
+
+  /* Fuentes */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", monospace;
+}
+
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
   margin: 0;
   overflow: hidden;
+  background-color: var(--color-canvas-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
 }

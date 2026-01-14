@@ -7,13 +7,17 @@ import {
   NODE_WIDTH,
 } from "../../../store/diagramStore";
 import UmlClassNode from "./nodes/UmlClassNode";
+import UmlNoteNode from "./nodes/UmlNoteNode";
 import ContextMenu from "./ContextMenu";
 import { useContextMenu } from "../hooks/useContextMenu";
 import { useState, useCallback, useRef, useEffect } from "react";
 import ClassEditorModal from "./ClassEditorModal";
 import type { stereotype } from "../../../types/diagram.types";
 
-const nodeTypes = { umlClass: UmlClassNode };
+const nodeTypes = { 
+  umlClass: UmlClassNode,
+   umlNote: UmlNoteNode
+ };
 export default function DiagramCanvas() {
   const {
     nodes,
@@ -67,9 +71,7 @@ export default function DiagramCanvas() {
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      const type = event.dataTransfer.getData(
-        "application/reactflow"
-      ) as stereotype;
+      const type = event.dataTransfer.getData("application/reactflow") as stereotype;
 
       if (!type) return;
 

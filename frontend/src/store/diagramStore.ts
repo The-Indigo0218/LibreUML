@@ -84,12 +84,16 @@ interface DiagramState {
   duplicateNode: (nodeId: string) => void;
   clearCanvas: () => void;
   setConnectionMode: (mode: UmlRelationType) => void;
+  loadDiagram: (state: DiagramState) => void;
+  showMiniMap: boolean;
+  toggleMiniMap: () => void;
 }
 
 export const useDiagramStore = create<DiagramState>((set, get) => ({
   nodes: initialNodes,
   edges: initialEdges,
   activeConnectionMode: "association",
+  showMiniMap: false,
 
   onNodesChange: (changes: NodeChange[]) => {
     set({
@@ -104,36 +108,60 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   },
 
   onConnect: (connection: Connection) => {
-    const { activeConnectionMode, nodes } = get(); 
-    
-    const sourceNode = nodes.find(n => n.id === connection.source);
-    const isSourceNote = sourceNode?.type === 'umlNote';
+    const { activeConnectionMode, nodes } = get();
+
+    const sourceNode = nodes.find((n) => n.id === connection.source);
+    const isSourceNote = sourceNode?.type === "umlNote";
 
     let edgeOptions: DefaultEdgeOptions = {
-      type: 'smoothstep', 
-      style: { stroke: 'black', strokeWidth: 1.5 },
+      type: "smoothstep",
+      style: { stroke: "black", strokeWidth: 1.5 },
     };
 
     if (isSourceNote) {
       edgeOptions = {
-        type: 'straight', 
-        style: { stroke: '#ca8a04', strokeWidth: 1.5, strokeDasharray: '4,4' }, 
+        type: "straight",
+        style: { stroke: "#ca8a04", strokeWidth: 1.5, strokeDasharray: "4,4" },
         animated: false,
       };
     } else {
       switch (activeConnectionMode) {
-        case 'inheritance':
-          edgeOptions = { ...edgeOptions, markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: 'black' } };
+        case "inheritance":
+          edgeOptions = {
+            ...edgeOptions,
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
+              color: "black",
+            },
+          };
           break;
-        case 'implementation':
-          edgeOptions = { ...edgeOptions, style: { ...edgeOptions.style, strokeDasharray: '5,5' }, markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: 'black' } };
+        case "implementation":
+          edgeOptions = {
+            ...edgeOptions,
+            style: { ...edgeOptions.style, strokeDasharray: "5,5" },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: 20,
+              height: 20,
+              color: "black",
+            },
+          };
           break;
-        case 'dependency':
-          edgeOptions = { ...edgeOptions, style: { ...edgeOptions.style, strokeDasharray: '5,5' }, markerEnd: { type: MarkerType.Arrow, color: 'black' } };
+        case "dependency":
+          edgeOptions = {
+            ...edgeOptions,
+            style: { ...edgeOptions.style, strokeDasharray: "5,5" },
+            markerEnd: { type: MarkerType.Arrow, color: "black" },
+          };
           break;
-        case 'association':
+        case "association":
         default:
-          edgeOptions = { ...edgeOptions, markerEnd: { type: MarkerType.Arrow, color: 'black' } };
+          edgeOptions = {
+            ...edgeOptions,
+            markerEnd: { type: MarkerType.Arrow, color: "black" },
+          };
           break;
       }
     }
@@ -151,7 +179,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       return;
     }
 
-    const isNote = stereotype === 'note';
+    const isNote = stereotype === "note";
 
     const newNode: Node<UmlClassData> = {
       id: crypto.randomUUID(),
@@ -207,6 +235,22 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     set({ nodes: [...get().nodes, newNode] });
   },
 
+  setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
+
+  loadDiagram: (state) => {
+    if (!state.nodes || !state.edges) {
+      alert("El archivo no parece ser un diagrama válido de LibreUML.");
+      return;
+    }
+
+    set({
+      nodes: state.nodes,
+      edges: state.edges,
+    });
+  },
+
+  toggleMiniMap: () => set((state) => ({ showMiniMap: !state.showMiniMap })),
+
   clearCanvas: () => {
     if (
       window.confirm("¿Estás seguro de que quieres borrar todo el diagrama?")
@@ -214,5 +258,4 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       set({ nodes: [], edges: [] });
     }
   },
-  setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
 }));

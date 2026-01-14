@@ -10,6 +10,7 @@ import {
   ArrowUpFromLine,
   GitCommitHorizontal,
   MousePointer2,
+  StickyNote
 } from "lucide-react";
 
 import { DraggableItem, ClickableItem } from "./SidebarItem";
@@ -83,6 +84,13 @@ export default function Sidebar() {
                 type="abstract"
                 onDragStart={onDragStart}
               />
+              <div className="h-px bg-slate-800 my-1" /> 
+              <DraggableItem 
+                label="Note / Comment" 
+                icon={<StickyNote className="w-4 h-4 text-yellow-200" />} 
+                type="note" 
+                onDragStart={onDragStart} 
+              />
             </div>
           )}
         </div>
@@ -115,7 +123,7 @@ export default function Sidebar() {
                   <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.8)]"></div>
                 </div>
               </div>
-              
+
               <ClickableItem
                 label="Association"
                 icon={<ArrowRight className="w-4 h-4" />}

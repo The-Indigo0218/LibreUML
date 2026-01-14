@@ -11,13 +11,17 @@ import {
   type OnConnect,
   type NodeChange,
   type Connection,
-  type DefaultEdgeOptions
+  type DefaultEdgeOptions,
 } from "reactflow";
 
-import type { UmlClassData, stereotype, UmlRelationType } from "../types/diagram.types";
+import type {
+  UmlClassData,
+  stereotype,
+  UmlRelationType,
+} from "../types/diagram.types";
 
-export const NODE_WIDTH = 250; 
-export const NODE_HEIGHT = 200; 
+export const NODE_WIDTH = 250;
+export const NODE_HEIGHT = 200;
 
 export const checkCollision = (
   position: { x: number; y: number },
@@ -79,14 +83,13 @@ interface DiagramState {
   deleteNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => void;
   clearCanvas: () => void;
-  setConnectionMode: (mode: UmlRelationType) => void; 
+  setConnectionMode: (mode: UmlRelationType) => void;
 }
 
 export const useDiagramStore = create<DiagramState>((set, get) => ({
   nodes: initialNodes,
   edges: initialEdges,
-  activeConnectionMode: 'association',
-
+  activeConnectionMode: "association",
 
   onNodesChange: (changes: NodeChange[]) => {
     set({
@@ -101,69 +104,44 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   },
 
   onConnect: (connection: Connection) => {
-    const { activeConnectionMode } = get();
+    const { activeConnectionMode, nodes } = get(); 
     
+    const sourceNode = nodes.find(n => n.id === connection.source);
+    const isSourceNote = sourceNode?.type === 'umlNote';
+
     let edgeOptions: DefaultEdgeOptions = {
       type: 'smoothstep', 
       style: { stroke: 'black', strokeWidth: 1.5 },
     };
 
-    switch (activeConnectionMode) {
-      case 'inheritance':
-        edgeOptions = {
-          ...edgeOptions,
-          markerEnd: {
-            type: MarkerType.ArrowClosed, 
-            width: 20,
-            height: 20,
-            color: 'black', 
-          },
-          style: { ...edgeOptions.style }, 
-        };
-        break;
-
-      case 'implementation':
-        edgeOptions = {
-          ...edgeOptions,
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 20,
-            height: 20,
-            color: 'black',
-          },
-          style: { ...edgeOptions.style, strokeDasharray: '5,5' }, 
-        };
-        break;
-
-      case 'dependency':
-        edgeOptions = {
-          ...edgeOptions,
-          markerEnd: {
-            type: MarkerType.Arrow, 
-            color: 'black',
-          },
-          style: { ...edgeOptions.style, strokeDasharray: '5,5' }, 
-        };
-        break;
-
-      case 'association':
-      default:
-        edgeOptions = {
-          ...edgeOptions,
-          markerEnd: {
-            type: MarkerType.Arrow, 
-            color: 'black',
-          },
-        };
-        break;
+    if (isSourceNote) {
+      edgeOptions = {
+        type: 'straight', 
+        style: { stroke: '#ca8a04', strokeWidth: 1.5, strokeDasharray: '4,4' }, 
+        animated: false,
+      };
+    } else {
+      switch (activeConnectionMode) {
+        case 'inheritance':
+          edgeOptions = { ...edgeOptions, markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: 'black' } };
+          break;
+        case 'implementation':
+          edgeOptions = { ...edgeOptions, style: { ...edgeOptions.style, strokeDasharray: '5,5' }, markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: 'black' } };
+          break;
+        case 'dependency':
+          edgeOptions = { ...edgeOptions, style: { ...edgeOptions.style, strokeDasharray: '5,5' }, markerEnd: { type: MarkerType.Arrow, color: 'black' } };
+          break;
+        case 'association':
+        default:
+          edgeOptions = { ...edgeOptions, markerEnd: { type: MarkerType.Arrow, color: 'black' } };
+          break;
+      }
     }
 
     set({
       edges: addEdge({ ...connection, ...edgeOptions }, get().edges),
     });
   },
-
- 
 
   addNode: (position, stereotype = "class") => {
     const { nodes } = get();
@@ -173,12 +151,15 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       return;
     }
 
+    const isNote = stereotype === 'note';
+
     const newNode: Node<UmlClassData> = {
       id: crypto.randomUUID(),
-      type: "umlClass",
+      type: isNote ? "umlNote" : "umlClass",
       position,
       data: {
-        label: `New ${stereotype}`,
+        label: isNote ? "Título de Nota" : `New ${stereotype}`,
+        content: isNote ? "Escribe aquí tu descripción..." : undefined,
         attributes: [],
         methods: [],
         stereotype: stereotype,
@@ -212,8 +193,8 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     if (!nodeToDuplicate) return;
 
     const newPos = {
-        x: nodeToDuplicate.position.x + 40,
-        y: nodeToDuplicate.position.y + 40
+      x: nodeToDuplicate.position.x + 40,
+      y: nodeToDuplicate.position.y + 40,
     };
 
     const newNode: Node<UmlClassData> = {
@@ -233,6 +214,5 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       set({ nodes: [], edges: [] });
     }
   },
-    setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
-
+  setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
 }));

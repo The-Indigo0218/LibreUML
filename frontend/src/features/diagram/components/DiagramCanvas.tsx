@@ -1,4 +1,11 @@
-import ReactFlow, { Background, Controls, useReactFlow } from "reactflow";
+import ReactFlow, {
+  Background,
+  Controls,
+  useReactFlow,
+  MiniMap,
+  BackgroundVariant,
+  ConnectionMode,
+} from "reactflow";
 import "reactflow/dist/style.css";
 import {
   useDiagramStore,
@@ -14,10 +21,18 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import ClassEditorModal from "./ClassEditorModal";
 import type { stereotype } from "../../../types/diagram.types";
 
-const nodeTypes = { 
+const nodeTypes = {
   umlClass: UmlClassNode,
-   umlNote: UmlNoteNode
- };
+  umlNote: UmlNoteNode,
+};
+
+const proBackgroundConfig = {
+  size: 1.5,
+  gap: 20,
+  color: "#94a3b8",
+  style: { opacity: 0.2 },
+};
+
 export default function DiagramCanvas() {
   const {
     nodes,
@@ -30,6 +45,7 @@ export default function DiagramCanvas() {
     duplicateNode,
     clearCanvas,
     updateNodeData,
+    showMiniMap
   } = useDiagramStore();
 
   const { screenToFlowPosition } = useReactFlow();
@@ -54,9 +70,7 @@ export default function DiagramCanvas() {
   const onDragOver = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-
       const position = getCenteredPosition(event.clientX, event.clientY);
-
       const isColliding = checkCollision(position, nodesRef.current);
 
       if (isColliding) {
@@ -65,13 +79,15 @@ export default function DiagramCanvas() {
         event.dataTransfer.dropEffect = "move";
       }
     },
-    [getCenteredPosition] 
+    [getCenteredPosition]
   );
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      const type = event.dataTransfer.getData("application/reactflow") as stereotype;
+      const type = event.dataTransfer.getData(
+        "application/reactflow"
+      ) as stereotype;
 
       if (!type) return;
 
@@ -150,7 +166,7 @@ export default function DiagramCanvas() {
         ];
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full bg-slate-50/50">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -163,11 +179,35 @@ export default function DiagramCanvas() {
         onPaneClick={closeMenu}
         onDragOver={onDragOver}
         onDrop={onDrop}
+        connectionMode={ConnectionMode.Loose}
         fitView
       >
-        <Background />
-        <Controls />
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={proBackgroundConfig.gap}
+          size={proBackgroundConfig.size}
+          color={proBackgroundConfig.color}
+          style={proBackgroundConfig.style}
+        />
+
+        <Controls className="bg-white border border-slate-200 shadow-sm" />
+
+       {showMiniMap && (
+          <MiniMap 
+            style={{ height: 100, width: 150 }} 
+            zoomable 
+            pannable 
+            className="border border-slate-200 shadow-sm rounded-lg overflow-hidden bg-white"
+            nodeColor={(node) => {
+               if (node.type === 'umlNote') return '#fef08a';
+               if (node.data.stereotype === 'interface') return '#d8b4fe';
+               if (node.data.stereotype === 'abstract') return '#bfdbfe';
+               return '#e2e8f0';
+            }}
+          />
+        )}
       </ReactFlow>
+
       {menu && (
         <ContextMenu
           x={menu.x}

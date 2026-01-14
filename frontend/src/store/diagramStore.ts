@@ -85,12 +85,15 @@ interface DiagramState {
   clearCanvas: () => void;
   setConnectionMode: (mode: UmlRelationType) => void;
   loadDiagram: (state: DiagramState) => void;
+  showMiniMap: boolean;
+  toggleMiniMap: () => void;
 }
 
 export const useDiagramStore = create<DiagramState>((set, get) => ({
   nodes: initialNodes,
   edges: initialEdges,
   activeConnectionMode: "association",
+  showMiniMap: false,
 
   onNodesChange: (changes: NodeChange[]) => {
     set({
@@ -235,19 +238,18 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
 
   loadDiagram: (state) => {
-    // Validamos minimamente que tenga nodos y edges
     if (!state.nodes || !state.edges) {
       alert("El archivo no parece ser un diagrama válido de LibreUML.");
       return;
     }
 
-    // Reemplazamos el estado actual
     set({
       nodes: state.nodes,
       edges: state.edges,
-      // Si guardaste el viewport (zoom/x/y), aquí lo restaurarías también
     });
   },
+
+  toggleMiniMap: () => set((state) => ({ showMiniMap: !state.showMiniMap })),
 
   clearCanvas: () => {
     if (

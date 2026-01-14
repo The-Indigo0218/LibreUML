@@ -88,36 +88,63 @@ export default function Sidebar() {
         </div>
 
         {/* SECTION: RELATIONSHIPS */}
-        {openSections["relationships"] && (
-          <div className="grid grid-cols-1 gap-2 pl-2">
-            <ClickableItem
-              label="Association"
-              icon={<ArrowRight className="w-4 h-4" />}
-              isActive={activeConnectionMode === "association"}
-              onClick={() => setConnectionMode("association")}
-            />
-            <ClickableItem
-              label="Inheritance"
-              icon={<ArrowUpFromLine className="w-4 h-4" />}
-              isActive={activeConnectionMode === "inheritance"}
-              onClick={() => setConnectionMode("inheritance")}
-            />
-            <ClickableItem
-              label="Implementation"
-              icon={<GitCommitHorizontal className="w-4 h-4" />}
-              isActive={activeConnectionMode === "implementation"}
-              onClick={() => setConnectionMode("implementation")}
-            />
-            <ClickableItem
-              label="Dependency"
-              icon={
-                <ArrowRight className="w-4 h-4 border-b border-dashed border-transparent" />
-              }
-              isActive={activeConnectionMode === "dependency"}
-              onClick={() => setConnectionMode("dependency")}
-            />
-          </div>
-        )}
+        <div className="mb-2">
+          <button
+            onClick={() => toggleSection("relationships")}
+            className="flex items-center w-full p-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-300 transition-colors mb-1"
+          >
+             {openSections["relationships"] ? (
+              <ChevronDown className="w-4 h-4 mr-1" />
+            ) : (
+              <ChevronRight className="w-4 h-4 mr-1" />
+            )}
+            Relationships
+          </button>
+
+          {openSections["relationships"] && (
+            <div className="grid grid-cols-1 gap-2 pl-2">
+              
+              <div className="mb-2 p-2 bg-slate-800/50 rounded border border-slate-700 text-[10px] text-slate-400 flex items-center justify-between mx-1">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_4px_rgba(59,130,246,0.8)]"></div>
+                  <span>Source</span>
+                </div>
+                <ArrowRight className="w-3 h-3 text-slate-600" />
+                <div className="flex items-center gap-1">
+                  <span>Target</span>
+                  <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.8)]"></div>
+                </div>
+              </div>
+              
+              <ClickableItem
+                label="Association"
+                icon={<ArrowRight className="w-4 h-4" />}
+                isActive={activeConnectionMode === "association"}
+                onClick={() => setConnectionMode("association")}
+              />
+              <ClickableItem
+                label="Inheritance"
+                icon={<ArrowUpFromLine className="w-4 h-4" />}
+                isActive={activeConnectionMode === "inheritance"}
+                onClick={() => setConnectionMode("inheritance")}
+              />
+              <ClickableItem
+                label="Implementation"
+                icon={<GitCommitHorizontal className="w-4 h-4" />}
+                isActive={activeConnectionMode === "implementation"}
+                onClick={() => setConnectionMode("implementation")}
+              />
+              <ClickableItem
+                label="Dependency"
+                icon={
+                  <ArrowRight className="w-4 h-4 border-b border-dashed border-transparent" />
+                }
+                isActive={activeConnectionMode === "dependency"}
+                onClick={() => setConnectionMode("dependency")}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* FOOTER */}

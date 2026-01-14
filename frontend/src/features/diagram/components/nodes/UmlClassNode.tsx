@@ -22,26 +22,27 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
   const isAbstract = data.stereotype === "abstract";
 
   return (
-    <div className="bg-white border-2 border-black rounded-sm w-64 shadow-md overflow-hidden">
+    <div className="bg-white border-2 border-black rounded-sm w-64 shadow-md overflow-visible">
+      
       <Handle
         type="target"
         position={Position.Top}
-        className="w-2 h-2 bg-black!"
+        className="w-2 h-2 !bg-green-500" 
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="w-2 h-2 bg-black!"
+        className="w-2 h-2 !bg-blue-500"
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="w-2 h-2 bg-black!"
+        className="w-2 h-2 !bg-blue-500"
       />
       <Handle
         type="target"
         position={Position.Left}
-        className="w-2 h-2 bg-black!"
+        className="w-2 h-2 !bg-green-500"
       />
 
       {/* HEADER: Label */}

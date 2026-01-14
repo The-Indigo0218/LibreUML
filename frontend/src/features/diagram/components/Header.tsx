@@ -10,7 +10,9 @@ import {
   ZoomIn, 
   ZoomOut, 
   Maximize,
-  // Upload
+  Moon,       
+  Languages,  
+  Sun         
 } from "lucide-react";
 import { useDiagramStore } from "../../../store/diagramStore";
 
@@ -18,24 +20,24 @@ export default function Header() {
   const { zoomIn, zoomOut, fitView, toObject } = useReactFlow();
   const { loadDiagram } = useDiagramStore();
   const [fileName, setFileName] = useState("Untitled Diagram");
+  const [isDarkMode, setIsDarkMode] = useState(false); 
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
-    const data = toObject(); 
+    const data = toObject();
     const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${fileName}.luml`; 
+    link.download = `${fileName}.luml`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
   const handleImportClick = () => {
-    fileInputRef.current?.click(); 
+    fileInputRef.current?.click();
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,12 +49,11 @@ export default function Header() {
       try {
         const content = e.target?.result as string;
         const parsedData = JSON.parse(content);
-        loadDiagram(parsedData); 
-        
+        loadDiagram(parsedData);
         setFileName(file.name.replace(".luml", "").replace(".json", ""));
       } catch (error) {
         console.error("Error loading file:", error);
-        alert("Error al leer el archivo. Asegúrate de que sea un .json o .luml válido.");
+        alert("Error al leer el archivo.");
       }
     };
     reader.readAsText(file);
@@ -88,18 +89,31 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-2">
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleFileChange} 
-          accept=".json,.luml" 
-          className="hidden" 
-        />
+        
+        <div className="flex items-center gap-1 mr-2">
+           <button 
+             onClick={() => setIsDarkMode(!isDarkMode)}
+             className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+             title="Toggle Theme"
+           >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+           </button>
+           
+           <button 
+             className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+             title="Change Language"
+           >
+              <Languages className="w-4 h-4" />
+           </button>
+        </div>
+
+        <div className="h-5 w-px bg-slate-200 mx-1" />
+
+        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json,.luml" className="hidden" />
 
         <button 
           onClick={handleImportClick}
           className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors border border-transparent hover:border-slate-200"
-          title="Open .luml or .json file"
         >
           <FolderOpen className="w-4 h-4" />
           Import
@@ -108,15 +122,12 @@ export default function Header() {
         <button 
           onClick={handleExport}
           className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors border border-transparent hover:border-slate-200"
-          title="Save to disk"
         >
           <Download className="w-4 h-4" />
           Export
         </button>
         
-        <div className="h-5 w-px bg-slate-200 mx-1" />
-
-        <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-all shadow-sm active:translate-y-px">
+        <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 rounded-md transition-all shadow-sm active:translate-y-px ml-2">
           <Save className="w-4 h-4" />
           Save
         </button>

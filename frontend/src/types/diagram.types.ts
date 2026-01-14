@@ -1,8 +1,9 @@
-export type stereotype = 'class' | 'interface' | 'abstract';
+export type stereotype = 'class' | 'interface' | 'abstract' | 'note';
 export type UmlRelationType = 'association' | 'inheritance' | 'implementation' | 'dependency';
 
 export interface UmlClassData {
   label: string;
+  content?: string;
   attributes: string[];
   methods: string[];
   stereotype: stereotype; 

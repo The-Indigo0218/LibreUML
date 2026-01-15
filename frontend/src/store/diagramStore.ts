@@ -23,6 +23,14 @@ import type {
 export const NODE_WIDTH = 250;
 export const NODE_HEIGHT = 200;
 
+const RELATION_COLORS = {
+  association: "#A78BFA",    // Purple
+  inheritance: "#60A5FA",    // Blue
+  implementation: "#22D3EE", // Cyan
+  dependency: "#94A3B8",     // Slate
+  note: "#38BDF8",           // Cyan (Match con borde de nota)
+};
+
 export const checkCollision = (
   position: { x: number; y: number },
   nodes: Node[]
@@ -113,15 +121,21 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     const sourceNode = nodes.find((n) => n.id === connection.source);
     const isSourceNote = sourceNode?.type === "umlNote";
 
+    // Configuración base
     let edgeOptions: DefaultEdgeOptions = {
-      type: "smoothstep",
-      style: { stroke: "black", strokeWidth: 1.5 },
+      type: "smoothstep", 
+      style: { strokeWidth: 2 }, 
+      animated: false,
     };
 
     if (isSourceNote) {
       edgeOptions = {
-        type: "straight",
-        style: { stroke: "#ca8a04", strokeWidth: 1.5, strokeDasharray: "4,4" },
+        type: "straight", 
+        style: { 
+          stroke: RELATION_COLORS.note, 
+          strokeWidth: 1.5, 
+          strokeDasharray: "4,4" 
+        },
         animated: false,
       };
     } else {
@@ -129,43 +143,65 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
         case "inheritance":
           edgeOptions = {
             ...edgeOptions,
+            style: { ...edgeOptions.style, stroke: RELATION_COLORS.inheritance },
             markerEnd: {
-              type: MarkerType.ArrowClosed,
+              type: MarkerType.ArrowClosed, 
               width: 20,
               height: 20,
-              color: "black",
+              color: RELATION_COLORS.inheritance, 
             },
           };
           break;
+
         case "implementation":
           edgeOptions = {
             ...edgeOptions,
-            style: { ...edgeOptions.style, strokeDasharray: "5,5" },
+            style: { 
+              ...edgeOptions.style, 
+              stroke: RELATION_COLORS.implementation,
+              strokeDasharray: "5,5" 
+            },
             markerEnd: {
               type: MarkerType.ArrowClosed,
               width: 20,
               height: 20,
-              color: "black",
+              color: RELATION_COLORS.implementation,
             },
           };
           break;
+
         case "dependency":
           edgeOptions = {
             ...edgeOptions,
-            style: { ...edgeOptions.style, strokeDasharray: "5,5" },
-            markerEnd: { type: MarkerType.Arrow, color: "black" },
+            style: { 
+              ...edgeOptions.style, 
+              stroke: RELATION_COLORS.dependency,
+              strokeDasharray: "5,5" 
+            },
+            markerEnd: { 
+              type: MarkerType.Arrow, 
+              width: 20,
+              height: 20,
+              color: RELATION_COLORS.dependency 
+            },
           };
           break;
+
         case "association":
         default:
           edgeOptions = {
             ...edgeOptions,
-            markerEnd: { type: MarkerType.Arrow, color: "black" },
+            style: { ...edgeOptions.style, stroke: RELATION_COLORS.association },
+            markerEnd: { 
+              type: MarkerType.Arrow, 
+              width: 20,
+              height: 20,
+              color: RELATION_COLORS.association 
+            },
           };
           break;
       }
     }
-
     set({
       edges: addEdge({ ...connection, ...edgeOptions }, get().edges),
     });

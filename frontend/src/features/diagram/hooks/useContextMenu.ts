@@ -1,22 +1,54 @@
-// src/features/diagram/hooks/useContextMenu.ts
-import { useState, useCallback } from 'react';
-import type { Node } from 'reactflow';
-import type { UmlClassData } from '../../../types/diagram.types';
+import { useState, useCallback } from "react";
+import { type Node, type Edge } from "reactflow";
+
+type MenuState = {
+  type: "node" | "edge" | "pane";
+  x: number;
+  y: number;
+  id?: string; 
+} | null;
 
 export function useContextMenu() {
-  const [menu, setMenu] = useState<{ x: number; y: number; type: 'pane' | 'node'; nodeId?: string } | null>(null);
+  const [menu, setMenu] = useState<MenuState>(null);
 
   const onPaneContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
-    setMenu({ x: event.clientX, y: event.clientY, type: 'pane' });
+    setMenu({
+      type: "pane",
+      x: event.clientX,
+      y: event.clientY,
+    });
   }, []);
 
-  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node<UmlClassData>) => {
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();
-    setMenu({ x: event.clientX, y: event.clientY, type: 'node', nodeId: node.id });
+    event.stopPropagation(); 
+    setMenu({
+      type: "node",
+      x: event.clientX,
+      y: event.clientY,
+      id: node.id,
+    });
   }, []);
 
-  const closeMenu = () => setMenu(null);
+  const onEdgeContextMenu = useCallback((event: React.MouseEvent, edge: Edge) => {
+    event.preventDefault();
+    event.stopPropagation(); 
+    setMenu({
+      type: "edge",
+      x: event.clientX,
+      y: event.clientY,
+      id: edge.id,
+    });
+  }, []);
 
-  return { menu, onPaneContextMenu, onNodeContextMenu, closeMenu };
+  const closeMenu = useCallback(() => setMenu(null), []);
+
+  return { 
+    menu, 
+    onPaneContextMenu, 
+    onNodeContextMenu, 
+    onEdgeContextMenu, 
+    closeMenu 
+  };
 }

@@ -1,52 +1,60 @@
-import { memo } from 'react';
-
-interface MenuOption {
-  label: string;
-  onClick: () => void;
-  icon?: string; 
-  danger?: boolean; 
-}
+import { useEffect, useRef } from "react";
 
 interface ContextMenuProps {
   x: number;
   y: number;
-  options: MenuOption[];
+  options: {
+    label: string;
+    onClick: () => void;
+    danger?: boolean; 
+  }[];
   onClose: () => void;
 }
 
-const ContextMenu = ({ x, y, options, onClose }: ContextMenuProps) => {
+export default function ContextMenu({
+  x,
+  y,
+  options,
+  onClose,
+}: ContextMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
+
   return (
-    <>
-      <div 
-        className="fixed inset-0 z-40" 
-        onClick={onClose} 
-        onContextMenu={(e) => { e.preventDefault(); onClose(); }} 
-      />
-
-      <div
-        className="fixed z-50 min-w-40 bg-slate-900 border border-slate-700 rounded-lg shadow-xl py-1 overflow-hidden"
-        style={{ top: y, left: x }}
-      >
-        {options.map((opt, index) => (
-          <button
-            key={index}
-            onClick={() => {
-              opt.onClick();
-              onClose();
-            }}
-            className={`
-              w-full px-4 py-2 text-left text-sm transition-colors
-              ${opt.danger 
-                ? 'text-red-400 hover:bg-red-500/10' 
-                : 'text-slate-200 hover:bg-blue-600 hover:text-white'}
-            `}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-    </>
+    <div
+      ref={menuRef}
+      className="absolute z-50 min-w-45 bg-surface-primary border border-surface-border rounded-md shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100 flex flex-col overflow-hidden"
+      style={{ top: y, left: x }}
+    >
+      {options.map((option, index) => (
+        <button
+          key={index}
+          onClick={() => {
+            option.onClick();
+            onClose();
+          }}
+          className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-2 border-l-2 border-transparent
+            ${
+              option.danger
+                ? "text-red-400 hover:bg-red-900/20 hover:text-red-300 hover:border-red-500"
+                : "text-text-secondary hover:bg-surface-hover hover:text-text-primary hover:border-uml-class-border"
+            }
+          `}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
-};
-
-export default memo(ContextMenu);
+}

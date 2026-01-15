@@ -16,23 +16,40 @@ import {
   Map,
 } from "lucide-react";
 import { useDiagramStore } from "../../../store/diagramStore";
+import type { DiagramState, UmlClassNode, UmlEdge } from "../../../types/diagram.types";
 
 export default function Header() {
-  const { zoomIn, zoomOut, fitView, toObject } = useReactFlow();
-  const { loadDiagram, showMiniMap, toggleMiniMap } = useDiagramStore();
-  const [fileName, setFileName] = useState("Untitled Diagram");
+  const { zoomIn, zoomOut, fitView, toObject, setViewport } = useReactFlow();
+  
+  const { 
+    diagramName, 
+    diagramId, 
+    setDiagramName, 
+    loadDiagram, 
+    showMiniMap, 
+    toggleMiniMap 
+  } = useDiagramStore();
+  
   const [isDarkMode, setIsDarkMode] = useState(true); 
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
-    const data = toObject();
-    const jsonString = JSON.stringify(data, null, 2);
+    const flowObject = toObject();
+
+    const exportData: DiagramState = {
+      id: diagramId,
+      name: diagramName,
+      nodes: flowObject.nodes as unknown as UmlClassNode[],
+      edges: flowObject.edges as unknown as UmlEdge[],
+      viewport: flowObject.viewport
+    };
+
+    const jsonString = JSON.stringify(exportData, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${fileName}.luml`;
+    link.download = `${diagramName}.luml`; 
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -50,20 +67,29 @@ export default function Header() {
       try {
         const content = e.target?.result as string;
         const parsedData = JSON.parse(content);
+        
         loadDiagram(parsedData);
-        setFileName(file.name.replace(".luml", "").replace(".json", ""));
+        
+        if (parsedData.viewport) {
+          const { x, y, zoom } = parsedData.viewport;
+          setViewport({ x, y, zoom });
+        } else {
+          setTimeout(() => fitView({ duration: 800 }), 100);
+        }
+
       } catch (error) {
         console.error("Error loading file:", error);
-        alert("Error al leer el archivo.");
+        alert("Error al leer el archivo. Asegúrate de que sea un .json o .luml válido.");
       }
     };
     reader.readAsText(file);
-    event.target.value = "";
+    event.target.value = ""; 
   };
 
   return (
     <header className="h-14 bg-surface-primary border-b border-surface-border flex items-center justify-between px-4 z-20 relative shadow-md font-sans">
       
+      {/* SECCIÓN IZQUIERDA: Logo y Título */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 font-bold text-lg select-none">
           <Box className="w-6 h-6 text-uml-class-border fill-uml-class-bg/20" />
@@ -74,12 +100,14 @@ export default function Header() {
 
         <input
           type="text"
-          value={fileName}
-          onChange={(e) => setFileName(e.target.value)}
+          value={diagramName}
+          onChange={(e) => setDiagramName(e.target.value)}
           className="text-sm font-medium bg-surface-secondary text-text-primary hover:bg-surface-hover focus:bg-surface-hover focus:text-white focus:outline-none focus:ring-1 focus:ring-uml-class-border rounded px-2 py-1 transition-all w-48 truncate border border-transparent"
+          placeholder="Diagram Name"
         />
       </div>
 
+      {/* SECCIÓN CENTRAL: Isla Flotante (Toolbar) */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 bg-surface-secondary p-1 rounded-lg border border-surface-border shadow-lg">
         <IconButton
           onClick={() => {}}
@@ -126,6 +154,7 @@ export default function Header() {
         />
       </div>
 
+      {/* SECCIÓN DERECHA: Acciones */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 mr-2">
           <button

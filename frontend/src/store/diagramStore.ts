@@ -204,13 +204,32 @@ export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
       });
   },
   setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
-  loadDiagram: (data) =>
+
+  loadDiagram: (data) => {
+    const hydratedEdges = data.edges.map((edge) => {
+      const type = edge.data?.type || "association";
+
+      let options;
+      if (type === "note") {
+        options = getNoteEdgeOptions();
+      } else {
+        options = getEdgeOptions(type as UmlRelationType);
+      }
+      return {
+        ...edge,
+        ...options,
+        data: { ...edge.data, type },
+      };
+    }) as Edge[];
+
     set({
       diagramId: data.id || crypto.randomUUID(),
       diagramName: data.name || "Imported",
       nodes: data.nodes,
-      edges: data.edges,
-    }),
+      edges: hydratedEdges,
+    });
+  },
+
   toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
   clearCanvas: () => {
     if (confirm("Borrar todo?")) set({ nodes: [], edges: [] });

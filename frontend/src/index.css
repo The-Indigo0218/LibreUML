@@ -37,6 +37,38 @@
   /* Fuentes */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Fira Code", monospace;
+
+
+  /* --- RELACIONES (Fuente de la Verdad) --- */
+  --color-edge-base: #6B7280;       /* Gris Base */
+  --color-edge-inheritance: #60A5FA; /* Azul */
+  --color-edge-implementation: #22D3EE; /* Cyan */
+  --color-edge-dependency: #F472B6;  /* Rosa */
+  --color-edge-association: #A78BFA; /* Morado */
+  --color-edge-note: #FEF08A;        /* Amarillo */
+  
+  --color-arrow-head: #FFFFFF;       /* Blanco (para puntas sólidas) */
+  --color-arrow-head: #FFFFFF;       /* Blanco (para puntas sólidas) */
+}
+
+.react-flow__controls-button {
+  background-color: var(--color-surface-primary) !important;
+  border-bottom: 1px solid var(--color-surface-border) !important;
+  fill: var(--color-text-secondary) !important;
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls-button:hover {
+  background-color: var(--color-surface-hover) !important;
+  fill: var(--color-text-primary) !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__controls-button:focus {
+  outline: none !important;
 }
 
 html,
@@ -49,4 +81,17 @@ body,
   background-color: var(--color-canvas-base);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+}
+
+
+
+
+:root {
+  --edge-base: #6B7280;
+  --edge-inheritance: #60A5FA;
+  --edge-implementation: #22D3EE;
+  --edge-dependency: #F472B6;
+  --edge-association: #A78BFA;
+  --edge-note: #FEF08A;
+  --arrow-head: #FFFFFF;
 }

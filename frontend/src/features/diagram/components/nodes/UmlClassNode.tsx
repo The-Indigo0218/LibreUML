@@ -21,8 +21,7 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
   const isInterface = data.stereotype === "interface";
   const isAbstract = data.stereotype === "abstract";
 
-  // --- LÓGICA DE ESTILOS "DARK TECH" DINÁMICOS ---
-  // Definimos las clases base según el tipo estereotipo
+
   let containerClass = "bg-uml-class-bg border-uml-class-border";
   let headerClass = "bg-surface-hover border-uml-class-border";
   let badgeColor = "text-uml-class-border";
@@ -41,11 +40,10 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
     <div 
       className={`border-2 rounded-sm w-64 shadow-lg overflow-visible group transition-colors duration-200 ${containerClass}`}
     >
-      {/* Handles (Conectores) - Colores Fijos de Éxito/Primario para contraste */}
       <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-green-500 border border-canvas-base -top-1.5" />
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-blue-500 border border-canvas-base -bottom-1.5" />
       <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-blue-500 border border-canvas-base -right-1.5" />
       <Handle type="target" position={Position.Left} className="w-3 h-3 !bg-green-500 border border-canvas-base -left-1.5" />
+      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-blue-500 border border-canvas-base -bottom-1.5" />
 
       {/* HEADER */}
       <div

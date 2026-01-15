@@ -23,7 +23,6 @@ export default function Sidebar() {
   });
 
   const { activeConnectionMode, setConnectionMode } = useDiagramStore();
-
   const ghostRef = useRef<HTMLDivElement>(null);
 
   const toggleSection = (section: string) => {
@@ -40,21 +39,21 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-700 flex flex-col h-full text-slate-300 select-none shadow-xl z-10 font-sans">
+    <aside className="w-64 bg-surface-primary border-r border-surface-border flex flex-col h-full text-text-secondary select-none shadow-xl z-10 font-sans">
+      
       {/* HEADER */}
-      <div className="p-4 border-b border-slate-700 flex items-center gap-2">
-        <MousePointer2 className="w-5 h-5 text-blue-400" />
-        <h2 className="text-sm font-bold text-white tracking-wide uppercase">
+      <div className="p-4 border-b border-surface-border flex items-center gap-2">
+        <MousePointer2 className="w-5 h-5 text-uml-class-border" />
+        <h2 className="text-sm font-bold text-text-primary tracking-wide uppercase">
           Toolbox
         </h2>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
-        {/* SECTION: STRUCTURE */}
         <div className="mb-2">
           <button
             onClick={() => toggleSection("structure")}
-            className="flex items-center w-full p-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-300 transition-colors mb-1"
+            className="flex items-center w-full p-2 text-xs font-bold uppercase text-text-muted hover:text-text-primary transition-colors mb-1"
           >
             {openSections["structure"] ? (
               <ChevronDown className="w-4 h-4 mr-1" />
@@ -68,26 +67,26 @@ export default function Sidebar() {
             <div className="grid grid-cols-1 gap-2 pl-2">
               <DraggableItem
                 label="Class"
-                icon={<Box className="w-4 h-4 text-yellow-400" />}
+                icon={<Box className="w-4 h-4 text-uml-class-border" />} // Índigo
                 type="class"
                 onDragStart={onDragStart}
               />
               <DraggableItem
                 label="Interface"
-                icon={<FileCode className="w-4 h-4 text-purple-400" />}
+                icon={<FileCode className="w-4 h-4 text-uml-interface-border" />} // Cyan
                 type="interface"
                 onDragStart={onDragStart}
               />
               <DraggableItem
                 label="Abstract"
-                icon={<Component className="w-4 h-4 text-blue-400" />}
+                icon={<Component className="w-4 h-4 text-uml-abstract-border" />} // Azul Claro
                 type="abstract"
                 onDragStart={onDragStart}
               />
-              <div className="h-px bg-slate-800 my-1" /> 
+              <div className="h-px bg-surface-border my-1" /> 
               <DraggableItem 
                 label="Note / Comment" 
-                icon={<StickyNote className="w-4 h-4 text-yellow-200" />} 
+                icon={<StickyNote className="w-4 h-4 text-uml-note-border" />} // Cyan Brillante
                 type="note" 
                 onDragStart={onDragStart} 
               />
@@ -99,7 +98,7 @@ export default function Sidebar() {
         <div className="mb-2">
           <button
             onClick={() => toggleSection("relationships")}
-            className="flex items-center w-full p-2 text-xs font-bold uppercase text-slate-500 hover:text-slate-300 transition-colors mb-1"
+            className="flex items-center w-full p-2 text-xs font-bold uppercase text-text-muted hover:text-text-primary transition-colors mb-1"
           >
              {openSections["relationships"] ? (
               <ChevronDown className="w-4 h-4 mr-1" />
@@ -112,12 +111,12 @@ export default function Sidebar() {
           {openSections["relationships"] && (
             <div className="grid grid-cols-1 gap-2 pl-2">
               
-              <div className="mb-2 p-2 bg-slate-800/50 rounded border border-slate-700 text-[10px] text-slate-400 flex items-center justify-between mx-1">
+              <div className="mb-2 p-2 bg-surface-secondary rounded border border-surface-border text-[10px] text-text-muted flex items-center justify-between mx-1">
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_4px_rgba(59,130,246,0.8)]"></div>
                   <span>Source</span>
                 </div>
-                <ArrowRight className="w-3 h-3 text-slate-600" />
+                <ArrowRight className="w-3 h-3 text-text-muted" />
                 <div className="flex items-center gap-1">
                   <span>Target</span>
                   <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.8)]"></div>
@@ -156,19 +155,18 @@ export default function Sidebar() {
       </div>
 
       {/* FOOTER */}
-      <div className="p-4 border-t border-slate-800 text-[10px] text-slate-600 text-center">
+      <div className="p-4 border-t border-surface-border text-[10px] text-text-muted text-center">
         LibreUML v0.1.0 Alpha
       </div>
 
-      {/* GHOST ELEMENT */}
       <div
         ref={ghostRef}
-        className="fixed -top-250 left-0 w-40 h-15 bg-slate-100 border-2 border-slate-800 rounded-md flex items-center justify-center shadow-2xl z-50 pointer-events-none"
+        className="fixed -top-250 left-0 w-40 h-15 bg-uml-class-bg border-2 border-uml-class-border rounded-md flex items-center justify-center shadow-2xl z-50 pointer-events-none"
       >
         <div className="flex flex-col items-center w-full px-2">
-          <div className="w-full h-2 bg-yellow-100 border border-slate-800 mb-1 rounded-sm"></div>
-          <span className="text-slate-800 font-bold text-xs bg-white px-2 rounded">
-            New Class...
+          <div className="w-full h-2 bg-surface-hover border-b border-uml-class-border mb-1 rounded-sm"></div>
+          <span className="text-text-primary font-bold text-xs bg-transparent px-2 rounded">
+            New Node...
           </span>
         </div>
       </div>

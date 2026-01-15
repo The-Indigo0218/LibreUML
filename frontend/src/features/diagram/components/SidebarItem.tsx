@@ -14,19 +14,17 @@ interface ClickableItemProps {
   onClick: () => void;
 }
 
-
-
 export function DraggableItem({ label, type, icon, onDragStart }: DraggableItemProps) {
   return (
     <div
-      className="flex items-center gap-3 p-2 rounded-md bg-slate-800 border border-slate-700 cursor-grab hover:bg-slate-700 hover:border-blue-500 hover:shadow-md transition-all group"
+      className="flex items-center gap-3 p-2 rounded-md bg-surface-secondary border border-surface-border cursor-grab hover:bg-surface-hover hover:border-uml-class-border hover:shadow-md transition-all group"
       onDragStart={(event) => onDragStart(event, type)}
       draggable
     >
-      <div className="p-1.5 bg-slate-900 rounded border border-slate-700 group-hover:border-slate-500">
+      <div className="p-1.5 bg-surface-primary rounded border border-surface-border group-hover:border-text-muted transition-colors">
         {icon}
       </div>
-      <span className="text-sm font-medium text-slate-300 group-hover:text-white">
+      <span className="text-sm font-medium text-text-secondary group-hover:text-text-primary transition-colors">
         {label}
       </span>
     </div>
@@ -39,14 +37,14 @@ export function ClickableItem({ label, icon, isActive, onClick }: ClickableItemP
       onClick={onClick}
       className={`flex items-center gap-3 p-2 rounded-md border cursor-pointer transition-all ${
         isActive
-          ? "bg-blue-900/40 border-blue-500 shadow-sm" // Estilo ACTIVO
-          : "border-transparent hover:bg-slate-800"    // Estilo INACTIVO
+          ? "bg-surface-hover border-uml-class-border shadow-sm" // Activo: Usa el color primario de borde
+          : "border-transparent hover:bg-surface-hover"          // Inactivo
       }`}
     >
-      <div className={`p-1.5 rounded ${isActive ? "text-blue-400" : "text-slate-500"}`}>
+      <div className={`p-1.5 rounded transition-colors ${isActive ? "text-uml-class-border" : "text-text-muted"}`}>
         {icon}
       </div>
-      <span className={`text-sm ${isActive ? "text-white font-medium" : "text-slate-500"}`}>
+      <span className={`text-sm transition-colors ${isActive ? "text-text-primary font-medium" : "text-text-secondary"}`}>
         {label}
       </span>
     </div>

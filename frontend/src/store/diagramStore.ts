@@ -19,79 +19,39 @@ import type {
   DiagramState as SavedDiagramState,
 } from "../types/diagram.types";
 
+import { edgeConfig } from "../config/theme.config";
+
 export const NODE_WIDTH = 250;
 export const NODE_HEIGHT = 200;
 
-const EDGE_BASE_COLOR = "#6B7280";
-const ARROW_HEAD_COLOR = "#FFFFFF";
-
 const getEdgeOptions = (type: UmlRelationType): DefaultEdgeOptions => {
-  const base = {
-    type: "smoothstep",
-    pathOptions: { borderRadius: 20 },
-    animated: false,
-    style: { stroke: EDGE_BASE_COLOR },
-  };
+  const config = edgeConfig.types[type] || edgeConfig.types.association;
 
-  switch (type) {
-    case "inheritance":
-      return {
-        ...base,
-        style: { stroke: EDGE_BASE_COLOR, strokeWidth: 2.5 },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 25,
-          height: 25,
-          color: ARROW_HEAD_COLOR,
-        },
-        zIndex: 10,
-      };
-    case "implementation":
-      return {
-        ...base,
-        style: {
-          stroke: EDGE_BASE_COLOR,
-          strokeWidth: 2,
-          strokeDasharray: "6,4",
-        },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 25,
-          height: 25,
-          color: ARROW_HEAD_COLOR,
-        },
-        zIndex: 9,
-      };
-    case "dependency":
-      return {
-        ...base,
-        style: {
-          stroke: EDGE_BASE_COLOR,
-          strokeWidth: 1,
-          strokeDasharray: "4,4",
-        },
-        markerEnd: {
-          type: MarkerType.Arrow,
-          width: 18,
-          height: 18,
-          color: EDGE_BASE_COLOR,
-        },
-        zIndex: 1,
-      };
-    case "association":
-    default:
-      return {
-        ...base,
-        style: { stroke: EDGE_BASE_COLOR, strokeWidth: 1.5 },
-        markerEnd: {
-          type: MarkerType.Arrow,
-          width: 20,
-          height: 20,
-          color: EDGE_BASE_COLOR,
-        },
-        zIndex: 5,
-      };
-  }
+  return {
+    ...edgeConfig.base,
+    style: { ...edgeConfig.base.style, ...config.style },
+    zIndex: config.zIndex,
+    markerEnd: {
+      type:
+        type === "inheritance" || type === "implementation"
+          ? MarkerType.ArrowClosed
+          : MarkerType.Arrow,
+      ...config.marker,
+    },
+  };
+};
+
+const getNoteEdgeOptions = (): DefaultEdgeOptions => {
+  const config = edgeConfig.types.note;
+  return {
+    ...edgeConfig.base,
+    style: { ...edgeConfig.base.style, ...config.style },
+    zIndex: config.zIndex,
+    markerEnd: {
+      type: MarkerType.Arrow,
+      ...config.marker,
+    },
+  };
 };
 
 export const checkCollision = (
@@ -184,20 +144,7 @@ export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
     let edgeData = {};
 
     if (sourceNode?.type === "umlNote") {
-      edgeOptions = {
-        type: "smoothstep",
-        style: {
-          stroke: EDGE_BASE_COLOR,
-          strokeWidth: 1,
-          strokeDasharray: "3,3",
-        },
-        markerEnd: {
-          type: MarkerType.Arrow,
-          width: 15,
-          height: 15,
-          color: EDGE_BASE_COLOR,
-        },
-      };
+      edgeOptions = getNoteEdgeOptions();
       edgeData = { type: "note" };
     } else {
       edgeOptions = getEdgeOptions(activeConnectionMode);

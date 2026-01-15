@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 export type stereotype = 'class' | 'interface' | 'abstract' | 'note';
 export type UmlRelationType = 'association' | 'inheritance' | 'implementation' | 'dependency';
 
@@ -23,16 +25,29 @@ export interface UmlClassNode {
 }
 
 
+export interface UmlMarker {
+  type: string;
+  width?: number;
+  height?: number;
+  color?: string;
+}
+
 export interface UmlEdge {
   id: string;
   source: string;       
   target: string;       
-  type?: 'smoothstep' | 'straight'; 
+  type?: string;        
   label?: string;       
-  animated?: boolean;  
+  animated?: boolean;
+  
+  style?: CSSProperties;       
+  markerEnd?: UmlMarker | string;   
+
+  data?: {
+    type: UmlRelationType | 'note' | string;
+  };
 }
 
-// Complete Diagram State to be saved/loaded (API or LocalStorage)
 export interface DiagramState {
   id: string;
   name: string;

@@ -18,10 +18,14 @@ import type {
   UmlClassData,
   stereotype,
   UmlRelationType,
+  DiagramState as SavedDiagramState 
 } from "../types/diagram.types";
 
 export const NODE_WIDTH = 250;
 export const NODE_HEIGHT = 200;
+
+const EDGE_BASE_COLOR = "#6B7280"; 
+const ARROW_HEAD_COLOR = "#FFFFFF"; 
 
 export const checkCollision = (
   position: { x: number; y: number },
@@ -40,7 +44,6 @@ export const checkCollision = (
   });
 };
 
-// --- MOCKS (Initial Data) ---
 const initialNodes: Node<UmlClassData>[] = [
   {
     id: "1",
@@ -56,7 +59,7 @@ const initialNodes: Node<UmlClassData>[] = [
   {
     id: "2",
     type: "umlClass",
-    position: { x: 250, y: 250 },
+    position: { x: 250, y: 350 },
     data: {
       label: "Estudiante",
       attributes: ["+ codigo: String", "+ promedio: float"],
@@ -68,32 +71,39 @@ const initialNodes: Node<UmlClassData>[] = [
 
 const initialEdges: Edge[] = [];
 
-interface DiagramState {
+interface DiagramStoreState {
+  diagramId: string;
+  diagramName: string;
+  
   nodes: Node<UmlClassData>[];
   edges: Edge[];
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;
   activeConnectionMode: UmlRelationType;
+  
+  setDiagramName: (name: string) => void;
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
-  addNode: (
-    position: { x: number; y: number },
-    stereotype?: stereotype
-  ) => void;
+  addNode: (position: { x: number; y: number }, stereotype?: stereotype) => void;
   deleteNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => void;
   clearCanvas: () => void;
   setConnectionMode: (mode: UmlRelationType) => void;
-  loadDiagram: (state: DiagramState) => void;
+  loadDiagram: (data: SavedDiagramState) => void; 
   showMiniMap: boolean;
   toggleMiniMap: () => void;
 }
 
-export const useDiagramStore = create<DiagramState>((set, get) => ({
+export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
+  diagramId: crypto.randomUUID(),
+  diagramName: "Untitled Diagram",
+  
   nodes: initialNodes,
   edges: initialEdges,
   activeConnectionMode: "association",
   showMiniMap: false,
+
+  setDiagramName: (name) => set({ diagramName: name }),
 
   onNodesChange: (changes: NodeChange[]) => {
     set({
@@ -109,63 +119,93 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
 
   onConnect: (connection: Connection) => {
     const { activeConnectionMode, nodes } = get();
-
     const sourceNode = nodes.find((n) => n.id === connection.source);
     const isSourceNote = sourceNode?.type === "umlNote";
 
     let edgeOptions: DefaultEdgeOptions = {
       type: "smoothstep",
-      style: { stroke: "black", strokeWidth: 1.5 },
+      style: { stroke: EDGE_BASE_COLOR },
+      animated: false,
     };
 
     if (isSourceNote) {
       edgeOptions = {
-        type: "straight",
-        style: { stroke: "#ca8a04", strokeWidth: 1.5, strokeDasharray: "4,4" },
-        animated: false,
+        type: "smoothstep",
+        style: { 
+          stroke: EDGE_BASE_COLOR, 
+          strokeWidth: 1, 
+          strokeDasharray: "3,3" 
+        },
+        markerEnd: { type: MarkerType.Arrow, width: 15, height: 15, color: EDGE_BASE_COLOR },
       };
     } else {
       switch (activeConnectionMode) {
         case "inheritance":
           edgeOptions = {
             ...edgeOptions,
+            style: { stroke: EDGE_BASE_COLOR, strokeWidth: 2.5 },
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              width: 20,
-              height: 20,
-              color: "black",
+              width: 25,
+              height: 25,
+              color: ARROW_HEAD_COLOR,
             },
+            zIndex: 10,
           };
           break;
+
         case "implementation":
           edgeOptions = {
             ...edgeOptions,
-            style: { ...edgeOptions.style, strokeDasharray: "5,5" },
+            style: { 
+              stroke: EDGE_BASE_COLOR, 
+              strokeWidth: 2, 
+              strokeDasharray: "6,4" 
+            },
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              width: 20,
-              height: 20,
-              color: "black",
+              width: 25, 
+              height: 25,
+              color: ARROW_HEAD_COLOR,
             },
+            zIndex: 9,
           };
           break;
+
         case "dependency":
           edgeOptions = {
             ...edgeOptions,
-            style: { ...edgeOptions.style, strokeDasharray: "5,5" },
-            markerEnd: { type: MarkerType.Arrow, color: "black" },
+            style: { 
+              stroke: EDGE_BASE_COLOR, 
+              strokeWidth: 1, 
+              strokeDasharray: "4,4" 
+            },
+            markerEnd: { 
+              type: MarkerType.Arrow,
+              width: 18,
+              height: 18,
+              color: EDGE_BASE_COLOR 
+            },
+            zIndex: 1,
           };
           break;
+
         case "association":
         default:
           edgeOptions = {
             ...edgeOptions,
-            markerEnd: { type: MarkerType.Arrow, color: "black" },
+            style: { stroke: EDGE_BASE_COLOR, strokeWidth: 1.5 },
+            markerEnd: { 
+              type: MarkerType.Arrow,
+              width: 20,
+              height: 20,
+              color: EDGE_BASE_COLOR 
+            },
+            zIndex: 5,
           };
           break;
       }
     }
-
     set({
       edges: addEdge({ ...connection, ...edgeOptions }, get().edges),
     });
@@ -173,14 +213,11 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
 
   addNode: (position, stereotype = "class") => {
     const { nodes } = get();
-
     if (checkCollision(position, nodes)) {
-      console.warn("Collision detected via Store. Operation blocked.");
+      console.warn("Collision detected via Store.");
       return;
     }
-
     const isNote = stereotype === "note";
-
     const newNode: Node<UmlClassData> = {
       id: crypto.randomUUID(),
       type: isNote ? "umlNote" : "umlClass",
@@ -193,7 +230,6 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
         stereotype: stereotype,
       },
     };
-
     set({ nodes: [...nodes, newNode] });
   },
 
@@ -219,43 +255,44 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   duplicateNode: (nodeId: string) => {
     const nodeToDuplicate = get().nodes.find((n) => n.id === nodeId);
     if (!nodeToDuplicate) return;
-
     const newPos = {
       x: nodeToDuplicate.position.x + 40,
       y: nodeToDuplicate.position.y + 40,
     };
-
     const newNode: Node<UmlClassData> = {
       ...nodeToDuplicate,
       id: crypto.randomUUID(),
       position: newPos,
       data: { ...nodeToDuplicate.data },
     };
-
     set({ nodes: [...get().nodes, newNode] });
   },
 
   setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
 
-  loadDiagram: (state) => {
-    if (!state.nodes || !state.edges) {
+  loadDiagram: (data) => {
+    if (!data.nodes || !data.edges) {
       alert("El archivo no parece ser un diagrama válido de LibreUML.");
       return;
     }
-
     set({
-      nodes: state.nodes,
-      edges: state.edges,
+      diagramId: data.id || crypto.randomUUID(), 
+      diagramName: data.name || "Imported Diagram",
+      nodes: data.nodes,
+      edges: data.edges,
     });
   },
 
   toggleMiniMap: () => set((state) => ({ showMiniMap: !state.showMiniMap })),
 
   clearCanvas: () => {
-    if (
-      window.confirm("¿Estás seguro de que quieres borrar todo el diagrama?")
-    ) {
-      set({ nodes: [], edges: [] });
+    if (window.confirm("¿Estás seguro de que quieres borrar todo el diagrama?")) {
+      set({ 
+        nodes: [], 
+        edges: [],
+        diagramName: "Untitled Diagram",
+        diagramId: crypto.randomUUID()
+      });
     }
   },
 }));

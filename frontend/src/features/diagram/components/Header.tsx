@@ -1,6 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { useReactFlow, getRectOfNodes, getTransformForBounds } from "reactflow";
-import { toPng } from "html-to-image";
+import { useReactFlow } from "reactflow";
 import {
   Box,
   Download,
@@ -21,7 +20,7 @@ import {
   Cloud,
 } from "lucide-react";
 import { useDiagramStore } from "../../../store/diagramStore";
-import type { DiagramState, UmlClassNode, UmlEdge } from "../../../types/diagram.types";
+import { ExportService } from "../services/export.service"; 
 
 export default function Header() {
   const { zoomIn, zoomOut, fitView, toObject, setViewport, getNodes } = useReactFlow();
@@ -52,56 +51,17 @@ export default function Header() {
 
   const handleExportJson = () => {
     const flowObject = toObject();
-    const exportData: DiagramState = {
-      id: diagramId,
-      name: diagramName,
-      nodes: flowObject.nodes as unknown as UmlClassNode[],
-      edges: flowObject.edges as unknown as UmlEdge[],
-      viewport: flowObject.viewport
-    };
-
-    const jsonString = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${diagramName}.luml`; 
-    link.click();
-    URL.revokeObjectURL(url);
+    ExportService.downloadJson(flowObject, diagramId, diagramName);
     setIsExportMenuOpen(false);
   };
 
   const handleExportImage = async () => {
     const viewportEl = document.querySelector('.react-flow__viewport') as HTMLElement;
-    
     if (!viewportEl) return;
 
-    const nodes = getNodes();
-    const nodesBounds = getRectOfNodes(nodes);
-    const transform = getTransformForBounds(
-      nodesBounds,
-      nodesBounds.width,
-      nodesBounds.height,
-      0.5,
-      2
-    );
-
     try {
-      const dataUrl = await toPng(viewportEl, {
-        backgroundColor: '#0B0F1A', 
-        width: nodesBounds.width,
-        height: nodesBounds.height,
-        style: {
-          width: `${nodesBounds.width}px`,
-          height: `${nodesBounds.height}px`,
-          transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
-        },
-      });
-
-      const link = document.createElement('a');
-      link.download = `${diagramName}.png`;
-      link.href = dataUrl;
-      link.click();
+      const nodes = getNodes();
+      await ExportService.downloadPng(viewportEl, nodes, diagramName);
     } catch (error) {
       console.error('Error exportando imagen:', error);
       alert("No se pudo generar la imagen. Intenta de nuevo.");

@@ -10,7 +10,9 @@ import {
   MoveRight,
   SquareChevronRight,
   SquareChevronLeft,
-  PanelLeft
+  PanelLeft,
+  ChevronDown,
+  ChevronRight
 } from "lucide-react";
 import { useDiagramStore } from "../../../store/diagramStore";
 import type { stereotype, UmlRelationType } from "../../../types/diagram.types";
@@ -20,6 +22,9 @@ export default function Sidebar() {
   const { activeConnectionMode, setConnectionMode } = useDiagramStore();
   
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  const [isNodesOpen, setIsNodesOpen] = useState(true);
+  const [isConnectionsOpen, setIsConnectionsOpen] = useState(true);
 
   const onDragStart = (event: React.DragEvent, nodeType: stereotype) => {
     event.dataTransfer.setData("application/reactflow", nodeType);
@@ -30,149 +35,183 @@ export default function Sidebar() {
     <aside 
       className={`
         relative bg-surface-primary border-r border-surface-border flex flex-col z-10 shadow-xl transition-all duration-300 ease-in-out
-        ${isExpanded ? "w-64" : "w-20"}
-        /* Quitamos el pr-2 porque ya no hay botón flotante estorbando */
+        ${isExpanded ? "w-64" : "w-16"} /* w-16 es más limpio que w-20 para solo iconos */
       `}
     >
       
-      {/* --- HEADER CONSOLIDADO (TÍTULO + TOGGLE) --- */}
+      {/* ---  DINAMIC HEADER --- */}
       <div className={`
-        py-4 border-b border-surface-border/50 flex flex-col items-center justify-center transition-all gap-2
-        ${isExpanded ? "px-4" : ""}
+        h-14 flex items-center border-b border-surface-border/50 transition-all duration-300
+        ${isExpanded ? "justify-between px-4" : "justify-center"}
       `}>
          
-         {/* 1. TÍTULO */}
-         <div className={`flex items-center transition-all ${isExpanded ? "w-full justify-start gap-2" : "justify-center"}`}>
-           {isExpanded ? (
-             <>
-               <PanelLeft className="w-5 h-5 text-uml-class-border" />
-               <span className="font-bold text-text-primary tracking-tight">Toolbox</span>
-             </>
-           ) : (
-             <span className="text-[10px] uppercase font-bold text-text-muted tracking-widest opacity-60">
-               Tools
-             </span>
-           )}
-         </div>
+         {isExpanded && (
+           <div className="flex items-center gap-2 animate-in fade-in duration-300">
+             <PanelLeft className="w-5 h-5 text-uml-class-border" />
+             <span className="font-bold text-text-primary tracking-tight">Toolbox</span>
+           </div>
+         )}
 
-         {/* 2. BOTÓN TOGGLE (SUELTO / IN-FLOW) */}
+        
          <button 
            onClick={() => setIsExpanded(!isExpanded)}
            className={`
              flex items-center justify-center 
-             bg-surface-secondary border border-surface-border rounded-md 
-             text-text-secondary hover:text-text-primary hover:bg-surface-hover hover:scale-105
-             shadow-sm transition-all duration-200
-             ${isExpanded ? "w-full py-1.5" : "w-8 h-8"} /* Expandido: Barra ancha. Contraído: Botón cuadrado */
+             rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-hover hover:scale-105
+             transition-all duration-200
+             ${isExpanded ? "p-1.5 bg-transparent border border-surface-border" : "w-8 h-8 bg-surface-secondary border border-surface-border"}
            `}
            title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
          >
-           {isExpanded ? <SquareChevronLeft className="w-4 h-4" /> : <SquareChevronRight className="w-4 h-4" />}
+           {isExpanded ? <SquareChevronLeft className="w-5 h-5" /> : <SquareChevronRight className="w-5 h-5" />}
          </button>
-
       </div>
       
-      {/* --- CONTENIDO SCROLLABLE --- */}
-      <div className="flex flex-col gap-6 py-4 overflow-y-auto overflow-x-hidden custom-scrollbar h-full">
+      <div className="flex flex-col py-2 overflow-y-auto overflow-x-hidden custom-scrollbar h-full select-none">
         
-        {/* --- SECCIÓN 1: NODOS --- */}
-        <div className="flex flex-col gap-2 px-2">
-          {isExpanded && (
-            <span className="px-2 text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">
-              Nodes
-            </span>
-          )}
-          
-          <DraggableItem
-            type="class"
-            icon={<Box className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
-            label="Class"
-            color="var(--color-uml-class-border)"
-            isExpanded={isExpanded}
-            onDragStart={onDragStart}
-          />
-          <DraggableItem
-            type="interface"
-            icon={<CircleDot className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />} 
-            label="Interface"
-            color="var(--color-uml-interface-border)"
-            isExpanded={isExpanded}
-            onDragStart={onDragStart}
-          />
-          <DraggableItem
-            type="abstract"
-            icon={<BoxSelect className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />} 
-            label="Abstract"
-            color="var(--color-uml-abstract-border)"
-            isExpanded={isExpanded}
-            onDragStart={onDragStart}
-          />
-          <DraggableItem
-            type="note"
-            icon={<StickyNote className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />} 
-            label="Note"
-            color="var(--color-uml-note-border)"
-            isExpanded={isExpanded}
-            onDragStart={onDragStart}
-          />
-        </div>
+        {/* === SECCIÓN 1: NODOS === */}
+        <CollapsibleSection 
+          title="Nodes" 
+          isOpen={isNodesOpen} 
+          setIsOpen={setIsNodesOpen} 
+          isSidebarExpanded={isExpanded}
+        >
+          <div className={`flex flex-col gap-2 ${isExpanded ? "px-3" : "px-2"}`}>
+            <DraggableItem
+              type="class"
+              icon={<Box className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              label="Class"
+              color="var(--color-uml-class-border)"
+              isExpanded={isExpanded}
+              onDragStart={onDragStart}
+            />
+            <DraggableItem
+              type="interface"
+              icon={<CircleDot className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />} 
+              label="Interface"
+              color="var(--color-uml-interface-border)"
+              isExpanded={isExpanded}
+              onDragStart={onDragStart}
+            />
+            <DraggableItem
+              type="abstract"
+              icon={<BoxSelect className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />} 
+              label="Abstract"
+              color="var(--color-uml-abstract-border)"
+              isExpanded={isExpanded}
+              onDragStart={onDragStart}
+            />
+            <DraggableItem
+              type="note"
+              icon={<StickyNote className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />} 
+              label="Note"
+              color="var(--color-uml-note-border)"
+              isExpanded={isExpanded}
+              onDragStart={onDragStart}
+            />
+          </div>
+        </CollapsibleSection>
 
-        <div className="mx-4 h-px bg-surface-border/50" />
+        {isExpanded && <div className="mx-4 my-2 h-px bg-surface-border/30" />}
 
-        {/* --- SECCIÓN 2: RELACIONES --- */}
-        <div className="flex flex-col gap-2 px-2">
-          {isExpanded && (
-            <span className="px-2 text-xs font-semibold text-text-muted uppercase tracking-wider mb-1">
-              Connect
-            </span>
-          )}
+        {/* === SECCIÓN 2: RELACIONES === */}
+        <CollapsibleSection 
+          title="Connections" 
+          isOpen={isConnectionsOpen} 
+          setIsOpen={setIsConnectionsOpen} 
+          isSidebarExpanded={isExpanded}
+        >
+          <div className={`flex flex-col gap-2 ${isExpanded ? "px-3" : "px-2"}`}>
+             <ConnectionItem
+              mode="association"
+              activeMode={activeConnectionMode}
+              onClick={() => setConnectionMode("association")}
+              icon={<MoveRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              label="Association"
+              color={edgeConfig.types.association.highlight} 
+              isExpanded={isExpanded}
+            />
 
-          <ConnectionItem
-            mode="association"
-            activeMode={activeConnectionMode}
-            onClick={() => setConnectionMode("association")}
-            icon={<MoveRight className={isExpanded ? "w-5 h-5" : "w-5 h-5"} />}
-            label="Association"
-            color={edgeConfig.types.association.highlight} 
-            isExpanded={isExpanded}
-          />
+            <ConnectionItem
+              mode="inheritance"
+              activeMode={activeConnectionMode}
+              onClick={() => setConnectionMode("inheritance")}
+              icon={<ArrowUp className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              label="Inheritance"
+              color={edgeConfig.types.inheritance.highlight}
+              isExpanded={isExpanded}
+            />
 
-          <ConnectionItem
-            mode="inheritance"
-            activeMode={activeConnectionMode}
-            onClick={() => setConnectionMode("inheritance")}
-            icon={<ArrowUp className={isExpanded ? "w-5 h-5" : "w-5 h-5"} />}
-            label="Inheritance"
-            color={edgeConfig.types.inheritance.highlight}
-            isExpanded={isExpanded}
-          />
+            <ConnectionItem
+              mode="implementation"
+              activeMode={activeConnectionMode}
+              onClick={() => setConnectionMode("implementation")}
+              icon={<ArrowUpRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              label="Implementation"
+              color={edgeConfig.types.implementation.highlight}
+              isExpanded={isExpanded}
+            />
 
-          <ConnectionItem
-            mode="implementation"
-            activeMode={activeConnectionMode}
-            onClick={() => setConnectionMode("implementation")}
-            icon={<ArrowUpRight className={isExpanded ? "w-5 h-5" : "w-5 h-5"} />}
-            label="Implement"
-            color={edgeConfig.types.implementation.highlight}
-            isExpanded={isExpanded}
-          />
+            <ConnectionItem
+              mode="dependency"
+              activeMode={activeConnectionMode}
+              onClick={() => setConnectionMode("dependency")}
+              icon={<GitCommitHorizontal className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              label="Dependency"
+              color={edgeConfig.types.dependency.highlight}
+              isExpanded={isExpanded}
+            />
+          </div>
+        </CollapsibleSection>
 
-          <ConnectionItem
-            mode="dependency"
-            activeMode={activeConnectionMode}
-            onClick={() => setConnectionMode("dependency")}
-            icon={<GitCommitHorizontal className={isExpanded ? "w-5 h-5" : "w-5 h-5"} />}
-            label="Dependency"
-            color={edgeConfig.types.dependency.highlight}
-            isExpanded={isExpanded}
-          />
-        </div>
       </div>
     </aside>
   );
 }
 
-// ... (Subcomponentes DraggableItem y ConnectionItem siguen igual) ...
+interface CollapsibleSectionProps {
+  title: string;
+  isOpen: boolean;
+  setIsOpen: (v: boolean) => void;
+  isSidebarExpanded: boolean;
+  children: React.ReactNode;
+}
+
+function CollapsibleSection({ title, isOpen, setIsOpen, isSidebarExpanded, children }: CollapsibleSectionProps) {
+  if (!isSidebarExpanded) {
+    return (
+      <div className="py-2 flex flex-col gap-1 items-center animate-in fade-in zoom-in duration-200">
+        <div className="w-8 h-px bg-surface-border/50 mb-2" />
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between px-4 py-3 text-xs font-bold text-text-muted uppercase tracking-wider hover:text-text-primary transition-colors group"
+      >
+        <span>{title}</span>
+        {isOpen ? (
+          <ChevronDown className="w-3 h-3 text-text-secondary group-hover:text-text-primary transition-transform" />
+        ) : (
+          <ChevronRight className="w-3 h-3 text-text-secondary group-hover:text-text-primary transition-transform" />
+        )}
+      </button>
+
+      <div 
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-96 opacity-100 mb-2" : "max-h-0 opacity-0"}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+
+
 interface DraggableItemProps {
   type: stereotype;
   icon: React.ReactNode;
@@ -201,13 +240,11 @@ function DraggableItem({ type, icon, label, color, isExpanded, onDragStart }: Dr
         </span>
       </div>
       
-      <span 
-        className={`font-medium text-text-muted group-hover:text-text-primary transition-all whitespace-nowrap overflow-hidden
-          ${isExpanded ? "text-sm opacity-100" : "text-[9px] opacity-80"}
-        `}
-      >
-        {label}
-      </span>
+      {isExpanded && (
+        <span className="font-medium text-sm text-text-muted group-hover:text-text-primary transition-all whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200">
+          {label}
+        </span>
+      )}
     </div>
   );
 }
@@ -239,23 +276,21 @@ function ConnectionItem({ mode, activeMode, onClick, icon, label, color, isExpan
     >
       <div 
         className="transition-colors shrink-0"
-        style={{ 
-            color: isActive ? '#0B0F1A' : color 
-        }} 
+        style={{ color: isActive ? '#0B0F1A' : color }} 
       >
          <span style={{ color: isActive ? '#111827' : color, fontWeight: 'bold' }}>
             {icon}
          </span>
       </div>
       
-      <span 
-        className={`font-medium transition-colors whitespace-nowrap overflow-hidden
-          ${isExpanded ? "text-sm" : "text-[9px]"}
-        `}
-        style={{ color: isActive ? '#111827' : 'var(--color-text-muted)' }}
-      >
-        {label}
-      </span>
+      {isExpanded && (
+        <span 
+          className="font-medium text-sm transition-colors whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200"
+          style={{ color: isActive ? '#111827' : 'var(--color-text-muted)' }}
+        >
+          {label}
+        </span>
+      )}
     </button>
   );
 }

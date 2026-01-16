@@ -11,6 +11,9 @@ node_modules
 dist
 dist-ssr
 *.local
+release
+dist-electron
+build
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +25,37 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Optional npm cache directory
+.npm
+.eslintcache
+.next
+.cache
+.nuxt
+.out
+coverage
+.build
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+.pnp
+.pnp.js
+.cache-loader
+jspm_packages/
+.webpack
+bower_components/
+.sass-cache
+*.seed
+*.pid
+*.pid.lock
+lib-cov
+*.log
+*.csv
+*.dat
+*.out
+*.tgz
+*.gz
+
+
+

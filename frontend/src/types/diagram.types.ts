@@ -2,12 +2,29 @@ import type { CSSProperties } from 'react';
 
 export type stereotype = 'class' | 'interface' | 'abstract' | 'note';
 export type UmlRelationType = 'association' | 'inheritance' | 'implementation' | 'dependency';
+export type visibility = '+' | '-' | '#' | '~';
+
+export interface UmlAttribute {
+  id: string;
+  name: string;
+  type: string;
+  visibility: visibility;
+  isArray: boolean;
+}
+
+export interface UmlMethod {
+  id: string;
+  name: string;
+  returnType: string;
+  visibility: visibility;
+  parameters: {name: string, type: string}[];
+}
 
 export interface UmlClassData {
   label: string;
   content?: string;
-  attributes: string[];
-  methods: string[];
+  attributes: UmlAttribute[];
+  methods: UmlMethod[];
   stereotype: stereotype; 
 }
 

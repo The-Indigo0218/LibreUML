@@ -21,7 +21,6 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
   const isInterface = data.stereotype === "interface";
   const isAbstract = data.stereotype === "abstract";
 
-
   let containerClass = "bg-uml-class-bg border-uml-class-border";
   let headerClass = "bg-surface-hover border-uml-class-border";
   let badgeColor = "text-uml-class-border";
@@ -79,11 +78,16 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
       </div>
 
       {/* BODY: Attributes */}
-      <div className={`p-2 border-b-2 min-h-[24px] text-xs text-left font-mono text-text-secondary ${isInterface ? "border-uml-interface-border" : isAbstract ? "border-uml-abstract-border" : "border-uml-class-border"}`}>
-        {data.attributes.length > 0 ? (
-          data.attributes.map((attr, index) => (
-            <div key={`${attr}-${index}`} className="truncate hover:text-text-primary transition-colors">
-              {attr}
+      <div className={`p-2 border-b-2 min-h-6 text-xs text-left font-mono text-text-secondary ${isInterface ? "border-uml-interface-border" : isAbstract ? "border-uml-abstract-border" : "border-uml-class-border"}`}>
+        {data.attributes && data.attributes.length > 0 ? (
+          data.attributes.map((attr) => (
+            <div key={attr.id} className="truncate hover:text-text-primary transition-colors flex items-center gap-1">
+              <span className="text-uml-abstract-border font-bold">{attr.visibility}</span>
+              <span className="text-text-primary">{attr.name}</span>
+              <span className="text-text-muted">:</span>
+              <span className="text-uml-interface-border">
+                {attr.type}{attr.isArray ? '[]' : ''}
+              </span>
             </div>
           ))
         ) : (
@@ -93,10 +97,21 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
 
       {/* FOOTER: Methods */}
       <div className="p-2 min-h-[24px] text-xs text-left font-mono text-text-secondary">
-        {data.methods.length > 0 ? (
+        {data.methods && data.methods.length > 0 ? (
           data.methods.map((method, index) => (
-            <div key={`${method}-${index}`} className="truncate hover:text-text-primary transition-colors">
-              {method}
+            <div key={method.id || `${method.name}-${index}`} className="truncate hover:text-text-primary transition-colors">
+              <span className="text-uml-abstract-border font-bold">{method.visibility}</span>
+              <span className="text-text-primary">{method.name}</span>
+              <span className="text-text-muted">(</span>
+              
+              {(method.parameters || []).map((param, idx) => (
+                <span key={idx} className="text-uml-interface-border">
+                  {param.name}: {param.type}{idx < (method.parameters?.length || 0) - 1 ? ', ' : ''}
+                </span>
+              ))}
+              
+              <span className="text-text-muted">): </span>
+              <span className="text-uml-interface-border">{method.returnType}</span>
             </div>
           ))
         ) : (

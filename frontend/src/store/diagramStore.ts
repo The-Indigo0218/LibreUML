@@ -70,30 +70,7 @@ export const checkCollision = (
   });
 };
 
-const initialNodes: Node<UmlClassData>[] = [
-  {
-    id: "1",
-    type: "umlClass",
-    position: { x: 250, y: 50 },
-    data: {
-      label: "Persona",
-      attributes: [],
-      methods: [],
-      stereotype: "class",
-    },
-  },
-  {
-    id: "2",
-    type: "umlClass",
-    position: { x: 250, y: 350 },
-    data: {
-      label: "Estudiante",
-      attributes: [],
-      methods: [],
-      stereotype: "interface",
-    },
-  },
-];
+
 
 interface DiagramStoreState {
   diagramId: string;
@@ -126,7 +103,7 @@ interface DiagramStoreState {
 export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
   diagramId: crypto.randomUUID(),
   diagramName: "Untitled Diagram",
-  nodes: initialNodes,
+  nodes: [],
   edges: [],
   activeConnectionMode: "association",
   showMiniMap: false,

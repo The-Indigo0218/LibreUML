@@ -5,6 +5,7 @@ import ReactFlow, {
   MiniMap,
   BackgroundVariant,
   ConnectionMode,
+  type Node,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import {
@@ -49,6 +50,8 @@ export default function DiagramCanvas() {
     deleteEdge,
     changeEdgeType,
     reverseEdge,
+    triggerHistorySnapshot,
+    recalculateNodeConnections,
   } = useDiagramStore();
 
   const { screenToFlowPosition } = useReactFlow();
@@ -58,6 +61,23 @@ export default function DiagramCanvas() {
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
 
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+
+  const temporal = useDiagramStore.temporal.getState();
+
+  const onNodeDragStart = useCallback(() => {
+    temporal.pause();
+  }, [temporal]);
+
+  const onNodeDragStop = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      recalculateNodeConnections(node.id);
+
+      temporal.resume();
+
+      triggerHistorySnapshot();
+    },
+    [recalculateNodeConnections, temporal, triggerHistorySnapshot],
+  );
 
   const displayEdges = useMemo(() => {
     if (!hoveredNodeId && !hoveredEdgeId) return edges;
@@ -114,6 +134,34 @@ export default function DiagramCanvas() {
       };
     });
   }, [edges, hoveredNodeId, hoveredEdgeId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      )
+        return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault();
+        if (e.shiftKey) {
+          useDiagramStore.temporal.getState().redo(); // Ctrl + Shift + Z
+        } else {
+          useDiagramStore.temporal.getState().undo(); // Ctrl + Z
+        }
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+        // Ctrl + Y
+        e.preventDefault();
+        useDiagramStore.temporal.getState().redo();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     nodesRef.current = nodes;
@@ -264,6 +312,8 @@ export default function DiagramCanvas() {
         onDragOver={onDragOver}
         onDrop={onDrop}
         connectionMode={ConnectionMode.Loose}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDragStop={onNodeDragStop}
         fitView
       >
         <Background

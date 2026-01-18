@@ -20,6 +20,7 @@ import type {
 } from "../types/diagram.types";
 
 import { edgeConfig } from "../config/theme.config";
+import { getSmartEdgeHandles } from "../util/geometry";
 
 export const NODE_WIDTH = 250;
 export const NODE_HEIGHT = 200;
@@ -56,7 +57,7 @@ const getNoteEdgeOptions = (): DefaultEdgeOptions => {
 
 export const checkCollision = (
   position: { x: number; y: number },
-  nodes: Node[]
+  nodes: Node[],
 ) => {
   return nodes.some((node) => {
     const nodeW = node.width || NODE_WIDTH;
@@ -69,8 +70,6 @@ export const checkCollision = (
     );
   });
 };
-
-
 
 interface DiagramStoreState {
   diagramId: string;
@@ -86,7 +85,7 @@ interface DiagramStoreState {
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
   addNode: (
     position: { x: number; y: number },
-    stereotype?: stereotype
+    stereotype?: stereotype,
   ) => void;
   deleteNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => void;
@@ -98,6 +97,7 @@ interface DiagramStoreState {
   deleteEdge: (edgeId: string) => void;
   changeEdgeType: (edgeId: string, newType: UmlRelationType) => void;
   reverseEdge: (edgeId: string) => void;
+  recalculateNodeConnections: (nodeId: string) => void;
 }
 
 export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
@@ -109,8 +109,10 @@ export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
   showMiniMap: false,
 
   setDiagramName: (name) => set({ diagramName: name }),
+
   onNodesChange: (changes) =>
     set({ nodes: applyNodeChanges(changes, get().nodes) }),
+
   onEdgesChange: (changes) =>
     set({ edges: applyEdgeChanges(changes, get().edges) }),
 
@@ -131,7 +133,7 @@ export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
     set({
       edges: addEdge(
         { ...connection, ...edgeOptions, data: edgeData },
-        get().edges
+        get().edges,
       ),
     });
   },
@@ -156,16 +158,18 @@ export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
   updateNodeData: (nodeId, newData) =>
     set({
       nodes: get().nodes.map((n) =>
-        n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n
+        n.id === nodeId ? { ...n, data: { ...n.data, ...newData } } : n,
       ),
     }),
+
   deleteNode: (nodeId) =>
     set({
       nodes: get().nodes.filter((n) => n.id !== nodeId),
       edges: get().edges.filter(
-        (e) => e.source !== nodeId && e.target !== nodeId
+        (e) => e.source !== nodeId && e.target !== nodeId,
       ),
     }),
+
   duplicateNode: (nodeId) => {
     const n = get().nodes.find((x) => x.id === nodeId);
     if (n)
@@ -180,6 +184,7 @@ export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
         ],
       });
   },
+
   setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
 
   loadDiagram: (data) => {
@@ -208,9 +213,6 @@ export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
   },
 
   toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
-  clearCanvas: () => {
-    if (confirm("Borrar todo?")) set({ nodes: [], edges: [] });
-  },
 
   deleteEdge: (edgeId) => {
     set({ edges: get().edges.filter((e) => e.id !== edgeId) });
@@ -227,7 +229,7 @@ export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
               style: { ...e.style, ...newOptions.style },
               data: { ...e.data, type: newType },
             }
-          : e
+          : e,
       ),
     });
   },
@@ -247,5 +249,44 @@ export const useDiagramStore = create<DiagramStoreState>((set, get) => ({
         return e;
       }),
     });
+  },
+
+  recalculateNodeConnections: (nodeId: string) => {
+    const { nodes, edges } = get();
+    const movedNode = nodes.find((n) => n.id === nodeId);
+    if (!movedNode) return;
+
+    const newEdges = edges.map((edge) => {
+      const isSource = edge.source === nodeId;
+      const isTarget = edge.target === nodeId;
+
+      if (!isSource && !isTarget) return edge;
+
+      const sourceNode = isSource
+        ? movedNode
+        : nodes.find((n) => n.id === edge.source);
+      const targetNode = isTarget
+        ? movedNode
+        : nodes.find((n) => n.id === edge.target);
+
+      if (!sourceNode || !targetNode) return edge;
+
+      const { sourceHandle, targetHandle } = getSmartEdgeHandles(
+        sourceNode,
+        targetNode,
+      );
+
+      return {
+        ...edge,
+        sourceHandle,
+        targetHandle,
+      };
+    });
+
+    set({ edges: newEdges });
+  },
+
+  clearCanvas: () => {
+    set({ nodes: [], edges: [] });
   },
 }));

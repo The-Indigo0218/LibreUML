@@ -4,13 +4,11 @@ import {
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
-  MarkerType,
   type Node,
   type Edge,
   type OnNodesChange,
   type OnEdgesChange,
   type OnConnect,
-  type DefaultEdgeOptions,
 } from "reactflow";
 
 import type {
@@ -19,58 +17,8 @@ import type {
   UmlRelationType,
   DiagramState as SavedDiagramState,
 } from "../types/diagram.types";
-
-import { edgeConfig } from "../config/theme.config";
-import { getSmartEdgeHandles } from "../util/geometry";
-
-export const NODE_WIDTH = 250;
-export const NODE_HEIGHT = 200;
-
-const getEdgeOptions = (type: UmlRelationType): DefaultEdgeOptions => {
-  const config = edgeConfig.types[type] || edgeConfig.types.association;
-
-  return {
-    ...edgeConfig.base,
-    style: { ...edgeConfig.base.style, ...config.style },
-    zIndex: config.zIndex,
-    markerEnd: {
-      type:
-        type === "inheritance" || type === "implementation"
-          ? MarkerType.ArrowClosed
-          : MarkerType.Arrow,
-      ...config.marker,
-    },
-  };
-};
-
-const getNoteEdgeOptions = (): DefaultEdgeOptions => {
-  const config = edgeConfig.types.note;
-  return {
-    ...edgeConfig.base,
-    style: { ...edgeConfig.base.style, ...config.style },
-    zIndex: config.zIndex,
-    markerEnd: {
-      type: MarkerType.Arrow,
-      ...config.marker,
-    },
-  };
-};
-
-export const checkCollision = (
-  position: { x: number; y: number },
-  nodes: Node[],
-) => {
-  return nodes.some((node) => {
-    const nodeW = node.width || NODE_WIDTH;
-    const nodeH = node.height || NODE_HEIGHT;
-    return (
-      position.x < node.position.x + nodeW &&
-      position.x + NODE_WIDTH > node.position.x &&
-      position.y < node.position.y + nodeH &&
-      position.y + NODE_HEIGHT > node.position.y
-    );
-  });
-};
+import { getEdgeOptions, getNoteEdgeOptions } from "../util/edgeFactory";
+import { getSmartEdgeHandles, checkCollision } from "../util/geometry";
 
 interface DiagramStoreState {
   diagramId: string;
@@ -122,21 +70,24 @@ export const useDiagramStore = create<DiagramStoreState>()(
         set({ edges: applyEdgeChanges(changes, get().edges) }),
 
       onConnect: (connection) => {
-        const { activeConnectionMode, nodes, edges } = get();  
+        const { activeConnectionMode, nodes, edges } = get();
         const sourceNode = nodes.find((n) => n.id === connection.source);
         const targetNode = nodes.find((n) => n.id === connection.target);
 
         if (sourceNode?.type === "umlNote") {
-          
           if (targetNode?.type === "umlNote") return;
 
           const isDuplicate = edges.some(
-            (e) => e.source === connection.source && e.target === connection.target
+            (e) =>
+              e.source === connection.source && e.target === connection.target,
           );
           if (isDuplicate) return;
 
-          if (connection.targetHandle === "right" || connection.targetHandle === "bottom") {
-             return;
+          if (
+            connection.targetHandle === "right" ||
+            connection.targetHandle === "bottom"
+          ) {
+            return;
           }
         }
 

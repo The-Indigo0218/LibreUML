@@ -8,12 +8,7 @@ import ReactFlow, {
   type Node,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import {
-  useDiagramStore,
-  checkCollision,
-  NODE_HEIGHT,
-  NODE_WIDTH,
-} from "../../../store/diagramStore";
+import { useDiagramStore } from "../../../store/diagramStore";
 import UmlClassNode from "./nodes/UmlClassNode";
 import UmlNoteNode from "./nodes/UmlNoteNode";
 import ContextMenu from "./ContextMenu";
@@ -21,13 +16,14 @@ import { useContextMenu } from "../hooks/useContextMenu";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import ClassEditorModal from "./ClassEditorModal";
 import type { stereotype } from "../../../types/diagram.types";
-
+import { NODE_WIDTH, NODE_HEIGHT } from "../../../config/theme.config";
 import {
   canvasConfig,
   miniMapColors,
   edgeConfig,
 } from "../../../config/theme.config";
 import ConfirmationModal from "../../../components/shared/ConfirmationModal";
+import { checkCollision } from "../../../util/geometry";
 
 const nodeTypes = {
   umlClass: UmlClassNode,

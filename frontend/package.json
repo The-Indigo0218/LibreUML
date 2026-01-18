@@ -2,7 +2,7 @@
   "name": "frontend",
   "private": true,
   "version": "0.0.0",
-  "main": "dist-electron/main.js",  
+  "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,6 +17,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "reactflow": "^11.11.4",
+    "zundo": "^2.3.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
@@ -59,7 +60,7 @@
           ]
         }
       ],
-      "icon": "public/logo.png" 
+      "icon": "public/logo.png"
     }
   }
 }

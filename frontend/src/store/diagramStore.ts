@@ -122,8 +122,26 @@ export const useDiagramStore = create<DiagramStoreState>()(
         set({ edges: applyEdgeChanges(changes, get().edges) }),
 
       onConnect: (connection) => {
-        const { activeConnectionMode, nodes } = get();
+        const { activeConnectionMode, nodes, edges } = get();  
         const sourceNode = nodes.find((n) => n.id === connection.source);
+        const targetNode = nodes.find((n) => n.id === connection.target);
+
+        if (sourceNode?.type === "umlNote") {
+          
+          if (targetNode?.type === "umlNote") return;
+
+          const isDuplicate = edges.some(
+            (e) => e.source === connection.source && e.target === connection.target
+          );
+          if (isDuplicate) return;
+
+          if (connection.targetHandle === "right" || connection.targetHandle === "bottom") {
+             return;
+          }
+        }
+
+        if (targetNode?.type === "umlNote") return;
+
         let edgeOptions;
         let edgeData = {};
 
@@ -176,18 +194,31 @@ export const useDiagramStore = create<DiagramStoreState>()(
         }),
 
       duplicateNode: (nodeId) => {
-        const n = get().nodes.find((x) => x.id === nodeId);
-        if (n)
+        const { nodes } = get();
+        const n = nodes.find((x) => x.id === nodeId);
+
+        if (n) {
+          const newNode = {
+            ...n,
+            id: crypto.randomUUID(),
+            position: { x: n.position.x + 50, y: n.position.y + 50 },
+            selected: false,
+            dragging: false,
+            data: {
+              ...n.data,
+              label: `${n.data.label} (Copy)`,
+            },
+          };
+
+          const otherNodes = nodes.map((node) => ({
+            ...node,
+            selected: false,
+          }));
+
           set({
-            nodes: [
-              ...get().nodes,
-              {
-                ...n,
-                id: crypto.randomUUID(),
-                position: { x: n.position.x + 20, y: n.position.y + 20 },
-              },
-            ],
+            nodes: [...otherNodes, newNode],
           });
+        }
       },
 
       setConnectionMode: (mode) => set({ activeConnectionMode: mode }),
@@ -240,15 +271,29 @@ export const useDiagramStore = create<DiagramStoreState>()(
       },
 
       reverseEdge: (edgeId) => {
+        const { nodes, edges } = get();
+        const edge = edges.find((e) => e.id === edgeId);
+        if (!edge) return;
+
+        const newSourceNode = nodes.find((n) => n.id === edge.target);
+        const newTargetNode = nodes.find((n) => n.id === edge.source);
+
+        if (!newSourceNode || !newTargetNode) return;
+
+        const { sourceHandle, targetHandle } = getSmartEdgeHandles(
+          newSourceNode,
+          newTargetNode,
+        );
+
         set({
-          edges: get().edges.map((e) => {
+          edges: edges.map((e) => {
             if (e.id === edgeId) {
               return {
                 ...e,
                 source: e.target,
                 target: e.source,
-                sourceHandle: e.targetHandle,
-                targetHandle: e.sourceHandle,
+                sourceHandle,
+                targetHandle,
               };
             }
             return e;
@@ -305,8 +350,8 @@ export const useDiagramStore = create<DiagramStoreState>()(
         const cleanNodes = nodes.map((n) => ({
           id: n.id,
           type: n.type,
-          position: n.position, 
-          data: n.data,         
+          position: n.position,
+          data: n.data,
         }));
 
         const cleanEdges = edges.map((e) => ({

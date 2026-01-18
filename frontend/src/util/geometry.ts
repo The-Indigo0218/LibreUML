@@ -1,5 +1,6 @@
 import { Position } from "reactflow";
 import type { Node } from "reactflow";
+import { NODE_WIDTH, NODE_HEIGHT } from "../config/theme.config";
 
 const VALID_SOURCE_HANDLES = [
   { id: "right", position: Position.Right },
@@ -53,4 +54,19 @@ const getHandlePosition = (node: Node, position: Position) => {
     default:
       return { x: x + w / 2, y: y + h / 2 };
   }
+};
+export const checkCollision = (
+  position: { x: number; y: number },
+  nodes: Node[],
+) => {
+  return nodes.some((node) => {
+    const nodeW = node.width || NODE_WIDTH;
+    const nodeH = node.height || NODE_HEIGHT;
+    return (
+      position.x < node.position.x + nodeW &&
+      position.x + NODE_WIDTH > node.position.x &&
+      position.y < node.position.y + nodeH &&
+      position.y + NODE_HEIGHT > node.position.y
+    );
+  });
 };

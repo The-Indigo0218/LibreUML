@@ -37,8 +37,8 @@ Este documento detalla la evolución del editor de diagramas UML. El enfoque es 
 
 - [ ] **Servicio de Persistencia:** Implementación de PersistenceService con LocalStorage / IndexedDB.
 - [ ] **Auto-save:** Sistema de guardado automático con Debouncing para optimizar recursos.
-- [ ] **Electron Wrapper:** Empaquetado de la app para Windows/Linux/Mac.
-- [ ] **File System Access:** Capacidad de guardar y abrir archivos con extensión `.luml` en el disco duro.
+- [x] ✅ **Electron Wrapper:** Empaquetado de la app para Windows/Linux/Mac.
+- [x] ✅ **File System Access:** Capacidad de guardar y abrir archivos con extensión `.luml` en el disco duro.
 
 ---
 

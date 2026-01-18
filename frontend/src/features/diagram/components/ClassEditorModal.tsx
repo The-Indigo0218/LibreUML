@@ -122,7 +122,7 @@ export default function ClassEditorModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm font-sans">
-      <div className="bg-surface-primary border border-surface-border p-6 rounded-xl shadow-2xl w-[600px] text-text-primary max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div className="bg-surface-primary border border-surface-border p-6 rounded-xl shadow-2xl w-150 text-text-primary max-h-[90vh] overflow-y-auto custom-scrollbar">
         <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
           <span className="text-uml-class-border">Edit Class:</span>{" "}
           {draft.label}

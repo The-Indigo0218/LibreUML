@@ -10,19 +10,44 @@ const UmlNoteNode = ({ id, data }: NodeProps<UmlClassData>) => {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingContent, setEditingContent] = useState(false);
 
-  // Estilo handle invisible que aparece en hover (color Cyan de la nota)
-  const handleStyle = "w-3 h-3 !bg-uml-note-border border border-canvas-base opacity-0 group-hover:opacity-100 transition-opacity";
+  const handleStyle = "w-3 h-3 bg-uml-note-border! border border-canvas-base opacity-0 group-hover:opacity-100 transition-opacity";
 
   return (
     <div className="bg-uml-note-bg border border-uml-note-border rounded-sm w-56 shadow-md overflow-visible relative group flex flex-col font-sans transition-colors">
       
-      {/* Handles para conectar notas */}
-      <Handle type="source" position={Position.Bottom} className={handleStyle} />
-      <Handle type="source" position={Position.Top} className={handleStyle} />
-      <Handle type="source" position={Position.Left} className={handleStyle} />
-      <Handle type="source" position={Position.Right} className={handleStyle} />
+      {/* Top */}
+      <Handle 
+        type="source" 
+        position={Position.Top} 
+        id="top" 
+        className={handleStyle} 
+      />
 
-      {/* Header Nota */}
+      {/* Right */}
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        id="right" 
+        className={handleStyle} 
+      />
+
+      {/* Bottom */}
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        id="bottom" 
+        className={handleStyle} 
+      />
+
+      {/* left */}
+      <Handle 
+        type="source" 
+        position={Position.Left} 
+        id="left" 
+        className={handleStyle} 
+      />
+
+      {/*Note  Header  */}
       <div 
         className="bg-surface-secondary p-2 border-b border-dashed border-uml-note-border rounded-t-sm flex items-center justify-between"
         onDoubleClick={() => setEditingTitle(true)}
@@ -46,7 +71,7 @@ const UmlNoteNode = ({ id, data }: NodeProps<UmlClassData>) => {
         {!editingTitle && <StickyNote className="w-3 h-3 text-uml-note-border shrink-0" />}
       </div>
 
-      {/* Contenido Nota */}
+      {/* Note Content */}
       <div 
         className="p-2 min-h-20 cursor-text"
         onClick={() => !editingContent && setEditingContent(true)}

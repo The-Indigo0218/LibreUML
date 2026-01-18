@@ -1,72 +1,160 @@
 # 🗺️ LibreUML Roadmap
+### Unified Roadmap · *Local‑First Strategy*
 
-Este documento detalla la evolución del editor de diagramas UML. El enfoque es **Local-First**, priorizando el rendimiento en escritorio y la experiencia de usuario.
-
----
-
-## 🟢 Fase 1: Cimientos y Arquitectura Core
-
-- [x] ✅ **Inicialización:** Configuración de Vite, React, TypeScript (Strict Mode).
-- [x] ✅ **Estilos:** Integración de Tailwind CSS v4 y PostCSS.
-- [x] ✅ **Contratos de Dominio:** Definición de interfaces para DiagramState, Nodes y Edges.
-- [x] ✅ **Canvas Engine:** Integración base con React Flow.
-- [x] ✅ **Componente UML Class:** Implementación visual de la caja de clase (Header, Attrs, Methods).
-- [x] ✅ **Validación de Conexiones:** Lógica para evitar conexiones duplicadas o redundantes.
+**Filosofía Central**  
+> **Local Powerhouse, Cloud Intelligence**  
+LibreUML prioriza el rendimiento, la estabilidad y la experiencia de usuario en escritorio.  
+La web y el backend existen como motores de crecimiento, métricas y distribución, no como dependencia funcional del editor.
 
 ---
 
-## 🟡 Fase 2: Interacción y Lógica de Creación (Refinada)
+## 🟢 Fase 1: Cimientos y Arquitectura Core *(Completado)*
 
-- [x] ✅ **Edición en Línea (Inline Editing):** Implementado el doble clic para editar el nombre de la clase mediante el Store de Zustand.
-- [X] ✅ **Lógica de Creación Dinámica:** Desarrollar la acción `addNode` en el Store para inyectar nuevos objetos `UmlClassData` en el canvas basándose en coordenadas dinámicas del mouse.
-- [x] ✅ **Sistema de Prevención de Colisiones:** Implementar validación lógica en el Store para evitar el solapamiento visual de nodos al momento de la creación.
-- [x] ✅ **Menú Contextual (Clic Derecho):** Crear una interfaz flotante para acciones rápidas (Borrar, Duplicar, Editar) activada por `onPaneContextMenu`.
-- [x] ✅ **Editor de Contenido (Modals):** Implementar ventanas emergentes para la gestión avanzada y cómoda de listas extensas de atributos y métodos.
----
-
-## 🟠 Fase 3: Elementos UML Avanzados (Community Issues)
-- [x] ✅ **Toolbar:** Maquetación final de la barra lateral de herramientas.
-- [x] ✅ **Refactor de Tipos de Nodos:** Soporte explícito para Interface, Abstract Class.
-- [x] ✅ **Relaciones Especializadas:** Implementación visual de Herencia, Realización, Agregación y Composición (flechas personalizadas).
-- [x] ✅ **Notas y Comentarios:** Nodos de texto libre para documentar el diagrama.
-- [x] ✅ **Shell UI:** Diseño general de la aplicación una vez consolidada las funcionalidades.
+- [x] Inicialización del proyecto con **Vite + React + TypeScript (Strict)**.
+- [x] Estilos base con **Tailwind CSS**.
+- [x] Definición de contratos de dominio (`DiagramState`, `Nodes`, `Edges`).
+- [x] Canvas Engine basado en **React Flow**.
+- [x] Componente **UML Class** (Header, Attributes, Methods).
+- [x] Validación de conexiones (prevención de duplicados y ciclos inválidos).
 
 ---
 
-## 🔵 Fase 4: Persistencia y Desktop (Electron)
+## 🟡 Fase 2: Interacción y Lógica de Creación *(Completado / Pulido)*
 
-- [ ] **Servicio de Persistencia:** Implementación de PersistenceService con LocalStorage / IndexedDB.
-- [ ] **Auto-save:** Sistema de guardado automático con Debouncing para optimizar recursos.
-- [x] ✅ **Electron Wrapper:** Empaquetado de la app para Windows/Linux/Mac.
-- [x] ✅ **File System Access:** Capacidad de guardar y abrir archivos con extensión `.luml` en el disco duro.
-
----
-
-## 🟣 Fase 5: Backend & Cloud Sync (Spring Boot)
-
-- [ ] **Capa de Servicio API:** Integración con Axios para comunicación con el backend.
-- [ ] **Sincronización en la Nube:** Opción para subir diagramas locales al servidor remoto.
-- [ ] **Exportación:** Generar imágenes PNG o vectores SVG del diagrama actual.
+- [x] Edición en línea mediante doble clic.
+- [x] Creación dinámica de nodos (Drag & Drop).
+- [x] Prevención de colisiones en creación.
+- [x] Menú contextual (clic derecho).
+- [x] Modals para edición avanzada.
+- [x] **Smart Routing:** recálculo automático de conexiones al mover nodos.
 
 ---
 
-## ⚪ Fase 6: Calidad y Testing
+## 🟠 Fase 3: Experiencia de Usuario Pro *(En progreso)*
+Aquí LibreUML deja de ser un prototipo y se convierte en una herramienta real de trabajo.
 
-- [ ] **Unit Testing:** Pruebas para la lógica de los nodos y validaciones con Vitest.
-- [ ] **E2E Testing:** Pruebas de flujo completo con Playwright o Cypress.
-- [ ] **Optimización de Performance:** Pruebas de carga con +100 nodos simultáneos.
+### 🔄 Undo / Redo
+- Implementar **zundo** (middleware para Zustand) o historial manual.
+- Debe registrar:
+  - Movimientos.
+  - Creación y eliminación de nodos.
+  - Cambios de texto.
+  - Conexiones.
+
+### 🌓 Theme System (Dark / Light)
+- Toggle en Header o Sidebar.
+- Persistencia en `localStorage`.
+- Ajuste de Grid y Background de React Flow según el tema.
+
+### 🔍 Buscador de Nodos (Spotlight)
+- Acceso rápido (`Ctrl + K` / `Cmd + K`).
+- Enfoque automático del nodo seleccionado:
+```ts
+reactflow.fitView({
+  nodes: [targetNode],
+  duration: 800
+})
+```
+
+### 🌐 Internacionalización (i18n)
+- Idiomas iniciales: Español / Inglés.
+- Librería: **react-i18next**.
+- Alcance:
+  - Sidebar.
+  - Menús contextuales.
+  - Modals.
+  - Alerts.
 
 ---
 
-### ⏳ Pendientes de UX / Polishing (Post-MVP)
-- [ ] **Dynamic Ghost:** El elemento fantasma al arrastrar debe reflejar el tipo específico (ej: mostrar `<<interface>>` o cursiva) en lugar de un genérico "New Class...".
-- [ ] **Real-time Collision Feedback (Move):** Implementar lógica en `onNodeDrag` para evitar que nodos existentes se solapen al moverlos (similar a la validación de creación).
-- [ ] **Logo:** Agregar el logo al header.
-- [ ] **Buscar Nodo:** Buscar el nodo/clases por el nombre.
+## 🔵 Fase 4: Desktop & Persistencia *(Electron)*
+
+### 📂 Gestión de Archivos Nativa (.luml)
+- **Open:** cargar JSON desde el sistema de archivos.
+- **Save:** sobrescribir si existe ruta.
+- **Save As:** crear nuevo archivo.
+- **Dirty State:** asterisco (*) si hay cambios sin guardar.
+
+### 🛡️ Autosave de Emergencia
+- Backup en `localStorage` cada 30 segundos.
+- No sobrescribe archivos físicos sin confirmación.
+
+---
+
+## 🧩 Fase 5: Elementos UML Avanzados *(Consolidado)*
+
+- [x] Toolbar final.
+- [x] Soporte para:
+  - Interface.
+  - Abstract Class.
+- [x] Relaciones UML especializadas:
+  - Herencia.
+  - Realización.
+  - Agregación.
+  - Composición.
+- [x] Notas y comentarios.
+- [x] Shell UI consolidada.
+
+---
+
+## 💻 Fase 6: Generación y Exportación
+
+### Generador de Código
+Conversión del `.luml` a:
+- Java (`.java`).
+- Python (`dataclasses`).
+- SQL (`CREATE TABLE`).
+
+### Exportación Visual
+- PNG / JPG en alta resolución.
+- [x] SVG vectorial para documentación.
+
+---
+
+## 🟣 Fase 7: Estrategia de Crecimiento *(Backend & Web)*
+
+### 🌍 Landing Page
+- Showcase del producto.
+- Formulario de descarga:
+  - Rol.
+  - Universidad / Empresa.
+  - Email.
+- Entrega de instaladores (`.exe`, `.dmg`, `.deb`).
+
+### ⚙️ Backend Spring Boot (Metrics API)
+- Endpoints:
+  - `/api/download-tracker`
+  - `/api/telemetry`
+- Base de datos: PostgreSQL o H2.
+
+### 📡 Telemetría en Electron
+Ping anónimo:
+```json
+{
+  "os": "win32",
+  "version": "1.0.0",
+  "sessionId": "uuid"
+}
+```
+- Métrica: **DAU (Daily Active Users)**.
+
+### 🔔 Version Check
+- Consulta automática de nuevas versiones.
+- Notificación tipo *toast*.
+
+---
+
+## ⚪ Fase 8: Calidad y Testing
+
+- Unit Testing (Vitest).
+- E2E Testing (Playwright / Cypress).
+- Pruebas de estrés con diagramas grandes.
+- Validación estricta de apertura/guardado de archivos.
+
 ---
 
 ## 📝 Notas de Arquitectura
 
-- **Estado Global:** Se evaluará el uso de Zustand si el estado del diagrama se vuelve demasiado complejo para `useState`.
-- **Estándar de Código:** Todo el código debe mantener el tipado estricto y seguir la filosofía de *Clean Code*.
-
+- **Estado Global:** Zustand con middlewares controlados.
+- **Persistencia:** separación estricta entre backup local y archivo físico.
+- **Principio clave:** *Local‑First, Offline‑Ready, Zero Lock‑in*.

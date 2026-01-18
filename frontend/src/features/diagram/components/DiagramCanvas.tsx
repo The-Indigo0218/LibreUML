@@ -26,6 +26,7 @@ import {
   miniMapColors,
   edgeConfig,
 } from "../../../config/theme.config";
+import ConfirmationModal from "../../../components/shared/ConfirmationModal";
 
 const nodeTypes = {
   umlClass: UmlClassNode,
@@ -55,6 +56,8 @@ export default function DiagramCanvas() {
 
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 
   const displayEdges = useMemo(() => {
     if (!hoveredNodeId && !hoveredEdgeId) return edges;
@@ -124,7 +127,7 @@ export default function DiagramCanvas() {
         y: rawPos.y - NODE_HEIGHT / 2,
       };
     },
-    [screenToFlowPosition]
+    [screenToFlowPosition],
   );
 
   const onDragOver = useCallback(
@@ -134,14 +137,14 @@ export default function DiagramCanvas() {
       const isColliding = checkCollision(position, nodesRef.current);
       event.dataTransfer.dropEffect = isColliding ? "none" : "move";
     },
-    [getCenteredPosition]
+    [getCenteredPosition],
   );
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
       const type = event.dataTransfer.getData(
-        "application/reactflow"
+        "application/reactflow",
       ) as stereotype;
       if (!type) return;
 
@@ -152,7 +155,7 @@ export default function DiagramCanvas() {
       }
       addNode(position, type);
     },
-    [addNode, getCenteredPosition]
+    [addNode, getCenteredPosition],
   );
 
   const {
@@ -181,7 +184,7 @@ export default function DiagramCanvas() {
           onClick: () =>
             addNode(
               screenToFlowPosition({ x: menu.x, y: menu.y }),
-              "interface"
+              "interface",
             ),
         },
         {
@@ -189,7 +192,11 @@ export default function DiagramCanvas() {
           onClick: () =>
             addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "abstract"),
         },
-        { label: "Clean Canvas", onClick: () => clearCanvas(), danger: true },
+        {
+          label: "Clean Canvas",
+          onClick: () => setIsClearModalOpen(true),
+          danger: true,
+        },
       ];
     }
 
@@ -273,7 +280,7 @@ export default function DiagramCanvas() {
             style={{ height: 120, width: 180 }}
             zoomable
             pannable
-            className="shadow-2xl rounded-lg overflow-hidden border border-surface-border bg-surface-primary !bottom-4 !right-4"
+            className="shadow-2xl rounded-lg overflow-hidden border border-surface-border bg-surface-primary bottom-4! right-4!"
             maskColor="rgba(11, 15, 26, 0.7)"
             nodeColor={(node) => {
               if (node.type === "umlNote") return miniMapColors.note;
@@ -312,6 +319,16 @@ export default function DiagramCanvas() {
           }}
         />
       )}
+      <ConfirmationModal
+        isOpen={isClearModalOpen}
+        title="Clear Entire Canvas?"
+        message="This action cannot be undone. All your classes, relationships, and notes will be permanently removed."
+        onConfirm={() => {
+          clearCanvas();
+          setIsClearModalOpen(false);
+        }}
+        onCancel={() => setIsClearModalOpen(false)}
+      />
     </div>
   );
 }

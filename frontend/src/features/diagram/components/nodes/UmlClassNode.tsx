@@ -27,7 +27,7 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
 
   if (isInterface) {
     containerClass = "bg-uml-interface-bg border-uml-interface-border";
-    headerClass = "bg-surface-secondary border-uml-interface-border"; 
+    headerClass = "bg-surface-secondary border-uml-interface-border";
     badgeColor = "text-uml-interface-border";
   } else if (isAbstract) {
     containerClass = "bg-uml-abstract-bg border-uml-abstract-border";
@@ -35,14 +35,44 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
     badgeColor = "text-uml-abstract-border";
   }
 
+  const handleBase =
+    "w-3 h-3 border border-canvas-base transition-all hover:scale-125";
+
   return (
-    <div 
+    <div
       className={`border-2 rounded-sm w-64 shadow-lg overflow-visible group transition-colors duration-200 ${containerClass}`}
     >
-      <Handle type="target" position={Position.Top} className="w-3 h-3 !bg-green-500 border border-canvas-base -top-1.5" />
-      <Handle type="source" position={Position.Right} className="w-3 h-3 !bg-blue-500 border border-canvas-base -right-1.5" />
-      <Handle type="target" position={Position.Left} className="w-3 h-3 !bg-green-500 border border-canvas-base -left-1.5" />
-      <Handle type="source" position={Position.Bottom} className="w-3 h-3 !bg-blue-500 border border-canvas-base -bottom-1.5" />
+      {/* 🟢 TARGET: TOP */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top"
+        className={`${handleBase} bg-green-500! -top-1.5`}
+      />
+
+      {/* 🔵 SOURCE: RIGHT */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        className={`${handleBase} bg-blue-500! -right-1.5`}
+      />
+
+      {/* 🟢 TARGET: LEFT */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left"
+        className={`${handleBase} bg-green-500! -left-1.5`}
+      />
+
+      {/* 🔵 SOURCE: BOTTOM */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom"
+        className={`${handleBase} bg-blue-500! -bottom-1.5`}
+      />
 
       {/* HEADER */}
       <div
@@ -50,13 +80,17 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
         onDoubleClick={() => setIsEditing(true)}
       >
         {isInterface && (
-          <small className={`block text-[10px] leading-tight mb-0.5 font-mono ${badgeColor}`}>
+          <small
+            className={`block text-[10px] leading-tight mb-0.5 font-mono ${badgeColor}`}
+          >
             &lt;&lt;interface&gt;&gt;
           </small>
         )}
-        
+
         {isAbstract && (
-          <small className={`block text-[10px] leading-tight mb-0.5 font-mono italic ${badgeColor}`}>
+          <small
+            className={`block text-[10px] leading-tight mb-0.5 font-mono italic ${badgeColor}`}
+          >
             &lt;&lt;abstract&gt;&gt;
           </small>
         )}
@@ -71,47 +105,65 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
             onKeyDown={(e) => e.key === "Enter" && setIsEditing(false)}
           />
         ) : (
-          <strong className={`text-sm block text-text-primary ${isAbstract ? "italic" : ""}`}>
+          <strong
+            className={`text-sm block text-text-primary ${isAbstract ? "italic" : ""}`}
+          >
             {data.label}
           </strong>
         )}
       </div>
 
       {/* BODY: Attributes */}
-      <div className={`p-2 border-b-2 min-h-6 text-xs text-left font-mono text-text-secondary ${isInterface ? "border-uml-interface-border" : isAbstract ? "border-uml-abstract-border" : "border-uml-class-border"}`}>
+      <div
+        className={`p-2 border-b-2 min-h-6 text-xs text-left font-mono text-text-secondary ${isInterface ? "border-uml-interface-border" : isAbstract ? "border-uml-abstract-border" : "border-uml-class-border"}`}
+      >
         {data.attributes && data.attributes.length > 0 ? (
           data.attributes.map((attr) => (
-            <div key={attr.id} className="truncate hover:text-text-primary transition-colors flex items-center gap-1">
-              <span className="text-uml-abstract-border font-bold">{attr.visibility}</span>
+            <div
+              key={attr.id}
+              className="truncate hover:text-text-primary transition-colors flex items-center gap-1"
+            >
+              <span className="text-uml-abstract-border font-bold">
+                {attr.visibility}
+              </span>
               <span className="text-text-primary">{attr.name}</span>
               <span className="text-text-muted">:</span>
               <span className="text-uml-interface-border">
-                {attr.type}{attr.isArray ? '[]' : ''}
+                {attr.type}
+                {attr.isArray ? "[]" : ""}
               </span>
             </div>
           ))
         ) : (
-          <div className="h-2"></div> 
+          <div className="h-2"></div>
         )}
       </div>
 
       {/* FOOTER: Methods */}
-      <div className="p-2 min-h-[24px] text-xs text-left font-mono text-text-secondary">
+      <div className="p-2 min-h-6 text-xs text-left font-mono text-text-secondary">
         {data.methods && data.methods.length > 0 ? (
           data.methods.map((method, index) => (
-            <div key={method.id || `${method.name}-${index}`} className="truncate hover:text-text-primary transition-colors">
-              <span className="text-uml-abstract-border font-bold">{method.visibility}</span>
+            <div
+              key={method.id || `${method.name}-${index}`}
+              className="truncate hover:text-text-primary transition-colors"
+            >
+              <span className="text-uml-abstract-border font-bold">
+                {method.visibility}
+              </span>
               <span className="text-text-primary">{method.name}</span>
               <span className="text-text-muted">(</span>
-              
+
               {(method.parameters || []).map((param, idx) => (
                 <span key={idx} className="text-uml-interface-border">
-                  {param.name}: {param.type}{idx < (method.parameters?.length || 0) - 1 ? ', ' : ''}
+                  {param.name}: {param.type}
+                  {idx < (method.parameters?.length || 0) - 1 ? ", " : ""}
                 </span>
               ))}
-              
+
               <span className="text-text-muted">): </span>
-              <span className="text-uml-interface-border">{method.returnType}</span>
+              <span className="text-uml-interface-border">
+                {method.returnType}
+              </span>
             </div>
           ))
         ) : (

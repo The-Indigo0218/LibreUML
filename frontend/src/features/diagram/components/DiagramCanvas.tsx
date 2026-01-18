@@ -263,6 +263,19 @@ export default function DiagramCanvas() {
     }
 
     if (menu.type === "edge" && menu.id) {
+      const edge = edges.find((e) => e.id === menu.id);
+
+      const isNoteEdge = edge?.data?.type === "note";
+
+      if (isNoteEdge) {
+        return [
+          {
+            label: "Delete Connection",
+            onClick: () => deleteEdge(menu.id!),
+            danger: true,
+          },
+        ];
+      }
       return [
         { label: "Reverse Direction ⇄", onClick: () => reverseEdge(menu.id!) },
         {

@@ -4,10 +4,9 @@ import ReactFlow, {
   MiniMap,
   BackgroundVariant,
   ConnectionMode,
-  type Node as RFNode, 
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState,  useEffect } from "react";
 
 // Store & Config
 import { useDiagramStore } from "../../../store/diagramStore";
@@ -20,13 +19,14 @@ import ContextMenu from "./ContextMenu";
 import ClassEditorModal from "./ClassEditorModal";
 import ConfirmationModal from "../../../components/shared/ConfirmationModal";
 
-// Hooks 
+// Hooks
 import { useContextMenu } from "../hooks/useContextMenu";
 import { useDiagramDnD } from "../hooks/useDiagramDnD";
 import { useDiagramMenus } from "../hooks/useDiagramMenus";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { useEdgeStyling } from "../hooks/useEdgeStyling";    
-import { useThemeSystem } from "../hooks/useThemeSystem";     
+import { useEdgeStyling } from "../hooks/useEdgeStyling";
+import { useThemeSystem } from "../hooks/useThemeSystem";
+import { useNodeDragging } from "../hooks/useNodeDragging";
 
 const nodeTypes = {
   umlClass: UmlClassNode,
@@ -43,74 +43,68 @@ export default function DiagramCanvas() {
     clearCanvas,
     updateNodeData,
     showMiniMap,
-    triggerHistorySnapshot,
-    recalculateNodeConnections,
   } = useDiagramStore();
 
-  const temporal = useDiagramStore.temporal.getState();
 
   //Local State (Modals)
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const editingNode = nodes.find((n) => n.id === editingNodeId);
-  
-  // Ref for Drag & Drop (if your hook needs it)
+
+  // Ref for Drag & Drop 
   const nodesRef = useRef(nodes);
-  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
 
   //  Functional Hooks
-  useKeyboardShortcuts(); 
-  const { displayEdges, setHoveredNodeId, setHoveredEdgeId } = useEdgeStyling(); 
-  const { onDragOver, onDrop } = useDiagramDnD(); 
-  const { getMenuOptions } = useDiagramMenus({   
+  useKeyboardShortcuts();
+  const { displayEdges, setHoveredNodeId, setHoveredEdgeId } = useEdgeStyling();
+  const { onDragOver, onDrop } = useDiagramDnD();
+  const { getMenuOptions } = useDiagramMenus({
     onEditNode: (id) => {
       setEditingNodeId(id);
       setIsModalOpen(true);
     },
     onClearCanvas: () => setIsClearModalOpen(true),
   });
-  const { menu, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu, closeMenu } = useContextMenu();
+  const {
+    menu,
+    onPaneContextMenu,
+    onNodeContextMenu,
+    onEdgeContextMenu,
+    closeMenu,
+  } = useContextMenu();
   useThemeSystem();
 
-  // History Logic on Drag 
-  const onNodeDragStart = useCallback(() => temporal.pause(), [temporal]);
-  
-  const onNodeDragStop = useCallback((_: React.MouseEvent, node: RFNode) => {
-      recalculateNodeConnections(node.id);
-      temporal.resume();
-      triggerHistorySnapshot();
-    }, [recalculateNodeConnections, temporal, triggerHistorySnapshot]
-  );
+  // History Logic on Drag
+  const { onNodeDragStart, onNodeDragStop } = useNodeDragging();
 
   return (
     <div className="w-full h-full bg-canvas-base">
       <ReactFlow
         nodes={nodes}
-        edges={displayEdges} 
+        edges={displayEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
-        
-        // Hover Interaction (simplified thanks to the hook)
+        // Hover Interaction 
         onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
         onNodeMouseLeave={() => setHoveredNodeId(null)}
         onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
         onEdgeMouseLeave={() => setHoveredEdgeId(null)}
-        
         // Context Menus
         onPaneContextMenu={onPaneContextMenu}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
         onPaneClick={closeMenu}
-        
         // Drag & Drop
         onDragOver={onDragOver}
         onDrop={onDrop}
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
-        
         connectionMode={ConnectionMode.Loose}
         fitView
       >
@@ -131,10 +125,12 @@ export default function DiagramCanvas() {
             className="shadow-2xl rounded-lg overflow-hidden border border-surface-border bg-surface-primary bottom-4! right-4!"
             maskColor="rgba(11, 15, 26, 0.7)"
             nodeColor={(node) => {
-               if (node.type === "umlNote") return miniMapColors.note;
-               if (node.data.stereotype === "interface") return miniMapColors.interface;
-               if (node.data.stereotype === "abstract") return miniMapColors.abstract;
-               return miniMapColors.class;
+              if (node.type === "umlNote") return miniMapColors.note;
+              if (node.data.stereotype === "interface")
+                return miniMapColors.interface;
+              if (node.data.stereotype === "abstract")
+                return miniMapColors.abstract;
+              return miniMapColors.class;
             }}
           />
         )}
@@ -155,7 +151,10 @@ export default function DiagramCanvas() {
           key={editingNodeId}
           isOpen={isModalOpen}
           umlData={editingNode.data}
-          onClose={() => { setIsModalOpen(false); setEditingNodeId(null); }}
+          onClose={() => {
+            setIsModalOpen(false);
+            setEditingNodeId(null);
+          }}
           onSave={(newData) => {
             updateNodeData(editingNode.id, newData);
             setIsModalOpen(false);
@@ -163,12 +162,15 @@ export default function DiagramCanvas() {
           }}
         />
       )}
-      
+
       <ConfirmationModal
         isOpen={isClearModalOpen}
         title="Clear Entire Canvas?"
         message="This action cannot be undone."
-        onConfirm={() => { clearCanvas(); setIsClearModalOpen(false); }}
+        onConfirm={() => {
+          clearCanvas();
+          setIsClearModalOpen(false);
+        }}
         onCancel={() => setIsClearModalOpen(false)}
       />
     </div>

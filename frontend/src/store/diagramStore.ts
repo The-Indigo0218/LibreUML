@@ -18,7 +18,11 @@ import type {
   DiagramState as SavedDiagramState,
 } from "../types/diagram.types";
 import { getEdgeOptions, getNoteEdgeOptions } from "../util/edgeFactory";
-import { getSmartEdgeHandles, checkCollision } from "../util/geometry";
+import {
+  getSmartEdgeHandles,
+  checkCollision,
+  updateSyncedEdges,
+} from "../util/geometry";
 
 interface DiagramStoreState {
   diagramId: string;
@@ -256,39 +260,15 @@ export const useDiagramStore = create<DiagramStoreState>()(
         const { nodes, edges } = get();
         const movedNode = nodes.find((n) => n.id === nodeId);
         if (!movedNode) return;
-
-        const newEdges = edges.map((edge) => {
-          const isSource = edge.source === nodeId;
-          const isTarget = edge.target === nodeId;
-
-          if (!isSource && !isTarget) return edge;
-
-          const sourceNode = isSource
-            ? movedNode
-            : nodes.find((n) => n.id === edge.source);
-          const targetNode = isTarget
-            ? movedNode
-            : nodes.find((n) => n.id === edge.target);
-
-          if (!sourceNode || !targetNode) return edge;
-
-          const { sourceHandle, targetHandle } = getSmartEdgeHandles(
-            sourceNode,
-            targetNode,
-          );
-
-          return {
-            ...edge,
-            sourceHandle,
-            targetHandle,
-          };
-        });
-
+        const newEdges = updateSyncedEdges(movedNode, nodes, edges);
         set({ edges: newEdges });
       },
 
       triggerHistorySnapshot: () =>
-        set((state) => ({ nodes: [...state.nodes] })),
+        set((state) => ({
+          nodes: [...state.nodes],
+          edges: [...state.edges],
+        })),
 
       clearCanvas: () => {
         set({ nodes: [], edges: [] });

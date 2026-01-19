@@ -2,6 +2,7 @@ import { memo, useState, useEffect } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import type { UmlClassData } from "../../../../types/diagram.types";
 import { useDiagramStore } from "../../../../store/diagramStore";
+import { handleConfig } from "../../../../config/theme.config";
 
 const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
   const updateNodeData = useDiagramStore((s) => s.updateNodeData);
@@ -35,43 +36,38 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
     badgeColor = "text-uml-abstract-border";
   }
 
-  const handleBase =
-    "w-3 h-3 border border-canvas-base transition-all hover:scale-125";
+
 
   return (
     <div
       className={`border-2 rounded-sm w-64 shadow-lg overflow-visible group transition-colors duration-200 ${containerClass}`}
     >
-      {/* 🟢 TARGET: TOP */}
+      {/* Target Handles Green */}
       <Handle
         type="target"
         position={Position.Top}
         id="top"
-        className={`${handleBase} bg-green-500! -top-1.5`}
+        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.target} opacity-0 group-hover:opacity-100`}
       />
-
-      {/* 🔵 SOURCE: RIGHT */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className={`${handleBase} bg-blue-500! -right-1.5`}
-      />
-
-      {/* 🟢 TARGET: LEFT */}
       <Handle
         type="target"
         position={Position.Left}
         id="left"
-        className={`${handleBase} bg-green-500! -left-1.5`}
+        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.target} opacity-0 group-hover:opacity-100`}
       />
 
-      {/* 🔵 SOURCE: BOTTOM */}
+      {/* Source Handles Blue */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.source} opacity-0 group-hover:opacity-100`}
+      />
       <Handle
         type="source"
         position={Position.Bottom}
         id="bottom"
-        className={`${handleBase} bg-blue-500! -bottom-1.5`}
+        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.source} opacity-0 group-hover:opacity-100`}
       />
 
       {/* HEADER */}

@@ -1,5 +1,5 @@
 import { Position } from "reactflow";
-import type { Node } from "reactflow";
+import type { Node, Edge } from "reactflow";
 import { NODE_WIDTH, NODE_HEIGHT } from "../config/theme.config";
 
 const VALID_SOURCE_HANDLES = [
@@ -13,7 +13,6 @@ const VALID_TARGET_HANDLES = [
 ];
 
 export const getSmartEdgeHandles = (sourceNode: Node, targetNode: Node) => {
-
   let minDistance = Infinity;
   let bestSourceHandle = "right";
   let bestTargetHandle = "left";
@@ -55,6 +54,7 @@ const getHandlePosition = (node: Node, position: Position) => {
       return { x: x + w / 2, y: y + h / 2 };
   }
 };
+
 export const checkCollision = (
   position: { x: number; y: number },
   nodes: Node[],
@@ -69,4 +69,53 @@ export const checkCollision = (
       position.y + NODE_HEIGHT > node.position.y
     );
   });
+};
+
+export const updateSyncedEdges = (
+  movedNode: Node,
+  allNodes: Node[],
+  allEdges: Edge[]
+): Edge[] => {
+  const connectionMap = new Set<string>();
+
+  return allEdges.reduce((acc, edge) => {
+    const isSource = edge.source === movedNode.id;
+    const isTarget = edge.target === movedNode.id;
+
+    if (!isSource && !isTarget) {
+      const key = `${edge.source}-${edge.target}`;
+      if (connectionMap.has(key)) return acc; 
+      connectionMap.add(key);
+      acc.push(edge);
+      return acc;
+    }
+
+    const sourceNode = isSource
+      ? movedNode
+      : allNodes.find((n) => n.id === edge.source);
+    const targetNode = isTarget
+      ? movedNode
+      : allNodes.find((n) => n.id === edge.target);
+
+    if (!sourceNode || !targetNode) return acc;
+
+    const key = `${sourceNode.id}-${targetNode.id}`;
+    if (connectionMap.has(key)) {
+      return acc; 
+    }
+    connectionMap.add(key);
+
+    const { sourceHandle, targetHandle } = getSmartEdgeHandles(
+      sourceNode,
+      targetNode
+    );
+
+    acc.push({
+      ...edge,
+      sourceHandle,
+      targetHandle,
+    });
+
+    return acc;
+  }, [] as Edge[]);
 };

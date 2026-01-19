@@ -1,92 +1,78 @@
 @import "tailwindcss";
 
-@theme {
-  /* --- PALETA DARK TECH --- */
+:root {
+  /* --- MODO CLARO (LIGHT) --- */
+  
+  /* Canvas & Fondo */
+  --canvas-base: #ffffff;
+  --canvas-dots: #94a3b8;
 
-  /* Canvas */
-  --color-canvas-base: #0b0f1a;
-  --color-canvas-dots: #475569;
-
-  /* Surface (Paneles, Sidebar) */
-  --color-surface-primary: #121826;
-  --color-surface-secondary: #161d2f;
-  --color-surface-border: #2a3358;
-  --color-surface-hover: #1c2440;
+  /* Superficies (Sidebar, Header, Paneles) */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f8fafc; /* Slate-50 */
+  --surface-border: #e2e8f0;    /* Slate-200 */
+  --surface-hover: #f1f5f9;     /* Slate-100 */
 
   /* Texto */
-  --color-text-primary: #e6e9f2;
-  --color-text-secondary: #aab0c5;
-  --color-text-muted: #6e7590;
+  --text-primary: #0f172a;      /* Slate-900 (Casi negro) */
+  --text-secondary: #64748b;    /* Slate-500 */
+  --text-muted: #94a3b8;        /* Slate-400 */
 
-  /* Class */
-  --color-uml-class-border: #7c83ff;
-  --color-uml-class-bg: #141833;
-
-  /* Interface */
-  --color-uml-interface-border: #22d3ee;
-  --color-uml-interface-bg: #0f1e2a;
-
-  /* Abstract */
-  --color-uml-abstract-border: #60a5fa;
-  --color-uml-abstract-bg: #141833;
-
-  /* Note */
-  --color-uml-note-border: #38bdf8;
-  --color-uml-note-bg: #0b1c2d;
-
-  /* Fuentes */
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Fira Code", monospace;
-
-
-  /* --- RELACIONES (Fuente de la Verdad) --- */
-  --color-edge-base: #6B7280;       /* Gris Base */
-  --color-edge-inheritance: #60A5FA; /* Azul */
-  --color-edge-implementation: #22D3EE; /* Cyan */
-  --color-edge-dependency: #F472B6;  /* Rosa */
-  --color-edge-association: #A78BFA; /* Morado */
-  --color-edge-note: #FEF08A;        /* Amarillo */
+  /* UML Colors  */
+  --uml-class-border: #4f46e5;  /* Indigo-600 */
+  --uml-class-bg: #eef2ff;      /* Indigo-50 */
   
-  --color-arrow-head: #FFFFFF;       /* Blanco (para puntas sólidas) */
-  --color-arrow-head: #FFFFFF;       /* Blanco (para puntas sólidas) */
+  --uml-interface-border: #0891b2; /* Cyan-600 */
+  --uml-interface-bg: #ecfeff;     /* Cyan-50 */
+
+  --uml-abstract-border: #2563eb;  /* Blue-600 */
+  --uml-abstract-bg: #eff6ff;      /* Blue-50 */
+
+  --uml-note-border: #0ea5e9;      /* Sky-500 */
+  --uml-note-bg: #f0f9ff;          /* Sky-50 */
+  
+  /* Relaciones (Edges) */
+  --edge-base: #64748b;
+  --edge-inheritance: #3b82f6;
+  --edge-implementation: #06b6d4;
+  --edge-dependency: #ec4899;
+  --edge-association: #8b5cf6;
+  --edge-note: #eab308;
+  --arrow-head: #0f172a;
 }
 
-.react-flow__controls-button {
-  background-color: var(--color-surface-primary) !important;
-  border-bottom: 1px solid var(--color-surface-border) !important;
-  fill: var(--color-text-secondary) !important;
-  transition: all 0.2s ease;
-}
+.dark {
+  /* --- MODO OSCURO (DARK TECH) --- */
+  
+  /* Canvas */
+  --canvas-base: #0b0f1a;
+  --canvas-dots: #cbd5e1; 
 
-.react-flow__controls-button:hover {
-  background-color: var(--color-surface-hover) !important;
-  fill: var(--color-text-primary) !important;
-}
+  /* Superficies */
+  --surface-primary: #121826;
+  --surface-secondary: #161d2f;
+  --surface-border: #2a3358;
+  --surface-hover: #1c2440;
 
-.react-flow__controls-button:last-child {
-  border-bottom: none !important;
-}
+  /* Texto */
+  --text-primary: #e6e9f2;
+  --text-secondary: #aab0c5;
+  --text-muted: #6e7590;
 
-.react-flow__controls-button:focus {
-  outline: none !important;
-}
+  /* UML Colors  */
+  --uml-class-border: #7c83ff;
+  --uml-class-bg: #141833;
 
-html,
-body,
-#root {
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  overflow: hidden;
-  background-color: var(--color-canvas-base);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
-}
+  --uml-interface-border: #22d3ee;
+  --uml-interface-bg: #0f1e2a;
 
+  --uml-abstract-border: #60a5fa;
+  --uml-abstract-bg: #141833;
 
-
-
-:root {
+  --uml-note-border: #38bdf8;
+  --uml-note-bg: #0b1c2d;
+  
+  /* Relaciones */
   --edge-base: #6B7280;
   --edge-inheritance: #60A5FA;
   --edge-implementation: #22D3EE;
@@ -94,4 +80,31 @@ body,
   --edge-association: #A78BFA;
   --edge-note: #FEF08A;
   --arrow-head: #FFFFFF;
+}
+
+/* Estilos Globales y Overrides */
+.react-flow__controls-button {
+  background-color: var(--surface-primary) !important;
+  border-bottom: 1px solid var(--surface-border) !important;
+  fill: var(--text-secondary) !important;
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls-button:hover {
+  background-color: var(--surface-hover) !important;
+  fill: var(--text-primary) !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  background-color: var(--canvas-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
 }

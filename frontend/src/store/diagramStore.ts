@@ -74,24 +74,24 @@ export const useDiagramStore = create<DiagramStoreState>()(
         const sourceNode = nodes.find((n) => n.id === connection.source);
         const targetNode = nodes.find((n) => n.id === connection.target);
 
-        if (sourceNode?.type === "umlNote") {
-          if (targetNode?.type === "umlNote") return;
+        if (targetNode?.type === "umlNote") return;
 
-          const isDuplicate = edges.some(
-            (e) =>
-              e.source === connection.source && e.target === connection.target,
-          );
-          if (isDuplicate) return;
-
-          if (
-            connection.targetHandle === "right" ||
-            connection.targetHandle === "bottom"
-          ) {
-            return;
-          }
+        if (
+          connection.targetHandle === "right" ||
+          connection.targetHandle === "bottom"
+        ) {
+          return;
         }
 
-        if (targetNode?.type === "umlNote") return;
+        const isDuplicate = edges.some(
+          (e) =>
+            e.source === connection.source && e.target === connection.target,
+        );
+        if (isDuplicate) return;
+
+        if (sourceNode?.type === "umlNote") {
+          if (targetNode?.type === "umlNote") return;
+        }
 
         let edgeOptions;
         let edgeData = {};

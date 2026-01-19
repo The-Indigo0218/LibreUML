@@ -82,6 +82,44 @@
   --arrow-head: #FFFFFF;
 }
 
+@theme {
+  --color-canvas-base: var(--canvas-base);
+  --color-canvas-dots: var(--canvas-dots);
+
+  --color-surface-primary: var(--surface-primary);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-border: var(--surface-border);
+  --color-surface-hover: var(--surface-hover);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --color-uml-class-border: var(--uml-class-border);
+  --color-uml-class-bg: var(--uml-class-bg);
+
+  --color-uml-interface-border: var(--uml-interface-border);
+  --color-uml-interface-bg: var(--uml-interface-bg);
+
+  --color-uml-abstract-border: var(--uml-abstract-border);
+  --color-uml-abstract-bg: var(--uml-abstract-bg);
+
+  --color-uml-note-border: var(--uml-note-border);
+  --color-uml-note-bg: var(--uml-note-bg);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", monospace;
+  
+  /* Variables de Edges para uso en JS */
+  --color-edge-base: var(--edge-base);
+  --color-edge-inheritance: var(--edge-inheritance);
+  --color-edge-implementation: var(--edge-implementation);
+  --color-edge-dependency: var(--edge-dependency);
+  --color-edge-association: var(--edge-association);
+  --color-edge-note: var(--edge-note);
+  --color-arrow-head: var(--arrow-head);
+}
+
 /* Estilos Globales y Overrides */
 .react-flow__controls-button {
   background-color: var(--surface-primary) !important;

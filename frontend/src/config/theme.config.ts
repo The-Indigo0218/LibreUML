@@ -1,5 +1,5 @@
 export const canvasConfig = {
-  gridColor: "var(--color-canvas-dots, #475569)",
+  gridColor: "var(--color-canvas-dots, #cbd5e1)",
   gridOpacity: 0.6,
 };
 

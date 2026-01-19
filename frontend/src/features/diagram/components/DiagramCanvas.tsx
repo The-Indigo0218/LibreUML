@@ -25,7 +25,8 @@ import { useContextMenu } from "../hooks/useContextMenu";
 import { useDiagramDnD } from "../hooks/useDiagramDnD";
 import { useDiagramMenus } from "../hooks/useDiagramMenus";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { useEdgeStyling } from "../hooks/useEdgeStyling";         
+import { useEdgeStyling } from "../hooks/useEdgeStyling";    
+import { useThemeSystem } from "../hooks/useThemeSystem";     
 
 const nodeTypes = {
   umlClass: UmlClassNode,
@@ -70,6 +71,7 @@ export default function DiagramCanvas() {
     onClearCanvas: () => setIsClearModalOpen(true),
   });
   const { menu, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu, closeMenu } = useContextMenu();
+  useThemeSystem();
 
   // History Logic on Drag 
   const onNodeDragStart = useCallback(() => temporal.pause(), [temporal]);

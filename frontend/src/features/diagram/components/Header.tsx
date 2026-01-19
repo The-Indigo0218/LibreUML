@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useDiagramStore } from "../../../store/diagramStore";
 import { ExportService } from "../services/export.service";
+import { useThemeStore } from "../../../store/themeStore";
 
 export default function Header() {
   const { zoomIn, zoomOut, fitView, toObject, setViewport, getNodes } =
@@ -47,10 +48,10 @@ export default function Header() {
     toggleMiniMap,
   } = useDiagramStore();
 
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const { isDarkMode, toggleTheme } = useThemeStore();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -187,7 +188,7 @@ export default function Header() {
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 mr-2">
           <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
+            onClick={toggleTheme}
             className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-md transition-colors"
           >
             {isDarkMode ? (

@@ -19,17 +19,18 @@ import {
   FileJson,
   Image as ImageIcon,
   Cloud,
+  Search,
 } from "lucide-react";
 import { useDiagramStore } from "../../../store/diagramStore";
 import { ExportService } from "../services/export.service";
 import { useThemeStore } from "../../../store/themeStore";
+import { useSpotlightStore } from "../hooks/useSpotlight";
 
 export default function Header() {
   const { zoomIn, zoomOut, fitView, toObject, setViewport, getNodes } =
     useReactFlow();
   const { undo, redo } = useDiagramStore.temporal.getState();
 
-  // 3. Suscripción REACTIVA para habilitar/deshabilitar botones
   const canUndo = useStore(
     useDiagramStore.temporal,
     (state) => state.pastStates.length > 0,
@@ -52,6 +53,7 @@ export default function Header() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const { isDarkMode, toggleTheme } = useThemeStore();
+  const { toggle: toggleSpotlight } = useSpotlightStore();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -187,6 +189,17 @@ export default function Header() {
       {/* RIGHT SECTION: Actions */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 mr-2">
+          <button
+          onClick={toggleSpotlight}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-md transition-all border border-transparent hover:border-surface-border mr-1"
+          title="Search Nodes (Ctrl+K)"
+        >
+          <Search className="w-4 h-4" />
+          <span className="hidden lg:inline">Search</span>
+          <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-surface-border bg-surface-secondary px-1.5 font-mono text-[10px] font-medium text-text-muted">
+            <span className="text-xs">⌘K</span>
+          </kbd>
+        </button>
           <button
             onClick={toggleTheme}
             className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-md transition-colors"

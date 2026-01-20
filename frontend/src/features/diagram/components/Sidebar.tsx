@@ -1,28 +1,28 @@
 import { useState } from "react";
-import { 
-  Box, 
-  CircleDot, 
-  BoxSelect, 
-  StickyNote, 
-  ArrowUpRight, 
-  GitCommitHorizontal, 
-  ArrowUp, 
+import {
+  Box,
+  CircleDot,
+  BoxSelect,
+  StickyNote,
+  ArrowUpRight,
+  GitCommitHorizontal,
+  ArrowUp,
   MoveRight,
   SquareChevronRight,
   SquareChevronLeft,
   PanelLeft,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 import { useDiagramStore } from "../../../store/diagramStore";
 import type { stereotype, UmlRelationType } from "../../../types/diagram.types";
-import { edgeConfig } from "../../../config/theme.config"; 
+import { edgeConfig } from "../../../config/theme.config";
 
 export default function Sidebar() {
   const { activeConnectionMode, setConnectionMode } = useDiagramStore();
-  
+
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   const [isNodesOpen, setIsNodesOpen] = useState(true);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(true);
 
@@ -32,51 +32,57 @@ export default function Sidebar() {
   };
 
   return (
-    <aside 
+    <aside
       className={`
         relative bg-surface-primary border-r border-surface-border flex flex-col z-10 shadow-xl transition-all duration-300 ease-in-out
-        ${isExpanded ? "w-64" : "w-16"} /* w-16 es más limpio que w-20 para solo iconos */
+        ${isExpanded ? "w-64" : "w-16"}
       `}
     >
-      
       {/* ---  DINAMIC HEADER --- */}
-      <div className={`
+      <div
+        className={`
         h-14 flex items-center border-b border-surface-border/50 transition-all duration-300
         ${isExpanded ? "justify-between px-4" : "justify-center"}
-      `}>
-         
-         {isExpanded && (
-           <div className="flex items-center gap-2 animate-in fade-in duration-300">
-             <PanelLeft className="w-5 h-5 text-uml-class-border" />
-             <span className="font-bold text-text-primary tracking-tight">Toolbox</span>
-           </div>
-         )}
+      `}
+      >
+        {isExpanded && (
+          <div className="flex items-center gap-2 animate-in fade-in duration-300">
+            <PanelLeft className="w-5 h-5 text-uml-class-border" />
+            <span className="font-bold text-text-primary tracking-tight">
+              Toolbox
+            </span>
+          </div>
+        )}
 
-        
-         <button 
-           onClick={() => setIsExpanded(!isExpanded)}
-           className={`
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className={`
              flex items-center justify-center 
              rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-hover hover:scale-105
              transition-all duration-200
              ${isExpanded ? "p-1.5 bg-transparent border border-surface-border" : "w-8 h-8 bg-surface-secondary border border-surface-border"}
            `}
-           title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-         >
-           {isExpanded ? <SquareChevronLeft className="w-5 h-5" /> : <SquareChevronRight className="w-5 h-5" />}
-         </button>
+          title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+        >
+          {isExpanded ? (
+            <SquareChevronLeft className="w-5 h-5" />
+          ) : (
+            <SquareChevronRight className="w-5 h-5" />
+          )}
+        </button>
       </div>
-      
+
       <div className="flex flex-col py-2 overflow-y-auto overflow-x-hidden custom-scrollbar h-full select-none">
-        
-        {/* === SECCIÓN 1: NODOS === */}
-        <CollapsibleSection 
-          title="Nodes" 
-          isOpen={isNodesOpen} 
-          setIsOpen={setIsNodesOpen} 
+        {/* === SECTION 1: NODES === */}
+        <CollapsibleSection
+          title="Nodes"
+          isOpen={isNodesOpen}
+          setIsOpen={setIsNodesOpen}
           isSidebarExpanded={isExpanded}
         >
-          <div className={`flex flex-col gap-2 ${isExpanded ? "px-3" : "px-2"}`}>
+          <div
+            className={`flex flex-col gap-2 ${isExpanded ? "px-3" : "px-2"}`}
+          >
             <DraggableItem
               type="class"
               icon={<Box className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
@@ -87,7 +93,9 @@ export default function Sidebar() {
             />
             <DraggableItem
               type="interface"
-              icon={<CircleDot className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />} 
+              icon={
+                <CircleDot className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
+              }
               label="Interface"
               color="var(--color-uml-interface-border)"
               isExpanded={isExpanded}
@@ -95,7 +103,9 @@ export default function Sidebar() {
             />
             <DraggableItem
               type="abstract"
-              icon={<BoxSelect className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />} 
+              icon={
+                <BoxSelect className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
+              }
               label="Abstract"
               color="var(--color-uml-abstract-border)"
               isExpanded={isExpanded}
@@ -103,7 +113,9 @@ export default function Sidebar() {
             />
             <DraggableItem
               type="note"
-              icon={<StickyNote className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />} 
+              icon={
+                <StickyNote className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
+              }
               label="Note"
               color="var(--color-uml-note-border)"
               isExpanded={isExpanded}
@@ -114,21 +126,25 @@ export default function Sidebar() {
 
         {isExpanded && <div className="mx-4 my-2 h-px bg-surface-border/30" />}
 
-        {/* === SECCIÓN 2: RELACIONES === */}
-        <CollapsibleSection 
-          title="Connections" 
-          isOpen={isConnectionsOpen} 
-          setIsOpen={setIsConnectionsOpen} 
+        {/* === Section 2: relationships === */}
+        <CollapsibleSection
+          title="Connections"
+          isOpen={isConnectionsOpen}
+          setIsOpen={setIsConnectionsOpen}
           isSidebarExpanded={isExpanded}
         >
-          <div className={`flex flex-col gap-2 ${isExpanded ? "px-3" : "px-2"}`}>
-             <ConnectionItem
+          <div
+            className={`flex flex-col gap-2 ${isExpanded ? "px-3" : "px-2"}`}
+          >
+            <ConnectionItem
               mode="association"
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("association")}
-              icon={<MoveRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              icon={
+                <MoveRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
+              }
               label="Association"
-              color={edgeConfig.types.association.highlight} 
+              color={edgeConfig.types.association.highlight}
               isExpanded={isExpanded}
             />
 
@@ -146,7 +162,9 @@ export default function Sidebar() {
               mode="implementation"
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("implementation")}
-              icon={<ArrowUpRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              icon={
+                <ArrowUpRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
+              }
               label="Implementation"
               color={edgeConfig.types.implementation.highlight}
               isExpanded={isExpanded}
@@ -156,14 +174,48 @@ export default function Sidebar() {
               mode="dependency"
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("dependency")}
-              icon={<GitCommitHorizontal className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              icon={
+                <GitCommitHorizontal
+                  className={isExpanded ? "w-5 h-5" : "w-6 h-6"}
+                />
+              }
               label="Dependency"
               color={edgeConfig.types.dependency.highlight}
               isExpanded={isExpanded}
             />
           </div>
-        </CollapsibleSection>
 
+          {isExpanded && (
+            <div className="p-4 border-t border-surface-border bg-surface-secondary/30 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">
+                Connection Logic
+              </div>
+              <div className="flex flex-col gap-2">
+                {/* Source Legend */}
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-blue-500 rounded-sm shadow-sm ring-1 ring-blue-500/30"></div>
+                  <span className="text-xs text-text-secondary">
+                    <span className="font-semibold text-text-primary">
+                      Blue
+                    </span>{" "}
+                    handles are Source
+                  </span>
+                </div>
+
+                {/* Target Legend */}
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-sm shadow-sm ring-1 ring-green-500/30"></div>
+                  <span className="text-xs text-text-secondary">
+                    <span className="font-semibold text-text-primary">
+                      Green
+                    </span>{" "}
+                    handles are Target
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </CollapsibleSection>
       </div>
     </aside>
   );
@@ -177,7 +229,13 @@ interface CollapsibleSectionProps {
   children: React.ReactNode;
 }
 
-function CollapsibleSection({ title, isOpen, setIsOpen, isSidebarExpanded, children }: CollapsibleSectionProps) {
+function CollapsibleSection({
+  title,
+  isOpen,
+  setIsOpen,
+  isSidebarExpanded,
+  children,
+}: CollapsibleSectionProps) {
   if (!isSidebarExpanded) {
     return (
       <div className="py-2 flex flex-col gap-1 items-center animate-in fade-in zoom-in duration-200">
@@ -189,7 +247,7 @@ function CollapsibleSection({ title, isOpen, setIsOpen, isSidebarExpanded, child
 
   return (
     <div className="flex flex-col">
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between px-4 py-3 text-xs font-bold text-text-muted uppercase tracking-wider hover:text-text-primary transition-colors group"
       >
@@ -201,7 +259,7 @@ function CollapsibleSection({ title, isOpen, setIsOpen, isSidebarExpanded, child
         )}
       </button>
 
-      <div 
+      <div
         className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-96 opacity-100 mb-2" : "max-h-0 opacity-0"}`}
       >
         {children}
@@ -209,8 +267,6 @@ function CollapsibleSection({ title, isOpen, setIsOpen, isSidebarExpanded, child
     </div>
   );
 }
-
-
 
 interface DraggableItemProps {
   type: stereotype;
@@ -221,7 +277,14 @@ interface DraggableItemProps {
   onDragStart: (event: React.DragEvent, type: stereotype) => void;
 }
 
-function DraggableItem({ type, icon, label, color, isExpanded, onDragStart }: DraggableItemProps) {
+function DraggableItem({
+  type,
+  icon,
+  label,
+  color,
+  isExpanded,
+  onDragStart,
+}: DraggableItemProps) {
   return (
     <div
       className={`
@@ -231,15 +294,18 @@ function DraggableItem({ type, icon, label, color, isExpanded, onDragStart }: Dr
       draggable
       onDragStart={(e) => onDragStart(e, type)}
     >
-      <div 
+      <div
         className="text-text-secondary group-hover:text-white transition-colors"
-        style={{ color: "var(--color-text-secondary)" }} 
+        style={{ color: "var(--color-text-secondary)" }}
       >
-        <span style={{ color: color }} className="group-hover:brightness-125 transition-all">
-            {icon}
+        <span
+          style={{ color: color }}
+          className="group-hover:brightness-125 transition-all"
+        >
+          {icon}
         </span>
       </div>
-      
+
       {isExpanded && (
         <span className="font-medium text-sm text-text-muted group-hover:text-text-primary transition-all whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200">
           {label}
@@ -259,7 +325,15 @@ interface ConnectionItemProps {
   isExpanded: boolean;
 }
 
-function ConnectionItem({ mode, activeMode, onClick, icon, label, color, isExpanded }: ConnectionItemProps) {
+function ConnectionItem({
+  mode,
+  activeMode,
+  onClick,
+  icon,
+  label,
+  color,
+  isExpanded,
+}: ConnectionItemProps) {
   const isActive = activeMode === mode;
 
   return (
@@ -270,23 +344,25 @@ function ConnectionItem({ mode, activeMode, onClick, icon, label, color, isExpan
         ${isExpanded ? "flex-row gap-3 px-3 py-2.5 justify-start" : "flex-col gap-1 p-2 justify-center"}
       `}
       style={{
-        borderColor: isActive ? color : color.replace(')', ', 0.3)'), 
-        backgroundColor: isActive ? color : 'transparent',
+        borderColor: isActive ? color : color.replace(")", ", 0.3)"),
+        backgroundColor: isActive ? color : "transparent",
       }}
     >
-      <div 
+      <div
         className="transition-colors shrink-0"
-        style={{ color: isActive ? '#0B0F1A' : color }} 
+        style={{ color: isActive ? "#0B0F1A" : color }}
       >
-         <span style={{ color: isActive ? '#111827' : color, fontWeight: 'bold' }}>
-            {icon}
-         </span>
+        <span
+          style={{ color: isActive ? "#111827" : color, fontWeight: "bold" }}
+        >
+          {icon}
+        </span>
       </div>
-      
+
       {isExpanded && (
-        <span 
+        <span
           className="font-medium text-sm transition-colors whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200"
-          style={{ color: isActive ? '#111827' : 'var(--color-text-muted)' }}
+          style={{ color: isActive ? "#111827" : "var(--color-text-muted)" }}
         >
           {label}
         </span>

@@ -11,7 +11,7 @@ This project has migrated from a Monolithic JavaFX architecture to a **Decoupled
 
 This separation allows for independent scaling, modern UI development, and robust API management.
 
-## 🛠 Tech Stack
+## 🛠 Tech Stack:
 
 ### Backend (`/backend`)
 * **Language:** Java 21

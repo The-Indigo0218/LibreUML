@@ -18,6 +18,7 @@ import UmlNoteNode from "./nodes/UmlNoteNode";
 import ContextMenu from "./ContextMenu";
 import ClassEditorModal from "./ClassEditorModal";
 import ConfirmationModal from "../../../components/shared/ConfirmationModal";
+import SpotlightModal from "./SpotlightModal";
 
 // Hooks
 import { useContextMenu } from "../hooks/useContextMenu";
@@ -173,6 +174,9 @@ export default function DiagramCanvas() {
         }}
         onCancel={() => setIsClearModalOpen(false)}
       />
+
+        <SpotlightModal />
+
     </div>
   );
 }

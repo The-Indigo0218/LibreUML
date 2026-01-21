@@ -3,7 +3,7 @@ import { useReactFlow } from "reactflow";
 import { useDiagramStore } from "../../../store/diagramStore";
 import { checkCollision } from "../../..//util/geometry";
 import { NODE_WIDTH, NODE_HEIGHT } from "../../../config/theme.config";
-import type { stereotype } from "../../../types/diagram.types";
+import type { stereotype } from "../types/diagram.types";
 
 export const useDiagramDnD = () => {
   const { screenToFlowPosition } = useReactFlow();

@@ -15,7 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useDiagramStore } from "../../../../store/diagramStore";
-import type { stereotype, UmlRelationType } from "../../../../types/diagram.types";
+import type { stereotype, UmlRelationType } from "../../types/diagram.types";
 import { edgeConfig } from "../../../../config/theme.config";
 import { useTranslation } from "react-i18next";
 

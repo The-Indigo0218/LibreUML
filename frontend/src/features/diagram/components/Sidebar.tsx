@@ -17,6 +17,7 @@ import {
 import { useDiagramStore } from "../../../store/diagramStore";
 import type { stereotype, UmlRelationType } from "../../../types/diagram.types";
 import { edgeConfig } from "../../../config/theme.config";
+import { useTranslation } from "react-i18next";
 
 export default function Sidebar() {
   const { activeConnectionMode, setConnectionMode } = useDiagramStore();
@@ -25,6 +26,8 @@ export default function Sidebar() {
 
   const [isNodesOpen, setIsNodesOpen] = useState(true);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(true);
+
+  const { t } = useTranslation();
 
   const onDragStart = (event: React.DragEvent, nodeType: stereotype) => {
     event.dataTransfer.setData("application/reactflow", nodeType);
@@ -49,7 +52,7 @@ export default function Sidebar() {
           <div className="flex items-center gap-2 animate-in fade-in duration-300">
             <PanelLeft className="w-5 h-5 text-uml-class-border" />
             <span className="font-bold text-text-primary tracking-tight">
-              Toolbox
+              {t("sidebar.toolbox")}
             </span>
           </div>
         )}
@@ -86,7 +89,7 @@ export default function Sidebar() {
             <DraggableItem
               type="class"
               icon={<Box className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
-              label="Class"
+              label={t("sidebar.nodes.class")}
               color="var(--color-uml-class-border)"
               isExpanded={isExpanded}
               onDragStart={onDragStart}
@@ -96,7 +99,7 @@ export default function Sidebar() {
               icon={
                 <CircleDot className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
               }
-              label="Interface"
+              label={t("sidebar.nodes.interface")}
               color="var(--color-uml-interface-border)"
               isExpanded={isExpanded}
               onDragStart={onDragStart}
@@ -106,7 +109,7 @@ export default function Sidebar() {
               icon={
                 <BoxSelect className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
               }
-              label="Abstract"
+              label={t("sidebar.nodes.abstract")}
               color="var(--color-uml-abstract-border)"
               isExpanded={isExpanded}
               onDragStart={onDragStart}
@@ -116,7 +119,7 @@ export default function Sidebar() {
               icon={
                 <StickyNote className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
               }
-              label="Note"
+              label={t("sidebar.nodes.note")}
               color="var(--color-uml-note-border)"
               isExpanded={isExpanded}
               onDragStart={onDragStart}
@@ -128,7 +131,7 @@ export default function Sidebar() {
 
         {/* === Section 2: relationships === */}
         <CollapsibleSection
-          title="Connections"
+          title={t("sidebar.connections.title")}
           isOpen={isConnectionsOpen}
           setIsOpen={setIsConnectionsOpen}
           isSidebarExpanded={isExpanded}
@@ -143,7 +146,7 @@ export default function Sidebar() {
               icon={
                 <MoveRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
               }
-              label="Association"
+              label={t('sidebar.connections.association')}
               color={edgeConfig.types.association.highlight}
               isExpanded={isExpanded}
             />
@@ -153,7 +156,7 @@ export default function Sidebar() {
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("inheritance")}
               icon={<ArrowUp className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
-              label="Inheritance"
+              label={t('sidebar.connections.inheritance')}
               color={edgeConfig.types.inheritance.highlight}
               isExpanded={isExpanded}
             />
@@ -165,7 +168,7 @@ export default function Sidebar() {
               icon={
                 <ArrowUpRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
               }
-              label="Implementation"
+              label={t('sidebar.connections.implementation')}
               color={edgeConfig.types.implementation.highlight}
               isExpanded={isExpanded}
             />
@@ -179,7 +182,7 @@ export default function Sidebar() {
                   className={isExpanded ? "w-5 h-5" : "w-6 h-6"}
                 />
               }
-              label="Dependency"
+              label={t('sidebar.connections.dependency')}
               color={edgeConfig.types.dependency.highlight}
               isExpanded={isExpanded}
             />
@@ -188,7 +191,7 @@ export default function Sidebar() {
           {isExpanded && (
             <div className="p-4 border-t border-surface-border bg-surface-secondary/30 animate-in fade-in slide-in-from-bottom-2 duration-300">
               <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">
-                Connection Logic
+                {t("sidebar.legend.title")}
               </div>
               <div className="flex flex-col gap-2">
                 {/* Source Legend */}
@@ -196,9 +199,9 @@ export default function Sidebar() {
                   <div className="w-3 h-3 bg-blue-500 rounded-sm shadow-sm ring-1 ring-blue-500/30"></div>
                   <span className="text-xs text-text-secondary">
                     <span className="font-semibold text-text-primary">
-                      Blue
+                      {t("sidebar.legend.blue")}
                     </span>{" "}
-                    handles are Source
+                    {t("sidebar.legend.source")}
                   </span>
                 </div>
 
@@ -207,9 +210,9 @@ export default function Sidebar() {
                   <div className="w-3 h-3 bg-green-500 rounded-sm shadow-sm ring-1 ring-green-500/30"></div>
                   <span className="text-xs text-text-secondary">
                     <span className="font-semibold text-text-primary">
-                      Green
+                      {t("sidebar.legend.green")}
                     </span>{" "}
-                    handles are Target
+                    {t("sidebar.legend.target")}
                   </span>
                 </div>
               </div>

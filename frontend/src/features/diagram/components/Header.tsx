@@ -25,6 +25,7 @@ import { useDiagramStore } from "../../../store/diagramStore";
 import { ExportService } from "../services/export.service";
 import { useThemeStore } from "../../../store/themeStore";
 import { useSpotlightStore } from "../hooks/useSpotlight";
+import { useTranslation } from "react-i18next";
 
 export default function Header() {
   const { zoomIn, zoomOut, fitView, toObject, setViewport, getNodes } =
@@ -54,6 +55,12 @@ export default function Header() {
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { toggle: toggleSpotlight } = useSpotlightStore();
+  const { t, i18n } = useTranslation();
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === "en" ? "es" : "en";
+    i18n.changeLanguage(newLang);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -85,7 +92,7 @@ export default function Header() {
       await ExportService.downloadPng(viewportEl, nodes, diagramName);
     } catch (error) {
       console.error("Error exportando imagen:", error);
-      alert("No se pudo generar la imagen. Intenta de nuevo.");
+      alert(t("alerts.exportError"));
     }
     setIsExportMenuOpen(false);
   };
@@ -114,9 +121,7 @@ export default function Header() {
         }
       } catch (error) {
         console.error("Error loading file:", error);
-        alert(
-          "Error al leer el archivo. Asegúrate de que sea un .json o .luml válido.",
-        );
+        alert(t("alerts.importError"));
       }
     };
     reader.readAsText(file);
@@ -124,9 +129,10 @@ export default function Header() {
   };
 
   return (
-    <header className="h-14 bg-surface-primary border-b border-surface-border flex items-center justify-between px-4 z-20 relative shadow-md font-sans">
-      {/* LEFT SECTION : Logo y Title */}
-      <div className="flex items-center gap-4">
+    <header className="h-14 bg-surface-primary border-b border-surface-border grid grid-cols-[1fr_auto_1fr] items-center px-4 z-20 relative shadow-md font-sans">
+      
+      {/* LEFT SECTION */}
+      <div className="flex items-center gap-4 justify-self-start">
         <div className="flex items-center gap-2 font-bold text-lg select-none">
           <Box className="w-6 h-6 text-uml-class-border fill-uml-class-bg/20" />
           <span className="text-text-primary tracking-tight">LibreUML</span>
@@ -138,24 +144,24 @@ export default function Header() {
           type="text"
           value={diagramName}
           onChange={(e) => setDiagramName(e.target.value)}
-          className="text-sm font-medium bg-surface-secondary text-text-primary hover:bg-surface-hover focus:bg-surface-hover focus:text-white focus:outline-none focus:ring-1 focus:ring-uml-class-border rounded px-2 py-1 transition-all w-48 truncate border border-transparent"
-          placeholder="Diagram Name"
+          className="text-sm font-medium bg-surface-secondary text-text-primary hover:bg-surface-hover focus:bg-surface-hover focus:text-white focus:outline-none focus:ring-1 focus:ring-uml-class-border rounded px-2 py-1 transition-all w-32 sm:w-48 truncate border border-transparent"
+          placeholder={t("header.diagramNamePlaceholder")}
         />
       </div>
 
       {/* CENTER SECTION: Toolbar */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 bg-surface-secondary p-1 rounded-lg border border-surface-border shadow-lg">
+      <div className="flex items-center gap-1 bg-surface-secondary p-1 rounded-lg border border-surface-border shadow-lg justify-self-center">
         <IconButton
           onClick={() => undo()}
           icon={<Undo className="w-4 h-4" />}
-          tooltip="Undo (Ctrl+Z)"
+          tooltip={t("header.tooltips.undo")}
           disabled={!canUndo}
         />
 
         <IconButton
           onClick={() => redo()}
           icon={<Redo className="w-4 h-4" />}
-          tooltip="Redo (Ctrl+Y)"
+          tooltip={t("header.tooltips.redo")}
           disabled={!canRedo}
         />
         <div className="w-px h-4 bg-surface-border mx-1" />
@@ -166,40 +172,47 @@ export default function Header() {
               className={`w-4 h-4 transition-colors ${showMiniMap ? "text-uml-class-border fill-uml-class-bg" : ""}`}
             />
           }
-          tooltip={showMiniMap ? "Hide MiniMap" : "Show MiniMap"}
+          tooltip={
+            showMiniMap
+              ? t("header.tooltips.hideMiniMap")
+              : t("header.tooltips.showMiniMap")
+          }
         />
         <div className="w-px h-4 bg-surface-border mx-1" />
         <IconButton
           onClick={() => zoomOut()}
           icon={<ZoomOut className="w-4 h-4" />}
-          tooltip="Zoom Out"
+          tooltip={t("header.tooltips.zoomOut")}
         />
         <IconButton
           onClick={() => fitView({ duration: 800 })}
           icon={<Maximize className="w-4 h-4" />}
-          tooltip="Fit View"
+          tooltip={t("header.tooltips.fitView")}
         />
         <IconButton
           onClick={() => zoomIn()}
           icon={<ZoomIn className="w-4 h-4" />}
-          tooltip="Zoom In"
+          tooltip={t("header.tooltips.zoomIn")}
         />
       </div>
 
       {/* RIGHT SECTION: Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 justify-self-end">
         <div className="flex items-center gap-1 mr-2">
+          {/* SEARCH BUTTON */}
           <button
-          onClick={toggleSpotlight}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-md transition-all border border-transparent hover:border-surface-border mr-1"
-          title="Search Nodes (Ctrl+K)"
-        >
-          <Search className="w-4 h-4" />
-          <span className="hidden lg:inline">Search</span>
-          <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-surface-border bg-surface-secondary px-1.5 font-mono text-[10px] font-medium text-text-muted">
-            <span className="text-xs">⌘K</span>
-          </kbd>
-        </button>
+            onClick={toggleSpotlight}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-md transition-all border border-transparent hover:border-surface-border mr-1"
+            title={`${t("header.search")} (Ctrl+K)`}
+          >
+            <Search className="w-4 h-4" />
+            <span className="hidden lg:inline">{t("header.search")}</span>
+            <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-surface-border bg-surface-secondary px-1.5 font-mono text-[10px] font-medium text-text-muted">
+              <span className="text-xs">⌘+K</span>
+            </kbd>
+          </button>
+
+          {/* THEME TOGGLE */}
           <button
             onClick={toggleTheme}
             className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-md transition-colors"
@@ -210,8 +223,17 @@ export default function Header() {
               <Sun className="w-4 h-4" />
             )}
           </button>
-          <button className="p-2 text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-md transition-colors">
+
+          {/* LANGUAGE TOGGLE */}
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 px-2 py-1.5 text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-md transition-colors"
+            title={t("header.switchLanguage")}
+          >
             <Languages className="w-4 h-4" />
+            <span className="text-xs font-bold w-4">
+              {i18n.language.toUpperCase()}
+            </span>
           </button>
         </div>
 
@@ -225,13 +247,15 @@ export default function Header() {
           className="hidden"
         />
 
+        {/* IMPORT BUTTON */}
         <button
           onClick={handleImportClick}
           className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-md transition-colors border border-transparent hover:border-surface-border"
         >
-          <FolderOpen className="w-4 h-4" /> Import
+          <FolderOpen className="w-4 h-4" /> {t("header.import")}
         </button>
 
+        {/* EXPORT MENU */}
         <div className="relative" ref={exportMenuRef}>
           <button
             onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
@@ -243,7 +267,7 @@ export default function Header() {
               }`}
           >
             <Download className="w-4 h-4" />
-            Export
+            {t("header.export")}
             <ChevronDown
               className={`w-3 h-3 transition-transform ${isExportMenuOpen ? "rotate-180" : ""}`}
             />
@@ -257,7 +281,7 @@ export default function Header() {
                 className="flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-hover text-left transition-colors"
               >
                 <FileJson className="w-4 h-4 text-uml-class-border" />
-                <span>Save as .luml</span>
+                <span>{t("header.exportMenu.json")}</span>
               </button>
 
               <button
@@ -265,7 +289,7 @@ export default function Header() {
                 className="flex items-center gap-3 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-hover text-left transition-colors"
               >
                 <ImageIcon className="w-4 h-4 text-purple-400" />
-                <span>Export to PNG</span>
+                <span>{t("header.exportMenu.png")}</span>
               </button>
 
               <div className="h-px bg-surface-border my-1 mx-2" />
@@ -275,17 +299,18 @@ export default function Header() {
                 className="flex items-center gap-3 px-4 py-2 text-sm text-text-muted cursor-not-allowed opacity-50 text-left"
               >
                 <Cloud className="w-4 h-4" />
-                <span>Save to Cloud</span>
+                <span>{t("header.exportMenu.cloud")}</span>
                 <span className="ml-auto text-[10px] bg-surface-secondary px-1.5 py-0.5 rounded border border-surface-border uppercase tracking-wider font-bold">
-                  Soon
+                  {t("header.exportMenu.soon")}
                 </span>
               </button>
             </div>
           )}
         </div>
 
+        {/* SAVE BUTTON */}
         <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-uml-class-border hover:brightness-110 rounded-md transition-all shadow-sm active:translate-y-px ml-2">
-          <Save className="w-4 h-4" /> Save
+          <Save className="w-4 h-4" /> {t("header.save")}
         </button>
       </div>
     </header>

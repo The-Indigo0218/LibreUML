@@ -20,8 +20,8 @@ export default function UnsavedChangesModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 font-sans">
-      <div className="bg-surface-primary border border-surface-border p-6 rounded-xl shadow-2xl w-[450px] max-w-full m-4 transform scale-100 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-200 font-sans">
+      <div className="bg-surface-primary border border-surface-border p-6 rounded-xl shadow-2xl w-112.5 max-w-full m-4 transform scale-100 animate-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="flex items-start gap-4 mb-4">

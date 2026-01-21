@@ -9,9 +9,11 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "dist": "npm run build && electron-builder"
-  },
+    "dist": "npm run build && electron-builder",
+    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"npm run electron:build -- --watch\"",
+"electron:build": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\": \\\"commonjs\\\"}')\" && electron ."  },
   "dependencies": {
+    "electron-is-dev": "^3.0.1",
     "html-to-image": "^1.11.13",
     "i18next": "^25.8.0",
     "i18next-browser-languagedetector": "^8.2.0",
@@ -31,6 +33,8 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.23",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^39.2.7",
     "electron-builder": "^26.4.0",
     "eslint": "^9.39.1",
@@ -42,7 +46,8 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
-    "vite-plugin-electron": "^0.29.0"
+    "vite-plugin-electron": "^0.29.0",
+    "wait-on": "^9.0.3"
   },
   "build": {
     "appId": "com.libreuml.app",
@@ -55,15 +60,25 @@
       "dist-electron/**/*"
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "public/logo.png"
-    }
+      "target": "nsis",
+      "icon": "public/icon.ico" 
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "public/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Development"
+    },
+    "fileAssociations": [
+      {
+        "ext": "luml",
+        "name": "LibreUML Diagram",
+        "description": "LibreUML Project File",
+        "role": "Editor",
+        "icon": "public/icon.ico"
+      }
+    ]
   }
 }

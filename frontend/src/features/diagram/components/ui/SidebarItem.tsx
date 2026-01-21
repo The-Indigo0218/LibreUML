@@ -1,4 +1,4 @@
-import { type stereotype } from "../../../../types/diagram.types";
+import { type stereotype } from "../../types/diagram.types";
 
 interface DraggableItemProps {
   label: string;

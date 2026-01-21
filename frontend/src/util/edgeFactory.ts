@@ -1,6 +1,6 @@
 import { edgeConfig } from "../config/theme.config";
 import { MarkerType } from "reactflow";
-import type { UmlRelationType } from "../types/diagram.types";
+import type { UmlRelationType } from "../features/diagram/types/diagram.types";
 import type { DefaultEdgeOptions } from "reactflow";
 
 export const getEdgeOptions = (type: UmlRelationType): DefaultEdgeOptions => {

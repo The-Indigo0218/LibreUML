@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useThemeStore } from "../../../store/themeStore";
+import { useThemeStore } from "../store/themeStore";
 
 export const useThemeSystem = () => {
   const isDarkMode = useThemeStore((state) => state.isDarkMode);

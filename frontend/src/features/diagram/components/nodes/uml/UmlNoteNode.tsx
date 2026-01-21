@@ -1,9 +1,9 @@
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { StickyNote } from "lucide-react";
-import type { UmlClassData } from "../../../../types/diagram.types";
-import { useDiagramStore } from "../../../../store/diagramStore";
-import { handleConfig } from "../../../../config/theme.config";
+import type { UmlClassData } from "../../../../../types/diagram.types";
+import { useDiagramStore } from "../../../../../store/diagramStore";
+import { handleConfig } from "../../../../../config/theme.config";
 
 const UmlNoteNode = ({ id, data }: NodeProps<UmlClassData>) => {
   const updateNodeData = useDiagramStore((s) => s.updateNodeData);

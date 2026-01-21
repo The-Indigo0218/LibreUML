@@ -74,7 +74,7 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
             onClick: () => duplicateNode(nodeId) 
           },
           {
-            label: t('contextMenu.node.editProperties'),
+            label: t('contextMenu.node.edit'),
             onClick: () => onEditNode(nodeId),
           },
           { 
@@ -94,7 +94,7 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
         if (isNoteEdge) {
           return [
             {
-              label: t('contextMenu.edge.deleteConnection'),
+              label: t('contextMenu.edge.delete'),
               onClick: () => deleteEdge(edgeId),
               danger: true,
             },
@@ -102,7 +102,7 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
         }
 
         return [
-          { label: t('contextMenu.edge.reverseDirection'), onClick: () => reverseEdge(edgeId) },
+          { label: t('contextMenu.edge.reverse'), onClick: () => reverseEdge(edgeId) },
           {
             label: t('contextMenu.edge.toAssociation'),
             onClick: () => changeEdgeType(edgeId, "association"),
@@ -120,7 +120,7 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
             onClick: () => changeEdgeType(edgeId, "dependency"),
           },
           {
-            label: t('contextMenu.edge.deleteConnection'),
+            label: t('contextMenu.edge.delete'),
             onClick: () => deleteEdge(edgeId),
             danger: true,
           },

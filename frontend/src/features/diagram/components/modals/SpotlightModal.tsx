@@ -1,5 +1,5 @@
 import { Search, Box, CircleDot, BoxSelect, StickyNote, X } from "lucide-react";
-import { useSpotlight } from "../hooks/useSpotlight";
+import { useSpotlight } from "../../hooks/useSpotlight";
 import { useTranslation } from "react-i18next";
 
 export default function SpotlightModal() {

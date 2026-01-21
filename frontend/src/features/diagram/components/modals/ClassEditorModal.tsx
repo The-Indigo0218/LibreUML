@@ -1,12 +1,12 @@
 import { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { useDiagramStore } from "../../../store/diagramStore";
+import { useDiagramStore } from "../../../../store/diagramStore";
 import type {
   UmlClassData,
   UmlAttribute,
   UmlMethod, 
   visibility as Visibility,
-} from "../../../types/diagram.types";
+} from "../../../../types/diagram.types";
 import { Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 

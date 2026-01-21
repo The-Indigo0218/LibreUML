@@ -28,6 +28,7 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useEdgeStyling } from "../hooks/useEdgeStyling";
 import { useThemeSystem } from "../hooks/useThemeSystem";
 import { useNodeDragging } from "../hooks/useNodeDragging";
+import { useTranslation } from "react-i18next";
 
 const nodeTypes = {
   umlClass: UmlClassNode,
@@ -78,6 +79,7 @@ export default function DiagramCanvas() {
     closeMenu,
   } = useContextMenu();
   useThemeSystem();
+  const { t } = useTranslation(); 
 
   // History Logic on Drag
   const { onNodeDragStart, onNodeDragStop } = useNodeDragging();
@@ -166,8 +168,8 @@ export default function DiagramCanvas() {
 
       <ConfirmationModal
         isOpen={isClearModalOpen}
-        title="Clear Entire Canvas?"
-        message="This action cannot be undone."
+        title={t('modals.confirmation.clearTitle')}
+        message={t('modals.confirmation.clearMessage')}
         onConfirm={() => {
           clearCanvas();
           setIsClearModalOpen(false);

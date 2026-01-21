@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useReactFlow } from "reactflow";
 import { useDiagramStore } from "../../../store/diagramStore";
+import { useTranslation } from "react-i18next";
 
 export type ContextMenuType = "pane" | "node" | "edge";
 
@@ -18,6 +19,7 @@ interface UseDiagramMenusProps {
 
 export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusProps) => {
   const { screenToFlowPosition } = useReactFlow();
+  const { t } = useTranslation();
 
   const {
     addNode,
@@ -36,22 +38,22 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
       if (menu.type === "pane") {
         return [
           {
-            label: "Add Class",
+            label: t('contextMenu.pane.addClass'),
             onClick: () =>
               addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "class"),
           },
           {
-            label: "Add Interface",
+            label: t('contextMenu.pane.addInterface'),
             onClick: () =>
               addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "interface"),
           },
           {
-            label: "Add Abstract Class",
+            label: t('contextMenu.pane.addAbstract'),
             onClick: () =>
               addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "abstract"),
           },
           {
-            label: "Add Note",
+            label: t('contextMenu.pane.addNote'),
             onClick: () =>
               addNode(screenToFlowPosition({ x: menu.x, y: menu.y }), "note"),
           },
@@ -68,15 +70,15 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
         
         return [
           { 
-            label: "Duplicate", 
+            label: t('contextMenu.node.duplicate'), 
             onClick: () => duplicateNode(nodeId) 
           },
           {
-            label: "Edit Properties",
+            label: t('contextMenu.node.editProperties'),
             onClick: () => onEditNode(nodeId),
           },
           { 
-            label: "Delete", 
+            label: t('contextMenu.node.delete'), 
             onClick: () => deleteNode(nodeId), 
             danger: true 
           },
@@ -92,7 +94,7 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
         if (isNoteEdge) {
           return [
             {
-              label: "Delete Connection",
+              label: t('contextMenu.edge.deleteConnection'),
               onClick: () => deleteEdge(edgeId),
               danger: true,
             },
@@ -100,25 +102,25 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
         }
 
         return [
-          { label: "Reverse Direction ⇄", onClick: () => reverseEdge(edgeId) },
+          { label: t('contextMenu.edge.reverseDirection'), onClick: () => reverseEdge(edgeId) },
           {
-            label: "To: Association →",
+            label: t('contextMenu.edge.toAssociation'),
             onClick: () => changeEdgeType(edgeId, "association"),
           },
           {
-            label: "To: Inheritance ▷",
+            label: t('contextMenu.edge.toInheritance'),
             onClick: () => changeEdgeType(edgeId, "inheritance"),
           },
           {
-            label: "To: Implementation ⇢",
+            label: t('contextMenu.edge.toImplementation'),
             onClick: () => changeEdgeType(edgeId, "implementation"),
           },
           {
-            label: "To: Dependency ⇢",
+            label: t('contextMenu.edge.toDependency'),
             onClick: () => changeEdgeType(edgeId, "dependency"),
           },
           {
-            label: "Delete Connection",
+            label: t('contextMenu.edge.deleteConnection'),
             onClick: () => deleteEdge(edgeId),
             danger: true,
           },
@@ -138,6 +140,7 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
       onClearCanvas,
       onEditNode,
       screenToFlowPosition,
+      t
     ]
   );
 

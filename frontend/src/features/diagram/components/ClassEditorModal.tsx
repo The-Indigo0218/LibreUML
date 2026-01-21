@@ -8,6 +8,7 @@ import type {
   visibility as Visibility,
 } from "../../../types/diagram.types";
 import { Plus, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ClassEditorModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export default function ClassEditorModal({
   onClose,
 }: ClassEditorModalProps) {
   const nodes = useDiagramStore((state) => state.nodes);
+  const { t } = useTranslation();
 
   const availableTypes = useMemo(() => {
     const classTypes = nodes
@@ -124,13 +126,12 @@ export default function ClassEditorModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm font-sans">
       <div className="bg-surface-primary border border-surface-border p-6 rounded-xl shadow-2xl w-150 text-text-primary max-h-[90vh] overflow-y-auto custom-scrollbar">
         <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-          <span className="text-uml-class-border">Edit Class:</span>{" "}
-          {draft.label}
+          <span className="text-uml-class-border">{t('modals.classEditor.title')}</span>{draft.label}
         </h2>
 
         <div className="mb-6">
           <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
-            Class Name
+            {t('modals.classEditor.className')}
           </label>
           <input
             className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-text-primary focus:border-uml-class-border outline-none"
@@ -142,13 +143,13 @@ export default function ClassEditorModal({
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-              Attributes
+              {t('modals.classEditor.attributes')}
             </label>
             <button
               onClick={addAttribute}
               className="text-xs flex items-center gap-1 text-green-400 hover:text-green-300"
             >
-              <Plus className="w-3 h-3" /> Add
+              <Plus className="w-3 h-3" /> {t('modals.classEditor.add')}
             </button>
           </div>
 
@@ -174,7 +175,7 @@ export default function ClassEditorModal({
 
                 <input
                   className="bg-transparent border-b border-transparent focus:border-uml-class-border outline-none flex-1 min-w-0 text-sm"
-                  placeholder="name"
+                  placeholder={t('modals.classEditor.placeholders.name')}
                   value={attr.name}
                   onChange={(e) => updateAttribute(idx, "name", e.target.value)}
                 />
@@ -218,7 +219,7 @@ export default function ClassEditorModal({
             ))}
             {draft.attributes.length === 0 && (
               <div className="text-center py-4 text-text-muted text-xs italic border border-dashed border-surface-border rounded">
-                No attributes defined.
+                {t('modals.classEditor.noAttributes')}
               </div>
             )}
           </div>
@@ -227,13 +228,13 @@ export default function ClassEditorModal({
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-              Methods
+             {t('modals.classEditor.methods')}
             </label>
             <button
               onClick={addMethod}
               className="text-xs flex items-center gap-1 text-blue-400 hover:text-blue-300"
             >
-              <Plus className="w-3 h-3" /> Add
+              <Plus className="w-3 h-3" /> {t('modals.classEditor.add')}
             </button>
           </div>
 
@@ -259,7 +260,7 @@ export default function ClassEditorModal({
 
                 <input
                   className="bg-transparent border-b border-transparent focus:border-uml-class-border outline-none flex-1 min-w-0 text-sm"
-                  placeholder="methodName"
+                  placeholder={t('modals.classEditor.placeholders.name')}
                   value={method.name}
                   onChange={(e) => updateMethod(idx, "name", e.target.value)}
                 />
@@ -291,7 +292,7 @@ export default function ClassEditorModal({
 
             {draft.methods.length === 0 && (
               <div className="text-center py-4 text-text-muted text-xs italic border border-dashed border-surface-border rounded">
-                No methods defined.
+                {t('modals.classEditor.noMethods')}
               </div>
             )}
           </div>
@@ -303,13 +304,13 @@ export default function ClassEditorModal({
             onClick={onClose}
             className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
           >
-            Cancel
+            {t('modals.classEditor.cancel')}
           </button>
           <button
             onClick={() => onSave(draft)}
             className="px-6 py-2 text-sm bg-uml-class-border text-white rounded font-medium hover:brightness-110"
           >
-            Save Changes
+            {t('modals.classEditor.save')}
           </button>
         </div>
       </div>

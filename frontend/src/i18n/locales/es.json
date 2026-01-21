@@ -1,0 +1,108 @@
+{
+  "header": {
+    "diagramNamePlaceholder": "Nombre del Diagrama",
+    "search": "Buscar",
+    "switchLanguage": "Cambiar Idioma",
+    "import": "Importar",
+    "export": "Exportar",
+    "save": "Guardar",
+    "tooltips": {
+      "undo": "Deshacer (Ctrl+Z)",
+      "redo": "Rehacer (Ctrl+Y)",
+      "showMiniMap": "Mostrar Minimapa",
+      "hideMiniMap": "Ocultar Minimapa",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "fitView": "Ajustar Vista"
+    },
+    "exportMenu": {
+      "json": "Guardar como .luml",
+      "png": "Exportar a PNG",
+      "cloud": "Guardar en Nube",
+      "soon": "Pronto"
+    }
+  },
+
+  "sidebar": {
+    "toolbox": "Caja de Herramientas",
+    "nodes": {
+      "title": "Nodos",
+      "class": "Clase",
+      "interface": "Interfaz",
+      "abstract": "Abstracta",
+      "note": "Nota"
+    },
+    "connections": {
+      "title": "Conexiones",
+      "association": "Asociación",
+      "inheritance": "Herencia",
+      "implementation": "Implementación",
+      "dependency": "Dependencia"
+    },
+    "legend": {
+      "title": "Lógica de Conexión",
+      "source": "son Origen",
+      "target": "son Destino",
+      "blue": "Azules",
+      "green": "Verdes"
+    }
+  },
+  "contextMenu": {
+    "pane": {
+      "addClass": "Agregar Clase",
+      "addInterface": "Agregar Interfaz",
+      "addAbstract": "Agregar Abstracta",
+      "addNote": "Agregar Nota",
+      "cleanCanvas": "Limpiar Lienzo"
+    },
+    "node": {
+      "duplicate": "Duplicar",
+      "edit": "Editar Propiedades",
+      "delete": "Eliminar"
+    },
+    "edge": {
+      "reverse": "Invertir Dirección ⇄",
+      "toAssociation": "A: Asociación →",
+      "toInheritance": "A: Herencia ▷",
+      "toImplementation": "A: Implementación ⇢",
+      "toDependency": "A: Dependencia ⇢",
+      "delete": "Eliminar Conexión"
+    }
+  },
+  "modals": {
+    "classEditor": {
+      "title": "Editar Clase:",
+      "className": "NOMBRE DE CLASE",
+      "attributes": "ATRIBUTOS",
+      "methods": "MÉTODOS",
+      "add": "Agregar",
+      "noAttributes": "No hay atributos definidos.",
+      "noMethods": "No hay métodos definidos.",
+      "cancel": "Cancelar",
+      "save": "Guardar Cambios",
+      "placeholders": {
+        "name": "nombre",
+        "methodName": "nombreMetodo"
+      }
+    },
+    "confirmation": {
+      "clearTitle": "¿Limpiar todo el Lienzo?",
+      "clearMessage": "Esta acción no se puede deshacer.",
+      "confirm": "Confirmar y Limpiar",
+      "cancel": "Cancelar"
+    },
+    "spotlight": {
+      "placeholder": "Buscar clases, interfaces, notas...",
+      "esc": "ESC",
+      "jumpTo": "Ir a",
+      "noResults": "No se encontraron resultados para",
+      "elementsFound": "elementos encontrados",
+      "navigate": "Navegar",
+      "select": "Seleccionar"
+    }
+  },
+  "alerts": {
+    "exportError": "No se pudo generar la imagen. Intenta de nuevo.",
+    "importError": "Error al leer el archivo. Asegúrate de que sea un .json o .luml válido."
+  }
+}

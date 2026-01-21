@@ -1,0 +1,107 @@
+{
+  "header": {
+    "diagramNamePlaceholder": "Diagram Name",
+    "search": "Search",
+    "switchLanguage": "Switch Language",
+    "import": "Import",
+    "export": "Export",
+    "save": "Save",
+    "tooltips": {
+      "undo": "Undo (Ctrl+Z)",
+      "redo": "Redo (Ctrl+Y)",
+      "showMiniMap": "Show MiniMap",
+      "hideMiniMap": "Hide MiniMap",
+      "zoomIn": "Zoom In",
+      "zoomOut": "Zoom Out",
+      "fitView": "Fit View"
+    },
+    "exportMenu": {
+      "json": "Save as .luml",
+      "png": "Export to PNG",
+      "cloud": "Save to Cloud",
+      "soon": "Soon"
+    }
+  },
+  "sidebar": {
+    "toolbox": "Toolbox",
+    "nodes": {
+      "title": "Nodes",
+      "class": "Class",
+      "interface": "Interface",
+      "abstract": "Abstract",
+      "note": "Note"
+    },
+    "connections": {
+      "title": "Connections",
+      "association": "Association",
+      "inheritance": "Inheritance",
+      "implementation": "Implementation",
+      "dependency": "Dependency"
+    },
+    "legend": {
+      "title": "Connection Logic",
+      "source": "handles are Source",
+      "target": "handles are Target",
+      "blue": "Blue",
+      "green": "Green"
+    }
+  },
+  "contextMenu": {
+    "pane": {
+      "addClass": "Add Class",
+      "addInterface": "Add Interface",
+      "addAbstract": "Add Abstract Class",
+      "addNote": "Add Note",
+      "cleanCanvas": "Clean Canvas"
+    },
+    "node": {
+      "duplicate": "Duplicate",
+      "edit": "Edit Properties",
+      "delete": "Delete"
+    },
+    "edge": {
+      "reverse": "Reverse Direction ⇄",
+      "toAssociation": "To: Association →",
+      "toInheritance": "To: Inheritance ▷",
+      "toImplementation": "To: Implementation ⇢",
+      "toDependency": "To: Dependency ⇢",
+      "delete": "Delete Connection"
+    }
+  },
+  "modals": {
+    "classEditor": {
+      "title": "Edit Class:",
+      "className": "CLASS NAME",
+      "attributes": "ATTRIBUTES",
+      "methods": "METHODS",
+      "add": "Add",
+      "noAttributes": "No attributes defined.",
+      "noMethods": "No methods defined.",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "placeholders": {
+        "name": "name",
+        "methodName": "methodName"
+      }
+    },
+    "confirmation": {
+      "clearTitle": "Clear Entire Canvas?",
+      "clearMessage": "This action cannot be undone.",
+      "confirm": "Confirm & Clear",
+      "cancel": "Cancel"
+    },
+    "spotlight": {
+      "placeholder": "Search classes, interfaces, notes...",
+      "esc": "ESC",
+      "jumpTo": "Jump to",
+      "noResults": "No results found for",
+      "elementsFound": "elements found",
+      "navigate": "Navigate",
+      "select": "Select"
+    }
+  },
+  "alerts": {
+    "exportError": "Could not generate the image. Please try again.",
+    "importError": "Error loading file. Make sure it is a valid .json or .luml."
+  }
+}

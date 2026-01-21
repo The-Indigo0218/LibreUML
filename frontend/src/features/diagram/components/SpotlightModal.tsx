@@ -1,7 +1,9 @@
 import { Search, Box, CircleDot, BoxSelect, StickyNote, X } from "lucide-react";
 import { useSpotlight } from "../hooks/useSpotlight";
+import { useTranslation } from "react-i18next";
 
 export default function SpotlightModal() {
+  const { t } = useTranslation();
   const {
     isOpen,
     setIsOpen,
@@ -34,14 +36,14 @@ export default function SpotlightModal() {
           <input
             autoFocus
             type="text"
-            placeholder="Search classes, interfaces, notes..."
+            placeholder={t('modals.spotlight.placeholder')}
             className="flex-1 bg-transparent border-none outline-none text-text-primary placeholder-text-muted text-lg"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <div className="flex items-center gap-2">
             <kbd className="hidden sm:inline-flex h-6 items-center gap-1 rounded border border-surface-border bg-surface-hover px-1.5 font-mono text-[10px] font-medium text-text-muted opacity-100">
-              <span className="text-xs">ESC</span>
+              <span className="text-xs">{t('modals.spotlight.esc')}</span>
             </kbd>
             <button
               onClick={() => setIsOpen(false)}
@@ -82,26 +84,26 @@ export default function SpotlightModal() {
                 </div>
 
                 <span className="text-xs text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                  Jump to
+                  {t('modals.spotlight.jumpTo')}
                 </span>
               </button>
             ))
           ) : (
             <div className="py-12 text-center text-text-muted">
-              <p>No results found for "{searchTerm}"</p>
+              <p>{t('modals.spotlight.noResults', { searchTerm })}</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="bg-surface-secondary px-4 py-2 border-t border-surface-border flex justify-between items-center text-xs text-text-muted">
-          <span>{filteredNodes.length} elements found</span>
+          <span>{filteredNodes.length} {t('modals.spotlight.elementsFound')}</span>
           <div className="flex gap-2">
             <span>
-              Navigate <kbd>↑</kbd> <kbd>↓</kbd>
+             {t('modals.spotlight.navigate')} <kbd>↑</kbd> <kbd>↓</kbd>
             </span>
             <span>
-              Select <kbd>↵</kbd>
+              {t('modals.spotlight.select')} <kbd>↵</kbd>
             </span>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import DiagramEditor from './features/diagram/components/DiagramEditor';
+import DiagramEditor from './features/diagram/components/layout/DiagramEditor';
 
 function App() {
   return (

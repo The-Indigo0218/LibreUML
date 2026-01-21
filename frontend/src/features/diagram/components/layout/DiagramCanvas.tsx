@@ -8,26 +8,25 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { useRef, useState,  useEffect } from "react";
 
-// Store & Config
-import { useDiagramStore } from "../../../store/diagramStore";
-import { canvasConfig, miniMapColors } from "../../../config/theme.config";
+import { useDiagramStore } from "../../../../store/diagramStore";
+import { canvasConfig, miniMapColors } from "../../../../config/theme.config";
 
 // Components
-import UmlClassNode from "./nodes/UmlClassNode";
-import UmlNoteNode from "./nodes/UmlNoteNode";
-import ContextMenu from "./ContextMenu";
-import ClassEditorModal from "./ClassEditorModal";
-import ConfirmationModal from "../../../components/shared/ConfirmationModal";
-import SpotlightModal from "./SpotlightModal";
+import UmlClassNode from "../nodes/uml/UmlClassNode";
+import UmlNoteNode from "../nodes/uml/UmlNoteNode";
+import ContextMenu from "../ui/ContextMenu";
+import ClassEditorModal from "../modals/ClassEditorModal";
+import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
+import SpotlightModal from "../modals/SpotlightModal";
 
 // Hooks
-import { useContextMenu } from "../hooks/useContextMenu";
-import { useDiagramDnD } from "../hooks/useDiagramDnD";
-import { useDiagramMenus } from "../hooks/useDiagramMenus";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { useEdgeStyling } from "../hooks/useEdgeStyling";
-import { useThemeSystem } from "../hooks/useThemeSystem";
-import { useNodeDragging } from "../hooks/useNodeDragging";
+import { useContextMenu } from "../../hooks/useContextMenu";
+import { useDiagramDnD } from "../../hooks/useDiagramDnD";
+import { useDiagramMenus } from "../../hooks/useDiagramMenus";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import { useEdgeStyling } from "../../hooks/useEdgeStyling";
+import { useThemeSystem } from "../../../../hooks/useThemeSystem";
+import { useNodeDragging } from "../../hooks/useNodeDragging";
 import { useTranslation } from "react-i18next";
 
 const nodeTypes = {

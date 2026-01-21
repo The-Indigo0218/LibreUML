@@ -10,7 +10,7 @@ import type {
   DiagramState,
   UmlClassNode,
   UmlEdge,
-} from "../../../types/diagram.types";
+} from "../types/diagram.types";
 
 export const ExportService = {
   downloadJson: (

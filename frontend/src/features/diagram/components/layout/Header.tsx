@@ -21,10 +21,10 @@ import {
   Cloud,
   Search,
 } from "lucide-react";
-import { useDiagramStore } from "../../../store/diagramStore";
-import { ExportService } from "../services/export.service";
-import { useThemeStore } from "../../../store/themeStore";
-import { useSpotlightStore } from "../hooks/useSpotlight";
+import { useDiagramStore } from "../../../../store/diagramStore";
+import { ExportService } from "../../../../services/export.service";
+import { useThemeStore } from "../../../../store/themeStore";
+import { useSpotlightStore } from "../../hooks/useSpotlight";
 import { useTranslation } from "react-i18next";
 
 export default function Header() {

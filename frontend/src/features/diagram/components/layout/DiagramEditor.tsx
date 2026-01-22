@@ -1,30 +1,35 @@
 import { ReactFlowProvider } from "reactflow";
 import DiagramCanvas from "./DiagramCanvas";
 import Sidebar from "./Sidebar";
-import Header from "./Header";
+import AppMenubar from "../menubar/AppMenubar";
 import { useAutosave } from "../../../../hooks/useAutosave";
 
-function EditorLogic() {
-  
+function DiagramManager() {
   useAutosave();
+  return null;
+}
 
+function EditorLogic() {
   return (
-      <div className="flex w-screen h-screen overflow-hidden bg-gray-50">
+    <div className="flex flex-col w-screen h-screen overflow-hidden bg-gray-50">
+      <DiagramManager />
+      <AppMenubar />
+
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar />
-        <div className="flex-1 flex flex-col h-full min-w-0">
-          <Header />
-          <div className="flex-1 relative bg-slate-50">
-            <DiagramCanvas />
-          </div>
+
+        <div className="flex-1 relative bg-slate-50 min-w-0">
+          <DiagramCanvas />
         </div>
       </div>
+    </div>
   );
 }
 
 export default function DiagramEditor() {
   return (
     <ReactFlowProvider>
-       <EditorLogic /> 
+      <EditorLogic />
     </ReactFlowProvider>
   );
 }

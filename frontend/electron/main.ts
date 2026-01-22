@@ -14,6 +14,9 @@ function createWindow() {
     minHeight: 600,
     title: "LibreUML",
     backgroundColor: "#0f172a",
+    frame: false,
+    titleBarStyle: "hidden",
+    // -----------------------------
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -28,41 +31,61 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
- mainWindow.on('close', (e) => {
-    if (isForceClose) return; 
+  ipcMain.on("window-minimize", () => {
+    mainWindow?.minimize();
+  });
 
-    e.preventDefault(); 
-    mainWindow?.webContents.send('app:request-close');
+  ipcMain.on("window-maximize", () => {
+    if (mainWindow?.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow?.maximize();
+    }
+  });
+
+  mainWindow.on("close", (e) => {
+    if (isForceClose) return;
+    e.preventDefault();
+    mainWindow?.webContents.send("app:request-close");
   });
 }
 
-ipcMain.on('app:force-close', () => {
+ipcMain.on("app:force-close", () => {
   isForceClose = true;
   app.quit();
 });
 
-ipcMain.handle('dialog:saveFile', async (_, { content, filePath, defaultName }) => {
-  if (!filePath) {
-    const defaultFileName = defaultName ? `${defaultName}.luml` : 'diagrama-sin-titulo.luml';
+ipcMain.handle(
+  "dialog:saveFile",
+  async (_, { content, filePath, defaultName }) => {
+    if (!filePath) {
+      const defaultFileName = defaultName
+        ? `${defaultName}.luml`
+        : "diagrama-sin-titulo.luml";
 
-    const { canceled, filePath: newPath } = await dialog.showSaveDialog({
-      title: 'Guardar Diagrama',
-      defaultPath: defaultFileName, 
-      filters: [{ name: 'LibreUML Files', extensions: ['luml', 'json'] }]
-    });
+      const { canceled, filePath: newPath } = await dialog.showSaveDialog({
+        title: "Guardar Diagrama",
+        defaultPath: defaultFileName,
+        filters: [{ name: "LibreUML Files", extensions: ["luml", "json"] }],
+      });
 
-    if (canceled || !newPath) return { canceled: true };
-    
-    filePath = newPath;
-  }
+      if (canceled || !newPath) return { canceled: true };
 
-  try {
-    fs.writeFileSync(filePath, content, 'utf-8');
-    return { canceled: false, filePath };
-  } catch (error) {
-    console.error('Error guardando:', error);
-    throw error;
-  }
+      filePath = newPath;
+    }
+
+    try {
+      fs.writeFileSync(filePath, content, "utf-8");
+      return { canceled: false, filePath };
+    } catch (error) {
+      console.error("Error guardando:", error);
+      throw error;
+    }
+  },
+);
+
+ipcMain.on("window-close", () => {
+  mainWindow?.close();
 });
 
 ipcMain.handle("dialog:openFile", async () => {

@@ -19,4 +19,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   minimize: () => ipcRenderer.send('window-minimize'),
   toggleMaximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
+readFile: (filePath: string) => ipcRenderer.invoke("file:read", filePath),
 });

@@ -1,14 +1,14 @@
 {
   "header": {
     "diagramNamePlaceholder": "Nombre del Diagrama",
-    "search": "Buscar",
+    "search": "Buscar (Ctrl+K)",
     "switchLanguage": "Cambiar Idioma",
     "import": "Importar",
     "export": "Exportar",
     "save": "Guardar",
     "tooltips": {
-      "undo": "Deshacer (Ctrl+Z)",
-      "redo": "Rehacer (Ctrl+Y)",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
       "showMiniMap": "Mostrar Minimapa",
       "hideMiniMap": "Ocultar Minimapa",
       "zoomIn": "Acercar",
@@ -22,7 +22,27 @@
       "soon": "Pronto"
     }
   },
-
+  "menubar": {
+    "file": {
+      "title": "Archivo",
+      "new": "Nuevo Diagrama",
+      "open": "Abrir...",
+      "save": "Guardar",
+      "saveAs": "Guardar Como...",
+      "discard": "Descartar Cambios", 
+      "close": "Cerrar Editor",
+      "exit": "Salir"
+    },
+    "settings": {
+      "title": "Ajustes",
+      "general": "General",
+      "autoSave": "Autoguardado",
+      "fileAssoc": "Asociar Archivos .luml",
+      "startup": "Inicio: Restaurar Sesión",
+      "language": "Idioma",
+      "theme": "Tema"
+    }
+  },
   "sidebar": {
     "toolbox": "Caja de Herramientas",
     "nodes": {
@@ -103,6 +123,7 @@
   },
   "alerts": {
     "exportError": "No se pudo generar la imagen. Intenta de nuevo.",
+    "savedSuccess": "Diagrama guardado correctamente",
     "importError": "Error al leer el archivo. Asegúrate de que sea un .json o .luml válido."
   }
 }

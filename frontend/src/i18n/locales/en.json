@@ -1,14 +1,14 @@
 {
   "header": {
     "diagramNamePlaceholder": "Diagram Name",
-    "search": "Search",
+    "search": "Search (Ctrl+K)",
     "switchLanguage": "Switch Language",
     "import": "Import",
     "export": "Export",
     "save": "Save",
     "tooltips": {
-      "undo": "Undo (Ctrl+Z)",
-      "redo": "Redo (Ctrl+Y)",
+      "undo": "Undo",
+      "redo": "Redo",
       "showMiniMap": "Show MiniMap",
       "hideMiniMap": "Hide MiniMap",
       "zoomIn": "Zoom In",
@@ -20,6 +20,27 @@
       "png": "Export to PNG",
       "cloud": "Save to Cloud",
       "soon": "Soon"
+    }
+  },
+  "menubar": {
+    "file": {
+      "title": "File",
+      "new": "New Diagram",
+      "open": "Open...",
+      "save": "Save",
+      "saveAs": "Save As...",
+      "discard": "Discard Changes",
+      "close": "Close Editor",
+      "exit": "Exit"
+    },
+    "settings": {
+      "title": "Settings",
+      "general": "General",
+      "autoSave": "Auto Save",
+      "fileAssoc": "Associate .luml Files",
+      "startup": "Startup: Restore Session",
+      "language": "Language",
+      "theme": "Theme"
     }
   },
   "sidebar": {
@@ -102,6 +123,7 @@
   },
   "alerts": {
     "exportError": "Could not generate the image. Please try again.",
+    "savedSuccess": "Diagram saved successfully",
     "importError": "Error loading file. Make sure it is a valid .json or .luml."
   }
 }

@@ -35,7 +35,7 @@ interface DiagramStoreState {
   activeConnectionMode: UmlRelationType;
   currentFilePath?: string;
   isDirty: boolean;
-  
+  showMiniMap: boolean;
 
   setDiagramName: (name: string) => void;
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
@@ -47,15 +47,14 @@ interface DiagramStoreState {
   duplicateNode: (nodeId: string) => void;
   clearCanvas: () => void;
   setConnectionMode: (mode: UmlRelationType) => void;
-  loadDiagram: (data: SavedDiagramState) => void;
+  loadDiagram: (data: SavedDiagramState, preservePath?: boolean) => void;
   toggleMiniMap: () => void;
-  showMiniMap: boolean;
   deleteEdge: (edgeId: string) => void;
   changeEdgeType: (edgeId: string, newType: UmlRelationType) => void;
   reverseEdge: (edgeId: string) => void;
   recalculateNodeConnections: (nodeId: string) => void;
   triggerHistorySnapshot: () => void;
-  setFilePath: (path: string | undefined) => void; 
+  setFilePath: (path: string | undefined) => void;
   setDirty: (dirty: boolean) => void;
   resetDiagram: () => void;
 }
@@ -190,9 +189,10 @@ export const useDiagramStore = create<DiagramStoreState>()(
         }
       },
 
-      setConnectionMode: (mode) => set({ activeConnectionMode: mode, isDirty: true }),
+      setConnectionMode: (mode) =>
+        set({ activeConnectionMode: mode, isDirty: true }),
 
-      loadDiagram: (data) => {
+      loadDiagram: (data, preservePath = false) => {
         const hydratedEdges = data.edges.map((edge) => {
           const type = edge.data?.type || "association";
 
@@ -209,20 +209,24 @@ export const useDiagramStore = create<DiagramStoreState>()(
           };
         }) as Edge[];
 
-        set({
+        set((state) => ({
           diagramId: data.id || crypto.randomUUID(),
           diagramName: data.name || "Imported",
-          currentFilePath: undefined,
+          currentFilePath: preservePath ? state.currentFilePath : undefined,
+
           nodes: data.nodes,
           edges: hydratedEdges,
           isDirty: false,
-        });
+        }));
       },
 
       toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
 
       deleteEdge: (edgeId) => {
-        set({ edges: get().edges.filter((e) => e.id !== edgeId), isDirty: true });
+        set({
+          edges: get().edges.filter((e) => e.id !== edgeId),
+          isDirty: true,
+        });
       },
 
       changeEdgeType: (edgeId, newType) => {
@@ -297,8 +301,8 @@ export const useDiagramStore = create<DiagramStoreState>()(
           diagramName: "Untitled Diagram",
           nodes: [],
           edges: [],
-          currentFilePath: undefined, 
-          isDirty: false, 
+          currentFilePath: undefined,
+          isDirty: false,
         });
       },
     }),

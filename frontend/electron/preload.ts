@@ -15,4 +15,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   sendForceClose: () => ipcRenderer.send('app:force-close'),
+
+  minimize: () => ipcRenderer.send('window-minimize'),
+  toggleMaximize: () => ipcRenderer.send('window-maximize'),
+  close: () => ipcRenderer.send('window-close'),
 });

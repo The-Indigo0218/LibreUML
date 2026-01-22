@@ -2,7 +2,7 @@
 
 :root {
   /* --- MODO CLARO (LIGHT) --- */
-  
+
   /* Canvas & Fondo */
   --canvas-base: #ffffff;
   --canvas-dots: #94a3b8;
@@ -10,27 +10,27 @@
   /* Superficies (Sidebar, Header, Paneles) */
   --surface-primary: #ffffff;
   --surface-secondary: #f8fafc; /* Slate-50 */
-  --surface-border: #e2e8f0;    /* Slate-200 */
-  --surface-hover: #f1f5f9;     /* Slate-100 */
+  --surface-border: #e2e8f0; /* Slate-200 */
+  --surface-hover: #f1f5f9; /* Slate-100 */
 
   /* Texto */
-  --text-primary: #0f172a;      /* Slate-900 (Casi negro) */
-  --text-secondary: #64748b;    /* Slate-500 */
-  --text-muted: #94a3b8;        /* Slate-400 */
+  --text-primary: #0f172a; /* Slate-900 (Casi negro) */
+  --text-secondary: #64748b; /* Slate-500 */
+  --text-muted: #94a3b8; /* Slate-400 */
 
   /* UML Colors  */
-  --uml-class-border: #4f46e5;  /* Indigo-600 */
-  --uml-class-bg: #eef2ff;      /* Indigo-50 */
-  
+  --uml-class-border: #4f46e5; /* Indigo-600 */
+  --uml-class-bg: #eef2ff; /* Indigo-50 */
+
   --uml-interface-border: #0891b2; /* Cyan-600 */
-  --uml-interface-bg: #ecfeff;     /* Cyan-50 */
+  --uml-interface-bg: #ecfeff; /* Cyan-50 */
 
-  --uml-abstract-border: #2563eb;  /* Blue-600 */
-  --uml-abstract-bg: #eff6ff;      /* Blue-50 */
+  --uml-abstract-border: #2563eb; /* Blue-600 */
+  --uml-abstract-bg: #eff6ff; /* Blue-50 */
 
-  --uml-note-border: #0ea5e9;      /* Sky-500 */
-  --uml-note-bg: #f0f9ff;          /* Sky-50 */
-  
+  --uml-note-border: #0ea5e9; /* Sky-500 */
+  --uml-note-bg: #f0f9ff; /* Sky-50 */
+
   /* Relaciones (Edges) */
   --edge-base: #64748b;
   --edge-inheritance: #3b82f6;
@@ -43,10 +43,10 @@
 
 .dark {
   /* --- MODO OSCURO (DARK TECH) --- */
-  
+
   /* Canvas */
   --canvas-base: #0b0f1a;
-  --canvas-dots: #cbd5e1; 
+  --canvas-dots: #cbd5e1;
 
   /* Superficies */
   --surface-primary: #121826;
@@ -71,15 +71,15 @@
 
   --uml-note-border: #38bdf8;
   --uml-note-bg: #0b1c2d;
-  
+
   /* Relaciones */
-  --edge-base: #6B7280;
-  --edge-inheritance: #60A5FA;
-  --edge-implementation: #22D3EE;
-  --edge-dependency: #F472B6;
-  --edge-association: #A78BFA;
-  --edge-note: #FEF08A;
-  --arrow-head: #FFFFFF;
+  --edge-base: #6b7280;
+  --edge-inheritance: #60a5fa;
+  --edge-implementation: #22d3ee;
+  --edge-dependency: #f472b6;
+  --edge-association: #a78bfa;
+  --edge-note: #fef08a;
+  --arrow-head: #ffffff;
 }
 
 @theme {
@@ -109,7 +109,7 @@
 
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Fira Code", monospace;
-  
+
   /* Variables de Edges para uso en JS */
   --color-edge-base: var(--edge-base);
   --color-edge-inheritance: var(--edge-inheritance);
@@ -137,7 +137,9 @@
   border-bottom: none !important;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   width: 100%;
   margin: 0;
@@ -145,4 +147,12 @@ html, body, #root {
   background-color: var(--canvas-base);
   color: var(--text-primary);
   font-family: var(--font-sans);
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
 }

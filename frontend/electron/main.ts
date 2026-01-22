@@ -88,6 +88,19 @@ ipcMain.on("window-close", () => {
   mainWindow?.close();
 });
 
+ipcMain.handle("file:read", async (_, filePath) => {
+  try {
+    if (!fs.existsSync(filePath)) {
+        return { success: false, error: "File not found" };
+    }
+    const content = fs.readFileSync(filePath, "utf-8");
+    return { success: true, content };
+  } catch (error) {
+    console.error("Error reading file:", error);
+    return { success: false, error: String(error) };
+  }
+});
+
 ipcMain.handle("dialog:openFile", async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     properties: ["openFile"],

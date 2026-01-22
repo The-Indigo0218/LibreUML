@@ -6,7 +6,8 @@ interface ElectronAPI {
   openFile: () => Promise<{ canceled: boolean; filePath?: string; content?: string }>;
   onAppRequestClose: (callback: () => void) => () => void;
   sendForceClose: () => void;
-
+  readFile: (filePath: string) => Promise<{ success: boolean; content?: string }>;
+  
   minimize: () => void;
   toggleMaximize: () => void;
   close: () => void;

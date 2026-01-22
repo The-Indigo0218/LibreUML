@@ -3,6 +3,7 @@ import { ExportService } from "./export.service";
 import type { DiagramState, UmlClassNode, UmlEdge } from "../features/diagram/types/diagram.types";
 
 export const StorageService = {
+  // --- SAVE DIAGRAM ---
   saveDiagram: async (
     flowObject: ReactFlowJsonObject,
     id: string,
@@ -41,7 +42,8 @@ export const StorageService = {
     }
   },
 
- openDiagram: async (): Promise<{ data: DiagramState; filePath: string } | null> => {
+  // --- OPEN WITH DIALOG ---
+  openDiagram: async (): Promise<{ data: DiagramState; filePath: string } | null> => {
     if (window.electronAPI?.isElectron()) {
       try {
         const result = await window.electronAPI.openFile();
@@ -55,11 +57,26 @@ export const StorageService = {
         };
       } catch (error) {
         console.error("Error opening via Electron:", error);
-        alert("El archivo está corrupto o no es válido.");
+        alert("File is corrupt or invalid.");
         return null;
       }
     } else {
       return null; 
     }
-  }
+  },
+
+  // RELOAD FROM DISK (SILENT) ---
+  reloadDiagram: async (filePath: string): Promise<DiagramState | null> => {
+    if (window.electronAPI?.isElectron()) {
+      try {
+        const result = await window.electronAPI.readFile(filePath);
+        if (result.success && result.content) {
+           return JSON.parse(result.content) as DiagramState;
+        }
+      } catch (error) {
+        console.error("Error reloading file:", error);
+      }
+    }
+    return null;
+  },
 };

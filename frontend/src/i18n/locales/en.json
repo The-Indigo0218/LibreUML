@@ -125,5 +125,22 @@
     "exportError": "Could not generate the image. Please try again.",
     "savedSuccess": "Diagram saved successfully",
     "importError": "Error loading file. Make sure it is a valid .json or .luml."
+  },
+  "connections": {
+    "title": "Connections",
+    "association": "Association",
+    "inheritance": "Inheritance",
+    "implementation": "Implementation",
+    "dependency": "Dependency",
+    "aggregation": "Aggregation",
+    "composition": "Composition"
+  },
+  "relationship_labels": {
+    "inheritance": "is a",
+    "implementation": "implements",
+    "composition": "has a",
+    "aggregation": "has a",
+    "dependency": "uses",
+    "association": ""
   }
 }

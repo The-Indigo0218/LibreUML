@@ -29,7 +29,7 @@
       "open": "Abrir...",
       "save": "Guardar",
       "saveAs": "Guardar Como...",
-      "discard": "Descartar Cambios", 
+      "discard": "Descartar Cambios",
       "close": "Cerrar Editor",
       "exit": "Salir"
     },
@@ -125,5 +125,22 @@
     "exportError": "No se pudo generar la imagen. Intenta de nuevo.",
     "savedSuccess": "Diagrama guardado correctamente",
     "importError": "Error al leer el archivo. Asegúrate de que sea un .json o .luml válido."
+  },
+  "connections": {
+    "title": "Conexiones",
+    "association": "Asociación",
+    "inheritance": "Herencia",
+    "implementation": "Implementación",
+    "dependency": "Dependencia",
+    "aggregation": "Agregación",
+    "composition": "Composición"
+  },
+  "relationship_labels": {
+    "inheritance": "es un",
+    "implementation": "implementa",
+    "composition": "tiene un",
+    "aggregation": "tiene un",
+    "dependency": "usa",
+    "association": ""
   }
 }

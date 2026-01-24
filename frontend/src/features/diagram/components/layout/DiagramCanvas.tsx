@@ -115,32 +115,6 @@ export default function DiagramCanvas() {
         connectionMode={ConnectionMode.Loose}
         fitView
       >
-
-        {/* DIAGNÓSTICO TEMPORAL - BORRA DESPUÉS */}
-        {import.meta.env.DEV && (
-          <div
-            style={{
-              position: "absolute",
-              top: 10,
-              left: 10,
-              background: "rgba(0,0,0,0.8)",
-              color: "white",
-              padding: "10px",
-              fontSize: "12px",
-              zIndex: 9999,
-              fontFamily: "monospace",
-            }}
-          >
-            <div>Edges: {displayEdges.length}</div>
-            {displayEdges.slice(0, 3).map((e) => (
-              <div key={e.id}>
-                {e.id}: {e.data?.type} - marker: {JSON.stringify(e.markerEnd)}
-              </div>
-            ))}
-          </div>
-        )}
-        {/* FIN DIAGNÓSTICO */}
-
         <Background
           variant={BackgroundVariant.Dots}
           gap={24}

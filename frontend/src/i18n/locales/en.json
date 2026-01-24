@@ -57,7 +57,9 @@
       "association": "Association",
       "inheritance": "Inheritance",
       "implementation": "Implementation",
-      "dependency": "Dependency"
+      "dependency": "Dependency",
+      "aggregation": "Aggregation",
+      "composition": "Composition"
     },
     "legend": {
       "title": "Connection Logic",
@@ -83,13 +85,21 @@
     "edge": {
       "reverse": "Reverse Direction ⇄",
       "toAssociation": "To: Association →",
+      "defineMultiplicity": "Define Multiplicity",
       "toInheritance": "To: Inheritance ▷",
       "toImplementation": "To: Implementation ⇢",
       "toDependency": "To: Dependency ⇢",
+      "toAggregation": "Convert to Aggregation",
+      "toComposition": "Convert to Composition",
       "delete": "Delete Connection"
     }
   },
   "modals": {
+    "common": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "clear": "Clear"
+    },
     "classEditor": {
       "title": "Edit Class:",
       "className": "CLASS NAME",
@@ -98,12 +108,15 @@
       "add": "Add",
       "noAttributes": "No attributes defined.",
       "noMethods": "No methods defined.",
-      "cancel": "Cancel",
-      "save": "Save Changes",
       "placeholders": {
         "name": "name",
         "methodName": "methodName"
       }
+    },
+    "multiplicity": {
+      "title": "Configure Cardinality",
+      "source": "Start (Source)",
+      "target": "End (Target)"
     },
     "confirmation": {
       "clearTitle": "Clear Entire Canvas?",

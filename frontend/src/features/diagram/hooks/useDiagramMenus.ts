@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import { useReactFlow } from "reactflow";
-import { useDiagramStore } from "../../../store/diagramStore";
 import { useTranslation } from "react-i18next";
+import { useDiagramStore } from "../../../store/diagramStore";
+import type { UmlRelationType } from "../types/diagram.types";
 
 export type ContextMenuType = "pane" | "node" | "edge";
 
@@ -15,9 +16,14 @@ export interface ContextMenuState {
 interface UseDiagramMenusProps {
   onEditNode: (nodeId: string) => void;
   onClearCanvas: () => void;
+  onEditEdgeMultiplicity: (edgeId: string) => void;
 }
 
-export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusProps) => {
+export const useDiagramMenus = ({ 
+  onEditNode, 
+  onClearCanvas, 
+  onEditEdgeMultiplicity 
+}: UseDiagramMenusProps) => {
   const { screenToFlowPosition } = useReactFlow();
   const { t } = useTranslation();
 
@@ -35,6 +41,7 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
     (menu: ContextMenuState | null) => {
       if (!menu) return [];
 
+      // Pane Menu
       if (menu.type === "pane") {
         return [
           {
@@ -65,6 +72,7 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
         ];
       }
 
+      // Node Menu
       if (menu.type === "node" && menu.id) {
         const nodeId = menu.id; 
         
@@ -85,11 +93,14 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
         ];
       }
 
+      // Edge Menu
       if (menu.type === "edge" && menu.id) {
         const edgeId = menu.id; 
         const edge = edges.find((e) => e.id === edgeId);
         
-        const isNoteEdge = edge?.data?.type === 'note';
+        const type = (edge?.data?.type || "association") as UmlRelationType;
+        
+        const isNoteEdge = (type as string) === 'note';
 
         if (isNoteEdge) {
           return [
@@ -101,8 +112,20 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
           ];
         }
 
-        return [
+        const supportsMultiplicity = ['association', 'aggregation', 'composition'].includes(type);
+        
+        const multiplicityOptions = supportsMultiplicity ? [
+          {
+            label: t('contextMenu.edge.defineMultiplicity'),
+            onClick: () => onEditEdgeMultiplicity(edgeId),
+          }
+        ] : [];
+
+        const baseOptions = [
           { label: t('contextMenu.edge.reverse'), onClick: () => reverseEdge(edgeId) },
+        ];
+
+        const typeOptions = [
           {
             label: t('contextMenu.edge.toAssociation'),
             onClick: () => changeEdgeType(edgeId, "association"),
@@ -119,6 +142,20 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
             label: t('contextMenu.edge.toDependency'),
             onClick: () => changeEdgeType(edgeId, "dependency"),
           },
+          {
+            label: t('contextMenu.edge.toAggregation'),
+            onClick: () => changeEdgeType(edgeId, "aggregation"),
+          },
+          {
+            label: t('contextMenu.edge.toComposition'),
+            onClick: () => changeEdgeType(edgeId, "composition"),
+          },
+        ];
+
+        return [
+          ...baseOptions,
+          ...multiplicityOptions,
+          ...typeOptions,
           {
             label: t('contextMenu.edge.delete'),
             onClick: () => deleteEdge(edgeId),
@@ -139,6 +176,7 @@ export const useDiagramMenus = ({ onEditNode, onClearCanvas }: UseDiagramMenusPr
       edges,
       onClearCanvas,
       onEditNode,
+      onEditEdgeMultiplicity,
       screenToFlowPosition,
       t
     ]

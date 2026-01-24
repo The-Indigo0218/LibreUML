@@ -17,6 +17,7 @@ import type {
   UmlRelationType,
   DiagramState as SavedDiagramState,
 } from "../features/diagram/types/diagram.types";
+
 import { getEdgeOptions, getNoteEdgeOptions } from "../util/edgeFactory";
 import {
   getSmartEdgeHandles,
@@ -24,44 +25,56 @@ import {
   updateSyncedEdges,
 } from "../util/geometry";
 
+
 interface DiagramStoreState {
+  // --- State Properties ---
   diagramId: string;
   diagramName: string;
   nodes: Node<UmlClassData>[];
   edges: Edge[];
-  onNodesChange: OnNodesChange;
-  onEdgesChange: OnEdgesChange;
-  onConnect: OnConnect;
   activeConnectionMode: UmlRelationType;
   currentFilePath?: string;
   isDirty: boolean;
   showMiniMap: boolean;
 
+  // --- React Flow Handlers ---
+  onNodesChange: OnNodesChange;
+  onEdgesChange: OnEdgesChange;
+  onConnect: OnConnect;
+
+  // --- Canvas Actions ---
   setDiagramName: (name: string) => void;
-  updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
+  setFilePath: (path: string | undefined) => void;
+  setDirty: (dirty: boolean) => void;
+  toggleMiniMap: () => void;
+  clearCanvas: () => void;
+  resetDiagram: () => void;
+  setConnectionMode: (mode: UmlRelationType) => void;
+  loadDiagram: (data: SavedDiagramState, preservePath?: boolean) => void;
+  triggerHistorySnapshot: () => void;
+
+  // --- Node Actions ---
   addNode: (
     position: { x: number; y: number },
     stereotype?: stereotype,
   ) => void;
+  updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
   deleteNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => void;
-  clearCanvas: () => void;
-  setConnectionMode: (mode: UmlRelationType) => void;
-  loadDiagram: (data: SavedDiagramState, preservePath?: boolean) => void;
-  toggleMiniMap: () => void;
-  deleteEdge: (edgeId: string) => void;
-  changeEdgeType: (edgeId: string, newType: UmlRelationType) => void;
-  reverseEdge: (edgeId: string) => void;
   recalculateNodeConnections: (nodeId: string) => void;
-  triggerHistorySnapshot: () => void;
-  setFilePath: (path: string | undefined) => void;
-  setDirty: (dirty: boolean) => void;
-  resetDiagram: () => void;
+
+  // --- Edge Actions ---
+  deleteEdge: (edgeId: string) => void;
+  changeEdgeType: (edgeId: string, type: UmlRelationType) => void;
+  reverseEdge: (edgeId: string) => void;
+  updateEdgeData: (edgeId: string, data: Record<string, unknown>) => void; 
 }
+
 
 export const useDiagramStore = create<DiagramStoreState>()(
   temporal(
     (set, get) => ({
+      // --- Initial State ---
       diagramId: crypto.randomUUID(),
       diagramName: "Untitled Diagram",
       nodes: [],
@@ -70,17 +83,18 @@ export const useDiagramStore = create<DiagramStoreState>()(
       showMiniMap: false,
       isDirty: false,
 
+      // --- State Setters ---
       setDirty: (dirty) => set({ isDirty: dirty }),
-
       setDiagramName: (name) => set({ diagramName: name, isDirty: true }),
+      setFilePath: (path) => set({ currentFilePath: path }),
+      toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
 
+      // --- React Flow Callbacks ---
       onNodesChange: (changes) =>
         set({ nodes: applyNodeChanges(changes, get().nodes), isDirty: true }),
 
       onEdgesChange: (changes) =>
         set({ edges: applyEdgeChanges(changes, get().edges), isDirty: true }),
-
-      setFilePath: (path) => set({ currentFilePath: path }),
 
       onConnect: (connection) => {
         const { activeConnectionMode, nodes, edges } = get();
@@ -88,7 +102,6 @@ export const useDiagramStore = create<DiagramStoreState>()(
         const targetNode = nodes.find((n) => n.id === connection.target);
 
         if (targetNode?.type === "umlNote") return;
-
         if (
           connection.targetHandle === "right" ||
           connection.targetHandle === "bottom"
@@ -96,15 +109,15 @@ export const useDiagramStore = create<DiagramStoreState>()(
           return;
         }
 
+        // Prevent duplicate connections
         const isDuplicate = edges.some(
           (e) =>
             e.source === connection.source && e.target === connection.target,
         );
         if (isDuplicate) return;
 
-        if (sourceNode?.type === "umlNote") {
-          if (targetNode?.type === "umlNote") return;
-        }
+        // Prevent Note-to-Note connections
+        if (sourceNode?.type === "umlNote" && targetNode?.type === "umlNote") return;
 
         let edgeOptions;
         let edgeData = {};
@@ -126,9 +139,11 @@ export const useDiagramStore = create<DiagramStoreState>()(
         });
       },
 
+      // --- Node Operations ---
       addNode: (position, stereotype = "class") => {
         const { nodes } = get();
         if (checkCollision(position, nodes)) return;
+        
         const newNode: Node<UmlClassData> = {
           id: crypto.randomUUID(),
           type: stereotype === "note" ? "umlNote" : "umlClass",
@@ -189,38 +204,18 @@ export const useDiagramStore = create<DiagramStoreState>()(
         }
       },
 
-      setConnectionMode: (mode) =>
-        set({ activeConnectionMode: mode, isDirty: true }),
-
-      loadDiagram: (data, preservePath = false) => {
-        const hydratedEdges = data.edges.map((edge) => {
-          const type = edge.data?.type || "association";
-
-          let options;
-          if (type === "note") {
-            options = getNoteEdgeOptions();
-          } else {
-            options = getEdgeOptions(type as UmlRelationType);
-          }
-          return {
-            ...edge,
-            ...options,
-            data: { ...edge.data, type },
-          };
-        }) as Edge[];
-
-        set((state) => ({
-          diagramId: data.id || crypto.randomUUID(),
-          diagramName: data.name || "Imported",
-          currentFilePath: preservePath ? state.currentFilePath : undefined,
-
-          nodes: data.nodes,
-          edges: hydratedEdges,
-          isDirty: false,
-        }));
+      recalculateNodeConnections: (nodeId: string) => {
+        const { nodes, edges } = get();
+        const movedNode = nodes.find((n) => n.id === nodeId);
+        if (!movedNode) return;
+        
+        const newEdges = updateSyncedEdges(movedNode, nodes, edges);
+        set({ edges: newEdges, isDirty: true });
       },
 
-      toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
+      // --- Edge Operations ---
+      setConnectionMode: (mode) =>
+        set({ activeConnectionMode: mode, isDirty: true }),
 
       deleteEdge: (edgeId) => {
         set({
@@ -242,6 +237,21 @@ export const useDiagramStore = create<DiagramStoreState>()(
                 }
               : e,
           ),
+          isDirty: true,
+        });
+      },
+
+      updateEdgeData: (edgeId, newData) => {
+        set({
+          edges: get().edges.map((edge) => {
+            if (edge.id === edgeId) {
+              return {
+                ...edge,
+                data: { ...edge.data, ...newData },
+              };
+            }
+            return edge;
+          }),
           isDirty: true,
         });
       },
@@ -278,12 +288,33 @@ export const useDiagramStore = create<DiagramStoreState>()(
         });
       },
 
-      recalculateNodeConnections: (nodeId: string) => {
-        const { nodes, edges } = get();
-        const movedNode = nodes.find((n) => n.id === nodeId);
-        if (!movedNode) return;
-        const newEdges = updateSyncedEdges(movedNode, nodes, edges);
-        set({ edges: newEdges, isDirty: true });
+      // --- System & History Actions ---
+      loadDiagram: (data, preservePath = false) => {
+        const hydratedEdges = data.edges.map((edge) => {
+          const type = edge.data?.type || "association";
+
+          let options;
+          if (type === "note") {
+            options = getNoteEdgeOptions();
+          } else {
+            options = getEdgeOptions(type as UmlRelationType);
+          }
+          return {
+            ...edge,
+            ...options,
+            data: { ...edge.data, type },
+          };
+        }) as Edge[];
+
+        set((state) => ({
+          diagramId: data.id || crypto.randomUUID(),
+          diagramName: data.name || "Imported",
+          currentFilePath: preservePath ? state.currentFilePath : undefined,
+
+          nodes: data.nodes,
+          edges: hydratedEdges,
+          isDirty: false,
+        }));
       },
 
       triggerHistorySnapshot: () =>
@@ -295,6 +326,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
       clearCanvas: () => {
         set({ nodes: [], edges: [], isDirty: true });
       },
+
       resetDiagram: () => {
         set({
           diagramId: crypto.randomUUID(),
@@ -306,10 +338,13 @@ export const useDiagramStore = create<DiagramStoreState>()(
         });
       },
     }),
+    
+    // --- Zundo Configuration (History) ---
     {
       limit: 50,
       partialize: (state) => {
         const { nodes, edges } = state;
+        
         const cleanNodes = nodes.map((n) => ({
           id: n.id,
           type: n.type,

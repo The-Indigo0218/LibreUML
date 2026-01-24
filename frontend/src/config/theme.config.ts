@@ -52,6 +52,20 @@ export const edgeConfig = {
       zIndex: 5,
       highlight: PALETTE.association,
     },
+    // === NUEVAS: AGREGACIÓN Y COMPOSICIÓN ===
+    aggregation: {
+      style: { strokeWidth: 2, stroke: PALETTE.base },
+      marker: { color: PALETTE.association, width: 25, height: 25 },
+      zIndex: 8,
+      highlight: PALETTE.association,
+    },
+    composition: {
+      style: { strokeWidth: 2.5, stroke: PALETTE.base },
+      marker: { color: PALETTE.association, width: 25, height: 25 },
+      zIndex: 9,
+      highlight: PALETTE.association,
+    },
+    // === FIN NUEVAS ===
     note: {
       style: { strokeWidth: 1, strokeDasharray: "3,3", stroke: PALETTE.base },
       marker: { color: PALETTE.base, width: 15, height: 15 },

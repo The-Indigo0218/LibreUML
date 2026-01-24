@@ -32,7 +32,10 @@ export const getSmartEdgeHandles = (sourceNode: Node, targetNode: Node) => {
     });
   });
 
-  return { sourceHandle: bestSourceHandle, targetHandle: bestTargetHandle };
+  return { 
+    sourceHandle: bestSourceHandle, 
+    targetHandle: bestTargetHandle
+  };
 };
 
 const getHandlePosition = (node: Node, position: Position) => {

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 
 export type stereotype = 'class' | 'interface' | 'abstract' | 'note';
-export type UmlRelationType = 'association' | 'inheritance' | 'implementation' | 'dependency';
+export type UmlRelationType = 'association' | 'inheritance' | 'implementation' | 'dependency' | 'aggregation' | 'composition';
 export type visibility = '+' | '-' | '#' | '~';
 
 export interface UmlAttribute {

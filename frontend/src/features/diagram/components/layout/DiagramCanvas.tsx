@@ -6,7 +6,7 @@ import ReactFlow, {
   ConnectionMode,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useRef, useState,  useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 
 import { useDiagramStore } from "../../../../store/diagramStore";
 import { canvasConfig, miniMapColors } from "../../../../config/theme.config";
@@ -18,6 +18,7 @@ import ContextMenu from "../ui/ContextMenu";
 import ClassEditorModal from "../modals/ClassEditorModal";
 import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 import SpotlightModal from "../modals/SpotlightModal";
+import CustomUmlEdge from "../edges/CustomUmlEdge";
 
 // Hooks
 import { useContextMenu } from "../../hooks/useContextMenu";
@@ -34,6 +35,10 @@ const nodeTypes = {
   umlNote: UmlNoteNode,
 };
 
+const edgeTypes = {
+  umlEdge: CustomUmlEdge,
+};
+
 export default function DiagramCanvas() {
   //Global State
   const {
@@ -46,14 +51,13 @@ export default function DiagramCanvas() {
     showMiniMap,
   } = useDiagramStore();
 
-
   //Local State (Modals)
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const editingNode = nodes.find((n) => n.id === editingNodeId);
 
-  // Ref for Drag & Drop 
+  // Ref for Drag & Drop
   const nodesRef = useRef(nodes);
   useEffect(() => {
     nodesRef.current = nodes;
@@ -78,7 +82,7 @@ export default function DiagramCanvas() {
     closeMenu,
   } = useContextMenu();
   useThemeSystem();
-  const { t } = useTranslation(); 
+  const { t } = useTranslation();
 
   // History Logic on Drag
   const { onNodeDragStart, onNodeDragStop } = useNodeDragging();
@@ -92,7 +96,8 @@ export default function DiagramCanvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
-        // Hover Interaction 
+        edgeTypes={edgeTypes}
+        // Hover Interaction
         onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
         onNodeMouseLeave={() => setHoveredNodeId(null)}
         onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
@@ -110,6 +115,32 @@ export default function DiagramCanvas() {
         connectionMode={ConnectionMode.Loose}
         fitView
       >
+
+        {/* DIAGNÓSTICO TEMPORAL - BORRA DESPUÉS */}
+        {import.meta.env.DEV && (
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              background: "rgba(0,0,0,0.8)",
+              color: "white",
+              padding: "10px",
+              fontSize: "12px",
+              zIndex: 9999,
+              fontFamily: "monospace",
+            }}
+          >
+            <div>Edges: {displayEdges.length}</div>
+            {displayEdges.slice(0, 3).map((e) => (
+              <div key={e.id}>
+                {e.id}: {e.data?.type} - marker: {JSON.stringify(e.markerEnd)}
+              </div>
+            ))}
+          </div>
+        )}
+        {/* FIN DIAGNÓSTICO */}
+
         <Background
           variant={BackgroundVariant.Dots}
           gap={24}
@@ -167,8 +198,8 @@ export default function DiagramCanvas() {
 
       <ConfirmationModal
         isOpen={isClearModalOpen}
-        title={t('modals.confirmation.clearTitle')}
-        message={t('modals.confirmation.clearMessage')}
+        title={t("modals.confirmation.clearTitle")}
+        message={t("modals.confirmation.clearMessage")}
         onConfirm={() => {
           clearCanvas();
           setIsClearModalOpen(false);
@@ -176,8 +207,7 @@ export default function DiagramCanvas() {
         onCancel={() => setIsClearModalOpen(false)}
       />
 
-        <SpotlightModal />
-
+      <SpotlightModal />
     </div>
   );
 }

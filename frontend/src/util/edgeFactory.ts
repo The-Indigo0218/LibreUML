@@ -3,18 +3,33 @@ import { MarkerType } from "reactflow";
 import type { UmlRelationType } from "../features/diagram/types/diagram.types";
 import type { DefaultEdgeOptions } from "reactflow";
 
+
+const getDefaultLabel = (type: UmlRelationType): string | undefined => {
+  switch (type) {
+    case "inheritance": return "relationship_labels.inheritance";
+    case "implementation": return "relationship_labels.implementation";
+    case "composition": return "relationship_labels.composition"; 
+    case "aggregation": return "relationship_labels.aggregation"; 
+    case "dependency": return "relationship_labels.dependency"; 
+    default: return undefined; 
+  }
+};
+
 export const getEdgeOptions = (type: UmlRelationType): DefaultEdgeOptions => {
   const config = edgeConfig.types[type as keyof typeof edgeConfig.types] || edgeConfig.types.association;
+  const strokeColor = config.style.stroke || "var(--edge-base)";
 
-  // Configuración base para todos los edges
   const baseOptions: DefaultEdgeOptions = {
     ...edgeConfig.base,
     style: { ...edgeConfig.base.style, ...config.style },
     zIndex: config.zIndex,
+    label: getDefaultLabel(type), 
+    
+    data: {
+      type: type, 
+    }
   };
 
-  // Para los edges UML custom (inheritance, implementation, aggregation, composition)
-  // usamos nuestro CustomUmlEdge que dibuja los markers directamente
   switch (type) {
     case "inheritance":
     case "implementation":
@@ -22,19 +37,21 @@ export const getEdgeOptions = (type: UmlRelationType): DefaultEdgeOptions => {
     case "composition":
       return {
         ...baseOptions,
-        type: "umlEdge", // Usa el edge custom
+        type: "umlEdge",
       };
 
     case "dependency":
     case "association":
     default:
-      // Para estos usamos el edge por defecto con marker nativo
       return {
         ...baseOptions,
-        type: "umlEdge", // También usa custom para consistencia
+        type: "umlEdge", 
         markerEnd: {
-          type: MarkerType.Arrow,
-          ...config.marker,
+          type: MarkerType.Arrow, 
+          width: 20,
+          height: 20,
+          color: strokeColor,
+          strokeWidth: 1.5,
         },
       };
   }
@@ -46,10 +63,12 @@ export const getNoteEdgeOptions = (): DefaultEdgeOptions => {
     ...edgeConfig.base,
     style: { ...edgeConfig.base.style, ...config.style },
     zIndex: config.zIndex,
-    type: "umlEdge", // Usa custom edge
+    type: "umlEdge",
     markerEnd: {
       type: MarkerType.Arrow,
-      ...config.marker,
+      width: 15,
+      height: 15,
+      color: "var(--edge-note)",
     },
   };
 };

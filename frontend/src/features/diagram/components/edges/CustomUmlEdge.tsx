@@ -1,10 +1,7 @@
-import { BaseEdge, getSmoothStepPath, Position } from 'reactflow';
+import { BaseEdge, getSmoothStepPath, Position, EdgeLabelRenderer } from 'reactflow';
 import type { EdgeProps } from 'reactflow';
+import { useTranslation } from 'react-i18next';
 
-/**
- * Edge personalizado que dibuja los marcadores UML directamente
- * Los markers siguen la dirección real del path usando targetPosition
- */
 export default function CustomUmlEdge({
   id,
   sourceX,
@@ -16,8 +13,12 @@ export default function CustomUmlEdge({
   style = {},
   markerEnd,
   data,
+  label,
 }: EdgeProps) {
-  const [edgePath] = getSmoothStepPath({
+  
+  const { t } = useTranslation();
+  
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -28,116 +29,99 @@ export default function CustomUmlEdge({
   });
 
   const edgeType = data?.type || 'association';
+  const isHovered = data?.isHovered; 
 
-  // Para diagnosticar
-  const positionNames = {
-    [Position.Top]: 'Top',
-    [Position.Bottom]: 'Bottom',
-    [Position.Left]: 'Left',
-    [Position.Right]: 'Right',
-  };
-  
-  console.log('Edge coords:', { 
-    targetX, 
-    targetY, 
-    targetPosition: positionNames[targetPosition] || 'undefined',
-    edgeType 
-  });
+  const strokeColor = style.stroke || 'var(--edge-base)';
+  const canvasBase = 'var(--canvas-base)'; 
 
-  // Mapear targetPosition a ángulo de rotación correcto
-  // El triángulo debe apuntar HACIA DENTRO del nodo
   const getMarkerRotation = () => {
     switch (targetPosition) {
-      case Position.Top:
-        return 90; // Entra por arriba → apunta hacia abajo
-      case Position.Left:
-        return 0; // Entra por izquierda → apunta hacia la derecha
-      case Position.Bottom:
-        return -90; // Entra por abajo → apunta hacia arriba
-      case Position.Right:
-        return 180; // Entra por derecha → apunta hacia la izquierda
-      default:
-        return 0;
+      case Position.Top: return 90;
+      case Position.Left: return 0;
+      case Position.Bottom: return -90;
+      case Position.Right: return 180;
+      default: return 0;
     }
   };
-
   const rotation = getMarkerRotation();
 
-  // Colores desde CSS
-  const canvasBase = 'var(--canvas-base)';
-  const edgeInheritance = 'var(--edge-inheritance)';
-  const edgeImplementation = 'var(--edge-implementation)';
-  const edgeAssociation = 'var(--edge-association)';
-
-  // Renderizar el marker correcto
+  // --- Marker Rendering ---
   const renderMarker = () => {
     switch (edgeType) {
       case 'inheritance':
         return (
           <g transform={`translate(${targetX}, ${targetY}) rotate(${rotation})`}>
-            {/* Triángulo hueco - punta en (0,0) para que coincida exactamente con la línea */}
-            <path
-              d="M -15,-5 L -15,5 L 0,0 Z"
-              fill={canvasBase}
-              stroke={edgeInheritance}
-              strokeWidth="2.5"
-              strokeLinejoin="miter"
+            <path 
+              d="M -16,-8 L -16,8 L 0,0 Z" 
+              fill={canvasBase} 
+              stroke={strokeColor} 
+              strokeWidth="2" 
+              strokeLinejoin="round" 
             />
           </g>
         );
-
       case 'implementation':
         return (
           <g transform={`translate(${targetX}, ${targetY}) rotate(${rotation})`}>
-            {/* Triángulo hueco */}
-            <path
-              d="M -15,-5 L -15,5 L 0,0 Z"
-              fill={canvasBase}
-              stroke={edgeImplementation}
-              strokeWidth="2.5"
-              strokeLinejoin="miter"
+            <path 
+              d="M -16,-8 L -16,8 L 0,0 Z" 
+              fill={canvasBase} 
+              stroke={strokeColor} 
+              strokeWidth="2" 
+              strokeLinejoin="round" 
             />
           </g>
         );
-
-      case 'aggregation':
-        return (
-          <g transform={`translate(${targetX}, ${targetY}) rotate(${rotation})`}>
-            {/* Rombo hueco - centrado en la línea */}
-            <path
-              d="M -18,0 L -9,-6 L 0,0 L -9,6 Z"
-              fill={canvasBase}
-              stroke={edgeAssociation}
-              strokeWidth="2.5"
-              strokeLinejoin="miter"
-            />
-          </g>
-        );
-
-      case 'composition':
-        return (
-          <g transform={`translate(${targetX}, ${targetY}) rotate(${rotation})`}>
-            {/* Rombo relleno - centrado en la línea */}
-            <path
-              d="M -18,0 L -9,-6 L 0,0 L -9,6 Z"
-              fill={edgeAssociation}
-              stroke={edgeAssociation}
-              strokeWidth="2.5"
-              strokeLinejoin="miter"
-            />
-          </g>
-        );
-
-      default:
-        // Para dependency, association y note usamos el marker por defecto
-        return null;
+      default: 
+        return null; 
     }
   };
 
+  const hasCustomMarker = ['inheritance', 'implementation', 'composition', 'aggregation'].includes(edgeType);
+  const effectiveMarkerEnd = hasCustomMarker ? undefined : markerEnd;
+
+  // --- Render ---
   return (
     <>
-      <BaseEdge id={id} path={edgePath} style={style} markerEnd={markerEnd} />
+      <BaseEdge 
+        id={id} 
+        path={edgePath} 
+        style={style} 
+        markerEnd={effectiveMarkerEnd} 
+      />
+
       {renderMarker()}
+
+      <EdgeLabelRenderer>
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 5}px)`,
+            pointerEvents: 'all',
+          }}
+          className="nodrag nopan flex flex-col items-center gap-1"
+        >
+          {isHovered && (
+             <div className="
+                bg-surface-primary text-primary border border-primary/30 
+                text-[10px] font-bold px-2 py-0.5 rounded shadow-lg 
+                animate-in fade-in zoom-in duration-150 mb-1 select-none
+             ">
+               {t(`connections.${edgeType}`, { defaultValue: edgeType })}
+             </div>
+          )}
+
+          {label && (
+            <div className={`
+              text-[11px] font-mono font-medium px-1.5 py-0.5 rounded transition-colors duration-200
+              ${isHovered ? 'text-primary font-bold' : 'text-text-secondary'}
+              bg-canvas-base/80 select-none
+            `}>
+              {t(String(label), { defaultValue: String(label) })}
+            </div>
+          )}
+        </div>
+      </EdgeLabelRenderer>
     </>
   );
 }

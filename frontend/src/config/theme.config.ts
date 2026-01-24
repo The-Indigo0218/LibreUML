@@ -16,6 +16,8 @@ const PALETTE = {
   implementation: "var(--edge-implementation)",
   dependency: "var(--edge-dependency)",
   association: "var(--edge-association)",
+  aggregation: "var(--edge-aggregation)",
+  composition: "var(--edge-composition)",
   note: "var(--edge-note)",
   arrowHead: "var(--arrow-head)",
 };
@@ -52,20 +54,18 @@ export const edgeConfig = {
       zIndex: 5,
       highlight: PALETTE.association,
     },
-    // === NUEVAS: AGREGACIÓN Y COMPOSICIÓN ===
     aggregation: {
       style: { strokeWidth: 2, stroke: PALETTE.base },
-      marker: { color: PALETTE.association, width: 25, height: 25 },
+      marker: { color: PALETTE.aggregation, width: 25, height: 25 }, // Color propio
       zIndex: 8,
-      highlight: PALETTE.association,
+      highlight: PALETTE.aggregation, // Color al hacer hover
     },
     composition: {
       style: { strokeWidth: 2.5, stroke: PALETTE.base },
-      marker: { color: PALETTE.association, width: 25, height: 25 },
+      marker: { color: PALETTE.composition, width: 25, height: 25 }, // Color propio
       zIndex: 9,
-      highlight: PALETTE.association,
+      highlight: PALETTE.composition, // Color al hacer hover
     },
-    // === FIN NUEVAS ===
     note: {
       style: { strokeWidth: 1, strokeDasharray: "3,3", stroke: PALETTE.base },
       marker: { color: PALETTE.base, width: 15, height: 15 },

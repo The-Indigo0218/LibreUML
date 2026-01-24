@@ -19,6 +19,7 @@ import ClassEditorModal from "../modals/ClassEditorModal";
 import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 import SpotlightModal from "../modals/SpotlightModal";
 import CustomUmlEdge from "../edges/CustomUmlEdge";
+import MultiplicityModal from "../modals/MultiplicityModal";
 
 // Hooks
 import { useContextMenu } from "../../hooks/useContextMenu";
@@ -40,22 +41,30 @@ const edgeTypes = {
 };
 
 export default function DiagramCanvas() {
-  //Global State
+  // Global State
   const {
     nodes,
+    edges, 
     onNodesChange,
     onEdgesChange,
     onConnect,
     clearCanvas,
     updateNodeData,
+    updateEdgeData, 
     showMiniMap,
   } = useDiagramStore();
 
-  //Local State (Modals)
+  // Local State (Modals)
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Node Editing State
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const editingNode = nodes.find((n) => n.id === editingNodeId);
+
+  // Edge Editing State
+  const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
+  const editingEdge = edges.find((e) => e.id === editingEdgeId);
 
   // Ref for Drag & Drop
   const nodesRef = useRef(nodes);
@@ -63,17 +72,20 @@ export default function DiagramCanvas() {
     nodesRef.current = nodes;
   }, [nodes]);
 
-  //  Functional Hooks
+  // Functional Hooks
   useKeyboardShortcuts();
   const { displayEdges, setHoveredNodeId, setHoveredEdgeId } = useEdgeStyling();
   const { onDragOver, onDrop } = useDiagramDnD();
+  
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (id) => {
       setEditingNodeId(id);
       setIsModalOpen(true);
     },
     onClearCanvas: () => setIsClearModalOpen(true),
+    onEditEdgeMultiplicity: (id) => setEditingEdgeId(id),
   });
+
   const {
     menu,
     onPaneContextMenu,
@@ -81,6 +93,7 @@ export default function DiagramCanvas() {
     onEdgeContextMenu,
     closeMenu,
   } = useContextMenu();
+  
   useThemeSystem();
   const { t } = useTranslation();
 
@@ -143,7 +156,6 @@ export default function DiagramCanvas() {
         )}
       </ReactFlow>
 
-      {/* Floating UI Rendering */}
       {menu && (
         <ContextMenu
           x={menu.x}
@@ -166,6 +178,21 @@ export default function DiagramCanvas() {
             updateNodeData(editingNode.id, newData);
             setIsModalOpen(false);
             setEditingNodeId(null);
+          }}
+        />
+      )}
+
+      {editingEdgeId && editingEdge && (
+        <MultiplicityModal
+          isOpen={!!editingEdgeId}
+          initialSource={(editingEdge.data?.sourceMultiplicity as string) || ""}
+          initialTarget={(editingEdge.data?.targetMultiplicity as string) || ""}
+          onClose={() => setEditingEdgeId(null)}
+          onSave={(source, target) => {
+            updateEdgeData(editingEdgeId, {
+              sourceMultiplicity: source,
+              targetMultiplicity: target
+            });
           }}
         />
       )}

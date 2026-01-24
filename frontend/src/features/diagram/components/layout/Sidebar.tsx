@@ -13,6 +13,7 @@ import {
   PanelLeft,
   ChevronDown,
   ChevronRight,
+  Diamond,
 } from "lucide-react";
 import { useDiagramStore } from "../../../../store/diagramStore";
 import type { stereotype, UmlRelationType } from "../../types/diagram.types";
@@ -146,7 +147,7 @@ export default function Sidebar() {
               icon={
                 <MoveRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
               }
-              label={t('sidebar.connections.association')}
+              label={t("sidebar.connections.association")}
               color={edgeConfig.types.association.highlight}
               isExpanded={isExpanded}
             />
@@ -156,7 +157,7 @@ export default function Sidebar() {
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("inheritance")}
               icon={<ArrowUp className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
-              label={t('sidebar.connections.inheritance')}
+              label={t("sidebar.connections.inheritance")}
               color={edgeConfig.types.inheritance.highlight}
               isExpanded={isExpanded}
             />
@@ -168,7 +169,7 @@ export default function Sidebar() {
               icon={
                 <ArrowUpRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
               }
-              label={t('sidebar.connections.implementation')}
+              label={t("sidebar.connections.implementation")}
               color={edgeConfig.types.implementation.highlight}
               isExpanded={isExpanded}
             />
@@ -182,8 +183,32 @@ export default function Sidebar() {
                   className={isExpanded ? "w-5 h-5" : "w-6 h-6"}
                 />
               }
-              label={t('sidebar.connections.dependency')}
+              label={t("sidebar.connections.dependency")}
               color={edgeConfig.types.dependency.highlight}
+              isExpanded={isExpanded}
+            />
+
+            <ConnectionItem
+              mode="aggregation"
+              activeMode={activeConnectionMode}
+              onClick={() => setConnectionMode("aggregation")}
+              icon={<Diamond className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              label={t("sidebar.connections.aggregation")}
+              color={edgeConfig.types.aggregation.highlight}
+              isExpanded={isExpanded}
+            />
+
+            <ConnectionItem
+              mode="composition"
+              activeMode={activeConnectionMode}
+              onClick={() => setConnectionMode("composition")}
+              icon={
+                <Diamond
+                  className={`${isExpanded ? "w-5 h-5" : "w-6 h-6"} fill-current`}
+                />
+              }
+              label={t("sidebar.connections.composition")}
+              color={edgeConfig.types.composition.highlight}
               isExpanded={isExpanded}
             />
           </div>

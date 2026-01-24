@@ -57,7 +57,9 @@
       "association": "Asociación",
       "inheritance": "Herencia",
       "implementation": "Implementación",
-      "dependency": "Dependencia"
+      "dependency": "Dependencia",
+      "aggregation": "Agregación",
+      "composition": "Composición"
     },
     "legend": {
       "title": "Lógica de Conexión",
@@ -84,12 +86,20 @@
       "reverse": "Invertir Dirección ⇄",
       "toAssociation": "A: Asociación →",
       "toInheritance": "A: Herencia ▷",
+      "defineMultiplicity": "Definir Multiplicidad",
       "toImplementation": "A: Implementación ⇢",
       "toDependency": "A: Dependencia ⇢",
+      "toAggregation": "Convertir a Agregación",
+      "toComposition": "Convertir a Composición",
       "delete": "Eliminar Conexión"
     }
   },
   "modals": {
+    "common": {
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "clear": "Limpiar"
+    },
     "classEditor": {
       "title": "Editar Clase:",
       "className": "NOMBRE DE CLASE",
@@ -98,12 +108,15 @@
       "add": "Agregar",
       "noAttributes": "No hay atributos definidos.",
       "noMethods": "No hay métodos definidos.",
-      "cancel": "Cancelar",
-      "save": "Guardar Cambios",
       "placeholders": {
         "name": "nombre",
         "methodName": "nombreMetodo"
       }
+    },
+    "multiplicity": {
+      "title": "Configurar Cardinalidad",
+      "source": "Inicio (Origen)",
+      "target": "Fin (Destino)"
     },
     "confirmation": {
       "clearTitle": "¿Limpiar todo el Lienzo?",

@@ -39,6 +39,10 @@
   --edge-association: #8b5cf6;
   --edge-note: #eab308;
   --arrow-head: #0f172a;
+
+  --edge-aggregation: #059669; /* Emerald 600 */
+  --edge-composition: #d97706; /* Amber 600 */
+
 }
 
 .dark {
@@ -80,6 +84,10 @@
   --edge-association: #a78bfa;
   --edge-note: #fef08a;
   --arrow-head: #ffffff;
+
+  --edge-aggregation: #34d399; /* Emerald 400 */
+  --edge-composition: #fbbf24; /* Amber 400 */
+
 }
 
 @theme {

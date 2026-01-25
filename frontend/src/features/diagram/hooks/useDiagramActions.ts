@@ -1,81 +1,77 @@
 import { useCallback } from "react";
 import { useDiagramStore } from "../../../store/diagramStore";
+import { useTranslation } from "react-i18next";
 
-// Import Specialists
+// Specialists
 import { useActionGuard } from "./useActionGuard";
 import { useFileLifecycle } from "./actions/useFileLifecycle";
 import { useEditorControls } from "./actions/useEditorControls";
 import { useAppLifecycle } from "./actions/useAppLifecycle";
 
 export const useDiagramActions = () => {
-  // REACTIVE STATE (For UI)
+  const { t } = useTranslation();
+  
+  // Reactive State
   const isDirty = useDiagramStore((s) => s.isDirty);
   const currentFilePath = useDiagramStore((s) => s.currentFilePath);
   const hasFilePath = !!currentFilePath;
 
-  // INITIALIZE SPECIALISTS
-  const { executeSafeAction, modalState } = useActionGuard();
+  //  Initialize Guard
+  const { executeGuard, executeDiscardGuard, modals } = useActionGuard();
   
-  // Specialists
+  //  Initialize Logic Hooks
   const fileLifecycle = useFileLifecycle();
   const editorControls = useEditorControls();
-  
-  // App Lifecycle needs the guard to handle safe exit
-  const appLifecycle = useAppLifecycle({ executeSafeAction });
+  const appLifecycle = useAppLifecycle(); // ✅ YA NO DA ERROR
 
-  //  ORCHESTRATED ACTIONS
-  const handleOpen = useCallback(async () => {
-    if (window.electronAPI?.isElectron()) {
-      executeSafeAction(fileLifecycle.openDiagramFromDisk);
-      return null;
-    } else {
-      const isClean = !useDiagramStore.getState().isDirty;
-      if (isClean) {
-        return "TRIGGER_WEB_INPUT";
-      } else {
-
-        executeSafeAction(fileLifecycle.createNewDiagram); 
-        return null;
-      }
-    }
-  }, [executeSafeAction, fileLifecycle]);
-
+  // --- ORCHESTRATION ---
 
   const handleNew = useCallback(() => {
-    executeSafeAction(fileLifecycle.createNewDiagram);
-  }, [executeSafeAction, fileLifecycle]);
+    executeGuard(fileLifecycle.createNewDiagram);
+  }, [executeGuard, fileLifecycle]);
+
+  const handleOpen = useCallback(async () => {
+    const openAction = window.electronAPI?.isElectron() 
+      ? fileLifecycle.openDiagramFromDisk 
+      : () => console.log("Web Import trigger"); 
+
+    executeGuard(openAction as () => void);
+    return null; 
+  }, [executeGuard, fileLifecycle]);
+
+  const handleExit = useCallback(() => {
+ 
+    executeGuard(appLifecycle.handleExit, {
+      requireConfirm: true,
+      confirmTitle: t("menubar.file.exit"),
+      confirmMessage: t("modals.confirmation.exitMessage") || "Are you sure you want to exit?", 
+    });
+  }, [executeGuard, appLifecycle, t]);
 
   const handleDiscardChangesAction = useCallback(() => {
-    const hasPath = !!useDiagramStore.getState().currentFilePath;
-    
-    const discardStrategy = hasPath 
-      ? fileLifecycle.revertDiagram 
-      : fileLifecycle.createNewDiagram;
+    const action = hasFilePath ? fileLifecycle.revertDiagram : fileLifecycle.createNewDiagram;
+    executeDiscardGuard(action);
+  }, [executeDiscardGuard, hasFilePath, fileLifecycle]);
 
-    executeSafeAction(discardStrategy);
-  }, [executeSafeAction, fileLifecycle]);
+  const handleSave = fileLifecycle.saveDiagram;
+  const handleSaveAs = fileLifecycle.saveDiagramAs;
 
-  /**
-   * SAVE FLOW:
-   * Direct execution (no guard needed to save)
-   */
-  const handleSave = useCallback(async () => {
-    return await fileLifecycle.saveDiagram();
-  }, [fileLifecycle]);
+  const handleModalSave = useCallback(() => {
+    modals.unsaved.onSave(handleSave);
+  }, [modals.unsaved, handleSave]);
 
-  //  PUBLIC API
   return {
     // File Actions
     handleNew,
     handleOpen,
     handleWebImport: fileLifecycle.importFromWeb,
     handleSave,
-    handleSaveAs: fileLifecycle.saveDiagramAs,
-    handleCloseFile: handleNew, // Alias
+    handleSaveAs,
+    handleCloseFile: handleNew,
     handleDiscardChangesAction,
     
     // App Actions
-    handleExit: appLifecycle.handleExit,
+    handleExit,
     
     // Editor Actions
     handleFitView: editorControls.handleFitView,
@@ -83,10 +79,16 @@ export const useDiagramActions = () => {
     redo: editorControls.redo,
     
     // State
-    hasFilePath,
     isDirty,
+    hasFilePath,
 
-    // Modal (Managed by the Guard)
-    modalState
+    // Modals for UI
+    modals: {
+      ...modals,
+      unsaved: {
+        ...modals.unsaved,
+        onSave: handleModalSave 
+      }
+    }
   };
 };

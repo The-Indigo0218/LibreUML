@@ -1,124 +1,121 @@
 import { useState, useCallback } from "react";
 import { useDiagramStore } from "../../../store/diagramStore";
-import { useTranslation } from "react-i18next";
+
+interface ConfirmationOptions {
+  requireConfirm?: boolean;
+  confirmTitle?: string;
+  confirmMessage?: string;
+}
 
 export const useActionGuard = () => {
-  const { t } = useTranslation();
   const isDirty = useDiagramStore((s) => s.isDirty);
-  const currentFilePath = useDiagramStore((s) => s.currentFilePath);
-
-  // --- MODAL STATES ---
-
-  const [unsavedModal, setUnsavedModal] = useState({
-    isOpen: false,
-    fileName: "Untitled",
-    pendingAction: null as (() => void) | null,
+  
+  // Estado Unificado de Modales
+  const [modals, setModals] = useState({
+    unsaved: {
+      isOpen: false,
+      fileName: "",
+      pendingAction: null as (() => void) | null,
+    },
+    confirmation: {
+      isOpen: false,
+      title: "",
+      message: "",
+      pendingAction: null as (() => void) | null,
+    }
   });
 
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    title: "",
-    message: "",
-    onConfirm: null as (() => void) | null,
-  });
+  // --- ACTIONS ---
 
-  // --- DECISION LOGIC ---
-
-  const executeGuard = useCallback(
-    (
-      action: () => void,
-      options?: {
-        requireConfirm?: boolean;
-        confirmTitle?: string;
-        confirmMessage?: string;
-      },
-    ) => {
-      if (isDirty) {
-        setUnsavedModal({
-          isOpen: true,
-          fileName: currentFilePath || "Untitled",
-          pendingAction: action,
-        });
-        return;
-      }
-
-      if (options?.requireConfirm) {
-        setConfirmModal({
-          isOpen: true,
-          title: options.confirmTitle || t("modals.confirmation.defaultTitle"),
-          message:
-            options.confirmMessage || t("modals.confirmation.defaultMessage"),
-          onConfirm: action,
-        });
-        return;
-      }
-
-      action();
-    },
-    [isDirty, currentFilePath, t],
-  );
-
-  const executeDiscardGuard = useCallback(
-    (action: () => void) => {
-      if (!isDirty) return;
-
-      setConfirmModal({
-        isOpen: true,
-        title: t("menubar.file.discard"),
-        message: t("modals.confirmation.discardMessage"),
-        onConfirm: action,
-      });
-    },
-    [isDirty, t],
-  );
-
-  // --- Handles ---
-
-  const closeModals = useCallback(() => {
-    setUnsavedModal((s) => ({ ...s, isOpen: false }));
-    setConfirmModal((s) => ({ ...s, isOpen: false }));
+  const closeAll = useCallback(() => {
+    setModals(prev => ({
+      unsaved: { ...prev.unsaved, isOpen: false, pendingAction: null },
+      confirmation: { ...prev.confirmation, isOpen: false, pendingAction: null }
+    }));
   }, []);
 
-  const handleUnsavedDiscard = useCallback(() => {
-    if (unsavedModal.pendingAction) unsavedModal.pendingAction();
-    closeModals();
-  }, [unsavedModal, closeModals]);
+  /**
+   * LA FUNCIÓN MAESTRA: executeSafeAction
+   * Reemplaza a 'executeGuard' y 'executeDiscardGuard'.
+   * Maneja tanto cambios sin guardar como confirmaciones simples.
+   */
+  const executeSafeAction = useCallback((action: () => void, options?: ConfirmationOptions) => {
+    // CASO 1: Cambios sin guardar (Prioridad Alta)
+    if (isDirty) {
+      setModals(prev => ({
+        ...prev,
+        unsaved: {
+          isOpen: true,
+          fileName: useDiagramStore.getState().diagramName,
+          pendingAction: action
+        }
+      }));
+      return;
+    }
 
-  // Wrapper for saving: the parent component must pass the real save function
-  const handleUnsavedSave = useCallback(
-    async (saveFn: () => Promise<boolean>) => {
-      const success = await saveFn();
+    // CASO 2: Acción peligrosa que requiere confirmación (ej: Salir)
+    if (options?.requireConfirm) {
+      setModals(prev => ({
+        ...prev,
+        confirmation: {
+          isOpen: true,
+          title: options.confirmTitle || "Confirm Action",
+          message: options.confirmMessage || "Are you sure?",
+          pendingAction: action
+        }
+      }));
+      return;
+    }
+
+    // CASO 3: Seguro de ejecutar
+    action();
+  }, [isDirty]);
+
+  // --- HANDLERS DE MODALES ---
+
+  // Unsaved Modal: Discard -> Ejecuta la acción pendiente
+  const handleDiscard = useCallback(() => {
+    const action = modals.unsaved.pendingAction;
+    closeAll();
+    if (action) action();
+  }, [modals.unsaved.pendingAction, closeAll]);
+
+  // Unsaved Modal: Save -> El padre inyectará la lógica de guardado
+  const handleSaveRequest = useCallback((saveFn: () => Promise<boolean>) => {
+    const action = modals.unsaved.pendingAction;
+    // Intentar guardar. Si tiene éxito, ejecutar la acción pendiente.
+    saveFn().then((success) => {
       if (success) {
-        if (unsavedModal.pendingAction) unsavedModal.pendingAction();
-        closeModals();
+        closeAll();
+        if (action) action();
       }
-    },
-    [unsavedModal, closeModals],
-  );
+    });
+  }, [modals.unsaved.pendingAction, closeAll]);
 
-  const handleConfirmYes = useCallback(() => {
-    if (confirmModal.onConfirm) confirmModal.onConfirm();
-    closeModals();
-  }, [confirmModal, closeModals]);
+  // Confirmation Modal: Confirm -> Ejecuta la acción
+  const handleConfirm = useCallback(() => {
+    const action = modals.confirmation.pendingAction;
+    closeAll();
+    if (action) action();
+  }, [modals.confirmation.pendingAction, closeAll]);
 
   return {
-    executeGuard,
-    executeDiscardGuard,
-    modals: {
+    executeSafeAction, // <--- Ahora sí existe
+    modalState: {      // <--- Unificamos todo bajo 'modalState'
       unsaved: {
-        isOpen: unsavedModal.isOpen,
-        fileName: unsavedModal.fileName,
-        onDiscard: handleUnsavedDiscard,
-        onSave: handleUnsavedSave,
-        onCancel: closeModals,
+        isOpen: modals.unsaved.isOpen,
+        fileName: modals.unsaved.fileName,
+        onDiscard: handleDiscard,
+        onSave: handleSaveRequest, // Se sobreescribe en useDiagramActions
+        onCancel: closeAll
       },
       confirmation: {
-        isOpen: confirmModal.isOpen,
-        title: confirmModal.title,
-        message: confirmModal.message,
-        onConfirm: handleConfirmYes,
-        onCancel: closeModals,
-      },
-    },
+        isOpen: modals.confirmation.isOpen,
+        title: modals.confirmation.title,
+        message: modals.confirmation.message,
+        onConfirm: handleConfirm,
+        onCancel: closeAll
+      }
+    }
   };
 };

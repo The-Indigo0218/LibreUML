@@ -16,52 +16,60 @@ export const useDiagramActions = () => {
   const currentFilePath = useDiagramStore((s) => s.currentFilePath);
   const hasFilePath = !!currentFilePath;
 
-  //  Initialize Guard
-  const { executeGuard, executeDiscardGuard, modals } = useActionGuard();
+  // Initialize Guard
+  const { executeSafeAction, modalState } = useActionGuard();
   
-  //  Initialize Logic Hooks
+  // Specialists
   const fileLifecycle = useFileLifecycle();
   const editorControls = useEditorControls();
-  const appLifecycle = useAppLifecycle(); // ✅ YA NO DA ERROR
+  const appLifecycle = useAppLifecycle();
 
   // --- ORCHESTRATION ---
 
   const handleNew = useCallback(() => {
-    executeGuard(fileLifecycle.createNewDiagram);
-  }, [executeGuard, fileLifecycle]);
+    executeSafeAction(fileLifecycle.createNewDiagram);
+  }, [executeSafeAction, fileLifecycle]);
 
-  const handleOpen = useCallback(async () => {
-    const openAction = window.electronAPI?.isElectron() 
-      ? fileLifecycle.openDiagramFromDisk 
-      : () => console.log("Web Import trigger"); 
-
-    executeGuard(openAction as () => void);
-    return null; 
-  }, [executeGuard, fileLifecycle]);
+  /**
+   * HANDLE OPEN
+   */
+  const handleOpen = useCallback((webTrigger?: () => void) => {
+    if (window.electronAPI?.isElectron()) {
+      // Desktop: Usar diálogo nativo
+      executeSafeAction(fileLifecycle.openDiagramFromDisk);
+    } else {
+      // Web: Usar el disparador del input HTML si existe
+      if (webTrigger) {
+        executeSafeAction(webTrigger);
+      }
+    }
+  }, [executeSafeAction, fileLifecycle]);
 
   const handleExit = useCallback(() => {
- 
-    executeGuard(appLifecycle.handleExit, {
+    executeSafeAction(appLifecycle.handleExit, {
       requireConfirm: true,
       confirmTitle: t("menubar.file.exit"),
       confirmMessage: t("modals.confirmation.exitMessage") || "Are you sure you want to exit?", 
     });
-  }, [executeGuard, appLifecycle, t]);
+  }, [executeSafeAction, appLifecycle, t]);
 
   const handleDiscardChangesAction = useCallback(() => {
     const action = hasFilePath ? fileLifecycle.revertDiagram : fileLifecycle.createNewDiagram;
-    executeDiscardGuard(action);
-  }, [executeDiscardGuard, hasFilePath, fileLifecycle]);
+    executeSafeAction(action);
+  }, [executeSafeAction, hasFilePath, fileLifecycle]);
 
   const handleSave = fileLifecycle.saveDiagram;
   const handleSaveAs = fileLifecycle.saveDiagramAs;
 
+  // --- CORRECCIÓN 1: Acceso correcto a 'unsaved' ---
+  // Inyectamos la función real de guardado (handleSave) en la lógica del guard
   const handleModalSave = useCallback(() => {
-    modals.unsaved.onSave(handleSave);
-  }, [modals.unsaved, handleSave]);
+    if (modalState.unsaved.onSave) {
+      modalState.unsaved.onSave(handleSave);
+    }
+  }, [modalState.unsaved, handleSave]);
 
   return {
-    // File Actions
     handleNew,
     handleOpen,
     handleWebImport: fileLifecycle.importFromWeb,
@@ -70,24 +78,21 @@ export const useDiagramActions = () => {
     handleCloseFile: handleNew,
     handleDiscardChangesAction,
     
-    // App Actions
     handleExit,
     
-    // Editor Actions
     handleFitView: editorControls.handleFitView,
     undo: editorControls.undo,
     redo: editorControls.redo,
     
-    // State
     isDirty,
     hasFilePath,
 
-    // Modals for UI
-    modals: {
-      ...modals,
+    // --- CORRECCIÓN 2: Sobresritura anidada correcta ---
+    modalState: {
+      ...modalState,
       unsaved: {
-        ...modals.unsaved,
-        onSave: handleModalSave 
+        ...modalState.unsaved, // Mantenemos las otras props (isOpen, fileName, etc)
+        onSave: handleModalSave // Sobrescribimos onSave con la versión sin argumentos
       }
     }
   };

@@ -1,18 +1,40 @@
-/// <reference types="vite/client" />
+export {};
 
-interface ElectronAPI {
-  isElectron: () => boolean;
-  saveFile: (content: string, filePath?: string, defaultName?: string) => Promise<{ canceled: boolean; filePath?: string }>;
-  openFile: () => Promise<{ canceled: boolean; filePath?: string; content?: string }>;
-  onAppRequestClose: (callback: () => void) => () => void;
-  sendForceClose: () => void;
-  readFile: (filePath: string) => Promise<{ success: boolean; content?: string }>;
-  
-  minimize: () => void;
-  toggleMaximize: () => void;
-  close: () => void;
+interface FileOperationResult {
+  canceled: boolean;
+  filePath?: string;
+  content?: string;
 }
 
-interface Window {
-  electronAPI?: ElectronAPI;
+interface ReadFileResult {
+  success: boolean;
+  content?: string;
+  error?: string;
+}
+
+interface AssociationResult {
+  success: boolean;
+  error?: string;
+}
+
+declare global {
+  interface Window {
+    electronAPI?: {
+      isElectron: () => boolean;
+      
+      // Archivos
+      saveFile: (content: string, filePath?: string, defaultName?: string) => Promise<FileOperationResult>;
+      openFile: () => Promise<FileOperationResult>;
+      readFile: (filePath: string) => Promise<ReadFileResult>;
+
+      minimize: () => void;
+      toggleMaximize: () => void;
+      close: () => void;
+      onAppRequestClose: (callback: () => void) => () => void;
+      sendForceClose: () => void;
+
+      associateFiles: () => Promise<AssociationResult>;
+      onOpenFileFromOS: (callback: (filePath: string) => void) => () => void;
+    };
+  }
 }

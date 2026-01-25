@@ -16,7 +16,6 @@ function createWindow() {
     backgroundColor: "#0f172a",
     frame: false,
     titleBarStyle: "hidden",
-    // -----------------------------
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -31,9 +30,7 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
   }
 
-  ipcMain.on("window-minimize", () => {
-    mainWindow?.minimize();
-  });
+  ipcMain.on("window-minimize", () => mainWindow?.minimize());
 
   ipcMain.on("window-maximize", () => {
     if (mainWindow?.isMaximized()) {
@@ -55,15 +52,18 @@ ipcMain.on("app:force-close", () => {
   app.quit();
 });
 
+
 ipcMain.handle(
   "dialog:saveFile",
   async (_, { content, filePath, defaultName }) => {
+    if (!mainWindow) return { canceled: true };
+
     if (!filePath) {
       const defaultFileName = defaultName
         ? `${defaultName}.luml`
         : "diagrama-sin-titulo.luml";
 
-      const { canceled, filePath: newPath } = await dialog.showSaveDialog({
+      const { canceled, filePath: newPath } = await dialog.showSaveDialog(mainWindow, {
         title: "Guardar Diagrama",
         defaultPath: defaultFileName,
         filters: [{ name: "LibreUML Files", extensions: ["luml", "json"] }],
@@ -84,9 +84,28 @@ ipcMain.handle(
   },
 );
 
-ipcMain.on("window-close", () => {
-  mainWindow?.close();
+ipcMain.handle("dialog:openFile", async () => {
+  if (!mainWindow) return { canceled: true };
+
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"],
+    filters: [{ name: "LibreUML Files", extensions: ["luml", "json"] }],
+  });
+
+  if (canceled || filePaths.length === 0) return { canceled: true };
+
+  const filePath = filePaths[0];
+  try {
+    const content = fs.readFileSync(filePath, "utf-8");
+    return { canceled: false, filePath, content };
+  } catch (error) {
+    console.error("Error leyendo archivo:", error);
+    return { canceled: true, error: String(error) };
+  }
 });
+
+
+ipcMain.on("window-close", () => mainWindow?.close());
 
 ipcMain.handle("file:read", async (_, filePath) => {
   try {
@@ -101,32 +120,23 @@ ipcMain.handle("file:read", async (_, filePath) => {
   }
 });
 
-ipcMain.handle("dialog:openFile", async () => {
-  const { canceled, filePaths } = await dialog.showOpenDialog({
-    properties: ["openFile"],
-    filters: [{ name: "LibreUML Files", extensions: ["luml", "json"] }],
-  });
-
-  if (canceled || filePaths.length === 0) return { canceled: true };
-
-  const filePath = filePaths[0];
-  const content = fs.readFileSync(filePath, "utf-8");
-
-  return { canceled: false, filePath, content };
+ipcMain.handle("app:associate-files", () => {
+  try {
+    app.setAsDefaultProtocolClient("libreuml");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
 });
 
 app.whenReady().then(() => {
   createWindow();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });

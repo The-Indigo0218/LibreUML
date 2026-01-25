@@ -98,7 +98,8 @@
     "common": {
       "save": "Guardar",
       "cancel": "Cancelar",
-      "clear": "Limpiar"
+      "clear": "Limpiar",
+      "discard": "Descartar"
     },
     "classEditor": {
       "title": "Editar Clase:",
@@ -118,10 +119,23 @@
       "source": "Inicio (Origen)",
       "target": "Fin (Destino)"
     },
+    "unsaved": {
+      "title": "Cambios sin guardar",
+      "message": "¿Deseas guardar los cambios en '{{fileName}}' antes de cerrar?",
+      "saveButton": "Guardar",
+      "discardButton": "No Guardar"
+    },
     "confirmation": {
+      "defaultTitle": "Confirmación",
+      "defaultMessage": "¿Estás seguro de que deseas continuar?",
+      "exitMessage": "¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.",
       "clearTitle": "¿Limpiar todo el Lienzo?",
-      "clearMessage": "Esta acción no se puede deshacer.",
-      "confirm": "Confirmar y Limpiar",
+      "clearMessage": "Esta acción no se puede deshacer y perderás los cambios no guardados.",
+      "newTitle": "Crear Nuevo Diagrama",
+      "newMessage": "¿Estás seguro? Se perderán los cambios no guardados del diagrama actual.",
+      "discardTitle": "¿Descartar Cambios?",
+      "discardMessage": "El diagrama volverá a su último estado guardado.",
+      "confirm": "Confirmar",
       "cancel": "Cancelar"
     },
     "spotlight": {

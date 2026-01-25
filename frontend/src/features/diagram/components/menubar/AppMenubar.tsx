@@ -2,7 +2,10 @@ import { Box } from "lucide-react";
 import { useDiagramStore } from "../../../../store/diagramStore";
 import WindowControls from "../../../../components/ui/menubar/WindowControls"; 
 import { useDiagramActions } from "../../hooks/useDiagramActions";
+
+// Modales
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
+import ConfirmationModal from "../../../../components/shared/ConfirmationModal"; 
 
 // Modules
 import { FileMenu } from "./modules/FileMenu";
@@ -13,7 +16,7 @@ export default function AppMenubar() {
   const isDirty = useDiagramStore((s) => s.isDirty);
   
   const actions = useDiagramActions(); 
-  const { modalState } = actions;
+  const { modals } = actions;
 
   return (
     <>
@@ -21,21 +24,14 @@ export default function AppMenubar() {
         
         {/* LEFT: Logo + Menus */}
         <div className="flex items-center gap-1 h-full">
-          {/* Logo */}
           <div className="flex items-center gap-2 font-bold text-sm no-drag mr-4">
              <Box className="w-4 h-4 text-uml-class-border fill-uml-class-bg/20" />
              <span className="text-text-primary tracking-tight hidden sm:block">LibreUML</span>
           </div>
 
-          {/* Menus */}
           <div className="flex items-center h-full no-drag">
               <FileMenu actions={actions} />
-              
-              {/* Edit / View placeholders... */}
-              
               <SettingsMenu />
-              
-              <button className="px-3 py-1 text-xs text-text-secondary hover:bg-surface-hover rounded transition-colors cursor-not-allowed opacity-50">Help</button>
           </div>
         </div>
 
@@ -49,13 +45,24 @@ export default function AppMenubar() {
         <WindowControls />
       </header>
 
-      {/* Global Modals */}
+      {/* --- MODALES --- */}
+
+      {/* COMPLEX Modal (Save/Discard) */}
       <UnsavedChangesModal 
-        isOpen={modalState.isOpen}
-        fileName={modalState.fileName}
-        onDiscard={modalState.onDiscard}
-        onSave={modalState.onSave}
-        onCancel={modalState.close}
+        isOpen={modals.unsaved.isOpen}
+        fileName={modals.unsaved.fileName}
+        onDiscard={modals.unsaved.onDiscard}
+        onSave={modals.unsaved.onSave}
+        onCancel={modals.unsaved.onCancel}
+      />
+
+      {/*SIMPLE Modal (YES/No) */}
+      <ConfirmationModal
+        isOpen={modals.confirmation.isOpen}
+        title={modals.confirmation.title}
+        message={modals.confirmation.message}
+        onConfirm={modals.confirmation.onConfirm}
+        onCancel={modals.confirmation.onCancel}
       />
     </>
   );

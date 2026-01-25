@@ -98,7 +98,8 @@
     "common": {
       "save": "Save",
       "cancel": "Cancel",
-      "clear": "Clear"
+      "clear": "Clear",
+      "discard": "Discard"
     },
     "classEditor": {
       "title": "Edit Class:",
@@ -118,10 +119,23 @@
       "source": "Start (Source)",
       "target": "End (Target)"
     },
+    "unsaved": {
+      "title": "Unsaved Changes",
+      "message": "Do you want to save changes to '{{fileName}}' before closing?",
+      "saveButton": "Save",
+      "discardButton": "Don't Save"
+    },
     "confirmation": {
+      "defaultTitle": "Confirmation",
+      "defaultMessage": "Are you sure you want to proceed?",
+      "exitMessage": "Are you sure you want to exit? Unsaved changes will be lost.",
       "clearTitle": "Clear Entire Canvas?",
-      "clearMessage": "This action cannot be undone.",
-      "confirm": "Confirm & Clear",
+      "clearMessage": "This action cannot be undone and you will lose unsaved changes.",
+      "newTitle": "Create New Diagram",
+      "newMessage": "Are you sure? Unsaved changes in the current diagram will be lost.",
+      "discardTitle": "Discard Changes?",
+      "discardMessage": "The diagram will revert to its last saved state.",
+      "confirm": "Confirm",
       "cancel": "Cancel"
     },
     "spotlight": {

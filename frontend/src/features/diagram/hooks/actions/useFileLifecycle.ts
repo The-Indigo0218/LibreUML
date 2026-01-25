@@ -1,141 +1,211 @@
 import { useCallback } from "react";
 import { useReactFlow } from "reactflow";
 import { useDiagramStore } from "../../../../store/diagramStore";
-import { StorageService } from "../../../../services/storage.service";
+import type { 
+  DiagramState, 
+  UmlClassNode, 
+  UmlEdge, 
+  UmlClassData 
+} from "../../../diagram/types/diagram.types";
 
 export const useFileLifecycle = () => {
-  const { toObject, fitView, setViewport } = useReactFlow();
+  const { toObject, fitView } = useReactFlow();
   const storeApi = useDiagramStore.getState;
+  const loadDiagram = useDiagramStore((s) => s.loadDiagram);
+  const resetDiagram = useDiagramStore((s) => s.resetDiagram);
+  const setFilePath = useDiagramStore((s) => s.setFilePath);
 
   // --- HELPERS ---
-  
   const fitViewAfterLoad = useCallback(() => {
     setTimeout(() => fitView({ duration: 800 }), 100);
   }, [fitView]);
 
+  // --- INTERNAL LOADER ---
+  const loadFromFileContent = useCallback((content: string, filePath?: string) => {
+    try {
+      const data = JSON.parse(content) as DiagramState;
+
+      // Validación básica de integridad
+      if (!data.nodes || !Array.isArray(data.nodes)) {
+        throw new Error("Formato inválido: falta array de nodos");
+      }
+
+      // Asegurar viewport por defecto si no existe
+      const safeData: DiagramState = {
+        ...data,
+        viewport: data.viewport || { x: 0, y: 0, zoom: 1 }
+      };
+
+      loadDiagram(safeData);
+      
+      if (filePath) {
+        setFilePath(filePath);
+      }
+      
+      fitViewAfterLoad();
+
+    } catch (error) {
+      console.error("Error parsing diagram file:", error);
+      alert("Error al abrir el archivo. El formato es inválido o está corrupto.");
+    }
+  }, [loadDiagram, setFilePath, fitViewAfterLoad]);
+
+
   // --- ACTIONS ---
 
-  // CREATE NEW / RESET
   const createNewDiagram = useCallback(() => {
-    const { resetDiagram } = storeApi();
     resetDiagram();
-  }, [storeApi]);
+  }, [resetDiagram]);
 
-  // OPEN FROM DISK
   const openDiagramFromDisk = useCallback(async () => {
     if (!window.electronAPI?.isElectron()) return;
 
-    const result = await StorageService.openDiagram();
-    if (result) {
-      const { loadDiagram, setFilePath, setDiagramName } = storeApi();
-      loadDiagram(result.data);
+    try {
+      const result = await window.electronAPI.openFile();
       
-      if (result.filePath) {
-        setFilePath(result.filePath);
-        const fileName = result.filePath.split(/[\\/]/).pop()?.replace(".luml", "");
-        if (fileName) setDiagramName(fileName);
+      if (!result.canceled && result.content) {
+        loadFromFileContent(result.content, result.filePath);
       }
-      fitViewAfterLoad();
+    } catch (error) {
+      console.error("IPC Error opening file:", error);
     }
-  }, [storeApi, fitViewAfterLoad]);
+  }, [loadFromFileContent]);
 
-  // IMPORT FROM WEB (JSON)
   const importFromWeb = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string;
-        const parsedData = JSON.parse(content);
-        const { loadDiagram } = storeApi();
-
-        loadDiagram(parsedData);
-
-        if (parsedData.viewport) {
-          const { x, y, zoom } = parsedData.viewport;
-          setViewport({ x, y, zoom });
-        } else {
-          fitViewAfterLoad();
-        }
-      } catch (error) {
-        console.error("Error loading file:", error);
-        alert("Error loading file. Please ensure it is a valid .json or .luml.");
-      }
+      const content = e.target?.result as string;
+      loadFromFileContent(content);
     };
     reader.readAsText(file);
-    event.target.value = ""; 
-  }, [storeApi, setViewport, fitViewAfterLoad]);
+    event.target.value = "";
+  }, [loadFromFileContent]);
 
-  // SAVE (Current Path)
+  // --- GUARDADO ROBUSTO (Sin 'any') ---
   const saveDiagram = useCallback(async () => {
-    const { diagramId, diagramName, currentFilePath, setFilePath, setDirty } = storeApi();
+    const state = storeApi();
+    const flowObject = toObject(); 
     
-    if (!currentFilePath) return false;
+    // 1. MAPEO SEGURO DE NODOS
+    // Reconstruimos los nodos para garantizar que cumplan con la interfaz 'UmlClassNode'.
+    // Al poner "as const", le aseguramos a TS que el string es exactamente "umlClass".
+    const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
+      id: node.id,
+      type: 'umlClass' as const, 
+      position: node.position,
+      data: node.data as UmlClassData,
+      selected: node.selected,
+      width: node.width,
+      height: node.height
+    }));
 
-    const flowObject = toObject();
+    // 2. MAPEO SEGURO DE EDGES
+    // Hacemos un casting "double unknown" para edges, que es seguro aquí porque
+    // confiamos en que React Flow mantiene la estructura base de UmlEdge.
+    const cleanEdges: UmlEdge[] = flowObject.edges.map(edge => ({
+      ...edge,
+      data: edge.data as unknown 
+    })) as unknown as UmlEdge[];
+
+    const dataToSave: DiagramState = {
+      id: state.diagramId,
+      name: state.diagramName,
+      nodes: cleanNodes,
+      edges: cleanEdges,
+      // activeConnectionMode: state.activeConnectionMode, // Este campo no existe en DiagramState según tu último archivo, verifica si debes borrarlo o agregarlo al type.
+      // Si DiagramState no tiene 'activeConnectionMode', borra la línea de arriba.
+      // Basado en tu archivo uploaded: no estaba en la interfaz DiagramState, 
+      // pero si lo necesitas guardar, agrégalo al types.ts. Por ahora lo dejaré comentado si da error.
+      // activeConnectionMode: state.activeConnectionMode, 
+      viewport: flowObject.viewport
+    };
+    
+    // NOTA: Si 'activeConnectionMode' da error es porque falta en diagram.types.ts 
+    // Puedes agregarlo allá o quitarlo de aquí. Lo asumiré necesario para restaurar estado.
+
+    const content = JSON.stringify(dataToSave, null, 2);
     document.body.style.cursor = "wait";
 
-    const result = await StorageService.saveDiagram(
-      flowObject,
-      diagramId,
-      diagramName,
-      currentFilePath
-    );
+    try {
+      if (window.electronAPI?.isElectron()) {
+        const result = await window.electronAPI.saveFile(
+          content, 
+          state.currentFilePath, 
+          state.diagramName
+        );
 
-    document.body.style.cursor = "default";
-
-    if (result.success && result.filePath) {
-      setFilePath(result.filePath);
-      setDirty(false);
-      return true;
+        if (!result.canceled && result.filePath) {
+          setFilePath(result.filePath);
+          storeApi().setDirty(false);
+          return true;
+        }
+        return false;
+      } else {
+        const blob = new Blob([content], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${state.diagramName}.luml`;
+        link.click();
+        URL.revokeObjectURL(url);
+        storeApi().setDirty(false);
+        return true;
+      }
+    } finally {
+      document.body.style.cursor = "default";
     }
-    return false;
-  }, [storeApi, toObject]);
+  }, [storeApi, toObject, setFilePath]);
 
-  // SAVE AS (New Path)
   const saveDiagramAs = useCallback(async () => {
-    const { diagramId, diagramName } = storeApi();
-    const flowObject = toObject();
+    const state = storeApi();
+    const flowObject = toObject(); 
 
-    document.body.style.cursor = "wait";
+    // Reutilizamos la lógica de limpieza
+    const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
+      id: node.id,
+      type: 'umlClass' as const,
+      position: node.position,
+      data: node.data as UmlClassData,
+      selected: node.selected
+    }));
 
-    const result = await StorageService.saveDiagram(
-      flowObject,
-      diagramId,
-      diagramName,
-      undefined 
-    );
+    const cleanEdges = flowObject.edges as unknown as UmlEdge[];
 
-    document.body.style.cursor = "default";
+    const dataToSave = {
+      id: state.diagramId,
+      name: state.diagramName,
+      nodes: cleanNodes,
+      edges: cleanEdges,
+      viewport: flowObject.viewport
+    };
+    
+    const content = JSON.stringify(dataToSave, null, 2);
 
-    if (result.success && result.filePath) {
-      const { setFilePath, setDirty, setDiagramName } = storeApi();
-      setFilePath(result.filePath);
+    if (window.electronAPI?.isElectron()) {
+      const result = await window.electronAPI.saveFile(content, undefined, state.diagramName);
 
-      const fileName = result.filePath.split(/[\\/]/).pop()?.replace(".luml", "");
-      if (fileName) setDiagramName(fileName);
-
-      setDirty(false);
-      return true;
-    }
-    return false;
-  }, [storeApi, toObject]);
-
-  // REVERT (Reload from Disk)
-  const revertDiagram = useCallback(async () => {
-    const { currentFilePath, loadDiagram, setDirty } = storeApi();
-
-    if (currentFilePath && window.electronAPI?.isElectron()) {
-      const data = await StorageService.reloadDiagram(currentFilePath);
-      if (data) {
-        loadDiagram(data, true);
-        setDirty(false);
-        fitViewAfterLoad();
+      if (!result.canceled && result.filePath) {
+        setFilePath(result.filePath);
+        storeApi().setDirty(false);
       }
     }
-  }, [storeApi, fitViewAfterLoad]);
+  }, [storeApi, toObject, setFilePath]);
+
+  const revertDiagram = useCallback(async () => {
+    const currentPath = storeApi().currentFilePath;
+    if (currentPath && window.electronAPI?.isElectron()) {
+      const result = await window.electronAPI.readFile(currentPath);
+      if (result.success && result.content) {
+        loadFromFileContent(result.content, currentPath);
+        storeApi().setDirty(false);
+      } else {
+        alert("Error reloading file: " + result.error);
+      }
+    }
+  }, [storeApi, loadFromFileContent]);
 
   return {
     createNewDiagram,

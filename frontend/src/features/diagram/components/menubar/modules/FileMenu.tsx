@@ -29,16 +29,19 @@ export function FileMenu({ actions }: FileMenuProps) {
     handleSaveAs, 
     handleCloseFile, 
     handleExit, 
-    hasFilePath ,
+    hasFilePath,
     handleDiscardChangesAction,
     isDirty
   } = actions;
 
-  const onOpenClick = async () => {
-    const result = await handleOpen();
-    if (result === "TRIGGER_WEB_INPUT") {
+  /**
+   * FIX: Pasamos el disparador del input como una función (callback).
+   * El 'Guard' ejecutará esta función solo si es seguro hacerlo (diagrama limpio o usuario confirmó descartar).
+   */
+  const onOpenClick = () => {
+    handleOpen(() => {
       fileInputRef.current?.click();
-    }
+    });
   };
 
   return (
@@ -54,7 +57,6 @@ export function FileMenu({ actions }: FileMenuProps) {
 
       <MenubarTrigger label={t("menubar.file.title") || "File"}>
         
-        {/* NEW & OPEN */}
         <MenubarItem
           label={t("menubar.file.new") || "New Diagram"}
           icon={<FilePlus className="w-4 h-4" />}
@@ -64,12 +66,11 @@ export function FileMenu({ actions }: FileMenuProps) {
           label={t("menubar.file.open") || "Open..."}
           icon={<FolderOpen className="w-4 h-4" />}
           shortcut="Ctrl+O"
-          onClick={onOpenClick}
+          onClick={onOpenClick} // <--- Usamos la versión corregida
         />
         
         <div className="h-px bg-surface-border my-1" />
         
-        {/* SAVE OPERATIONS */}
         <MenubarItem
           label={t("menubar.file.save") || "Save"}
           icon={<Save className="w-4 h-4" />}
@@ -84,7 +85,6 @@ export function FileMenu({ actions }: FileMenuProps) {
           onClick={handleSaveAs}
         />
 
-        {/* DISCARD CHANGES */}
         <MenubarItem
           label={t("menubar.file.discard") || "Discard Changes"}
           icon={<RotateCcw className="w-4 h-4" />}
@@ -94,7 +94,6 @@ export function FileMenu({ actions }: FileMenuProps) {
 
         <div className="h-px bg-surface-border my-1" />
 
-        {/* CLOSE & EXIT */}
         <MenubarItem
           label={t("menubar.file.close") || "Close Editor"}
           icon={<XCircle className="w-4 h-4" />}

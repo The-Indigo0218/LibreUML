@@ -1,47 +1,53 @@
-import { useEffect } from 'react';
-import { useDiagramStore } from '../store/diagramStore';
-import { useReactFlow } from 'reactflow';
-import type { DiagramState, UmlClassNode, UmlEdge } from '../features/diagram/types/diagram.types';
+import { useEffect, useRef } from "react";
+import { useReactFlow } from "reactflow";
+import { useDiagramStore } from "../store/diagramStore";
+import { useSettingsStore } from "../store/settingsStore";
 
-const AUTOSAVE_INTERVAL = 30 * 1000; 
 const STORAGE_KEY = 'libreuml-backup';
+const BACKUP_DELAY = 3000; 
 
-export const useAutosave = () => {
+export const useAutoSave = () => {
   const { toObject } = useReactFlow();
+  const autoSaveEnabled = useSettingsStore((s) => s.autoSave);
   
-  // Use getState to read without re-rendering (optimization)
-  const storeApi = useDiagramStore.getState;
+
+  const isDirty = useDiagramStore((s) => s.isDirty);
+  const diagramId = useDiagramStore((s) => s.diagramId); 
+  
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const { isDirty, diagramId, diagramName, currentFilePath } = storeApi();
+    if (!autoSaveEnabled || !isDirty) {
+      return;
+    }
 
-      // LOGIC: If not dirty OR no real file assigned, skip autosave.
-      if (!isDirty || !currentFilePath) {
-        return;
-      }
+    if (timerRef.current) clearTimeout(timerRef.current);
 
-      console.log('🔄 Executing Autosave (Only for existing file)...');
+    timerRef.current = setTimeout(() => {
+      const flow = toObject(); 
       
-      const flowObject = toObject();
-      
-      const cleanEdges = flowObject.edges.map((edge) => {
-          const { ...semanticEdge } = edge;
-          return semanticEdge;
-      });
+      const state = useDiagramStore.getState();
 
-      const backupData: DiagramState = {
-          id: diagramId,
-          name: diagramName,
-          nodes: flowObject.nodes as unknown as UmlClassNode[],
-          edges: cleanEdges as unknown as UmlEdge[],
-          viewport: flowObject.viewport
+      const backupData = {
+        id: state.diagramId,
+        name: state.diagramName,
+        currentFilePath: state.currentFilePath,
+        nodes: flow.nodes,
+        edges: flow.edges,
+        viewport: flow.viewport,
+        timestamp: Date.now()
       };
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(backupData));
-      localStorage.setItem(STORAGE_KEY + '-timestamp', new Date().toISOString());
-    }, AUTOSAVE_INTERVAL);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(backupData));
+        console.log("[AutoSave] Backup actualizado en LocalStorage", new Date().toLocaleTimeString());
+      } catch (e) {
+        console.warn("[AutoSave] Error guardando backup (posiblemente cuota llena)", e);
+      }
+    }, BACKUP_DELAY);
 
-    return () => clearInterval(timer);
-  }, [storeApi, toObject]); 
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [isDirty, diagramId, autoSaveEnabled, toObject]);
 };

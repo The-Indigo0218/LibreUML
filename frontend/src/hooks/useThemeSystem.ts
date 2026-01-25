@@ -1,13 +1,14 @@
 import { useEffect } from "react";
-import { useThemeStore } from "../store/themeStore";
+import { useSettingsStore } from "../store/settingsStore"; // <--- IMPORTANTE: Usamos el nuevo store
 
 export const useThemeSystem = () => {
-  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  // Conectamos directamente al Settings Store
+  const theme = useSettingsStore((state) => state.theme);
 
   useEffect(() => {
     const root = window.document.documentElement;
 
-    if (isDarkMode) {
+    if (theme === "dark") {
       root.classList.add("dark");
       root.style.colorScheme = "dark";
     } else {
@@ -15,5 +16,5 @@ export const useThemeSystem = () => {
       root.style.colorScheme = "light";
     }
     
-  }, [isDarkMode]);
+  }, [theme]);
 };

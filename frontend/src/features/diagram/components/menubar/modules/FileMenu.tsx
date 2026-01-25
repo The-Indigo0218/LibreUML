@@ -34,10 +34,6 @@ export function FileMenu({ actions }: FileMenuProps) {
     isDirty
   } = actions;
 
-  /**
-   * FIX: Pasamos el disparador del input como una función (callback).
-   * El 'Guard' ejecutará esta función solo si es seguro hacerlo (diagrama limpio o usuario confirmó descartar).
-   */
   const onOpenClick = () => {
     handleOpen(() => {
       fileInputRef.current?.click();
@@ -66,7 +62,7 @@ export function FileMenu({ actions }: FileMenuProps) {
           label={t("menubar.file.open") || "Open..."}
           icon={<FolderOpen className="w-4 h-4" />}
           shortcut="Ctrl+O"
-          onClick={onOpenClick} // <--- Usamos la versión corregida
+          onClick={onOpenClick} 
         />
         
         <div className="h-px bg-surface-border my-1" />

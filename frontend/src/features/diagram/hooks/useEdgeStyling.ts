@@ -4,19 +4,24 @@ import { useDiagramStore } from "../../../store/diagramStore";
 
 export const useEdgeStyling = () => {
   const edges = useDiagramStore((s) => s.edges);
+  const showAllEdges = useDiagramStore((s) => s.showAllEdges); 
+  
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
 
   const displayEdges = useMemo(() => {
-    if (!hoveredNodeId && !hoveredEdgeId) return edges;
+    if (!hoveredNodeId && !hoveredEdgeId && !showAllEdges) return edges;
 
     return edges.map((edge) => {
       const isConnectedToNode =
         hoveredNodeId &&
         (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
+      
       const isHoveredEdge = hoveredEdgeId && edge.id === hoveredEdgeId;
 
-      if (isConnectedToNode || isHoveredEdge) {
+      const shouldHighlight = showAllEdges || isConnectedToNode || isHoveredEdge;
+
+      if (shouldHighlight) {
         const type = edge.data?.type || "default";
         const configTypes = edgeConfig.types as Record<string, { highlight?: string }>;
         
@@ -28,7 +33,7 @@ export const useEdgeStyling = () => {
           
           data: {
             ...edge.data,
-            isHovered: isHoveredEdge, 
+            isHovered: true, 
           },
 
           style: {
@@ -36,6 +41,7 @@ export const useEdgeStyling = () => {
             stroke: highlightColor,
             strokeWidth: 3, 
             zIndex: 999,    
+            opacity: 1, 
           },
         };
       }
@@ -45,7 +51,7 @@ export const useEdgeStyling = () => {
         style: { ...edge.style, opacity: 0.2 },
       };
     });
-  }, [edges, hoveredNodeId, hoveredEdgeId]);
+  }, [edges, hoveredNodeId, hoveredEdgeId, showAllEdges]); 
 
   return {
     displayEdges,

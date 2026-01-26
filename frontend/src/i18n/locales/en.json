@@ -41,6 +41,17 @@
       "startup": "Startup: Restore Session",
       "language": "Language",
       "theme": "Theme"
+    },
+    "view": {
+      "title": "View",
+      "zoomIn": "Zoom In",
+      "zoomOut": "Zoom Out",
+      "fitView": "Fit View",
+      "minimap": "Show Minimap",
+      "grid": "Show Grid",
+      "snap": "Snap to Grid",
+      "spotlight": "Spotlight Search",
+      "connections": "Highlight Connections"
     }
   },
   "sidebar": {

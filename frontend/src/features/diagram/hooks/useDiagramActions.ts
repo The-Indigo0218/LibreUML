@@ -35,10 +35,8 @@ export const useDiagramActions = () => {
    */
   const handleOpen = useCallback((webTrigger?: () => void) => {
     if (window.electronAPI?.isElectron()) {
-      // Desktop: Usar diálogo nativo
       executeSafeAction(fileLifecycle.openDiagramFromDisk);
     } else {
-      // Web: Usar el disparador del input HTML si existe
       if (webTrigger) {
         executeSafeAction(webTrigger);
       }
@@ -61,8 +59,6 @@ export const useDiagramActions = () => {
   const handleSave = fileLifecycle.saveDiagram;
   const handleSaveAs = fileLifecycle.saveDiagramAs;
 
-  // --- CORRECCIÓN 1: Acceso correcto a 'unsaved' ---
-  // Inyectamos la función real de guardado (handleSave) en la lógica del guard
   const handleModalSave = useCallback(() => {
     if (modalState.unsaved.onSave) {
       modalState.unsaved.onSave(handleSave);
@@ -87,12 +83,11 @@ export const useDiagramActions = () => {
     isDirty,
     hasFilePath,
 
-    // --- CORRECCIÓN 2: Sobresritura anidada correcta ---
     modalState: {
       ...modalState,
       unsaved: {
-        ...modalState.unsaved, // Mantenemos las otras props (isOpen, fileName, etc)
-        onSave: handleModalSave // Sobrescribimos onSave con la versión sin argumentos
+        ...modalState.unsaved, 
+        onSave: handleModalSave
       }
     }
   };

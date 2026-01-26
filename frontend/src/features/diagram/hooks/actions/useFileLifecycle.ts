@@ -25,12 +25,10 @@ export const useFileLifecycle = () => {
     try {
       const data = JSON.parse(content) as DiagramState;
 
-      // Validación básica de integridad
       if (!data.nodes || !Array.isArray(data.nodes)) {
         throw new Error("Formato inválido: falta array de nodos");
       }
 
-      // Asegurar viewport por defecto si no existe
       const safeData: DiagramState = {
         ...data,
         viewport: data.viewport || { x: 0, y: 0, zoom: 1 }
@@ -84,14 +82,11 @@ export const useFileLifecycle = () => {
     event.target.value = "";
   }, [loadFromFileContent]);
 
-  // --- GUARDADO ROBUSTO (Sin 'any') ---
   const saveDiagram = useCallback(async () => {
     const state = storeApi();
     const flowObject = toObject(); 
     
-    // 1. MAPEO SEGURO DE NODOS
-    // Reconstruimos los nodos para garantizar que cumplan con la interfaz 'UmlClassNode'.
-    // Al poner "as const", le aseguramos a TS que el string es exactamente "umlClass".
+
     const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
       id: node.id,
       type: 'umlClass' as const, 
@@ -102,9 +97,6 @@ export const useFileLifecycle = () => {
       height: node.height
     }));
 
-    // 2. MAPEO SEGURO DE EDGES
-    // Hacemos un casting "double unknown" para edges, que es seguro aquí porque
-    // confiamos en que React Flow mantiene la estructura base de UmlEdge.
     const cleanEdges: UmlEdge[] = flowObject.edges.map(edge => ({
       ...edge,
       data: edge.data as unknown 
@@ -115,17 +107,10 @@ export const useFileLifecycle = () => {
       name: state.diagramName,
       nodes: cleanNodes,
       edges: cleanEdges,
-      // activeConnectionMode: state.activeConnectionMode, // Este campo no existe en DiagramState según tu último archivo, verifica si debes borrarlo o agregarlo al type.
-      // Si DiagramState no tiene 'activeConnectionMode', borra la línea de arriba.
-      // Basado en tu archivo uploaded: no estaba en la interfaz DiagramState, 
-      // pero si lo necesitas guardar, agrégalo al types.ts. Por ahora lo dejaré comentado si da error.
-      // activeConnectionMode: state.activeConnectionMode, 
+ 
       viewport: flowObject.viewport
     };
     
-    // NOTA: Si 'activeConnectionMode' da error es porque falta en diagram.types.ts 
-    // Puedes agregarlo allá o quitarlo de aquí. Lo asumiré necesario para restaurar estado.
-
     const content = JSON.stringify(dataToSave, null, 2);
     document.body.style.cursor = "wait";
 
@@ -163,7 +148,6 @@ export const useFileLifecycle = () => {
     const state = storeApi();
     const flowObject = toObject(); 
 
-    // Reutilizamos la lógica de limpieza
     const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
       id: node.id,
       type: 'umlClass' as const,

@@ -17,11 +17,9 @@ export default function AppMenubar() {
   
   const actions = useDiagramActions(); 
   
-  // --- CORRECCIÓN CLAVE AQUÍ ---
-  // Antes buscabas 'modals', pero ahora el hook devuelve 'modalState'
+
   const { modalState } = actions; 
 
-  // Protección contra renderizados prematuros
   if (!modalState) return null;
 
   return (
@@ -41,19 +39,15 @@ export default function AppMenubar() {
           </div>
         </div>
 
-        {/* CENTRO: Título */}
         <div className="absolute left-1/2 -translate-x-1/2 text-xs text-text-muted hidden md:flex items-center gap-2 pointer-events-none">
           <span>{diagramName}.luml</span>
           {isDirty && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Unsaved" />}
         </div>
 
-        {/* DERECHA: Controles de Ventana */}
         <WindowControls />
       </header>
 
-      {/* --- MODALES CONECTADOS CORRECTAMENTE --- */}
 
-      {/* Modal Complejo (Guardar/Descartar) */}
       <UnsavedChangesModal 
         isOpen={modalState.unsaved.isOpen}
         fileName={modalState.unsaved.fileName}
@@ -62,7 +56,6 @@ export default function AppMenubar() {
         onCancel={modalState.unsaved.onCancel}
       />
 
-      {/* Modal Simple (Confirmación) */}
       <ConfirmationModal
         isOpen={modalState.confirmation.isOpen}
         title={modalState.confirmation.title}

@@ -34,13 +34,8 @@ export const useActionGuard = () => {
     }));
   }, []);
 
-  /**
-   * LA FUNCIÓN MAESTRA: executeSafeAction
-   * Reemplaza a 'executeGuard' y 'executeDiscardGuard'.
-   * Maneja tanto cambios sin guardar como confirmaciones simples.
-   */
+
   const executeSafeAction = useCallback((action: () => void, options?: ConfirmationOptions) => {
-    // CASO 1: Cambios sin guardar (Prioridad Alta)
     if (isDirty) {
       setModals(prev => ({
         ...prev,
@@ -53,7 +48,6 @@ export const useActionGuard = () => {
       return;
     }
 
-    // CASO 2: Acción peligrosa que requiere confirmación (ej: Salir)
     if (options?.requireConfirm) {
       setModals(prev => ({
         ...prev,
@@ -67,23 +61,18 @@ export const useActionGuard = () => {
       return;
     }
 
-    // CASO 3: Seguro de ejecutar
     action();
   }, [isDirty]);
 
-  // --- HANDLERS DE MODALES ---
 
-  // Unsaved Modal: Discard -> Ejecuta la acción pendiente
   const handleDiscard = useCallback(() => {
     const action = modals.unsaved.pendingAction;
     closeAll();
     if (action) action();
   }, [modals.unsaved.pendingAction, closeAll]);
 
-  // Unsaved Modal: Save -> El padre inyectará la lógica de guardado
   const handleSaveRequest = useCallback((saveFn: () => Promise<boolean>) => {
     const action = modals.unsaved.pendingAction;
-    // Intentar guardar. Si tiene éxito, ejecutar la acción pendiente.
     saveFn().then((success) => {
       if (success) {
         closeAll();
@@ -92,7 +81,6 @@ export const useActionGuard = () => {
     });
   }, [modals.unsaved.pendingAction, closeAll]);
 
-  // Confirmation Modal: Confirm -> Ejecuta la acción
   const handleConfirm = useCallback(() => {
     const action = modals.confirmation.pendingAction;
     closeAll();
@@ -100,13 +88,13 @@ export const useActionGuard = () => {
   }, [modals.confirmation.pendingAction, closeAll]);
 
   return {
-    executeSafeAction, // <--- Ahora sí existe
-    modalState: {      // <--- Unificamos todo bajo 'modalState'
+    executeSafeAction,
+    modalState: {      
       unsaved: {
         isOpen: modals.unsaved.isOpen,
         fileName: modals.unsaved.fileName,
         onDiscard: handleDiscard,
-        onSave: handleSaveRequest, // Se sobreescribe en useDiagramActions
+        onSave: handleSaveRequest, 
         onCancel: closeAll
       },
       confirmation: {

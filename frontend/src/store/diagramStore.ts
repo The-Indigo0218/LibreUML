@@ -16,6 +16,7 @@ import type {
   stereotype,
   UmlRelationType,
   DiagramState as SavedDiagramState,
+  UmlEdgeData, 
 } from "../features/diagram/types/diagram.types";
 
 import { getEdgeOptions, getNoteEdgeOptions } from "../util/edgeFactory";
@@ -24,7 +25,6 @@ import {
   checkCollision,
   updateSyncedEdges,
 } from "../util/geometry";
-
 
 interface DiagramStoreState {
   // --- State Properties ---
@@ -67,9 +67,8 @@ interface DiagramStoreState {
   deleteEdge: (edgeId: string) => void;
   changeEdgeType: (edgeId: string, type: UmlRelationType) => void;
   reverseEdge: (edgeId: string) => void;
-  updateEdgeData: (edgeId: string, data: Record<string, unknown>) => void; 
+  updateEdgeData: (edgeId: string, data: Partial<UmlEdgeData>) => void; 
 }
-
 
 export const useDiagramStore = create<DiagramStoreState>()(
   temporal(
@@ -109,18 +108,16 @@ export const useDiagramStore = create<DiagramStoreState>()(
           return;
         }
 
-        // Prevent duplicate connections
         const isDuplicate = edges.some(
           (e) =>
             e.source === connection.source && e.target === connection.target,
         );
         if (isDuplicate) return;
 
-        // Prevent Note-to-Note connections
         if (sourceNode?.type === "umlNote" && targetNode?.type === "umlNote") return;
 
         let edgeOptions;
-        let edgeData = {};
+        let edgeData: UmlEdgeData; 
 
         if (sourceNode?.type === "umlNote") {
           edgeOptions = getNoteEdgeOptions();
@@ -233,7 +230,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
                   ...e,
                   ...newOptions,
                   style: { ...e.style, ...newOptions.style },
-                  data: { ...e.data, type: newType },
+                  data: { ...e.data, type: newType } as UmlEdgeData,
                 }
               : e,
           ),
@@ -247,7 +244,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
             if (edge.id === edgeId) {
               return {
                 ...edge,
-                data: { ...edge.data, ...newData },
+                data: { ...edge.data, ...newData } as UmlEdgeData,
               };
             }
             return edge;
@@ -291,7 +288,8 @@ export const useDiagramStore = create<DiagramStoreState>()(
       // --- System & History Actions ---
       loadDiagram: (data, preservePath = false) => {
         const hydratedEdges = data.edges.map((edge) => {
-          const type = edge.data?.type || "association";
+          const edgeData = edge.data as UmlEdgeData;
+          const type = edgeData?.type || "association";
 
           let options;
           if (type === "note") {
@@ -299,10 +297,11 @@ export const useDiagramStore = create<DiagramStoreState>()(
           } else {
             options = getEdgeOptions(type as UmlRelationType);
           }
+          
           return {
             ...edge,
             ...options,
-            data: { ...edge.data, type },
+            data: { ...edgeData, type },
           };
         }) as Edge[];
 
@@ -310,6 +309,8 @@ export const useDiagramStore = create<DiagramStoreState>()(
           diagramId: data.id || crypto.randomUUID(),
           diagramName: data.name || "Imported",
           currentFilePath: preservePath ? state.currentFilePath : undefined,
+          
+          activeConnectionMode: data.activeConnectionMode || "association",
 
           nodes: data.nodes,
           edges: hydratedEdges,
@@ -350,6 +351,8 @@ export const useDiagramStore = create<DiagramStoreState>()(
           type: n.type,
           position: n.position,
           data: n.data,
+          width: n.width,   
+          height: n.height
         }));
 
         const cleanEdges = edges.map((e) => ({

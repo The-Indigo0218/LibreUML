@@ -28,25 +28,31 @@ export interface UmlClassData {
   stereotype: stereotype; 
 }
 
-
-// UML Class Node Type for React Flow
 export interface UmlClassNode {
   id: string;
-  type: 'umlClass';
+  type: 'umlClass' | 'umlNote'; 
   position: { 
     x: number; 
     y: number; 
   };
   data: UmlClassData; 
   selected?: boolean;     
+  width?: number;   
+  height?: number; 
 }
-
 
 export interface UmlMarker {
   type: string;
   width?: number;
   height?: number;
   color?: string;
+}
+
+export interface UmlEdgeData {
+  type: UmlRelationType | 'note' | string;
+  sourceMultiplicity?: string; 
+  targetMultiplicity?: string; 
+  isHovered?: boolean;         
 }
 
 export interface UmlEdge {
@@ -58,11 +64,11 @@ export interface UmlEdge {
   animated?: boolean;
   
   style?: CSSProperties;       
-  markerEnd?: UmlMarker | string;   
+  markerEnd?: UmlMarker | string;
+  sourceHandle?: string | null; 
+  targetHandle?: string | null;
 
-  data?: {
-    type: UmlRelationType | 'note' | string;
-  };
+  data?: UmlEdgeData; 
 }
 
 export interface DiagramState {
@@ -70,6 +76,7 @@ export interface DiagramState {
   name: string;
   nodes: UmlClassNode[];
   edges: UmlEdge[]; 
+  activeConnectionMode?: UmlRelationType; 
   viewport: { 
     x: number; 
     y: number; 

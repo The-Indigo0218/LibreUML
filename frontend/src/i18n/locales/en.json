@@ -52,6 +52,15 @@
       "snap": "Snap to Grid",
       "spotlight": "Spotlight Search",
       "connections": "Highlight Connections"
+    },
+    "edit": {
+      "title": "Edit",
+      "undo": "Undo",
+      "redo": "Redo",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "selectAll": "Select All",
+      "edit": "Edit Properties"
     }
   },
   "sidebar": {
@@ -120,6 +129,8 @@
       "add": "Add",
       "noAttributes": "No attributes defined.",
       "noMethods": "No methods defined.",
+      "cancel": "Cancel",
+      "save": "Save",
       "placeholders": {
         "name": "name",
         "methodName": "methodName"

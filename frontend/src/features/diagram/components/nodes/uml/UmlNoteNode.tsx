@@ -5,15 +5,20 @@ import type { UmlClassData } from "../../../types/diagram.types";
 import { useDiagramStore } from "../../../../../store/diagramStore";
 import { handleConfig } from "../../../../../config/theme.config";
 
-const UmlNoteNode = ({ id, data }: NodeProps<UmlClassData>) => {
+const UmlNoteNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
   const updateNodeData = useDiagramStore((s) => s.updateNodeData);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingContent, setEditingContent] = useState(false);
 
   const handleStyle = `${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.note} opacity-0 group-hover:opacity-100`;
+
+  const selectionClasses = selected
+    ? "ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] !border-cyan-500 z-10"
+    : "border-uml-note-border hover:shadow-md";
+
   return (
-    <div className="bg-uml-note-bg border border-uml-note-border rounded-sm w-56 shadow-md overflow-visible relative group flex flex-col font-sans transition-colors">
+    <div className={`bg-uml-note-bg border rounded-sm w-56 overflow-visible relative group flex flex-col font-sans transition-all duration-200 ${selectionClasses}`}>
       {/* Top */}
       <Handle
         type="source"

@@ -1,21 +1,17 @@
-import { useEffect, useCallback } from "react";
+import { useCallback } from "react";
 
 export const useAppLifecycle = () => {
-  // --- LISTENERS ---
-  useEffect(() => {
-    if (!window.electronAPI?.isElectron()) return;
-  }, []);
-
   // --- ACTIONS ---
-  const handleExit = useCallback(() => {
+  const quitApplication = useCallback(() => {
     if (window.electronAPI?.isElectron()) {
-      window.electronAPI?.close();
+      window.electronAPI?.sendForceClose(); 
     } else {
       console.warn("Exit requested (Web Mode)");
+      window.close(); 
     }
   }, []);
 
   return {
-    handleExit,
+    quitApplication, 
   };
 };

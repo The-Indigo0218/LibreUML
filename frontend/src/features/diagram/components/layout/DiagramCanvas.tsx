@@ -6,9 +6,9 @@ import ReactFlow, {
   ConnectionMode,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useRef, useState, useEffect } from "react";
-
+import { useRef, useEffect } from "react"; 
 import { useDiagramStore } from "../../../../store/diagramStore";
+import { useUiStore } from "../../../../store/uiStore"; 
 import { canvasConfig, miniMapColors } from "../../../../config/theme.config";
 
 // Components
@@ -41,7 +41,9 @@ const edgeTypes = {
 };
 
 export default function DiagramCanvas() {
-  // Global State
+  const { t } = useTranslation();
+
+  // --- GLOBAL STATE (Business Logic) ---
   const {
     nodes,
     edges, 
@@ -53,20 +55,21 @@ export default function DiagramCanvas() {
     updateEdgeData, 
     showMiniMap,
     showGrid,
-    snapToGrid,
+    snapToGrid
   } = useDiagramStore();
 
-  // Local State (Modals)
-  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Node Editing State
-  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  const editingNode = nodes.find((n) => n.id === editingNodeId);
+  // --- UI STATE (Modals & Interactions) ---
+  const { 
+    activeModal, 
+    editingId, 
+    openClassEditor, 
+    openMultiplicityEditor, 
+    openClearConfirmation, 
+    closeModals 
+  } = useUiStore();
 
-  // Edge Editing State
-  const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
-  const editingEdge = edges.find((e) => e.id === editingEdgeId);
+  const editingNode = nodes.find((n) => n.id === editingId);
+  const editingEdge = edges.find((e) => e.id === editingId);
 
   // Ref for Drag & Drop
   const nodesRef = useRef(nodes);
@@ -80,12 +83,9 @@ export default function DiagramCanvas() {
   const { onDragOver, onDrop } = useDiagramDnD();
   
   const { getMenuOptions } = useDiagramMenus({
-    onEditNode: (id) => {
-      setEditingNodeId(id);
-      setIsModalOpen(true);
-    },
-    onClearCanvas: () => setIsClearModalOpen(true),
-    onEditEdgeMultiplicity: (id) => setEditingEdgeId(id),
+    onEditNode: (id) => openClassEditor(id),
+    onClearCanvas: () => openClearConfirmation(),
+    onEditEdgeMultiplicity: (id) => openMultiplicityEditor(id),
   });
 
   const {
@@ -97,8 +97,7 @@ export default function DiagramCanvas() {
   } = useContextMenu();
   
   useThemeSystem();
-  const { t } = useTranslation();
-
+  
   // History Logic on Drag
   const { onNodeDragStart, onNodeDragStop } = useNodeDragging();
 
@@ -112,8 +111,6 @@ export default function DiagramCanvas() {
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        snapToGrid={snapToGrid}
-        snapGrid={[20, 20]}
         // Hover Interaction
         onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
         onNodeMouseLeave={() => setHoveredNodeId(null)}
@@ -130,10 +127,11 @@ export default function DiagramCanvas() {
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
         connectionMode={ConnectionMode.Loose}
+        snapToGrid={snapToGrid}
+        snapGrid={[20, 20]}
         fitView
       >
-
-        {showGrid && (         
+        {showGrid && (
           <Background
             variant={BackgroundVariant.Dots}
             gap={24}
@@ -142,14 +140,6 @@ export default function DiagramCanvas() {
             style={{ opacity: canvasConfig.gridOpacity }}
           />
         )}
-
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={24}
-          size={1.5}
-          color={canvasConfig.gridColor}
-          style={{ opacity: canvasConfig.gridOpacity }}
-        />
         <Controls className="shadow-xl rounded-md overflow-hidden border border-surface-border bg-surface-primary" />
 
         {showMiniMap && (
@@ -180,31 +170,27 @@ export default function DiagramCanvas() {
         />
       )}
 
-      {isModalOpen && editingNode && (
+      {activeModal === 'class-editor' && editingNode && (
         <ClassEditorModal
-          key={editingNodeId}
-          isOpen={isModalOpen}
+          key={editingId}
+          isOpen={true}
           umlData={editingNode.data}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingNodeId(null);
-          }}
+          onClose={closeModals}
           onSave={(newData) => {
             updateNodeData(editingNode.id, newData);
-            setIsModalOpen(false);
-            setEditingNodeId(null);
+            closeModals();
           }}
         />
       )}
 
-      {editingEdgeId && editingEdge && (
+      {activeModal === 'multiplicity-editor' && editingEdge && (
         <MultiplicityModal
-          isOpen={!!editingEdgeId}
+          isOpen={true}
           initialSource={(editingEdge.data?.sourceMultiplicity as string) || ""}
           initialTarget={(editingEdge.data?.targetMultiplicity as string) || ""}
-          onClose={() => setEditingEdgeId(null)}
+          onClose={closeModals}
           onSave={(source, target) => {
-            updateEdgeData(editingEdgeId, {
+            updateEdgeData(editingEdge.id, {
               sourceMultiplicity: source,
               targetMultiplicity: target
             });
@@ -213,14 +199,14 @@ export default function DiagramCanvas() {
       )}
 
       <ConfirmationModal
-        isOpen={isClearModalOpen}
+        isOpen={activeModal === 'clear-confirmation'}
         title={t("modals.confirmation.clearTitle")}
         message={t("modals.confirmation.clearMessage")}
         onConfirm={() => {
           clearCanvas();
-          setIsClearModalOpen(false);
+          closeModals();
         }}
-        onCancel={() => setIsClearModalOpen(false)}
+        onCancel={closeModals}
       />
 
       <SpotlightModal />

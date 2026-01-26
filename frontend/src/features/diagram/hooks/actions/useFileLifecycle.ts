@@ -5,7 +5,8 @@ import type {
   DiagramState, 
   UmlClassNode, 
   UmlEdge, 
-  UmlClassData 
+  UmlClassData,
+  UmlEdgeData 
 } from "../../../diagram/types/diagram.types";
 
 export const useFileLifecycle = () => {
@@ -25,10 +26,12 @@ export const useFileLifecycle = () => {
     try {
       const data = JSON.parse(content) as DiagramState;
 
+      // Validación básica de integridad
       if (!data.nodes || !Array.isArray(data.nodes)) {
         throw new Error("Formato inválido: falta array de nodos");
       }
 
+      // Asegurar viewport por defecto si no existe
       const safeData: DiagramState = {
         ...data,
         viewport: data.viewport || { x: 0, y: 0, zoom: 1 }
@@ -86,28 +89,44 @@ export const useFileLifecycle = () => {
     const state = storeApi();
     const flowObject = toObject(); 
     
-
-    const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
+   const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
       id: node.id,
-      type: 'umlClass' as const, 
+      type: node.type === 'umlNote' ? 'umlNote' : 'umlClass', 
       position: node.position,
       data: node.data as UmlClassData,
       selected: node.selected,
-      width: node.width,
-      height: node.height
+      width: node.width || undefined,   
+      height: node.height || undefined
     }));
 
-    const cleanEdges: UmlEdge[] = flowObject.edges.map(edge => ({
-      ...edge,
-      data: edge.data as unknown 
-    })) as unknown as UmlEdge[];
+    const cleanEdges: UmlEdge[] = flowObject.edges.map(edge => {
+
+        const edgeData = edge.data as Partial<UmlEdgeData>;
+        
+        return {
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+          type: edge.type,
+          animated: edge.animated,
+          markerEnd: edge.markerEnd,
+          style: edge.style,
+          data: {
+            type: edgeData.type || 'association',
+            sourceMultiplicity: edgeData.sourceMultiplicity,
+            targetMultiplicity: edgeData.targetMultiplicity, 
+          }
+        };
+    });
 
     const dataToSave: DiagramState = {
       id: state.diagramId,
       name: state.diagramName,
       nodes: cleanNodes,
       edges: cleanEdges,
- 
+      activeConnectionMode: state.activeConnectionMode, 
       viewport: flowObject.viewport
     };
     
@@ -148,21 +167,42 @@ export const useFileLifecycle = () => {
     const state = storeApi();
     const flowObject = toObject(); 
 
-    const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
+   const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
       id: node.id,
-      type: 'umlClass' as const,
+      type: node.type === 'umlNote' ? 'umlNote' : 'umlClass',
       position: node.position,
       data: node.data as UmlClassData,
+      width: node.width || undefined,
+      height: node.height || undefined,
       selected: node.selected
     }));
 
-    const cleanEdges = flowObject.edges as unknown as UmlEdge[];
+    const cleanEdges: UmlEdge[] = flowObject.edges.map(edge => {
+        const edgeData = edge.data as Partial<UmlEdgeData>;
+        return {
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+          type: edge.type,
+          animated: edge.animated,
+          markerEnd: edge.markerEnd,
+          style: edge.style,
+          data: {
+            type: edgeData.type || 'association',
+            sourceMultiplicity: edgeData.sourceMultiplicity,
+            targetMultiplicity: edgeData.targetMultiplicity,
+          }
+        };
+    });
 
-    const dataToSave = {
+    const dataToSave: DiagramState = {
       id: state.diagramId,
       name: state.diagramName,
       nodes: cleanNodes,
       edges: cleanEdges,
+      activeConnectionMode: state.activeConnectionMode,
       viewport: flowObject.viewport
     };
     

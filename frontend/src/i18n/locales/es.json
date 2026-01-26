@@ -52,6 +52,15 @@
       "snap": "Ajustar a la Rejilla",
       "spotlight": "Búsqueda Rápida",
       "connections": "Resaltar Conexiones"
+    },
+    "edit": {
+      "title": "Editar",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "duplicate": "Duplicar",
+      "delete": "Eliminar",
+      "selectAll": "Seleccionar Todo",
+      "edit": "Editar Propiedades"
     }
   },
   "sidebar": {
@@ -120,6 +129,8 @@
       "add": "Agregar",
       "noAttributes": "No hay atributos definidos.",
       "noMethods": "No hay métodos definidos.",
+      "cancel": "Cancelar",
+      "save": "Guardar",
       "placeholders": {
         "name": "nombre",
         "methodName": "nombreMetodo"

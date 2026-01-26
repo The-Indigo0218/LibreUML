@@ -1,19 +1,12 @@
-import { memo, useState, useEffect } from "react";
+import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import type { UmlClassData } from "../../../types/diagram.types";
 import { useDiagramStore } from "../../../../../store/diagramStore";
 import { handleConfig } from "../../../../../config/theme.config";
 
-const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
+const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
   const updateNodeData = useDiagramStore((s) => s.updateNodeData);
-  const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
-    if (data.label === "NewClass") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsEditing(true);
-    }
-  }, [data.label]);
+  const [isEditing, setIsEditing] = useState(() => data.label === "NewClass");
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateNodeData(id, { label: e.target.value });
@@ -36,11 +29,13 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
     badgeColor = "text-uml-abstract-border";
   }
 
-
+  const selectionClasses = selected
+    ? "ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] !border-cyan-500 z-10"
+    : "hover:shadow-md";
 
   return (
     <div
-      className={`border-2 rounded-sm w-64 shadow-lg overflow-visible group transition-colors duration-200 ${containerClass}`}
+      className={`border-2 rounded-sm w-64 overflow-visible group transition-all duration-200 ${containerClass} ${selectionClasses}`}
     >
       {/* Target Handles Green */}
       <Handle
@@ -72,7 +67,7 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
 
       {/* HEADER */}
       <div
-        className={`p-2 border-b-2 text-center cursor-pointer hover:brightness-110 transition-all ${headerClass}`}
+        className={`p-2 border-b-2 text-center cursor-pointer hover:brightness-110 transition-all ${headerClass} ${selected ? "border-cyan-500/30!" : ""}`}
         onDoubleClick={() => setIsEditing(true)}
       >
         {isInterface && (
@@ -111,7 +106,11 @@ const UmlClassNode = ({ id, data }: NodeProps<UmlClassData>) => {
 
       {/* BODY: Attributes */}
       <div
-        className={`p-2 border-b-2 min-h-6 text-xs text-left font-mono text-text-secondary ${isInterface ? "border-uml-interface-border" : isAbstract ? "border-uml-abstract-border" : "border-uml-class-border"}`}
+        className={`p-2 border-b-2 min-h-6 text-xs text-left font-mono text-text-secondary ${
+            selected 
+              ? "border-cyan-500/30!" 
+              : isInterface ? "border-uml-interface-border" : isAbstract ? "border-uml-abstract-border" : "border-uml-class-border"
+        }`}
       >
         {data.attributes && data.attributes.length > 0 ? (
           data.attributes.map((attr) => (

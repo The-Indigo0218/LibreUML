@@ -52,6 +52,8 @@ export default function DiagramCanvas() {
     updateNodeData,
     updateEdgeData, 
     showMiniMap,
+    showGrid,
+    snapToGrid,
   } = useDiagramStore();
 
   // Local State (Modals)
@@ -110,6 +112,8 @@ export default function DiagramCanvas() {
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        snapToGrid={snapToGrid}
+        snapGrid={[20, 20]}
         // Hover Interaction
         onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
         onNodeMouseLeave={() => setHoveredNodeId(null)}
@@ -128,6 +132,17 @@ export default function DiagramCanvas() {
         connectionMode={ConnectionMode.Loose}
         fitView
       >
+
+        {showGrid && (         
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={24}
+            size={1.5}
+            color={canvasConfig.gridColor}
+            style={{ opacity: canvasConfig.gridOpacity }}
+          />
+        )}
+
         <Background
           variant={BackgroundVariant.Dots}
           gap={24}

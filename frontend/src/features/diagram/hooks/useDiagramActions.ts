@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react"; 
 import { useDiagramStore } from "../../../store/diagramStore";
 import { useTranslation } from "react-i18next";
 
@@ -30,9 +30,6 @@ export const useDiagramActions = () => {
     executeSafeAction(fileLifecycle.createNewDiagram);
   }, [executeSafeAction, fileLifecycle]);
 
-  /**
-   * HANDLE OPEN
-   */
   const handleOpen = useCallback((webTrigger?: () => void) => {
     if (window.electronAPI?.isElectron()) {
       executeSafeAction(fileLifecycle.openDiagramFromDisk);
@@ -43,13 +40,26 @@ export const useDiagramActions = () => {
     }
   }, [executeSafeAction, fileLifecycle]);
 
+  // --- SAFE EXIT LOGIC ---
   const handleExit = useCallback(() => {
-    executeSafeAction(appLifecycle.handleExit, {
+    executeSafeAction(appLifecycle.quitApplication, { 
       requireConfirm: true,
       confirmTitle: t("menubar.file.exit"),
       confirmMessage: t("modals.confirmation.exitMessage") || "Are you sure you want to exit?", 
     });
   }, [executeSafeAction, appLifecycle, t]);
+
+  // --- OS SYSTEM EVENT LISTENER (FIX LINUX/WINDOWS/MAC) ---
+  useEffect(() => {
+    if (!window.electronAPI?.isElectron()) return;
+
+    const unsubscribe = window.electronAPI.onAppRequestClose(() => {
+      handleExit(); 
+    });
+
+    return unsubscribe;
+  }, [handleExit]);
+
 
   const handleDiscardChangesAction = useCallback(() => {
     const action = hasFilePath ? fileLifecycle.revertDiagram : fileLifecycle.createNewDiagram;
@@ -86,7 +96,7 @@ export const useDiagramActions = () => {
     modalState: {
       ...modalState,
       unsaved: {
-        ...modalState.unsaved, 
+        ...modalState.unsaved,
         onSave: handleModalSave
       }
     }

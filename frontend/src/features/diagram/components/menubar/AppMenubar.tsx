@@ -9,6 +9,7 @@ import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 
 // Modules
 import { FileMenu } from "./modules/FileMenu";
+import { ViewMenu } from "./modules/ViewMenu"; 
 import { SettingsMenu } from "./modules/SettingsMenu"; 
 
 export default function AppMenubar() {
@@ -17,7 +18,6 @@ export default function AppMenubar() {
   
   const actions = useDiagramActions(); 
   
-
   const { modalState } = actions; 
 
   if (!modalState) return null;
@@ -26,7 +26,6 @@ export default function AppMenubar() {
     <>
       <header className="h-10 w-full bg-surface-primary border-b border-surface-border flex items-center justify-between select-none drag-region pl-3 pr-0 z-50 shrink-0">
         
-        {/* IZQUIERDA: Logo + Menus */}
         <div className="flex items-center gap-1 h-full">
           <div className="flex items-center gap-2 font-bold text-sm no-drag mr-4">
              <Box className="w-4 h-4 text-uml-class-border fill-uml-class-bg/20" />
@@ -35,6 +34,7 @@ export default function AppMenubar() {
 
           <div className="flex items-center h-full no-drag">
               <FileMenu actions={actions} />
+              <ViewMenu />  {/* <--- NUEVO ITEM */}
               <SettingsMenu />
           </div>
         </div>

@@ -41,6 +41,17 @@
       "startup": "Inicio: Restaurar Sesión",
       "language": "Idioma",
       "theme": "Tema"
+    },
+    "view": {
+      "title": "Ver",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "fitView": "Ajustar Vista",
+      "minimap": "Mostrar Minimapa",
+      "grid": "Mostrar Rejilla",
+      "snap": "Ajustar a la Rejilla",
+      "spotlight": "Búsqueda Rápida",
+      "connections": "Resaltar Conexiones"
     }
   },
   "sidebar": {

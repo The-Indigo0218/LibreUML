@@ -16,7 +16,7 @@ import type {
   stereotype,
   UmlRelationType,
   DiagramState as SavedDiagramState,
-  UmlEdgeData, 
+  UmlEdgeData,
 } from "../features/diagram/types/diagram.types";
 
 import { getEdgeOptions, getNoteEdgeOptions } from "../util/edgeFactory";
@@ -36,6 +36,9 @@ interface DiagramStoreState {
   currentFilePath?: string;
   isDirty: boolean;
   showMiniMap: boolean;
+  showGrid?: boolean;
+  snapToGrid?: boolean;
+  showAllEdges?: boolean;
 
   // --- React Flow Handlers ---
   onNodesChange: OnNodesChange;
@@ -52,6 +55,9 @@ interface DiagramStoreState {
   setConnectionMode: (mode: UmlRelationType) => void;
   loadDiagram: (data: SavedDiagramState, preservePath?: boolean) => void;
   triggerHistorySnapshot: () => void;
+  toggleGrid: () => void;
+  toggleSnapToGrid: () => void;
+  toggleShowAllEdges: () => void;
 
   // --- Node Actions ---
   addNode: (
@@ -67,7 +73,7 @@ interface DiagramStoreState {
   deleteEdge: (edgeId: string) => void;
   changeEdgeType: (edgeId: string, type: UmlRelationType) => void;
   reverseEdge: (edgeId: string) => void;
-  updateEdgeData: (edgeId: string, data: Partial<UmlEdgeData>) => void; 
+  updateEdgeData: (edgeId: string, data: Partial<UmlEdgeData>) => void;
 }
 
 export const useDiagramStore = create<DiagramStoreState>()(
@@ -80,6 +86,9 @@ export const useDiagramStore = create<DiagramStoreState>()(
       edges: [],
       activeConnectionMode: "association",
       showMiniMap: false,
+      showGrid: true,
+      snapToGrid: true,
+      showAllEdges: false,
       isDirty: false,
 
       // --- State Setters ---
@@ -87,6 +96,9 @@ export const useDiagramStore = create<DiagramStoreState>()(
       setDiagramName: (name) => set({ diagramName: name, isDirty: true }),
       setFilePath: (path) => set({ currentFilePath: path }),
       toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
+      toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
+      toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
+      toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
 
       // --- React Flow Callbacks ---
       onNodesChange: (changes) =>
@@ -114,10 +126,11 @@ export const useDiagramStore = create<DiagramStoreState>()(
         );
         if (isDuplicate) return;
 
-        if (sourceNode?.type === "umlNote" && targetNode?.type === "umlNote") return;
+        if (sourceNode?.type === "umlNote" && targetNode?.type === "umlNote")
+          return;
 
         let edgeOptions;
-        let edgeData: UmlEdgeData; 
+        let edgeData: UmlEdgeData;
 
         if (sourceNode?.type === "umlNote") {
           edgeOptions = getNoteEdgeOptions();
@@ -140,7 +153,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
       addNode: (position, stereotype = "class") => {
         const { nodes } = get();
         if (checkCollision(position, nodes)) return;
-        
+
         const newNode: Node<UmlClassData> = {
           id: crypto.randomUUID(),
           type: stereotype === "note" ? "umlNote" : "umlClass",
@@ -205,7 +218,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
         const { nodes, edges } = get();
         const movedNode = nodes.find((n) => n.id === nodeId);
         if (!movedNode) return;
-        
+
         const newEdges = updateSyncedEdges(movedNode, nodes, edges);
         set({ edges: newEdges, isDirty: true });
       },
@@ -297,7 +310,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
           } else {
             options = getEdgeOptions(type as UmlRelationType);
           }
-          
+
           return {
             ...edge,
             ...options,
@@ -309,7 +322,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
           diagramId: data.id || crypto.randomUUID(),
           diagramName: data.name || "Imported",
           currentFilePath: preservePath ? state.currentFilePath : undefined,
-          
+
           activeConnectionMode: data.activeConnectionMode || "association",
 
           nodes: data.nodes,
@@ -339,20 +352,20 @@ export const useDiagramStore = create<DiagramStoreState>()(
         });
       },
     }),
-    
+
     // --- Zundo Configuration (History) ---
     {
       limit: 50,
       partialize: (state) => {
         const { nodes, edges } = state;
-        
+
         const cleanNodes = nodes.map((n) => ({
           id: n.id,
           type: n.type,
           position: n.position,
           data: n.data,
-          width: n.width,   
-          height: n.height
+          width: n.width,
+          height: n.height,
         }));
 
         const cleanEdges = edges.map((e) => ({

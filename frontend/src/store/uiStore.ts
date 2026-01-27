@@ -1,21 +1,23 @@
 import { create } from "zustand";
 
 // Define the types for active modals in the UI
-export type ActiveModal = 
-  | "none" 
-  | "class-editor" 
-  | "multiplicity-editor" 
-  | "clear-confirmation"; 
+export type ActiveModal =
+  | "none"
+  | "class-editor"
+  | "multiplicity-editor"
+  | "clear-confirmation"
+  | "export-modal";
 
 interface UiStoreState {
   // state
   activeModal: ActiveModal;
-  editingId: string | null; 
+  editingId: string | null;
 
   // actions
   openClassEditor: (nodeId: string) => void;
   openMultiplicityEditor: (edgeId: string) => void;
   openClearConfirmation: () => void;
+  openExportModal: () => void;
   closeModals: () => void;
 }
 
@@ -32,6 +34,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openClearConfirmation: () =>
     set({ activeModal: "clear-confirmation", editingId: null }),
 
-  closeModals: () =>
-    set({ activeModal: "none", editingId: null }),
+  openExportModal: () => set({ activeModal: "export-modal", editingId: null }),
+
+  closeModals: () => set({ activeModal: "none", editingId: null }),
 }));

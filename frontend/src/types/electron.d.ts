@@ -21,18 +21,28 @@ declare global {
   interface Window {
     electronAPI?: {
       isElectron: () => boolean;
-      
-      // Archivos
-      saveFile: (content: string, filePath?: string, defaultName?: string) => Promise<FileOperationResult>;
+
+      // File operations
+      saveFile: (
+        content: string,
+        filePath?: string,
+        defaultName?: string,
+      ) => Promise<FileOperationResult>;
       openFile: () => Promise<FileOperationResult>;
       readFile: (filePath: string) => Promise<ReadFileResult>;
+      saveImage: (
+        dataUrl: string,
+        fileName: string,
+        format: string,
+      ) => Promise<FileOperationResult>;
 
+      // Window controls
       minimize: () => void;
       toggleMaximize: () => void;
       close: () => void;
       onAppRequestClose: (callback: () => void) => () => void;
       sendForceClose: () => void;
-
+      // OS integrations
       associateFiles: () => Promise<AssociationResult>;
       onOpenFileFromOS: (callback: (filePath: string) => void) => () => void;
     };

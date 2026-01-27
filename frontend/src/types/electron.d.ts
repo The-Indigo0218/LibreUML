@@ -27,7 +27,10 @@ declare global {
         content: string,
         filePath?: string,
         defaultName?: string,
+        extensions?: string[],
+        isBinary?: boolean,
       ) => Promise<FileOperationResult>;
+
       openFile: () => Promise<FileOperationResult>;
       readFile: (filePath: string) => Promise<ReadFileResult>;
       saveImage: (

@@ -13,6 +13,7 @@ import { ViewMenu } from "./modules/ViewMenu";
 import { SettingsMenu } from "./modules/SettingsMenu"; 
 import { EditMenu } from "./modules/EditMenu";
 import { ExportMenu } from "./modules/ExportMenu";
+import { CodeMenu } from "./modules/CodeMenu";
 
 export default function AppMenubar() {
   const diagramName = useDiagramStore((s) => s.diagramName);
@@ -37,6 +38,7 @@ export default function AppMenubar() {
           <div className="flex items-center h-full no-drag">
               <FileMenu actions={actions} />
               <EditMenu />
+              <CodeMenu/>
               <ViewMenu />  
               <ExportMenu />
               <SettingsMenu />

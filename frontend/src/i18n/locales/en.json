@@ -61,6 +61,12 @@
       "delete": "Delete",
       "selectAll": "Select All",
       "edit": "Edit Properties"
+    },
+    "export": {
+      "title": "Export",
+      "image": "Image (PNG/SVG)...",
+      "pdf": "Export PDF (Soon)",
+      "github": "Publish to GitHub"
     }
   },
   "sidebar": {
@@ -119,7 +125,9 @@
       "save": "Save",
       "cancel": "Cancel",
       "clear": "Clear",
-      "discard": "Discard"
+      "discard": "Discard",
+      "back": "Back",
+      "continue": "Continue"
     },
     "classEditor": {
       "title": "Edit Class:",
@@ -168,6 +176,18 @@
       "elementsFound": "elements found",
       "navigate": "Navigate",
       "select": "Select"
+    },
+    "export": {
+      "title": "Export Diagram",
+      "format": "Format",
+      "quality": "Quality (Scale)",
+      "transparent": "Transparent Background",
+      "highlight": "Highlight Connections (High Contrast)",
+      "svgWarningTitle": "SVG Compatibility Warning",
+      "svgWarningMessage": "Some image viewers on Windows, Mac, or Linux might not display the exported SVG correctly because it uses embedded HTML/CSS for styling.",
+      "svgTip": "If the file looks empty or broken, try opening the .svg file in a web browser (Chrome, Edge, Firefox).",
+      "dontShowAgain": "Don't show this warning again",
+      "wait": "Read this"
     }
   },
   "alerts": {

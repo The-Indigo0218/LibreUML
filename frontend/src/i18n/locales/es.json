@@ -61,6 +61,12 @@
       "delete": "Eliminar",
       "selectAll": "Seleccionar Todo",
       "edit": "Editar Propiedades"
+    },
+    "export": {
+      "title": "Exportar",
+      "image": "Imagen (PNG/SVG)...",
+      "pdf": "Exportar PDF (Pronto)",
+      "github": "Publicar en GitHub"
     }
   },
   "sidebar": {
@@ -119,7 +125,9 @@
       "save": "Guardar",
       "cancel": "Cancelar",
       "clear": "Limpiar",
-      "discard": "Descartar"
+      "discard": "Descartar",
+      "back": "Atrás",
+      "continue": "Continuar"
     },
     "classEditor": {
       "title": "Editar Clase:",
@@ -168,6 +176,18 @@
       "elementsFound": "elementos encontrados",
       "navigate": "Navegar",
       "select": "Seleccionar"
+    },
+    "export": {
+      "title": "Exportar Diagrama",
+      "format": "Formato",
+      "quality": "Calidad (Escala)",
+      "transparent": "Fondo Transparente",
+      "highlight": "Resaltar Conexiones (Alto Contraste)",
+      "svgWarningTitle": "Aviso de Compatibilidad SVG",
+      "svgWarningMessage": "Algunos visores de imágenes en Windows, Mac o Linux podrían no mostrar el SVG correctamente porque utiliza estilos HTML/CSS incrustados.",
+      "svgTip": "Si el archivo se ve vacío o roto, intenta abrir el .svg en tu navegador web (Chrome, Edge, Firefox).",
+      "dontShowAgain": "No mostrar este aviso de nuevo",
+      "wait": "Lee esto"
     }
   },
   "alerts": {

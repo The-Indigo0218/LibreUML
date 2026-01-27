@@ -30,6 +30,7 @@ import { useEdgeStyling } from "../../hooks/useEdgeStyling";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
 import { useNodeDragging } from "../../hooks/useNodeDragging";
 import { useTranslation } from "react-i18next";
+import ExportModal from "../modals/ExportModal";
 
 const nodeTypes = {
   umlClass: UmlClassNode,
@@ -197,6 +198,11 @@ export default function DiagramCanvas() {
           }}
         />
       )}
+
+      <ExportModal 
+        isOpen={activeModal === 'export-modal'}
+        onClose={closeModals}
+      />
 
       <ConfirmationModal
         isOpen={activeModal === 'clear-confirmation'}

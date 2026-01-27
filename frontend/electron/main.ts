@@ -52,39 +52,37 @@ ipcMain.on("app:force-close", () => {
   app.quit();
 });
 
-ipcMain.handle(
-  "dialog:saveFile",
-  async (_, { content, filePath, defaultName }) => {
-    if (!mainWindow) return { canceled: true };
-
-    if (!filePath) {
-      const defaultFileName = defaultName
-        ? `${defaultName}.luml`
-        : "diagrama-sin-titulo.luml";
-
-      const { canceled, filePath: newPath } = await dialog.showSaveDialog(
-        mainWindow,
-        {
-          title: "Guardar Diagrama",
-          defaultPath: defaultFileName,
-          filters: [{ name: "LibreUML Files", extensions: ["luml", "json"] }],
-        },
-      );
-
-      if (canceled || !newPath) return { canceled: true };
-
-      filePath = newPath;
-    }
-
+ipcMain.handle("dialog:saveFile", async (_, { content, filePath, defaultName, extensions, isBinary }) => {
+  const validExtensions = extensions || ['txt'];
+  const extName = validExtensions[0].toUpperCase();
+    const writeData = (path: string) => {
     try {
-      fs.writeFileSync(filePath, content, "utf-8");
-      return { canceled: false, filePath };
-    } catch (error) {
-      console.error("Error guardando:", error);
-      throw error;
+      const data = isBinary ? Buffer.from(content, 'base64') : content;
+      const options = isBinary ? undefined : 'utf-8';
+      
+      fs.writeFileSync(path, data, options);
+      return { canceled: false, filePath: path };
+    } catch (e) {
+      return { canceled: true, error: String(e) };
     }
-  },
-);
+  };
+
+  if (filePath) {
+    return writeData(filePath);
+  }
+
+  const { canceled, filePath: savePath } = await dialog.showSaveDialog(mainWindow!, {
+    title: 'Guardar Archivo',
+    defaultPath: defaultName || `untitled.${validExtensions[0]}`,
+    filters: [
+      { name: `${extName} File`, extensions: validExtensions }
+    ]
+  });
+
+  if (canceled || !savePath) return { canceled: true };
+
+  return writeData(savePath);
+});
 
 ipcMain.handle("dialog:openFile", async () => {
   if (!mainWindow) return { canceled: true };

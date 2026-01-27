@@ -31,6 +31,8 @@ import { useThemeSystem } from "../../../../hooks/useThemeSystem";
 import { useNodeDragging } from "../../hooks/useNodeDragging";
 import { useTranslation } from "react-i18next";
 import ExportModal from "../modals/ExportModal";
+import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
+import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
 
 const nodeTypes = {
   umlClass: UmlClassNode,
@@ -198,6 +200,16 @@ export default function DiagramCanvas() {
           }}
         />
       )}
+
+      <SingleClassGeneratorModal 
+        isOpen={activeModal === 'engineering-single'}
+        onClose={closeModals}
+      />
+
+      <ProjectGeneratorModal
+        isOpen={activeModal === 'engineering-project'}
+        onClose={closeModals}
+      />
 
       <ExportModal 
         isOpen={activeModal === 'export-modal'}

@@ -6,7 +6,10 @@ export type ActiveModal =
   | "class-editor"
   | "multiplicity-editor"
   | "clear-confirmation"
-  | "export-modal";
+  | "export-modal"
+  | "engineering-single"
+  | "engineering-project"
+  | "engineering-reverse";
 
 interface UiStoreState {
   // state
@@ -18,6 +21,9 @@ interface UiStoreState {
   openMultiplicityEditor: (edgeId: string) => void;
   openClearConfirmation: () => void;
   openExportModal: () => void;
+  openSingleGenerator: () => void;
+  openProjectGenerator: () => void;
+  openReverseEngineering: () => void;
   closeModals: () => void;
 }
 
@@ -35,6 +41,13 @@ export const useUiStore = create<UiStoreState>((set) => ({
     set({ activeModal: "clear-confirmation", editingId: null }),
 
   openExportModal: () => set({ activeModal: "export-modal", editingId: null }),
+
+  openSingleGenerator: () =>
+    set({ activeModal: "engineering-single", editingId: null }),
+  openProjectGenerator: () =>
+    set({ activeModal: "engineering-project", editingId: null }),
+  openReverseEngineering: () =>
+    set({ activeModal: "engineering-reverse", editingId: null }),
 
   closeModals: () => set({ activeModal: "none", editingId: null }),
 }));

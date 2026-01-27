@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   associateFiles: () => ipcRenderer.invoke("app:associate-files"),
 
+  saveImage: (dataUrl: string, fileName: string, format: string) => 
+    ipcRenderer.invoke("dialog:saveImage", { dataUrl, fileName, format }),
+
   onOpenFileFromOS: (callback: (filePath: string) => void) => {
     const subscription = (_: IpcRendererEvent, filePath: string) => callback(filePath);
     ipcRenderer.on('app:open-file-from-os', subscription);

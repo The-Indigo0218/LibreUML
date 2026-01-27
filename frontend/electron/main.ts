@@ -52,7 +52,6 @@ ipcMain.on("app:force-close", () => {
   app.quit();
 });
 
-
 ipcMain.handle(
   "dialog:saveFile",
   async (_, { content, filePath, defaultName }) => {
@@ -63,11 +62,14 @@ ipcMain.handle(
         ? `${defaultName}.luml`
         : "diagrama-sin-titulo.luml";
 
-      const { canceled, filePath: newPath } = await dialog.showSaveDialog(mainWindow, {
-        title: "Guardar Diagrama",
-        defaultPath: defaultFileName,
-        filters: [{ name: "LibreUML Files", extensions: ["luml", "json"] }],
-      });
+      const { canceled, filePath: newPath } = await dialog.showSaveDialog(
+        mainWindow,
+        {
+          title: "Guardar Diagrama",
+          defaultPath: defaultFileName,
+          filters: [{ name: "LibreUML Files", extensions: ["luml", "json"] }],
+        },
+      );
 
       if (canceled || !newPath) return { canceled: true };
 
@@ -104,13 +106,47 @@ ipcMain.handle("dialog:openFile", async () => {
   }
 });
 
+ipcMain.handle("dialog:saveImage", async (_, { dataUrl, fileName, format }) => {
+  if (!mainWindow) return { canceled: true };
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: `Exportar ${format.toUpperCase()}`,
+    defaultPath: `${fileName}.${format}`,
+    filters: [{ name: format.toUpperCase(), extensions: [format] }],
+  });
+
+  if (canceled || !filePath) return { canceled: true };
+
+  try {
+    const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+
+    if (format === "png") {
+      const buffer = Buffer.from(base64Data, "base64");
+      fs.writeFileSync(filePath, buffer);
+    } else {
+      if (dataUrl.includes("base64,")) {
+        const buffer = Buffer.from(base64Data, "base64");
+        fs.writeFileSync(filePath, buffer);
+      } else {
+        const svgContent = decodeURIComponent(
+          dataUrl.replace(/^data:image\/svg\+xml;charset=utf-8,/, ""),
+        );
+        fs.writeFileSync(filePath, svgContent, "utf-8");
+      }
+    }
+
+    return { canceled: false, filePath };
+  } catch (error) {
+    console.error("Error guardando imagen:", error);
+    return { canceled: true, error: String(error) };
+  }
+});
 
 ipcMain.on("window-close", () => mainWindow?.close());
 
 ipcMain.handle("file:read", async (_, filePath) => {
   try {
     if (!fs.existsSync(filePath)) {
-        return { success: false, error: "File not found" };
+      return { success: false, error: "File not found" };
     }
     const content = fs.readFileSync(filePath, "utf-8");
     return { success: true, content };

@@ -8,6 +8,7 @@ interface SettingsState {
   restoreSession: boolean;
   theme: "light" | "dark" | "system"; 
   language: string;
+  suppressSvgWarning: boolean;
   
   // --- inside state  ---
   lastFilePath?: string; 
@@ -18,6 +19,7 @@ interface SettingsState {
   setTheme: (theme: "light" | "dark") => void;
   setLanguage: (lang: string) => void;
   setLastFilePath: (path: string | undefined) => void;
+  setSuppressSvgWarning: (suppress: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -27,6 +29,7 @@ export const useSettingsStore = create<SettingsState>()(
       restoreSession: false,
       theme: "dark", 
       language: "en",
+      suppressSvgWarning: false,
       lastFilePath: undefined,
 
       toggleAutoSave: () => set((s) => ({ autoSave: !s.autoSave })),
@@ -40,6 +43,8 @@ export const useSettingsStore = create<SettingsState>()(
         set({ language: lang });
       },
 
+      setSuppressSvgWarning: (suppress) => set({ suppressSvgWarning: suppress }),
+
       setLastFilePath: (path) => set({ lastFilePath: path }),
     }),
     {
@@ -49,7 +54,8 @@ export const useSettingsStore = create<SettingsState>()(
         restoreSession: state.restoreSession,
         theme: state.theme,
         language: state.language,
-        lastFilePath: state.lastFilePath
+        lastFilePath: state.lastFilePath,
+        suppressSvgWarning: state.suppressSvgWarning,
       }),
     }
   )

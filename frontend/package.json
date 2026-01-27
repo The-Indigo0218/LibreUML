@@ -11,12 +11,14 @@
     "preview": "vite preview",
     "dist": "npm run build && electron-builder",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"npm run electron:build -- --watch\"",
-"electron:build": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\": \\\"commonjs\\\"}')\" && electron ."  },
+    "electron:build": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\": \\\"commonjs\\\"}')\" && electron ."
+  },
   "dependencies": {
     "electron-is-dev": "^3.0.1",
     "html-to-image": "^1.11.13",
     "i18next": "^25.8.0",
     "i18next-browser-languagedetector": "^8.2.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -28,6 +30,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/jszip": "^3.4.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
@@ -61,7 +64,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/icon.ico" 
+      "icon": "public/icon.ico"
     },
     "mac": {
       "target": "dmg",

@@ -49,12 +49,36 @@ Diseña tu diagrama de clases y expórtalo como un proyecto **Java (Maven/Gradle
 
 ---
 
+## 🌱 Visión del Proyecto
+
+LibreUML es un proyecto educativo y open source con una visión a largo plazo: 
+hacer del **modelado visual una habilidad accesible**, moderna y libre para estudiantes, docentes y personas en formación técnica.
+
+El proyecto explora no solo UML, sino también diagramas de flujo, modelado de bases de datos y otras formas de representación visual como herramientas de pensamiento.
+
+👉 [Leer la Visión de LibreUML](docs/VISION.md)  
+👉 [Conocer la proyección educativa: LibreUML Academy](docs/education/ACADEMY_VISION.md)
+
+---
+
 ## 🛑 ¿Qué NO es LibreUML?
 
 Para gestionar las expectativas:
 * ❌ **No es un SaaS:** No hay base de datos central ni colaboración en tiempo real (por diseño).
 * ❌ **No es un LMS:** No califica a los estudiantes (aunque incluye herramientas para que ellos se auto-evalúen).
 * ❌ **No es un IDE completo:** Genera la estructura, pero la lógica de negocio se escribe en tu IDE favorito (IntelliJ, Eclipse, VS Code).
+
+---
+
+## 📚 Documentation
+
+- 🌱 [Project Vision](docs/VISION.md)
+- 🎓 [LibreUML Academy (Educational Vision)](docs/education/ACADEMY_VISION.md)
+- 🎓 [For Educators](docs/education/FOR_EDUCATORS.md)
+- 🚀 [Getting Started](docs/onboarding/GETTING_STARTED.md)
+- 📐 [UML Standard Compliance](docs/uml/UML_STANDARD.md)
+- 🧩 [UI Architecture](UI_ARCHITECTURE.md)
+
 
 ---
 

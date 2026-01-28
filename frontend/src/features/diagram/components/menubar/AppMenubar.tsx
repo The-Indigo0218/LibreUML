@@ -14,6 +14,8 @@ import { SettingsMenu } from "./modules/SettingsMenu";
 import { EditMenu } from "./modules/EditMenu";
 import { ExportMenu } from "./modules/ExportMenu";
 import { CodeMenu } from "./modules/CodeMenu";
+import { EduMenu } from "./modules/EduMenu";
+import { HelpMenu } from "./modules/HelpMenu";
 
 export default function AppMenubar() {
   const diagramName = useDiagramStore((s) => s.diagramName);
@@ -42,6 +44,8 @@ export default function AppMenubar() {
               <ViewMenu />  
               <ExportMenu />
               <SettingsMenu />
+              <EduMenu />
+              <HelpMenu />
           </div>
         </div>
 

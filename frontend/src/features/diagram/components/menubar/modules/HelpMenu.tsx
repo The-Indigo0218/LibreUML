@@ -7,8 +7,10 @@ import {
 } from "lucide-react";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
+import { useTranslation } from "react-i18next";
 
 export function HelpMenu() {
+  const { t } = useTranslation();
   
   const openDocs = () => window.open("https://github.com/tu-usuario/LibreUML#readme", "_blank");
   const reportIssue = () => window.open("https://github.com/tu-usuario/LibreUML/issues", "_blank");
@@ -19,22 +21,22 @@ export function HelpMenu() {
   };
 
   return (
-    <MenubarTrigger label="Help">
+    <MenubarTrigger label={t("menubar.help.title")}>
       
       <MenubarItem
-        label="Getting Started"
+        label={t("menubar.help.gettingStarted")}
         icon={<Rocket className="w-4 h-4" />}
         disabled={true} // 🔒 Incoming
       />
 
       <MenubarItem
-        label="Documentation"
+        label={t("menubar.help.documentation")}
         icon={<BookOpen className="w-4 h-4" />}
         onClick={openDocs}
       />
 
       <MenubarItem
-        label="Report Issue"
+        label={t("menubar.help.reportIssue")}
         icon={<Bug className="w-4 h-4" />}
         onClick={reportIssue}
       />
@@ -42,13 +44,13 @@ export function HelpMenu() {
       <div className="h-px bg-surface-border my-1" />
 
       <MenubarItem
-        label="Roadmap"
+        label={t("menubar.help.roadmap")}
         icon={<Map className="w-4 h-4" />}
         onClick={openRoadmap}
       />
 
       <MenubarItem
-        label="About LibreUML"
+        label={t("menubar.help.about")}
         icon={<Info className="w-4 h-4" />}
         onClick={showAbout}
       />

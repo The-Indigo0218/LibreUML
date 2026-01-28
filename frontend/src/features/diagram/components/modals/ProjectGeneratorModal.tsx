@@ -3,6 +3,7 @@ import { Package, Download, Box, Hammer, Coffee } from "lucide-react";
 import { useDiagramStore } from "../../../../store/diagramStore";
 import { ProjectZipperService } from "../../../../services/project-zipper.service";
 import type { UmlClassNode } from "../../types/diagram.types";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface Props {
 export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
   const nodes = useDiagramStore((s) => s.nodes);
   const diagramName = useDiagramStore((s) => s.diagramName);
+  const { t } = useTranslation();
   
   // --- State  ---
   const [groupId, setGroupId] = useState("com.example");
@@ -30,7 +32,6 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
 
   const classNodes = nodes.filter(n => n.type === 'umlClass') as UmlClassNode[];
 
-  // Calculamos el paquete en tiempo real
   const packageName = `${groupId}.${artifactId}`.replace(/\.\./g, ".").toLowerCase();
 
   if (!isOpen) return null;
@@ -66,8 +67,8 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
             <Package className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-text-primary">Generate Project</h3>
-            <p className="text-xs text-text-muted">Export structure ready for IDEs</p>
+            <h3 className="font-bold text-text-primary">{t("modals.projectGenerator.title")}</h3>
+            <p className="text-xs text-text-muted">{t("modals.projectGenerator.subtitle")}</p>
           </div>
         </div>
 
@@ -78,11 +79,11 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
           <div className="flex items-center justify-between p-3 bg-surface-secondary/30 rounded-lg border border-surface-border">
              <div className="flex items-center gap-2 text-sm text-text-secondary">
                 <Box className="w-4 h-4 text-purple-400" />
-                <span className="font-mono">{classNodes.length} Classes</span>
+                <span className="font-mono">{classNodes.length} {t("modals.projectGenerator.statsClasses")}</span>
              </div>
              <div className="w-px h-4 bg-surface-border" />
              <div className="flex items-center gap-2 text-sm text-text-secondary">
-                 <span className="text-xs text-text-muted">Target Package:</span>
+                 <span className="text-xs text-text-muted">{t("modals.projectGenerator.statsPackage")}:</span>
                  <span className="font-mono text-purple-300">{packageName}</span>
              </div>
           </div>
@@ -91,7 +92,7 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
              {/* Left Col: Identifiers */}
              <div className="space-y-4">
                  <div className="space-y-1">
-                   <label className="text-xs font-bold text-text-secondary uppercase">Group ID</label>
+                   <label className="text-xs font-bold text-text-secondary uppercase">{t("modals.projectGenerator.groupId")}</label>
                    <input 
                      className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-sm font-mono text-text-primary focus:border-purple-500 outline-none transition-colors"
                      value={groupId}
@@ -101,7 +102,7 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
                  </div>
                  
                  <div className="space-y-1">
-                   <label className="text-xs font-bold text-text-secondary uppercase">Artifact ID</label>
+                   <label className="text-xs font-bold text-text-secondary uppercase">{t("modals.projectGenerator.artifactId")}</label>
                    <input 
                      className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-sm font-mono text-text-primary focus:border-purple-500 outline-none transition-colors"
                      value={artifactId}
@@ -116,7 +117,7 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
                 {/* Build Tool Selector */}
                 <div className="space-y-1">
                    <label className="text-xs font-bold text-text-secondary uppercase flex items-center gap-1">
-                      <Hammer className="w-3 h-3" /> Build System
+                      <Hammer className="w-3 h-3" /> {t("modals.projectGenerator.buildSystem")}
                    </label>
                    <div className="grid grid-cols-2 gap-2">
                       <button
@@ -137,7 +138,7 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
                 {/* Java Version Selector */}
                 <div className="space-y-1">
                    <label className="text-xs font-bold text-text-secondary uppercase flex items-center gap-1">
-                      <Coffee className="w-3 h-3" /> Java Version
+                      <Coffee className="w-3 h-3" /> {t("modals.projectGenerator.javaVersion")}
                    </label>
                    <select
                      value={javaVersion}
@@ -157,16 +158,16 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
         {/* Footer */}
         <div className="px-6 py-4 border-t border-surface-border bg-surface-secondary/50 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">
-             Cancel
+            {t("modals.common.cancel")}
           </button>
           <button 
             onClick={handleGenerate}
             disabled={isGenerating}
             className="flex items-center gap-2 px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-500 font-medium shadow-md active:scale-95 transition-all disabled:opacity-50"
           >
-            {isGenerating ? "Zipping..." : (
+            {isGenerating ? t("modals.projectGenerator.zipping") : (
                <>
-                 <Download className="w-4 h-4" /> Download .zip
+                 <Download className="w-4 h-4" /> {t("modals.projectGenerator.download")}
                </>
             )}
           </button>

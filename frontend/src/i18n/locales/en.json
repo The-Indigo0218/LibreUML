@@ -67,6 +67,30 @@
       "image": "Image (PNG/SVG)...",
       "pdf": "Export PDF (Soon)",
       "github": "Publish to GitHub"
+    },
+    "code": {
+      "title": "Code",
+      "generateClass": "Generate Class Code...",
+      "generateProject": "Generate Project (.zip)...",
+      "importJava": "Import Java Code...",
+      "livePreview": "Live Code Preview"
+    },
+    "edu": {
+      "title": "Edu",
+      "placeholder": "Learning Tools (Soon)",
+      "linter": "UML Linter (Auto-grade)",
+      "exam": "Exam Mode",
+      "achievements": "Achievements",
+      "gamification": "Keyboard Gamification",
+      "certificates": "Certificates"
+    },
+    "help": {
+      "title": "Help",
+      "gettingStarted": "Getting Started",
+      "documentation": "Documentation",
+      "reportIssue": "Report Issue",
+      "roadmap": "Roadmap",
+      "about": "About LibreUML"
     }
   },
   "sidebar": {
@@ -188,6 +212,32 @@
       "svgTip": "If the file looks empty or broken, try opening the .svg file in a web browser (Chrome, Edge, Firefox).",
       "dontShowAgain": "Don't show this warning again",
       "wait": "Read this"
+    },
+    "importCode": {
+      "title": "Import Java Code",
+      "subtitle": "Reverse engineering: Java to UML",
+      "tabUpload": "Upload File",
+      "tabPaste": "Paste Code",
+      "dragDropTitle": "Click to upload or drag & drop",
+      "dragDropSubtitle": "Supports .java files",
+      "ready": "Ready to import",
+      "placeholder": "Paste your Java class code here...",
+      "analyzing": "Analyzing...",
+      "importBtn": "Import Class",
+      "errorExt": "Please upload a valid .java file",
+      "errorEmpty": "No code to import"
+    },
+    "projectGenerator": {
+      "title": "Generate Project",
+      "subtitle": "Export structure ready for IDEs",
+      "statsClasses": "Classes",
+      "statsPackage": "Target Package",
+      "groupId": "GROUP ID",
+      "artifactId": "ARTIFACT ID",
+      "buildSystem": "BUILD SYSTEM",
+      "javaVersion": "JAVA VERSION",
+      "zipping": "Zipping...",
+      "download": "Download .zip"
     }
   },
   "alerts": {

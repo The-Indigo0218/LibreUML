@@ -80,7 +80,7 @@ Proyecto construido con arquitectura moderna y estándares de calidad:
 
 ```bash
 # 1. Clonar el repositorio
-git clone [https://github.com/The_Indigo0218/LibreUML.git](https://github.com/The_Indigo0218/LibreUML.git)
+git clone https://github.com/The_Indigo0218/LibreUML.git
 
 # 2. Entrar al directorio
 cd LibreUML
@@ -90,6 +90,7 @@ npm install
 
 # 4. Iniciar en modo desarrollo
 npm run dev
+npm run electron:dev
 
 ```
 

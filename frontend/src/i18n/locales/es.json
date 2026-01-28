@@ -67,6 +67,30 @@
       "image": "Imagen (PNG/SVG)...",
       "pdf": "Exportar PDF (Pronto)",
       "github": "Publicar en GitHub"
+    },
+    "code": {
+      "title": "Código",
+      "generateClass": "Generar Código de Clase...",
+      "generateProject": "Generar Proyecto (.zip)...",
+      "importJava": "Importar Código Java...",
+      "livePreview": "Vista Previa en Vivo"
+    },
+    "edu": {
+      "title": "Edu",
+      "placeholder": "Herramientas (Pronto)",
+      "linter": "Linter UML (Auto-calificar)",
+      "exam": "Modo Examen",
+      "achievements": "Logros",
+      "gamification": "Gamificación Teclado",
+      "certificates": "Certificados"
+    },
+    "help": {
+      "title": "Ayuda",
+      "gettingStarted": "Primeros Pasos",
+      "documentation": "Documentación",
+      "reportIssue": "Reportar Error",
+      "roadmap": "Hoja de Ruta",
+      "about": "Acerca de LibreUML"
     }
   },
   "sidebar": {
@@ -188,6 +212,32 @@
       "svgTip": "Si el archivo se ve vacío o roto, intenta abrir el .svg en tu navegador web (Chrome, Edge, Firefox).",
       "dontShowAgain": "No mostrar este aviso de nuevo",
       "wait": "Lee esto"
+    },
+    "importCode": {
+      "title": "Importar Código Java",
+      "subtitle": "Ingeniería inversa: Java a UML",
+      "tabUpload": "Subir Archivo",
+      "tabPaste": "Pegar Código",
+      "dragDropTitle": "Clic para subir o arrastra y suelta",
+      "dragDropSubtitle": "Soporta archivos .java",
+      "ready": "Listo para importar",
+      "placeholder": "Pega tu código de clase Java aquí...",
+      "analyzing": "Analizando...",
+      "importBtn": "Importar Clase",
+      "errorExt": "Por favor sube un archivo .java válido",
+      "errorEmpty": "No hay código para importar"
+    },
+    "projectGenerator": {
+      "title": "Generar Proyecto",
+      "subtitle": "Exportar estructura lista para IDEs",
+      "statsClasses": "Clases",
+      "statsPackage": "Paquete Destino",
+      "groupId": "GROUP ID",
+      "artifactId": "ARTIFACT ID",
+      "buildSystem": "SISTEMA DE CONSTRUCCIÓN",
+      "javaVersion": "VERSIÓN JAVA",
+      "zipping": "Comprimiendo...",
+      "download": "Descargar .zip"
     }
   },
   "alerts": {

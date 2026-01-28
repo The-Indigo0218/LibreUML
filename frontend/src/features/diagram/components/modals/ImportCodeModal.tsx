@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { Upload, FileText, Code, AlertCircle, X } from "lucide-react";
 import { useDiagramStore } from "../../../../store/diagramStore";
 import { ReverseEngineeringService } from "../../../../services/reverseEngineering.service";
+import { useTranslation } from "react-i18next";
 // Import types for casting
 import type {
   UmlClassNode,
@@ -19,6 +20,9 @@ interface Props {
 type Tab = "upload" | "paste";
 
 export default function ImportCodeModal({ isOpen, onClose }: Props) {
+
+  const {t} = useTranslation();
+
   const [activeTab, setActiveTab] = useState<Tab>("upload");
   const [code, setCode] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -101,9 +105,9 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
               <Upload className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-text-primary">Import Java Code</h3>
+              <h3 className="font-bold text-text-primary">{t("modals.importCode.title")}</h3>
               <p className="text-xs text-text-muted">
-                Reverse engineering: Java to UML
+                {t("modals.importCode.subtitle")}
               </p>
             </div>
           </div>
@@ -121,13 +125,13 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
             onClick={() => setActiveTab("upload")}
             className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${activeTab === "upload" ? "bg-surface-primary text-green-400 border-b-2 border-green-400" : "bg-surface-secondary/30 text-text-secondary hover:text-text-primary"}`}
           >
-            <FileText className="w-4 h-4" /> Upload File
+            <FileText className="w-4 h-4" /> {t("modals.importCode.tabUpload")}
           </button>
           <button
             onClick={() => setActiveTab("paste")}
             className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${activeTab === "paste" ? "bg-surface-primary text-green-400 border-b-2 border-green-400" : "bg-surface-secondary/30 text-text-secondary hover:text-text-primary"}`}
           >
-            <Code className="w-4 h-4" /> Paste Code
+            <Code className="w-4 h-4" /> {t("modals.importCode.tabPaste")}
           </button>
         </div>
 
@@ -155,7 +159,7 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
                   </div>
                   <div className="text-center">
                     <p className="text-text-primary font-medium">{fileName}</p>
-                    <p className="text-sm text-green-400">Ready to import</p>
+                    <p className="text-sm text-green-400">{t("modals.importCode.ready")}</p>
                   </div>
                 </>
               ) : (
@@ -165,10 +169,10 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
                   </div>
                   <div className="text-center space-y-1">
                     <p className="text-text-primary font-medium">
-                      Click to upload or drag & drop
+                      {t("modals.importCode.dragDropTitle")}
                     </p>
                     <p className="text-xs text-text-muted">
-                      Supports .java files
+                      {t("modals.importCode.dragDropSubtitle")}
                     </p>
                   </div>
                 </>
@@ -178,7 +182,7 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
             <div className="h-full flex flex-col gap-2">
               <textarea
                 className="w-full h-75 bg-surface-secondary border border-surface-border rounded-lg p-4 font-mono text-xs text-text-primary outline-none focus:border-green-500/50 resize-none"
-                placeholder="Paste your Java class code here..."
+                placeholder={t("modals.importCode.placeholder") || "Paste your Java code here..."}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 spellCheck={false}
@@ -200,7 +204,7 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
             onClick={onClose}
             className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
           >
-            Cancel
+            {t("modals.common.cancel")}
           </button>
           <button
             onClick={handleImport}
@@ -208,10 +212,10 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
             className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-500 font-medium shadow-md active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing ? (
-              "Analyzing..."
+              t("modals.importCode.analyzing")
             ) : (
               <>
-                <Upload className="w-4 h-4" /> Import Class
+                <Upload className="w-4 h-4" /> {t("modals.importCode.importBtn")}
               </>
             )}
           </button>

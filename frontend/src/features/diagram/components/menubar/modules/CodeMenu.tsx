@@ -4,13 +4,13 @@ import {
   Upload, 
   Play 
 } from "lucide-react";
-//import { useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useUiStore } from "../../../../../store/uiStore";
 
 export function CodeMenu() {
-  //const { t } = useTranslation();
+  const { t } = useTranslation();
   
   // Store actions
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator); 
@@ -18,41 +18,36 @@ export function CodeMenu() {
   const openImportModal = useUiStore((s) => s.openImportCode);
 
   return (
-    <MenubarTrigger label="Code">
-      
-      {/* UML -> Code (Single Class) */}
+   <MenubarTrigger label={t("menubar.code.title")}>
       <MenubarItem
-        label="Generate Class Code..."
+        label={t("menubar.code.generateClass")} 
         icon={<FileCode className="w-4 h-4" />}
         shortcut="Ctrl+G"
-        onClick={openSingleGenerator}
+        onClick={openSingleGenerator} 
       />
 
       {/*  Generate Project (Bulk) */}
       <MenubarItem
-        label="Generate Project (.zip)..."
+        label={t("menubar.code.generateProject")} 
         icon={<Package className="w-4 h-4" />}
         onClick={openProjectGenerator}
       />
-
       <div className="h-px bg-surface-border my-1" />
 
       {/*  Code -> UML (Reverse) */}
       <MenubarItem
-        label="Import Java Code..."
+        label={t("menubar.code.importJava")} 
         icon={<Upload className="w-4 h-4" />}
         onClick={openImportModal}
       />
-
       <div className="h-px bg-surface-border my-1" />
 
       {/* Future Stuff */}
       <MenubarItem
-        label="Live Code Preview"
+        label={t("menubar.code.livePreview")} 
         icon={<Play className="w-4 h-4" />}
         disabled={true} 
       />
-
     </MenubarTrigger>
   );
 }

@@ -1,172 +1,149 @@
 # 🧩 UI_ARCHITECTURE.md
 ## LibreUML — User Interface Architecture
 
+**Versión:** 1.0.0  
+**Estado:** Core Feature Complete
+
 Este documento describe la **arquitectura de la interfaz de usuario** de LibreUML.  
 Su objetivo es servir como referencia técnica, guía de diseño y documento de alineación para futuras contribuciones.
 
-LibreUML adopta una **filosofía de interfaz tipo VS Code**:
-- Menús claros y jerárquicos
-- Funciones explícitas
-- Separación estricta entre *Core* y *Future Features*
-- Enfoque profesional, no experimental
+LibreUML adopta una **filosofía de interfaz tipo VS Code (IDE-like)**:
+
+- Menús claros y jerárquicos (*File, Edit, View, Code...*)
+- Funciones explícitas y predecibles
+- Separación estricta entre **Core** y **Future Features**
+- Enfoque profesional, priorizando la productividad sobre la gamificación
 
 ---
 
 ## 🎯 Principios de Diseño
 
-1. **Clarity over Cleverness**  
-   Cada acción debe ser explícita y predecible.
+### 1. Clarity over Cleverness
+Cada acción debe ser explícita. Se evitan menús ocultos o gestos no documentados.
 
-2. **Local-First UX**  
-   El usuario siempre siente control total de sus archivos.
+### 2. Local-First UX
+El usuario mantiene control total: los archivos se leen y escriben en el disco local, no en una nube opaca.
 
-3. **Progressive Disclosure**  
-   Funcionalidades avanzadas existen, pero no saturan la interfaz.
+### 3. Progressive Disclosure
+Herramientas avanzadas (Ingeniería Inversa, Generación de Proyectos) existen sin saturar la vista inicial.
 
-4. **Editor First**  
-   LibreUML es un editor visual. Educación y métricas son capas adicionales.
+### 4. State-Driven UI
+La interfaz refleja el estado global (**Zustand**).  
+Si el estado cambia, la UI reacciona instantáneamente.
 
-5. **Parity Desktop / Web**  
-   La UI debe sentirse consistente entre Electron y Web.
+### 5. Parity Desktop / Web
+Diseño responsivo y agnóstico a la plataforma, listo para Electron sin cambios mayores.
 
 ---
 
 ## 🧱 Estructura Global de la UI
 
+La aplicación sigue el patrón **Holy Grail Layout** adaptado a herramientas de diagramación:
+
 ```
-┌───────────────────────────────────────────┐
-│ Application Menu (File · Edit · View …)   │
-├───────────────────────────────────────────┤
-│ Header / Toolbar (contextual actions)     │
-├───────────────┬───────────────────────────┤
-│ Sidebar       │ Canvas (React Flow)       │
-│ (Tools)       │                           │
-│               │                           │
-├───────────────┴───────────────────────────┤
-│ Status Bar (future: metrics, hints)       │
-└───────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│ Application Menubar (File · Edit · View · Code ...)     │
+├────────────────────────────────────────────────────────┤
+│ Toolbar (Contextual Actions: Zoom, Undo, Fit)          │
+├───────────────┬────────────────────────────────────────┤
+│ Sidebar       │                                        │
+│ (Toolbox &    │      CANVAS (React Flow)               │
+│  Drag Items)  │   Infinite Workspace Layer             │
+│               │                                        │
+│               │   ┌────────────────────────────┐       │
+│               │   │ Floating Modals (Z-50)     │       │
+│               │   └────────────────────────────┘       │
+├───────────────┴────────────────────────────────────────┤
+│ Status Bar (Language: Java 21 · Mode: UML Class)       │
+└────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 📁 FILE — Gestión de Archivos
 
-| Acción | Estado |
-|------|--------|
-| New Diagram | ✅ |
-| Open (.luml / .json) | ✅ |
-| Open Recent | 🔒 Incoming |
-| Save | ✅ |
-| Save As | ✅ |
-| Auto Save (backup local) | 🟡 In progress |
-| Revert Diagram | 🔒 Incoming |
-| Close Diagram (safe close) | ✅ |
-| Start Clean | ✅ |
-| File Association (.luml) | 🟡 In progress |
-| Exit | ✅ |
+| Acción | Estado | Descripción |
+|------|------|-------------|
+| New Diagram | ✅ | Reinicia el store y limpia el canvas |
+| Open (.luml) | ✅ | Carga y deshidrata el estado JSON completo |
+| Save / Save As | ✅ | Serializa el estado a JSON descargable |
+| Auto Save | 🟡 | Persistencia en localStorage (backup local) |
+| Exit | ✅ | Cierre seguro con confirmación de cambios |
 
 ---
 
-## ✏️ EDIT — Edición UML
+## 👁️ VIEW — Visualización & Accesibilidad
 
-| Acción | Estado |
-|------|--------|
-| Undo / Redo | 🟡 In progress |
-| Duplicate Node (Ctrl+D) | ✅ |
-| Delete Selection | ✅ |
-| Edit Node Content | ✅ |
-| Connection Management | ✅ |
-| Drag & Drop Nodes | ✅ |
-| Collision Detection | ✅ |
-| Copy / Paste Style | 🔒 Incoming |
+| Acción | Estado | Descripción |
+|------|------|-------------|
+| Zoom Controls | ✅ | Control preciso del viewport |
+| Minimap | ✅ | Navegación rápida en diagramas grandes |
+| Theme System | ✅ | Dark / Light con variables CSS |
+| Internationalization | ✅ | Motor i18n (ES / EN) |
+| Spotlight Search | ✅ | Búsqueda rápida (Ctrl+K) |
 
 ---
 
-## 👁️ VIEW — Visualización
+## 💻 CODE — Ingeniería de Software (Core Feature)
 
-| Acción | Estado |
-|------|--------|
-| Zoom In / Out | ✅ |
-| Fit View | ✅ |
-| Minimap | ✅ |
-| Spotlight Search (Ctrl+K) | 🟡 In progress |
-| Theme (Light / Dark) | 🟡 In progress |
-| Language (ES / EN) | 🟡 In progress |
-| Zen Mode | 🔒 Incoming |
+Esta sección diferencia a LibreUML de herramientas de dibujo tradicionales.
 
----
-
-## 📤 EXPORT — Exportación
-
-| Acción | Estado |
-|------|--------|
-| Export .luml | ✅ |
-| Export PNG (HD) | 🟡 In progress |
-| Export SVG | 🟡 In progress |
-| Export PDF | 🔒 Incoming |
-| Export to GitHub | 🔒 Incoming |
+| Acción | Estado | Tecnología / Patrón |
+|------|------|---------------------|
+| Generate Java Class | ✅ | Transpilación UML → Java |
+| Generate Project | ✅ | Maven / Gradle + ZIP (JSZip) |
+| Reverse Engineering | ✅ | Parser Java + Ghost Nodes |
+| Live Code Preview | 🔒 | Renderizado en tiempo real (Próximamente) |
 
 ---
 
-## ⚙️ ENGINEERING — Generación de Código
+## 🎓 EDU — Capa Educativa (Placeholder Architecture)
 
-| Acción | Estado |
-|------|--------|
-| UML → Java | 🟡 In progress |
-| UML → Python | 🔒 Incoming |
-| UML → SQL | 🔒 Incoming |
-| Code → UML | 🔒 Incoming |
-| Live Code Preview | 🔒 Incoming |
+Menú visible pero funcionalmente bloqueado para mostrar la visión a largo plazo.
 
----
-
-## 🎓 EDU — Capa Educativa (No Core)
-
-| Acción | Estado |
-|------|--------|
-| UML Linter | 🔒 Incoming |
-| Exam Mode | 🔒 Incoming |
-| Achievements / Badges | 🔒 Incoming |
-| Keyboard Gamification | 🔒 Incoming |
-| Certificates | 🔒 Incoming |
+| Acción | Estado | Notas |
+|------|------|-------|
+| UML Linter | 🔒 | Análisis estático de errores |
+| Exam Mode | 🔒 | Bloqueo de importaciones |
+| Gamification | 🔒 | Badges y logros |
 
 ---
 
-## ❓ HELP — Soporte y Comunidad
+## ❓ HELP — Soporte
 
-| Acción | Estado |
-|------|--------|
-| Getting Started | 🔒 Incoming |
-| Documentation | 🟡 In progress |
-| Report Issue | 🟡 In progress |
-| Roadmap | ✅ |
-| About LibreUML | ✅ |
-
----
-
-## 🧭 Header / Toolbar (Tipo VS Code)
-
-### Acciones visibles (Core):
-- New Diagram
-- Open
-- Save
-- Undo / Redo
-- Zoom Controls
-- Fit View
-
-### Acciones contextuales:
-- Export
-- Theme Toggle
-- Spotlight Search
+| Acción | Estado | Descripción |
+|------|------|-------------|
+| Getting Started | 🔒 | Tour interactivo |
+| Documentation | ✅ | Wiki / Readme |
+| Roadmap | ✅ | Project Board |
+| Report Issue | ✅ | GitHub Issues |
+| About | ✅ | Versión y licencia |
 
 ---
 
-## 🧠 Notas Finales
+## 🎨 Design Tokens & Theming
 
-- Funcionalidades **Incoming** deben mostrarse deshabilitadas.
-- El editor nunca debe depender de login para funcionar.
-- Capas educativas y métricas son opcionales.
+El sistema de diseño utiliza **Tailwind CSS** con abstracción semántica:
+
+- **Surface Levels:** surface-primary, surface-secondary, surface-hover
+- **Text Levels:** text-primary, text-secondary, text-muted
+- **Accents:** Verde = Éxito, Rojo = Error/Privado, Azul = Info/Público
 
 ---
 
-**Este documento define el contrato visual de LibreUML.**
+## 🧩 Componentes Modales (Overlay System)
+
+Arquitectura centralizada en el **UiStore** para evitar *prop drilling*.
+
+### Import Code Modal
+- Drag & Drop
+- Pegado de texto
+- Validación visual
+
+### Project Generator Modal
+- Metadata (GroupId, ArtifactId)
+- Build Tool: Maven / Gradle
+
+---
+
+**Este documento define el contrato visual y funcional de LibreUML v1.0.0.**

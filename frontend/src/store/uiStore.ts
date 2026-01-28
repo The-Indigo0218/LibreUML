@@ -9,7 +9,9 @@ export type ActiveModal =
   | "export-modal"
   | "engineering-single"
   | "engineering-project"
-  | "engineering-reverse";
+  | "engineering-reverse"
+  | "import-code"
+  | null;
 
 interface UiStoreState {
   // state
@@ -24,11 +26,12 @@ interface UiStoreState {
   openSingleGenerator: () => void;
   openProjectGenerator: () => void;
   openReverseEngineering: () => void;
+  openImportCode: () => void;
   closeModals: () => void;
 }
 
 export const useUiStore = create<UiStoreState>((set) => ({
-  activeModal: "none",
+  activeModal:null,
   editingId: null,
 
   openClassEditor: (nodeId) =>
@@ -44,10 +47,15 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openSingleGenerator: () =>
     set({ activeModal: "engineering-single", editingId: null }),
+
   openProjectGenerator: () =>
     set({ activeModal: "engineering-project", editingId: null }),
+
   openReverseEngineering: () =>
     set({ activeModal: "engineering-reverse", editingId: null }),
+
+  openImportCode: () =>
+    set({ activeModal: "import-code", editingId: null }),
 
   closeModals: () => set({ activeModal: "none", editingId: null }),
 }));

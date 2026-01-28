@@ -33,6 +33,7 @@ import { useTranslation } from "react-i18next";
 import ExportModal from "../modals/ExportModal";
 import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
 import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
+import ImportCodeModal from "../modals/ImportCodeModal";
 
 const nodeTypes = {
   umlClass: UmlClassNode,
@@ -225,6 +226,11 @@ export default function DiagramCanvas() {
           closeModals();
         }}
         onCancel={closeModals}
+      />
+
+      <ImportCodeModal 
+        isOpen={activeModal === 'import-code'}
+        onClose={closeModals}
       />
 
       <SpotlightModal />

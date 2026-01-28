@@ -15,7 +15,7 @@ export function CodeMenu() {
   // Store actions
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator); 
   const openProjectGenerator = useUiStore((s) => s.openProjectGenerator); 
-  const openReverseEngineering = useUiStore((s) => s.openReverseEngineering);
+  const openImportModal = useUiStore((s) => s.openImportCode);
 
   return (
     <MenubarTrigger label="Code">
@@ -41,7 +41,7 @@ export function CodeMenu() {
       <MenubarItem
         label="Import Java Code..."
         icon={<Upload className="w-4 h-4" />}
-        onClick={openReverseEngineering}
+        onClick={openImportModal}
       />
 
       <div className="h-px bg-surface-border my-1" />

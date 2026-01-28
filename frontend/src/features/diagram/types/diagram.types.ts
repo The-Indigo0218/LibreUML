@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 
-export type stereotype = 'class' | 'interface' | 'abstract' | 'note';
+export type stereotype = 'class' | 'interface' | 'abstract' | 'note' | 'enum';
 export type UmlRelationType = 'association' | 'inheritance' | 'implementation' | 'dependency' | 'aggregation' | 'composition';
 export type visibility = '+' | '-' | '#' | '~';
 
@@ -17,6 +17,7 @@ export interface UmlMethod {
   name: string;
   returnType: string;
   visibility: visibility;
+  isStatic?: boolean;
   parameters: {name: string, type: string}[];
 }
 
@@ -26,6 +27,7 @@ export interface UmlClassData {
   attributes: UmlAttribute[];
   methods: UmlMethod[];
   stereotype: stereotype; 
+  isMain?: boolean;
 }
 
 export interface UmlClassNode {

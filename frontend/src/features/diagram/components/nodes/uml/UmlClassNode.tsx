@@ -1,5 +1,6 @@
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
+import { Play } from "lucide-react";
 import type { UmlClassData } from "../../../types/diagram.types";
 import { useDiagramStore } from "../../../../../store/diagramStore";
 import { handleConfig } from "../../../../../config/theme.config";
@@ -14,6 +15,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
 
   const isInterface = data.stereotype === "interface";
   const isAbstract = data.stereotype === "abstract";
+  const isMain = data.isMain;
 
   let containerClass = "bg-uml-class-bg border-uml-class-border";
   let headerClass = "bg-surface-hover border-uml-class-border";
@@ -70,6 +72,15 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
         className={`p-2 border-b-2 text-center cursor-pointer hover:brightness-110 transition-all ${headerClass} ${selected ? "border-cyan-500/30!" : ""}`}
         onDoubleClick={() => setIsEditing(true)}
       >
+
+        {isMain && (
+          <div className="absolute top-1 right-1" title="Entry Point (Main)">
+            <div className="bg-green-500 text-white rounded-full p-0.5 shadow-sm animate-in zoom-in duration-300">
+               <Play className="w-3 h-3 fill-current" />
+            </div>
+          </div>
+        )}
+
         {isInterface && (
           <small
             className={`block text-[10px] leading-tight mb-0.5 font-mono ${badgeColor}`}

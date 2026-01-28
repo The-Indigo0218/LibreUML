@@ -59,6 +59,10 @@ interface DiagramStoreState {
   toggleSnapToGrid: () => void;
   toggleShowAllEdges: () => void;
 
+  // --- Import Actions ---
+  setNodes: (nodes: Node<UmlClassData>[]) => void; 
+  setEdges: (edges: Edge[]) => void;               
+
   // --- Node Actions ---
   addNode: (
     position: { x: number; y: number },
@@ -99,6 +103,9 @@ export const useDiagramStore = create<DiagramStoreState>()(
       toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
       toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
       toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
+
+      setNodes: (nodes) => set({ nodes, isDirty: true }), 
+      setEdges: (edges) => set({ edges, isDirty: true }), 
 
       // --- React Flow Callbacks ---
       onNodesChange: (changes) =>

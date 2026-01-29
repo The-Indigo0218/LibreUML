@@ -12,9 +12,9 @@ import { useTranslation } from "react-i18next";
 export function HelpMenu() {
   const { t } = useTranslation();
   
-  const openDocs = () => window.open("https://github.com/tu-usuario/LibreUML#readme", "_blank");
-  const reportIssue = () => window.open("https://github.com/tu-usuario/LibreUML/issues", "_blank");
-  const openRoadmap = () => window.open("https://github.com/users/tu-usuario/projects/1", "_blank"); 
+  const openDocs = () => window.open("https://github.com/The-Indigo0218/LibreUML#readme", "_blank");
+  const reportIssue = () => window.open("https://github.com/The-Indigo0218/LibreUML/issues", "_blank");
+  const openRoadmap = () => window.open("https://github.com/The-Indigo0218/LibreUML/blob/main/roadmap.md", "_blank"); 
   
   const showAbout = () => {
     alert("LibreUML v1.0.0\n\nThe Open Source UML Editor for Students.\nDeveloped with ❤️ in React + Electron.");

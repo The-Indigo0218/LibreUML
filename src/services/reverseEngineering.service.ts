@@ -4,7 +4,7 @@ import type {
   UmlRelationType
 } from "../features/diagram/types/diagram.types";
 import { JavaParserService } from "./javaParser.service";
-import { edgeConfig } from "../config/theme.config"; // <--- 1. IMPORTAR CONFIGURACIÓN DE TEMA
+import { edgeConfig } from "../config/theme.config"; 
 import { MarkerType } from "reactflow";
 
 interface ReverseEngineeringResult {
@@ -20,7 +20,6 @@ export class ReverseEngineeringService {
     existingEdges: UmlEdge[]
   ): ReverseEngineeringResult {
     
-    // 1. Parsear
     const parsed = JavaParserService.parse(code);
     if (!parsed) {
       console.warn("No se pudo parsear el código Java.");
@@ -33,7 +32,10 @@ export class ReverseEngineeringService {
     const edgesMap = new Map<string, UmlEdge>();
     existingEdges.forEach(e => edgesMap.set(e.id, e));
 
-    // 2. Nodo Principal
+    const classGenerics = parsed.generics 
+      ? parsed.generics.replace(/[<>]/g, '').split(',').map(g => g.trim()) 
+      : [];
+
     const mainNodeId = this.generateNodeId(parsed.name);
     const existingNode = nodesMap.get(mainNodeId);
 
@@ -50,6 +52,7 @@ export class ReverseEngineeringService {
       height: existingNode?.height,
       data: {
         label: parsed.name,
+        generics: parsed.generics,
         stereotype: parsed.stereotype,
         attributes: parsed.attributes,
         methods: parsed.methods,
@@ -75,6 +78,9 @@ export class ReverseEngineeringService {
     parsed.attributes.forEach(attr => {
       if (!this.isPrimitive(attr.type)) {
         const targetName = this.extractBaseType(attr.type);
+        if (classGenerics.includes(targetName)) {
+           return; 
+        }
         if (targetName !== parsed.name && targetName !== 'void') {
             this.handleRelation(parsed.name, targetName, 'association', nodesMap, edgesMap);
         }

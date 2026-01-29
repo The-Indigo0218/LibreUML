@@ -23,6 +23,7 @@ export interface UmlMethod {
 
 export interface UmlClassData {
   label: string;
+  generics?: string;
   content?: string;
   attributes: UmlAttribute[];
   methods: UmlMethod[];

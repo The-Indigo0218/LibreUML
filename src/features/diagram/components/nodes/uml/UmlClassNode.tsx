@@ -6,25 +6,28 @@ import { useDiagramStore } from "../../../../../store/diagramStore";
 import { handleConfig } from "../../../../../config/theme.config";
 
 //  STRATEGY PATTERN: Define styles externally to keep the component clean
-const STYLE_CONFIG: Record<string, {
-  container: string;
-  header: string;
-  badgeColor: string;
-  labelFormat: string; 
-  showStereotype: boolean;
-}> = {
+const STYLE_CONFIG: Record<
+  string,
+  {
+    container: string;
+    header: string;
+    badgeColor: string;
+    labelFormat: string;
+    showStereotype: boolean;
+  }
+> = {
   interface: {
     container: "bg-uml-interface-bg border-uml-interface-border",
     header: "bg-surface-secondary border-uml-interface-border",
     badgeColor: "text-uml-interface-border",
-    labelFormat: "font-normal", 
+    labelFormat: "font-normal",
     showStereotype: true,
   },
   abstract: {
     container: "bg-uml-abstract-bg border-uml-abstract-border",
     header: "bg-surface-hover border-uml-abstract-border",
     badgeColor: "text-uml-abstract-border",
-    labelFormat: "italic font-bold", 
+    labelFormat: "italic font-bold",
     showStereotype: true,
   },
   enum: {
@@ -48,16 +51,38 @@ const STYLE_CONFIG: Record<string, {
 const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
   const updateNodeData = useDiagramStore((s) => s.updateNodeData);
   const [isEditing, setIsEditing] = useState(() => data.label === "NewClass");
+  const [editValue, setEditValue] = useState("");
 
-  const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateNodeData(id, { label: e.target.value });
+  const startEditing = () => {
+    const fullText = data.generics
+      ? `${data.label}${data.generics}`
+      : data.label;
+    setEditValue(fullText);
+    setIsEditing(true);
+  };
+
+  const commitChanges = () => {
+    setIsEditing(false);
+
+    const match = editValue.match(/^([^<]+)(<.*>)?$/);
+
+    if (match) {
+      const cleanLabel = match[1].trim();
+      const cleanGeneric = match[2] ? match[2].trim() : undefined;
+
+      updateNodeData(id, {
+        label: cleanLabel,
+        generics: cleanGeneric,
+      });
+    } else {
+      updateNodeData(id, { label: editValue });
+    }
   };
 
   const isMain = data.isMain;
-  
-  //  RESOLVE STYLES: Minimal logic, maximum readability
+
   const currentStyle = STYLE_CONFIG[data.stereotype] || STYLE_CONFIG.class;
-  
+
   const selectionClasses = selected
     ? "ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] !border-cyan-500 z-10"
     : "hover:shadow-md";
@@ -97,12 +122,12 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
       {/* HEADER */}
       <div
         className={`p-2 border-b-2 text-center cursor-pointer hover:brightness-110 transition-all ${currentStyle.header} ${selected ? "border-cyan-500/30!" : ""}`}
-        onDoubleClick={() => setIsEditing(true)}
+        onDoubleClick={startEditing}
       >
         {isMain && (
           <div className="absolute top-1 right-1" title="Entry Point (Main)">
             <div className="bg-green-500 text-white rounded-full p-0.5 shadow-sm animate-in zoom-in duration-300">
-               <Play className="w-3 h-3 fill-current" />
+              <Play className="w-3 h-3 fill-current" />
             </div>
           </div>
         )}
@@ -110,7 +135,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
         {/* Stereotype Label (e.g. <<interface>>) */}
         {currentStyle.showStereotype && (
           <small
-            className={`block text-[10px] leading-tight mb-0.5 font-mono ${currentStyle.labelFormat.includes('italic') ? 'italic' : ''} ${currentStyle.badgeColor}`}
+            className={`block text-[10px] leading-tight mb-0.5 font-mono ${currentStyle.labelFormat.includes("italic") ? "italic" : ""} ${currentStyle.badgeColor}`}
           >
             &lt;&lt;{data.stereotype}&gt;&gt;
           </small>
@@ -121,16 +146,21 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
           <input
             autoFocus
             className={`w-full text-center text-sm bg-transparent border border-blue-500/50 rounded outline-none text-text-primary px-1 ${currentStyle.labelFormat}`}
-            value={data.label}
-            onChange={handleLabelChange}
-            onBlur={() => setIsEditing(false)}
-            onKeyDown={(e) => e.key === "Enter" && setIsEditing(false)}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={commitChanges}
+            onKeyDown={(e) => e.key === "Enter" && commitChanges()}
           />
         ) : (
           <strong
             className={`text-sm block text-text-primary ${currentStyle.labelFormat}`}
           >
             {data.label}
+            {data.generics && (
+              <span className="text-yellow-600 font-mono ml-0.5 text-xs opacity-90">
+                {data.generics}
+              </span>
+            )}
           </strong>
         )}
       </div>
@@ -138,9 +168,11 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
       {/* BODY: Attributes */}
       <div
         className={`p-2 border-b-2 min-h-6 text-xs text-left font-mono text-text-secondary ${
-            selected 
-              ? "border-cyan-500/30!" 
-              : currentStyle.container.split(' ').find(c => c.startsWith('border-')) // Inherit border color dynamically
+          selected
+            ? "border-cyan-500/30!"
+            : currentStyle.container
+                .split(" ")
+                .find((c) => c.startsWith("border-")) // Inherit border color dynamically
         }`}
       >
         {data.attributes && data.attributes.length > 0 ? (

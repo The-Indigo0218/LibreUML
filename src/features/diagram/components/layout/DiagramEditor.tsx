@@ -2,6 +2,8 @@ import { ReactFlowProvider } from "reactflow";
 import DiagramCanvas from "./DiagramCanvas";
 import Sidebar from "./Sidebar";
 import AppMenubar from "../menubar/AppMenubar";
+import Toast from "../../../../components/shared/Toast";
+import { useDiagramStore } from "../../../../store/diagramStore";
 
 import { useAutoSave } from "../../../../hooks/useAutosave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
@@ -13,6 +15,9 @@ function DiagramManager() {
 }
 
 function EditorLogic() {
+  const activeToast = useDiagramStore((s) => s.activeToast);
+  const dismissToast = useDiagramStore((s) => s.dismissToast);
+
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-gray-50">
       <DiagramManager />
@@ -26,6 +31,15 @@ function EditorLogic() {
           <DiagramCanvas />
         </div>
       </div>
+
+      {activeToast && (
+        <Toast 
+          message={activeToast.message}
+          type={activeToast.type}
+          onClose={dismissToast} 
+          duration={3000}
+        />
+      )}
     </div>
   );
 }

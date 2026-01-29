@@ -19,12 +19,18 @@ import type {
   UmlEdgeData,
 } from "../features/diagram/types/diagram.types";
 
+type ToastType = {
+  message: string;
+  type: "success" | "error";
+};
+
 import { getEdgeOptions, getNoteEdgeOptions } from "../util/edgeFactory";
 import {
   getSmartEdgeHandles,
   checkCollision,
   updateSyncedEdges,
 } from "../util/geometry";
+import { validateConnection } from "../util/connectionValidator";
 
 interface DiagramStoreState {
   // --- State Properties ---
@@ -39,6 +45,7 @@ interface DiagramStoreState {
   showGrid?: boolean;
   snapToGrid?: boolean;
   showAllEdges?: boolean;
+  activeToast: ToastType | null;
 
   // --- React Flow Handlers ---
   onNodesChange: OnNodesChange;
@@ -58,6 +65,7 @@ interface DiagramStoreState {
   toggleGrid: () => void;
   toggleSnapToGrid: () => void;
   toggleShowAllEdges: () => void;
+  dismissToast: () => void;
 
   // --- Import Actions ---
   setNodes: (nodes: Node<UmlClassData>[]) => void; 
@@ -94,6 +102,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
       snapToGrid: true,
       showAllEdges: false,
       isDirty: false,
+      activeToast: null,
 
       // --- State Setters ---
       setDirty: (dirty) => set({ isDirty: dirty }),
@@ -103,6 +112,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
       toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
       toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
       toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
+      dismissToast: () => set({ activeToast: null }),
 
       setNodes: (nodes) => set({ nodes, isDirty: true }), 
       setEdges: (edges) => set({ edges, isDirty: true }), 
@@ -119,7 +129,10 @@ export const useDiagramStore = create<DiagramStoreState>()(
         const sourceNode = nodes.find((n) => n.id === connection.source);
         const targetNode = nodes.find((n) => n.id === connection.target);
 
-        if (targetNode?.type === "umlNote") return;
+        if (!sourceNode || !targetNode) return;
+        
+        if (targetNode.type === "umlNote") return; 
+        
         if (
           connection.targetHandle === "right" ||
           connection.targetHandle === "bottom"
@@ -133,13 +146,30 @@ export const useDiagramStore = create<DiagramStoreState>()(
         );
         if (isDuplicate) return;
 
-        if (sourceNode?.type === "umlNote" && targetNode?.type === "umlNote")
+        if (sourceNode.type === "umlNote" && targetNode.type === "umlNote")
           return;
 
+        if (sourceNode.type !== "umlNote") {
+           const isValid = validateConnection(
+             sourceNode.data.stereotype,
+             targetNode.data.stereotype,
+             activeConnectionMode
+           );
+
+           if (!isValid) {
+            set({
+               activeToast: {
+                 message: `🚫 Rule Violation: Cannot connect [${sourceNode.data.stereotype}] to [${targetNode.data.stereotype}] via ${activeConnectionMode}.`,
+                 type: "error"
+               }
+             });
+             return; 
+           }
+        }
         let edgeOptions;
         let edgeData: UmlEdgeData;
 
-        if (sourceNode?.type === "umlNote") {
+        if (sourceNode.type === "umlNote") {
           edgeOptions = getNoteEdgeOptions();
           edgeData = { type: "note" };
         } else {

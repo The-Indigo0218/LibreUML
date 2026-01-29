@@ -5,6 +5,46 @@ import type { UmlClassData } from "../../../types/diagram.types";
 import { useDiagramStore } from "../../../../../store/diagramStore";
 import { handleConfig } from "../../../../../config/theme.config";
 
+//  STRATEGY PATTERN: Define styles externally to keep the component clean
+const STYLE_CONFIG: Record<string, {
+  container: string;
+  header: string;
+  badgeColor: string;
+  labelFormat: string; 
+  showStereotype: boolean;
+}> = {
+  interface: {
+    container: "bg-uml-interface-bg border-uml-interface-border",
+    header: "bg-surface-secondary border-uml-interface-border",
+    badgeColor: "text-uml-interface-border",
+    labelFormat: "font-normal", 
+    showStereotype: true,
+  },
+  abstract: {
+    container: "bg-uml-abstract-bg border-uml-abstract-border",
+    header: "bg-surface-hover border-uml-abstract-border",
+    badgeColor: "text-uml-abstract-border",
+    labelFormat: "italic font-bold", 
+    showStereotype: true,
+  },
+  enum: {
+    // Preparing for future Enum support (Clean Code foresight)
+    container: "bg-purple-50 border-purple-300",
+    header: "bg-purple-100 border-purple-300",
+    badgeColor: "text-purple-500",
+    labelFormat: "font-bold",
+    showStereotype: true,
+  },
+  class: {
+    // Default fallback
+    container: "bg-uml-class-bg border-uml-class-border",
+    header: "bg-surface-hover border-uml-class-border",
+    badgeColor: "text-uml-class-border",
+    labelFormat: "font-bold",
+    showStereotype: false,
+  },
+};
+
 const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
   const updateNodeData = useDiagramStore((s) => s.updateNodeData);
   const [isEditing, setIsEditing] = useState(() => data.label === "NewClass");
@@ -13,33 +53,20 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
     updateNodeData(id, { label: e.target.value });
   };
 
-  const isInterface = data.stereotype === "interface";
-  const isAbstract = data.stereotype === "abstract";
   const isMain = data.isMain;
-
-  let containerClass = "bg-uml-class-bg border-uml-class-border";
-  let headerClass = "bg-surface-hover border-uml-class-border";
-  let badgeColor = "text-uml-class-border";
-
-  if (isInterface) {
-    containerClass = "bg-uml-interface-bg border-uml-interface-border";
-    headerClass = "bg-surface-secondary border-uml-interface-border";
-    badgeColor = "text-uml-interface-border";
-  } else if (isAbstract) {
-    containerClass = "bg-uml-abstract-bg border-uml-abstract-border";
-    headerClass = "bg-surface-hover border-uml-abstract-border";
-    badgeColor = "text-uml-abstract-border";
-  }
-
+  
+  //  RESOLVE STYLES: Minimal logic, maximum readability
+  const currentStyle = STYLE_CONFIG[data.stereotype] || STYLE_CONFIG.class;
+  
   const selectionClasses = selected
     ? "ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] !border-cyan-500 z-10"
     : "hover:shadow-md";
 
   return (
     <div
-      className={`border-2 rounded-sm w-64 overflow-visible group transition-all duration-200 ${containerClass} ${selectionClasses}`}
+      className={`border-2 rounded-sm w-64 overflow-visible group transition-all duration-200 ${currentStyle.container} ${selectionClasses}`}
     >
-      {/* Target Handles Green */}
+      {/* Target Handles (Green) */}
       <Handle
         type="target"
         position={Position.Top}
@@ -53,7 +80,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
         className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.target} opacity-0 group-hover:opacity-100`}
       />
 
-      {/* Source Handles Blue */}
+      {/* Source Handles (Blue) */}
       <Handle
         type="source"
         position={Position.Right}
@@ -69,10 +96,9 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
 
       {/* HEADER */}
       <div
-        className={`p-2 border-b-2 text-center cursor-pointer hover:brightness-110 transition-all ${headerClass} ${selected ? "border-cyan-500/30!" : ""}`}
+        className={`p-2 border-b-2 text-center cursor-pointer hover:brightness-110 transition-all ${currentStyle.header} ${selected ? "border-cyan-500/30!" : ""}`}
         onDoubleClick={() => setIsEditing(true)}
       >
-
         {isMain && (
           <div className="absolute top-1 right-1" title="Entry Point (Main)">
             <div className="bg-green-500 text-white rounded-full p-0.5 shadow-sm animate-in zoom-in duration-300">
@@ -81,26 +107,20 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
           </div>
         )}
 
-        {isInterface && (
+        {/* Stereotype Label (e.g. <<interface>>) */}
+        {currentStyle.showStereotype && (
           <small
-            className={`block text-[10px] leading-tight mb-0.5 font-mono ${badgeColor}`}
+            className={`block text-[10px] leading-tight mb-0.5 font-mono ${currentStyle.labelFormat.includes('italic') ? 'italic' : ''} ${currentStyle.badgeColor}`}
           >
-            &lt;&lt;interface&gt;&gt;
+            &lt;&lt;{data.stereotype}&gt;&gt;
           </small>
         )}
 
-        {isAbstract && (
-          <small
-            className={`block text-[10px] leading-tight mb-0.5 font-mono italic ${badgeColor}`}
-          >
-            &lt;&lt;abstract&gt;&gt;
-          </small>
-        )}
-
+        {/* Class Name */}
         {isEditing ? (
           <input
             autoFocus
-            className="w-full text-center font-bold text-sm bg-transparent border border-blue-500/50 rounded outline-none text-text-primary px-1"
+            className={`w-full text-center text-sm bg-transparent border border-blue-500/50 rounded outline-none text-text-primary px-1 ${currentStyle.labelFormat}`}
             value={data.label}
             onChange={handleLabelChange}
             onBlur={() => setIsEditing(false)}
@@ -108,7 +128,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
           />
         ) : (
           <strong
-            className={`text-sm block text-text-primary ${isAbstract ? "italic" : ""}`}
+            className={`text-sm block text-text-primary ${currentStyle.labelFormat}`}
           >
             {data.label}
           </strong>
@@ -120,7 +140,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
         className={`p-2 border-b-2 min-h-6 text-xs text-left font-mono text-text-secondary ${
             selected 
               ? "border-cyan-500/30!" 
-              : isInterface ? "border-uml-interface-border" : isAbstract ? "border-uml-abstract-border" : "border-uml-class-border"
+              : currentStyle.container.split(' ').find(c => c.startsWith('border-')) // Inherit border color dynamically
         }`}
       >
         {data.attributes && data.attributes.length > 0 ? (
@@ -129,7 +149,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
               key={attr.id}
               className="truncate hover:text-text-primary transition-colors flex items-center gap-1"
             >
-              <span className="text-uml-abstract-border font-bold">
+              <span className={`font-bold ${currentStyle.badgeColor}`}>
                 {attr.visibility}
               </span>
               <span className="text-text-primary">{attr.name}</span>
@@ -153,7 +173,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
               key={method.id || `${method.name}-${index}`}
               className="truncate hover:text-text-primary transition-colors"
             >
-              <span className="text-uml-abstract-border font-bold">
+              <span className={`font-bold ${currentStyle.badgeColor}`}>
                 {method.visibility}
               </span>
               <span className="text-text-primary">{method.name}</span>

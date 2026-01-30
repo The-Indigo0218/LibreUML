@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useReactFlow } from "reactflow";
 import { useTranslation } from "react-i18next";
 import { useDiagramStore } from "../../../store/diagramStore";
+import { useUiStore } from "../../../store/uiStore"; 
 import type { UmlRelationType } from "../types/diagram.types";
 
 export type ContextMenuType = "pane" | "node" | "edge";
@@ -26,6 +27,8 @@ export const useDiagramMenus = ({
 }: UseDiagramMenusProps) => {
   const { screenToFlowPosition } = useReactFlow();
   const { t } = useTranslation();
+  
+  const openSingleGenerator = useUiStore((s) => s.openSingleGenerator);
 
   const {
     addNode,
@@ -34,7 +37,8 @@ export const useDiagramMenus = ({
     reverseEdge,
     changeEdgeType,
     deleteEdge,
-    edges, 
+    edges,
+    nodes, 
   } = useDiagramStore();
 
   const getMenuOptions = useCallback(
@@ -76,7 +80,10 @@ export const useDiagramMenus = ({
       if (menu.type === "node" && menu.id) {
         const nodeId = menu.id; 
         
-        return [
+        const node = nodes.find(n => n.id === nodeId);
+        const isClassType = node?.type === 'umlClass';
+
+        const baseOptions = [
           { 
             label: t('contextMenu.node.duplicate'), 
             onClick: () => duplicateNode(nodeId) 
@@ -85,12 +92,21 @@ export const useDiagramMenus = ({
             label: t('contextMenu.node.edit'),
             onClick: () => onEditNode(nodeId),
           },
-          { 
+        ];
+
+        if (isClassType) {
+            baseOptions.push({
+                label: t('contextMenu.node.generateCode'),
+                onClick: () => openSingleGenerator(nodeId),
+            });
+        }
+
+        baseOptions.push({ 
             label: t('contextMenu.node.delete'), 
             onClick: () => deleteNode(nodeId), 
-            danger: true 
-          },
-        ];
+        });
+
+        return baseOptions;
       }
 
       // Edge Menu
@@ -174,10 +190,12 @@ export const useDiagramMenus = ({
       changeEdgeType,
       deleteEdge,
       edges,
+      nodes, 
       onClearCanvas,
       onEditNode,
       onEditEdgeMultiplicity,
       screenToFlowPosition,
+      openSingleGenerator,
       t
     ]
   );

@@ -4,6 +4,7 @@ import {
   CircleDot,
   BoxSelect,
   StickyNote,
+  List,
   ArrowUpRight,
   GitCommitHorizontal,
   ArrowUp,
@@ -112,6 +113,16 @@ export default function Sidebar() {
               }
               label={t("sidebar.nodes.abstract")}
               color="var(--color-uml-abstract-border)"
+              isExpanded={isExpanded}
+              onDragStart={onDragStart}
+            />
+            <DraggableItem
+              type="enum" 
+              icon={
+                <List className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
+              }
+              label="Enum" 
+              color="#A855F7" 
               isExpanded={isExpanded}
               onDragStart={onDragStart}
             />

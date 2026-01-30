@@ -130,7 +130,8 @@
     "node": {
       "duplicate": "Duplicar",
       "edit": "Editar Propiedades",
-      "delete": "Eliminar"
+      "delete": "Eliminar",
+      "generateCode": "Generar Código..."
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",
@@ -238,7 +239,19 @@
       "javaVersion": "VERSIÓN JAVA",
       "zipping": "Comprimiendo...",
       "download": "Descargar .zip"
-    }
+    },
+    "codePreview": {
+    "title": "Vista Previa de Código",
+    "subtitle": "Generar código para una clase individual",
+    "languageLabel": "Lenguaje:",
+    "classLabel": "Clase:",
+    "copyTitle": "Copiar al portapapeles",
+    "close": "Cerrar",
+    "copy": "Copiar Código",
+    "copied": "¡Copiado!",
+    "noClassSelected": "No hay clase seleccionada",
+    "invalidNode": "El nodo seleccionado no es una Clase/Interfaz válida"
+  }
   },
   "alerts": {
     "exportError": "No se pudo generar la imagen. Intenta de nuevo.",

@@ -23,7 +23,7 @@ interface UiStoreState {
   openMultiplicityEditor: (edgeId: string) => void;
   openClearConfirmation: () => void;
   openExportModal: () => void;
-  openSingleGenerator: () => void;
+  openSingleGenerator: (nodeId?: string) => void; 
   openProjectGenerator: () => void;
   openReverseEngineering: () => void;
   openImportCode: () => void;
@@ -45,8 +45,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openExportModal: () => set({ activeModal: "export-modal", editingId: null }),
 
-  openSingleGenerator: () =>
-    set({ activeModal: "engineering-single", editingId: null }),
+  openSingleGenerator: (nodeId?: string) =>
+    set({ activeModal: "engineering-single", editingId: nodeId || null }),
 
   openProjectGenerator: () =>
     set({ activeModal: "engineering-project", editingId: null }),

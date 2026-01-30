@@ -40,6 +40,15 @@ export function FileMenu({ actions }: FileMenuProps) {
     });
   };
 
+  // --- LOGIC: SAVE BUTTONS STATE ---
+  const isElectron = !!window.electronAPI?.isElectron();
+
+  // Save: Disabled in Electron if no file path (forces Save As). Enabled in Web (Download).
+  const isSaveDisabled = isElectron ? !hasFilePath : false;
+
+  // Save As: Disabled in Web (Browser handles downloads via 'Save').
+  const isSaveAsDisabled = !isElectron;
+
   return (
     <>
       <input
@@ -72,13 +81,14 @@ export function FileMenu({ actions }: FileMenuProps) {
           icon={<Save className="w-4 h-4" />}
           shortcut="Ctrl+S"
           onClick={handleSave}
-          disabled={!hasFilePath} 
+          disabled={isSaveDisabled} 
         />
         <MenubarItem
           label={t("menubar.file.saveAs") || "Save As..."}
           icon={<FileOutput className="w-4 h-4" />}
           shortcut="Ctrl+Shift+S"
           onClick={handleSaveAs}
+          disabled={isSaveAsDisabled} 
         />
 
         <MenubarItem

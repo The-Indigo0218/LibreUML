@@ -130,7 +130,8 @@
     "node": {
       "duplicate": "Duplicate",
       "edit": "Edit Properties",
-      "delete": "Delete"
+      "delete": "Delete",
+      "generateCode": "Generate Code..."
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",
@@ -238,6 +239,18 @@
       "javaVersion": "JAVA VERSION",
       "zipping": "Zipping...",
       "download": "Download .zip"
+    },
+   "codePreview": {
+      "title": "Code Preview",
+      "subtitle": "Generate code for a single class",
+      "languageLabel": "Language:",
+      "classLabel": "Class:",
+      "copyTitle": "Copy to clipboard",
+      "close": "Close",
+      "copy": "Copy Code",
+      "copied": "Copied!",
+      "noClassSelected": "No class selected",
+      "invalidNode": "Selected node is not a valid Class/Interface"
     }
   },
   "alerts": {

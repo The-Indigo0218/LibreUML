@@ -31,15 +31,15 @@ const STYLE_CONFIG: Record<
     showStereotype: true,
   },
   enum: {
-    // Preparing for future Enum support (Clean Code foresight)
-    container: "bg-purple-50 border-purple-300",
-    header: "bg-purple-100 border-purple-300",
-    badgeColor: "text-purple-500",
+    container:
+      "bg-purple-100 dark:bg-purple-900/20 border-purple-400 dark:border-purple-500",
+    header:
+      "bg-purple-200 dark:bg-purple-900/50 border-purple-400 dark:border-purple-500",
+    badgeColor: "text-purple-700 dark:text-purple-300",
     labelFormat: "font-bold",
     showStereotype: true,
   },
   class: {
-    // Default fallback
     container: "bg-uml-class-bg border-uml-class-border",
     header: "bg-surface-hover border-uml-class-border",
     badgeColor: "text-uml-class-border",

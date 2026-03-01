@@ -17,6 +17,17 @@ function DiagramManager() {
 function EditorLogic() {
   const activeToast = useDiagramStore((s) => s.activeToast);
   const dismissToast = useDiagramStore((s) => s.dismissToast);
+  const isHydrated = useDiagramStore((s) => s.isHydrated);
+
+  if (!isHydrated) {
+    return (
+      <div className="flex w-screen h-screen items-center justify-center bg-gray-900 flex-col gap-4">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-gray-400 font-medium tracking-wide">Inicializando LibreUML...</p>
+        <DiagramManager /> 
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-gray-50">

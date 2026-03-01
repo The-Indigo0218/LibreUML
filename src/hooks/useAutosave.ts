@@ -9,11 +9,10 @@ const BACKUP_DELAY = 3000;
 export const useAutoSave = () => {
   const { toObject } = useReactFlow();
   const autoSaveEnabled = useSettingsStore((s) => s.autoSave);
-  
-
   const isDirty = useDiagramStore((s) => s.isDirty);
   const diagramId = useDiagramStore((s) => s.diagramId); 
-  
+  const nodes = useDiagramStore((s) => s.nodes);
+  const edges = useDiagramStore((s) => s.edges);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -49,5 +48,5 @@ export const useAutoSave = () => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isDirty, diagramId, autoSaveEnabled, toObject]);
+  }, [isDirty, diagramId, autoSaveEnabled, toObject, nodes, edges]);
 };

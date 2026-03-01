@@ -34,6 +34,7 @@ import { validateConnection } from "../util/connectionValidator";
 
 interface DiagramStoreState {
   // --- State Properties ---
+  isHydrated: boolean;
   diagramId: string;
   diagramName: string;
   nodes: Node<UmlClassData>[];
@@ -53,6 +54,7 @@ interface DiagramStoreState {
   onConnect: OnConnect;
 
   // --- Canvas Actions ---
+  setHydrated: (status: boolean) => void;
   setDiagramName: (name: string) => void;
   setFilePath: (path: string | undefined) => void;
   setDirty: (dirty: boolean) => void;
@@ -92,6 +94,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
   temporal(
     (set, get) => ({
       // --- Initial State ---
+      isHydrated: false,
       diagramId: crypto.randomUUID(),
       diagramName: "Untitled Diagram",
       nodes: [],
@@ -105,6 +108,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
       activeToast: null,
 
       // --- State Setters ---
+      setHydrated: (status) => set({ isHydrated: status }),
       setDirty: (dirty) => set({ isDirty: dirty }),
       setDiagramName: (name) => set({ diagramName: name, isDirty: true }),
       setFilePath: (path) => set({ currentFilePath: path }),

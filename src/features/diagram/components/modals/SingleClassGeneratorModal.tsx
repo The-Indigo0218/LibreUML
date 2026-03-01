@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useDiagramStore } from "../../../../store/diagramStore";
 import { useUiStore } from "../../../../store/uiStore";
 import { JavaGeneratorService } from "../../../../services/javaGenerator.service";
-import type { UmlClassNode } from "../../types/diagram.types";
+import type { UmlClassNode, UmlEdge } from "../../types/diagram.types";
 
 interface Props {
   isOpen: boolean;
@@ -15,9 +15,10 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
   const { t } = useTranslation();
   const nodes = useDiagramStore((s) => s.nodes);
   const editingId = useUiStore((s) => s.editingId); 
+  const edges = useDiagramStore((s) => s.edges);
   
   const [selectedClassId, setSelectedClassId] = useState<string>("");
-  const [language, setLanguage] = useState("java"); // State for language
+  const [language, setLanguage] = useState("java"); 
   const [generatedCode, setGeneratedCode] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -59,7 +60,7 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
     const node = nodes.find(n => n.id === selectedClassId) as UmlClassNode;
     if (node && node.type === 'umlClass') {
         if (language === 'java') {
-            const code = JavaGeneratorService.generate(node);
+            const code = JavaGeneratorService.generate(node, nodes as UmlClassNode[], edges as UmlEdge[]);
             setGeneratedCode(code);
         } else {
             setGeneratedCode("// Coming soon...");
@@ -67,7 +68,7 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
     } else {
         setGeneratedCode("// " + t('modals.codePreview.invalidNode', "Selected node is not a valid Class/Interface"));
     }
-  }, [selectedClassId, nodes, language, t]);
+  }, [selectedClassId, nodes, language, t, edges]);
 
   const allClasses = useMemo(() => 
     nodes.filter(n => n.type === 'umlClass') as UmlClassNode[], 

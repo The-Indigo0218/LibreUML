@@ -1,8 +1,14 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties } from "react";
 
-export type stereotype = 'class' | 'interface' | 'abstract' | 'note' | 'enum';
-export type UmlRelationType = 'association' | 'inheritance' | 'implementation' | 'dependency' | 'aggregation' | 'composition';
-export type visibility = '+' | '-' | '#' | '~';
+export type stereotype = "class" | "interface" | "abstract" | "note" | "enum";
+export type UmlRelationType =
+  | "association"
+  | "inheritance"
+  | "implementation"
+  | "dependency"
+  | "aggregation"
+  | "composition";
+export type visibility = "+" | "-" | "#" | "~";
 
 export interface UmlAttribute {
   id: string;
@@ -16,9 +22,14 @@ export interface UmlMethod {
   id: string;
   name: string;
   returnType: string;
+  isReturnArray?: boolean;
   visibility: visibility;
   isStatic?: boolean;
-  parameters: {name: string, type: string}[];
+  parameters: { 
+    name: string; 
+    type: string;
+    isArray?: boolean;
+  }[];
 }
 
 export interface UmlClassData {
@@ -27,21 +38,21 @@ export interface UmlClassData {
   content?: string;
   attributes: UmlAttribute[];
   methods: UmlMethod[];
-  stereotype: stereotype; 
+  stereotype: stereotype;
   isMain?: boolean;
 }
 
 export interface UmlClassNode {
   id: string;
-  type: 'umlClass' | 'umlNote'; 
-  position: { 
-    x: number; 
-    y: number; 
+  type: "umlClass" | "umlNote";
+  position: {
+    x: number;
+    y: number;
   };
-  data: UmlClassData; 
-  selected?: boolean;     
-  width?: number;   
-  height?: number; 
+  data: UmlClassData;
+  selected?: boolean;
+  width?: number;
+  height?: number;
 }
 
 export interface UmlMarker {
@@ -52,37 +63,37 @@ export interface UmlMarker {
 }
 
 export interface UmlEdgeData {
-  type: UmlRelationType | 'note' | string;
-  sourceMultiplicity?: string; 
-  targetMultiplicity?: string; 
-  isHovered?: boolean;         
+  type: UmlRelationType | "note" | string;
+  sourceMultiplicity?: string;
+  targetMultiplicity?: string;
+  isHovered?: boolean;
 }
 
 export interface UmlEdge {
   id: string;
-  source: string;       
-  target: string;       
-  type?: string;        
-  label?: string;       
+  source: string;
+  target: string;
+  type?: string;
+  label?: string;
   animated?: boolean;
-  
-  style?: CSSProperties;       
+
+  style?: CSSProperties;
   markerEnd?: UmlMarker | string;
-  sourceHandle?: string | null; 
+  sourceHandle?: string | null;
   targetHandle?: string | null;
 
-  data?: UmlEdgeData; 
+  data?: UmlEdgeData;
 }
 
 export interface DiagramState {
   id: string;
   name: string;
   nodes: UmlClassNode[];
-  edges: UmlEdge[]; 
-  activeConnectionMode?: UmlRelationType; 
-  viewport: { 
-    x: number; 
-    y: number; 
-    zoom: number; 
-  }; 
+  edges: UmlEdge[];
+  activeConnectionMode?: UmlRelationType;
+  viewport: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
 }

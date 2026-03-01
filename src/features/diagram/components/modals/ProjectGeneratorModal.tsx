@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Package, Download, Box, Hammer, Coffee } from "lucide-react";
 import { useDiagramStore } from "../../../../store/diagramStore";
 import { ProjectZipperService } from "../../../../services/project-zipper.service";
-import type { UmlClassNode } from "../../types/diagram.types";
+import type { UmlClassNode, UmlEdge } from "../../types/diagram.types";
 import { useTranslation } from "react-i18next";
 
 interface Props {
@@ -13,6 +13,7 @@ interface Props {
 export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
   const nodes = useDiagramStore((s) => s.nodes);
   const diagramName = useDiagramStore((s) => s.diagramName);
+  const edges = useDiagramStore((s) => s.edges);
   const { t } = useTranslation();
   
   // --- State  ---
@@ -36,7 +37,7 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
 
   if (!isOpen) return null;
 
-  const handleGenerate = async () => {
+ const handleGenerate = async () => {
     setIsGenerating(true);
     try {
       await ProjectZipperService.generateAndDownloadZip({
@@ -45,6 +46,8 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
         artifactId,      
         packageName,     
         nodes: classNodes,
+        allNodes: nodes as UmlClassNode[], 
+        edges: edges as UmlEdge[],    
         javaVersion,     
         buildTool        
       });

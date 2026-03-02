@@ -324,19 +324,25 @@ function DraggableItem({
   isExpanded,
   onDragStart,
 }: DraggableItemProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <div
+      title={label} 
       className={`
-        group flex items-center cursor-grab active:cursor-grabbing rounded-lg hover:bg-surface-secondary transition-all duration-200 border border-transparent
+        group flex items-center cursor-grab active:cursor-grabbing rounded-lg transition-all duration-200 border
         ${isExpanded ? "flex-row gap-3 px-3 py-2.5 justify-start" : "flex-col gap-1 p-2 justify-center"}
       `}
       draggable
       onDragStart={(e) => onDragStart(e, type)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        borderColor: isHovered ? color : "transparent",
+        backgroundColor: isHovered ? `color-mix(in srgb, ${color} 15%, transparent)` : "transparent",
+      }}
     >
-      <div
-        className="text-text-secondary group-hover:text-white transition-colors"
-        style={{ color: "var(--color-text-secondary)" }}
-      >
+      <div className="transition-colors">
         <span
           style={{ color: color }}
           className="group-hover:brightness-125 transition-all"
@@ -346,7 +352,10 @@ function DraggableItem({
       </div>
 
       {isExpanded && (
-        <span className="font-medium text-sm text-text-muted group-hover:text-text-primary transition-all whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200">
+        <span 
+          className="font-medium text-sm transition-all whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200"
+          style={{ color: isHovered ? "var(--color-text-primary)" : "var(--color-text-muted)" }}
+        >
           {label}
         </span>
       )}
@@ -374,17 +383,31 @@ function ConnectionItem({
   isExpanded,
 }: ConnectionItemProps) {
   const isActive = activeMode === mode;
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <button
+      title={label} 
       onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={`
         group flex items-center rounded-lg transition-all duration-200 border
-        ${isExpanded ? "flex-row gap-3 px-3 py-2.5 justify-start" : "flex-col gap-1 p-2 justify-center"}
+        ${
+          isExpanded
+            ? "flex-row gap-3 px-3 py-2.5 justify-start"
+            : "flex-col gap-1 p-2 justify-center"
+        }
       `}
       style={{
-        borderColor: isActive ? color : color.replace(")", ", 0.3)"),
-        backgroundColor: isActive ? color : "transparent",
+        borderColor: isActive || isHovered
+          ? color
+          : `color-mix(in srgb, ${color} 30%, transparent)`,
+        backgroundColor: isActive 
+          ? color 
+          : isHovered 
+          ? `color-mix(in srgb, ${color} 15%, transparent)` 
+          : "transparent",
       }}
     >
       <div
@@ -392,7 +415,10 @@ function ConnectionItem({
         style={{ color: isActive ? "#0B0F1A" : color }}
       >
         <span
-          style={{ color: isActive ? "#111827" : color, fontWeight: "bold" }}
+          style={{
+            color: isActive ? "#111827" : color,
+            fontWeight: "bold",
+          }}
         >
           {icon}
         </span>
@@ -400,8 +426,8 @@ function ConnectionItem({
 
       {isExpanded && (
         <span
-          className="font-medium text-sm transition-colors whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200"
-          style={{ color: isActive ? "#111827" : "var(--color-text-muted)" }}
+          className="font-medium text-sm transition-colors whitespace-nowrap"
+          style={{ color: isActive ? "#0B0F1A" : "#9CA3AF" }}
         >
           {label}
         </span>

@@ -10,6 +10,7 @@ export const useAutoRestore = () => {
   const loadDiagram = useDiagramStore((state) => state.loadDiagram);
   const setFilePath = useDiagramStore((state) => state.setFilePath);
   const setDirty = useDiagramStore((state) => state.setDirty);
+  const setHydrated = useDiagramStore((state) => state.setHydrated); // <--- Extraemos el setter
   
   const restoreSessionEnabled = useSettingsStore((state) => state.restoreSession);
   
@@ -19,7 +20,10 @@ export const useAutoRestore = () => {
     if (initialized.current) return;
     initialized.current = true;
 
-    if (!restoreSessionEnabled) return;
+    if (!restoreSessionEnabled) {
+      setHydrated(true);
+      return;
+    }
 
     try {
       const savedData = localStorage.getItem(STORAGE_KEY);
@@ -46,10 +50,14 @@ export const useAutoRestore = () => {
         }
 
         setDirty(true); 
+        setHydrated(true); 
+      } else {
+        setHydrated(true);
       }
     } catch (error) {
       console.error("Error restaurando sesión:", error);
       localStorage.removeItem(STORAGE_KEY);
+      setHydrated(true); 
     }
-  }, [loadDiagram, setViewport, setFilePath, setDirty, restoreSessionEnabled]);
+  }, [loadDiagram, setViewport, setFilePath, setDirty, restoreSessionEnabled, setHydrated]);
 };

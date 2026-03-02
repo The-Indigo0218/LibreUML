@@ -1,5 +1,5 @@
 import JSZip from "jszip";
-import type { UmlClassNode } from "../features/diagram/types/diagram.types";
+import type { UmlClassNode, UmlEdge } from "../features/diagram/types/diagram.types"; 
 import { JavaGeneratorService } from "./javaGenerator.service"; 
 
 interface ProjectConfig {
@@ -7,7 +7,9 @@ interface ProjectConfig {
   groupId: string;
   artifactId: string;
   packageName: string;
-  nodes: UmlClassNode[];
+  nodes: UmlClassNode[];     
+  allNodes: UmlClassNode[];  
+  edges: UmlEdge[];        
   javaVersion: string;
   buildTool: "maven" | "gradle";
 }
@@ -23,7 +25,8 @@ export class ProjectZipperService {
     if (!srcFolder) throw new Error("Could not create folder structure");
 
     config.nodes.forEach(node => {
-      let javaCode = JavaGeneratorService.generate(node);
+      let javaCode = JavaGeneratorService.generate(node, config.allNodes, config.edges);
+      
       const packageDeclaration = `package ${config.packageName};\n\n`;
       javaCode = packageDeclaration + javaCode;
       srcFolder.file(`${node.data.label}.java`, javaCode);

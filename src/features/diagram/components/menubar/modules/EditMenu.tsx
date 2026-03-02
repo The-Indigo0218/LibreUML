@@ -9,7 +9,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
-import { useEditActions } from "../../../hooks/actions/seEditActions";
+import { useEditActions } from "../../../hooks/actions/useEditActions";
 
 export function EditMenu() {
   const { t } = useTranslation();

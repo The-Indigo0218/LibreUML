@@ -214,6 +214,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
               {(method.parameters || []).map((param, idx) => (
                 <span key={idx} className="text-uml-interface-border">
                   {param.name}: {param.type}
+                  {param.isArray ? "[]" : ""}
                   {idx < (method.parameters?.length || 0) - 1 ? ", " : ""}
                 </span>
               ))}
@@ -221,6 +222,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
               <span className="text-text-muted">): </span>
               <span className="text-uml-interface-border">
                 {method.returnType}
+                {method.isReturnArray ? "[]" : ""}
               </span>
             </div>
           ))

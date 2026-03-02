@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProjectZipperService } from '../project-zipper.service';
 import type { UmlClassNode } from '../../features/diagram/types/diagram.types';
 
-//  Mock JSZip correctly using a Class to allow 'new JSZip()'
 const mockFile = vi.fn();
 const mockFolder = vi.fn(() => ({ file: mockFile }));
 
@@ -49,6 +48,8 @@ describe('ProjectZipperService', () => {
       artifactId: 'demo',
       packageName: 'com.test.demo',
       nodes: mockNodes,
+      allNodes: mockNodes,  
+      edges: [],            
       javaVersion: '17',
       buildTool: 'maven' as const
     };
@@ -72,6 +73,8 @@ describe('ProjectZipperService', () => {
       artifactId: 'app',
       packageName: 'org.code.app',
       nodes: [],
+      allNodes: [],        
+      edges: [],           
       javaVersion: '21',
       buildTool: 'gradle' as const
     };
@@ -98,6 +101,8 @@ describe('ProjectZipperService', () => {
       artifactId: 'desktop',
       packageName: 'com.app',
       nodes: [],
+      allNodes: [],        
+      edges: [],           
       javaVersion: '17',
       buildTool: 'maven' as const
     };

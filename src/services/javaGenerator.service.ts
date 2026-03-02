@@ -1,22 +1,24 @@
 import type {
   UmlClassNode,
-  UmlClassData,
   UmlAttribute,
   UmlMethod,
+  UmlEdge, 
 } from "../features/diagram/types/diagram.types";
 
 export class JavaGeneratorService {
-  static generate(node: UmlClassNode): string {
+  static generate(
+    node: UmlClassNode,
+    allNodes: UmlClassNode[] = [],
+    edges: UmlEdge[] = []
+  ): string {
     const data = node.data;
     const isInterface = data.stereotype === "interface";
 
     const parts: string[] = [];
 
-    //Signature
-    parts.push(this.buildSignature(data));
+    parts.push(this.buildSignature(node, allNodes, edges));
     parts.push("{");
 
-    // Attributes
     if (!isInterface && data.attributes && data.attributes.length > 0) {
       parts.push(this.buildAttributes(data.attributes));
     }
@@ -29,7 +31,6 @@ export class JavaGeneratorService {
       parts.push("");
     }
 
-    //  Methods
     if (data.methods && data.methods.length > 0) {
       parts.push(this.buildMethods(data.methods, isInterface));
     }
@@ -38,7 +39,12 @@ export class JavaGeneratorService {
     return parts.join("\n");
   }
 
-  private static buildSignature(data: UmlClassData): string {
+  private static buildSignature(
+    node: UmlClassNode,
+    allNodes: UmlClassNode[],
+    edges: UmlEdge[]
+  ): string {
+    const data = node.data;
     const visibility = "public";
     let type = "class";
 
@@ -48,7 +54,34 @@ export class JavaGeneratorService {
 
     const genericPart = data.generics ? `${data.generics}` : "";
 
-    return `${visibility} ${type} ${data.label}${genericPart}`;
+    let extendsClause = "";
+    let implementsClause = "";
+
+    const outgoingEdges = edges.filter((e) => e.source === node.id);
+
+    const inheritanceEdges = outgoingEdges.filter(
+      (e) => (e.data?.type || e.type) === "inheritance"
+    );
+    const implementationEdges = outgoingEdges.filter(
+      (e) => (e.data?.type || e.type) === "implementation"
+    );
+
+    const extendsNames = inheritanceEdges
+      .map((e) => allNodes.find((n) => n.id === e.target)?.data.label)
+      .filter(Boolean);
+
+    const implementsNames = implementationEdges
+      .map((e) => allNodes.find((n) => n.id === e.target)?.data.label)
+      .filter(Boolean);
+
+    if (extendsNames.length > 0) {
+      extendsClause = ` extends ${extendsNames.join(", ")}`;
+    }
+    if (implementsNames.length > 0) {
+      implementsClause = ` implements ${implementsNames.join(", ")}`;
+    }
+
+    return `${visibility} ${type} ${data.label}${genericPart}${extendsClause}${implementsClause}`;
   }
 
   private static buildAttributes(attributes: UmlAttribute[]): string {
@@ -63,15 +96,19 @@ export class JavaGeneratorService {
 
   private static buildMethods(
     methods: UmlMethod[],
-    isInterface: boolean,
+    isInterface: boolean
   ): string {
     return methods
       .map((method) => {
         const vis = this.mapVisibility(method.visibility);
-        const returnType = this.formatType(method.returnType);
-
+        const returnType =
+          this.formatType(method.returnType) +
+          (method.isReturnArray ? "[]" : "");
         const params = (method.parameters || [])
-          .map((p) => `${this.formatType(p.type)} ${p.name}`)
+          .map((p) => {
+            const paramType = this.formatType(p.type) + (p.isArray ? "[]" : "");
+            return `${paramType} ${p.name}`;
+          })
           .join(", ");
 
         const signature = `    ${vis} ${returnType} ${method.name}(${params})`;
@@ -84,11 +121,12 @@ export class JavaGeneratorService {
         if (returnType === "void") body = "// TODO: Implement logic";
         else if (
           ["int", "double", "float", "long", "short", "byte"].includes(
-            returnType,
-          )
+            this.formatType(method.returnType) 
+          ) && !method.isReturnArray 
         )
           body = "return 0;";
-        else if (returnType === "boolean") body = "return false;";
+        else if (this.formatType(method.returnType) === "boolean" && !method.isReturnArray)
+          body = "return false;";
         else body = "return null;";
 
         return `${signature} {\n        ${body}\n    }`;

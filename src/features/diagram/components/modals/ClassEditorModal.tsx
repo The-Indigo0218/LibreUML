@@ -196,28 +196,33 @@ export default function ClassEditorModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm font-sans p-4">
-      <div className="bg-surface-primary border border-surface-border p-6 rounded-xl shadow-2xl w-200 max-w-[95vw] text-text-primary max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col">
-        <h2 className="text-xl font-bold mb-6 flex items-center gap-2 shrink-0">
-          <span className="text-uml-class-border">
-            {t("modals.classEditor.title")}
-          </span>
-          {draft.label}
-        </h2>
+    
+      <div className="bg-surface-primary border border-surface-border p-6 rounded-xl shadow-2xl w-200 max-w-[95vw] text-text-primary max-h-[95vh] overflow-hidden flex flex-col">
+        
+        {/* HEADER  */}
+        <div className="shrink-0 mb-6">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <span className="text-uml-class-border">
+              {t("modals.classEditor.title")}
+            </span>
+            {draft.label}
+          </h2>
 
-        <div className="mb-6 shrink-0">
-          <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
-            {t("modals.classEditor.className")}
-          </label>
-          <input
-            className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-text-primary focus:border-uml-class-border outline-none"
-            value={draft.label}
-            onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-          />
+          <div>
+            <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
+              {t("modals.classEditor.className")}
+            </label>
+            <input
+              className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-text-primary focus:border-uml-class-border outline-none"
+              value={draft.label}
+              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+            />
+          </div>
         </div>
 
-        {/* --- ATTRIBUTES SECTION --- */}
-        <div className="mb-6 shrink-0">
-          <div className="flex justify-between items-center mb-2">
+        {/* --- ATTRIBUTES SECTION (SCROLLABLE) --- */}
+        <div className="shrink-0 flex flex-col mb-4">
+          <div className="flex justify-between items-center mb-2 shrink-0">
             <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
               {t("modals.classEditor.attributes")}
             </label>
@@ -229,7 +234,7 @@ export default function ClassEditorModal({
             </button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 overflow-y-auto max-h-[30vh] pr-2 custom-scrollbar">
             {draft.attributes.map((attr, idx) => (
               <div
                 key={attr.id}
@@ -317,8 +322,8 @@ export default function ClassEditorModal({
           </div>
         </div>
 
-        {/* --- METHODS SECTION --- */}
-        <div className="mb-2 flex-1 flex flex-col min-h-0">
+        {/* --- METHODS SECTION (SCROLLABLE & FLEXIBLE) --- */}
+        <div className="flex-1 flex flex-col min-h-0 pt-4 border-t border-surface-border">
           <div className="flex justify-between items-center mb-2 shrink-0">
             <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
               {t("modals.classEditor.methods")}
@@ -331,11 +336,11 @@ export default function ClassEditorModal({
             </button>
           </div>
 
-          <div className="space-y-3 overflow-y-auto pr-1 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3 pb-4">
             {draft.methods.map((method, methodIdx) => (
               <div
                 key={method.id}
-                className="flex flex-col bg-surface-secondary rounded border border-surface-border overflow-hidden"
+                className="flex flex-col bg-surface-secondary rounded border border-surface-border overflow-hidden shrink-0"
               >
                 {/* METHOD HEADER */}
                 <div className="flex items-center gap-3 p-2 border-b border-surface-border/50 bg-surface-secondary">
@@ -420,6 +425,7 @@ export default function ClassEditorModal({
                   </div>
                 </div>
 
+                {/* PARAMETERS SUB-SECTION */}
                 <div className="bg-black/20 p-3 flex flex-col gap-2">
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
@@ -479,7 +485,6 @@ export default function ClassEditorModal({
                             ))}
                           </select>
 
-                          {/* NUEVO: Checkbox para parámetro Array */}
                           <label
                             title="Convertir a arreglo (Array)"
                             className="flex items-center gap-1 cursor-pointer bg-surface-primary px-1.5 py-0.5 rounded border border-surface-border hover:border-uml-class-border transition-colors"
@@ -524,8 +529,8 @@ export default function ClassEditorModal({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-surface-border shrink-0 mt-2">
+        {/* FOOTER*/}
+        <div className="shrink-0 flex justify-end gap-3 pt-4 border-t border-surface-border bg-surface-primary mt-auto">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
@@ -534,7 +539,7 @@ export default function ClassEditorModal({
           </button>
           <button
             onClick={() => onSave(draft)}
-            className="px-6 py-2 text-sm bg-uml-class-border text-white rounded font-medium hover:brightness-110"
+            className="px-6 py-2 text-sm bg-uml-class-border text-white rounded font-medium hover:brightness-110 shadow-md transition-all active:scale-95"
           >
             {t("modals.classEditor.save")}
           </button>

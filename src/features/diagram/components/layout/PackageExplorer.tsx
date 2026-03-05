@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Check, X } from "lucide-react";
+import { Plus, Check, X, Folder } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useReactFlow } from "reactflow";
 import { useDiagramStore } from "../../../../store/diagramStore";
@@ -124,6 +124,7 @@ export default function PackageExplorer() {
                   Subpaquete:
                 </span>
               )}
+              <Folder className="w-4 h-4 text-[#dcb67a]" />
               <input
                 type="text"
                 value={newPackageName}

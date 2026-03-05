@@ -5,7 +5,6 @@ import type { UmlClassData } from "../../../types/diagram.types";
 import { useDiagramStore } from "../../../../../store/diagramStore";
 import { handleConfig } from "../../../../../config/theme.config";
 
-//  STRATEGY PATTERN: Define styles externally to keep the component clean
 const STYLE_CONFIG: Record<
   string,
   {
@@ -89,7 +88,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
 
   return (
     <div
-      className={`border-2 rounded-sm w-64 overflow-visible group transition-all duration-200 ${currentStyle.container} ${selectionClasses}`}
+      className={`border-2 rounded-sm min-w-[16rem] max-w-lg w-fit overflow-visible group transition-all duration-200 ${currentStyle.container} ${selectionClasses}`}
     >
       {/* Target Handles (Green) */}
       <Handle
@@ -132,13 +131,24 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
           </div>
         )}
 
-        {/* Stereotype Label (e.g. <<interface>>) */}
-        {currentStyle.showStereotype && (
-          <small
-            className={`block text-[10px] leading-tight mb-0.5 font-mono ${currentStyle.labelFormat.includes("italic") ? "italic" : ""} ${currentStyle.badgeColor}`}
-          >
-            &lt;&lt;{data.stereotype}&gt;&gt;
-          </small>
+        {(currentStyle.showStereotype || data.package) && (
+          <div className="flex items-center justify-center gap-1.5 mb-0.5">
+            {currentStyle.showStereotype && (
+              <small
+                className={`text-[10px] leading-tight font-mono ${
+                  currentStyle.labelFormat.includes("italic") ? "italic" : ""
+                } ${currentStyle.badgeColor}`}
+              >
+                &lt;&lt;{data.stereotype}&gt;&gt;
+              </small>
+            )}
+            
+            {data.package && (
+              <small className="text-[10px] leading-tight font-mono text-text-muted truncate max-w-30" title={data.package}>
+                {data.package}
+              </small>
+            )}
+          </div>
         )}
 
         {/* Class Name */}
@@ -172,7 +182,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
             ? "border-cyan-500/30!"
             : currentStyle.container
                 .split(" ")
-                .find((c) => c.startsWith("border-")) // Inherit border color dynamically
+                .find((c) => c.startsWith("border-")) 
         }`}
       >
         {data.attributes && data.attributes.length > 0 ? (
@@ -197,35 +207,97 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
         )}
       </div>
 
-      {/* FOOTER: Methods */}
+     {/* FOOTER: Methods */}
       <div className="p-2 min-h-6 text-xs text-left font-mono text-text-secondary">
         {data.methods && data.methods.length > 0 ? (
-          data.methods.map((method, index) => (
-            <div
-              key={method.id || `${method.name}-${index}`}
-              className="truncate hover:text-text-primary transition-colors"
-            >
-              <span className={`font-bold ${currentStyle.badgeColor}`}>
-                {method.visibility}
-              </span>
-              <span className="text-text-primary">{method.name}</span>
-              <span className="text-text-muted">(</span>
+          data.methods.map((method, index) => {
+            const params = method.parameters || [];
+            
+            const paramChunks = [];
+            for (let i = 0; i < params.length; i += 3) {
+              paramChunks.push(params.slice(i, i + 3));
+            }
 
-              {(method.parameters || []).map((param, idx) => (
-                <span key={idx} className="text-uml-interface-border">
-                  {param.name}: {param.type}
-                  {param.isArray ? "[]" : ""}
-                  {idx < (method.parameters?.length || 0) - 1 ? ", " : ""}
-                </span>
-              ))}
+            return (
+              <div
+                key={method.id || `${method.name}-${index}`}
+                className="hover:text-text-primary transition-colors py-0.5 leading-relaxed wrap-break-word"
+              >
+                <div className="flex items-start">
+                  <div className="shrink-0 flex items-center">
+                    <span className={`font-bold mr-1 ${currentStyle.badgeColor}`}>
+                      {method.visibility}
+                    </span>
+                    
+                    {method.isConstructor && (
+                      <span className="text-purple-400 text-[10px] mr-1 italic font-normal tracking-tight">
+                        &lt;&lt;create&gt;&gt;
+                      </span>
+                    )}
 
-              <span className="text-text-muted">): </span>
-              <span className="text-uml-interface-border">
-                {method.returnType}
-                {method.isReturnArray ? "[]" : ""}
-              </span>
-            </div>
-          ))
+                    <span
+                      className={`text-text-primary ${method.isStatic ? "underline" : ""} ${
+                        (data.stereotype === "interface" || data.stereotype === "abstract") &&
+                        method.visibility !== "-"
+                          ? "italic"
+                          : ""
+                      }`}
+                    >
+                      {method.isConstructor ? data.label : method.name}
+                    </span>
+                    <span className="text-text-muted">(</span>
+                  </div>
+
+                  {params.length === 0 ? (
+                    method.isConstructor ? (
+                      <span className="text-text-muted">)</span>
+                    ) : (
+                      <>
+                        <span className="text-text-muted">): </span>
+                        <span className="text-uml-interface-border">
+                          {method.returnType}
+                          {method.isReturnArray ? "[]" : ""}
+                        </span>
+                      </>
+                    )
+                  ) : (
+                    <div className="flex flex-col flex-1 min-w-0">
+                      {paramChunks.map((chunk, chunkIdx) => (
+                        <div key={chunkIdx} className="flex flex-wrap">
+                          {chunk.map((param, pIdx) => {
+                            const isLastOverall =
+                              chunkIdx === paramChunks.length - 1 &&
+                              pIdx === chunk.length - 1;
+
+                            return (
+                              <span key={pIdx} className="text-uml-interface-border">
+                                {param.name}: {param.type}{param.isArray ? "[]" : ""}
+                                {!isLastOverall && <span className="mr-1.5">,</span>}
+                              </span>
+                            );
+                          })}
+                          
+                          {chunkIdx === paramChunks.length - 1 && (
+                            method.isConstructor ? (
+                              <span className="text-text-muted">)</span>
+                            ) : (
+                              <>
+                                <span className="text-text-muted">): </span>
+                                <span className="text-uml-interface-border ml-1">
+                                  {method.returnType}
+                                  {method.isReturnArray ? "[]" : ""}
+                                </span>
+                              </>
+                            )
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })
         ) : (
           <div className="h-2"></div>
         )}

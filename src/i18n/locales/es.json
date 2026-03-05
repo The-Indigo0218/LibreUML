@@ -95,6 +95,14 @@
   },
   "sidebar": {
     "toolbox": "Caja de Herramientas",
+    "explorer": "Explorador",
+    "addPackage": "Añadir Nuevo Paquete",
+    "packageName": "Nombre del paquete...",
+    "noPackages": "No hay paquetes. Haz clic en + para crear uno.",
+    "unassigned": "Sin Paquete",
+    "noClasses": "Sin clases asignadas",
+    "rename": "Renombrar",
+    "delete": "Eliminar",
     "nodes": {
       "title": "Nodos",
       "class": "Clase",
@@ -157,6 +165,8 @@
     "classEditor": {
       "title": "Editar Clase:",
       "className": "NOMBRE DE CLASE",
+      "package": "Paquete",
+      "noPackage": "Sin paquete",
       "attributes": "ATRIBUTOS",
       "methods": "MÉTODOS",
       "add": "Agregar",
@@ -190,6 +200,12 @@
       "newMessage": "¿Estás seguro? Se perderán los cambios no guardados del diagrama actual.",
       "discardTitle": "¿Descartar Cambios?",
       "discardMessage": "El diagrama volverá a su último estado guardado.",
+      "deletePackageTitle": "¿Eliminar Paquete?",
+      "deletePackageWithClasses": "El paquete '{{name}}' contiene clases. Si lo eliminas, las clases se moverán a 'Sin Paquete'. ¿Deseas continuar?",
+      "deletePackageWithClassesCount": "El paquete '{{name}}' contiene {{count}} clase(s). ¿Qué deseas hacer?",
+      "deletePackageEmpty": "¿Estás seguro de que deseas eliminar el paquete '{{name}}'?",
+      "deletePackageAndClasses": "Eliminar Paquete y Clases",
+      "deletePackageKeepClasses": "Solo Eliminar Paquete (Mover Clases a 'Sin Paquete')",
       "confirm": "Confirmar",
       "cancel": "Cancelar"
     },

@@ -9,9 +9,6 @@ import {
   GitCommitHorizontal,
   ArrowUp,
   MoveRight,
-  SquareChevronRight,
-  SquareChevronLeft,
-  PanelLeft,
   ChevronDown,
   ChevronRight,
   Diamond,
@@ -24,8 +21,6 @@ import { useTranslation } from "react-i18next";
 export default function Sidebar() {
   const { activeConnectionMode, setConnectionMode } = useDiagramStore();
 
-  const [isExpanded, setIsExpanded] = useState(false);
-
   const [isNodesOpen, setIsNodesOpen] = useState(true);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(true);
 
@@ -37,44 +32,12 @@ export default function Sidebar() {
   };
 
   return (
-    <aside
-      className={`
-        relative bg-surface-primary border-r border-surface-border flex flex-col z-10 shadow-xl transition-all duration-300 ease-in-out
-        ${isExpanded ? "w-64" : "w-16"}
-      `}
-    >
-      {/* ---  DINAMIC HEADER --- */}
-      <div
-        className={`
-        h-14 flex items-center border-b border-surface-border/50 transition-all duration-300
-        ${isExpanded ? "justify-between px-4" : "justify-center"}
-      `}
-      >
-        {isExpanded && (
-          <div className="flex items-center gap-2 animate-in fade-in duration-300">
-            <PanelLeft className="w-5 h-5 text-uml-class-border" />
-            <span className="font-bold text-text-primary tracking-tight">
-              {t("sidebar.toolbox")}
-            </span>
-          </div>
-        )}
-
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className={`
-             flex items-center justify-center 
-             rounded-md text-text-secondary hover:text-text-primary hover:bg-surface-hover hover:scale-105
-             transition-all duration-200
-             ${isExpanded ? "p-1.5 bg-transparent border border-surface-border" : "w-8 h-8 bg-surface-secondary border border-surface-border"}
-           `}
-          title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-        >
-          {isExpanded ? (
-            <SquareChevronLeft className="w-5 h-5" />
-          ) : (
-            <SquareChevronRight className="w-5 h-5" />
-          )}
-        </button>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#2d2d2d]">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[#cccccc]">
+          {t("sidebar.toolbox")}
+        </span>
       </div>
 
       <div className="flex flex-col py-2 overflow-y-auto overflow-x-hidden custom-scrollbar h-full select-none">
@@ -83,180 +46,141 @@ export default function Sidebar() {
           title="Nodes"
           isOpen={isNodesOpen}
           setIsOpen={setIsNodesOpen}
-          isSidebarExpanded={isExpanded}
         >
-          <div
-            className={`flex flex-col gap-2 ${isExpanded ? "px-3" : "px-2"}`}
-          >
+          <div className="flex flex-col gap-2 px-3">
             <DraggableItem
               type="class"
-              icon={<Box className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              icon={<Box className="w-5 h-5" />}
               label={t("sidebar.nodes.class")}
               color="var(--color-uml-class-border)"
-              isExpanded={isExpanded}
               onDragStart={onDragStart}
             />
             <DraggableItem
               type="interface"
-              icon={
-                <CircleDot className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
-              }
+              icon={<CircleDot className="w-5 h-5" />}
               label={t("sidebar.nodes.interface")}
               color="var(--color-uml-interface-border)"
-              isExpanded={isExpanded}
               onDragStart={onDragStart}
             />
             <DraggableItem
               type="abstract"
-              icon={
-                <BoxSelect className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
-              }
+              icon={<BoxSelect className="w-5 h-5" />}
               label={t("sidebar.nodes.abstract")}
               color="var(--color-uml-abstract-border)"
-              isExpanded={isExpanded}
               onDragStart={onDragStart}
             />
             <DraggableItem
-              type="enum" 
-              icon={
-                <List className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
-              }
-              label="Enum" 
-              color="#A855F7" 
-              isExpanded={isExpanded}
+              type="enum"
+              icon={<List className="w-5 h-5" />}
+              label="Enum"
+              color="#A855F7"
               onDragStart={onDragStart}
             />
             <DraggableItem
               type="note"
-              icon={
-                <StickyNote className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
-              }
+              icon={<StickyNote className="w-5 h-5" />}
               label={t("sidebar.nodes.note")}
               color="var(--color-uml-note-border)"
-              isExpanded={isExpanded}
               onDragStart={onDragStart}
             />
           </div>
         </CollapsibleSection>
 
-        {isExpanded && <div className="mx-4 my-2 h-px bg-surface-border/30" />}
+        <div className="mx-4 my-2 h-px bg-surface-border/30" />
 
         {/* === Section 2: relationships === */}
         <CollapsibleSection
           title={t("sidebar.connections.title")}
           isOpen={isConnectionsOpen}
           setIsOpen={setIsConnectionsOpen}
-          isSidebarExpanded={isExpanded}
         >
-          <div
-            className={`flex flex-col gap-2 ${isExpanded ? "px-3" : "px-2"}`}
-          >
+          <div className="flex flex-col gap-2 px-3">
             <ConnectionItem
               mode="association"
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("association")}
-              icon={
-                <MoveRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
-              }
+              icon={<MoveRight className="w-5 h-5" />}
               label={t("sidebar.connections.association")}
               color={edgeConfig.types.association.highlight}
-              isExpanded={isExpanded}
             />
 
             <ConnectionItem
               mode="inheritance"
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("inheritance")}
-              icon={<ArrowUp className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              icon={<ArrowUp className="w-5 h-5" />}
               label={t("sidebar.connections.inheritance")}
               color={edgeConfig.types.inheritance.highlight}
-              isExpanded={isExpanded}
             />
 
             <ConnectionItem
               mode="implementation"
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("implementation")}
-              icon={
-                <ArrowUpRight className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />
-              }
+              icon={<ArrowUpRight className="w-5 h-5" />}
               label={t("sidebar.connections.implementation")}
               color={edgeConfig.types.implementation.highlight}
-              isExpanded={isExpanded}
             />
 
             <ConnectionItem
               mode="dependency"
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("dependency")}
-              icon={
-                <GitCommitHorizontal
-                  className={isExpanded ? "w-5 h-5" : "w-6 h-6"}
-                />
-              }
+              icon={<GitCommitHorizontal className="w-5 h-5" />}
               label={t("sidebar.connections.dependency")}
               color={edgeConfig.types.dependency.highlight}
-              isExpanded={isExpanded}
             />
 
             <ConnectionItem
               mode="aggregation"
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("aggregation")}
-              icon={<Diamond className={isExpanded ? "w-5 h-5" : "w-6 h-6"} />}
+              icon={<Diamond className="w-5 h-5" />}
               label={t("sidebar.connections.aggregation")}
               color={edgeConfig.types.aggregation.highlight}
-              isExpanded={isExpanded}
             />
 
             <ConnectionItem
               mode="composition"
               activeMode={activeConnectionMode}
               onClick={() => setConnectionMode("composition")}
-              icon={
-                <Diamond
-                  className={`${isExpanded ? "w-5 h-5" : "w-6 h-6"} fill-current`}
-                />
-              }
+              icon={<Diamond className="w-5 h-5 fill-current" />}
               label={t("sidebar.connections.composition")}
               color={edgeConfig.types.composition.highlight}
-              isExpanded={isExpanded}
             />
           </div>
 
-          {isExpanded && (
-            <div className="p-4 border-t border-surface-border bg-surface-secondary/30 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">
-                {t("sidebar.legend.title")}
+          <div className="p-4 border-t border-surface-border bg-surface-secondary/30 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">
+              {t("sidebar.legend.title")}
+            </div>
+            <div className="flex flex-col gap-2">
+              {/* Source Legend */}
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-sm shadow-sm ring-1 ring-blue-500/30"></div>
+                <span className="text-xs text-text-secondary">
+                  <span className="font-semibold text-text-primary">
+                    {t("sidebar.legend.blue")}
+                  </span>{" "}
+                  {t("sidebar.legend.source")}
+                </span>
               </div>
-              <div className="flex flex-col gap-2">
-                {/* Source Legend */}
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-sm shadow-sm ring-1 ring-blue-500/30"></div>
-                  <span className="text-xs text-text-secondary">
-                    <span className="font-semibold text-text-primary">
-                      {t("sidebar.legend.blue")}
-                    </span>{" "}
-                    {t("sidebar.legend.source")}
-                  </span>
-                </div>
 
-                {/* Target Legend */}
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-sm shadow-sm ring-1 ring-green-500/30"></div>
-                  <span className="text-xs text-text-secondary">
-                    <span className="font-semibold text-text-primary">
-                      {t("sidebar.legend.green")}
-                    </span>{" "}
-                    {t("sidebar.legend.target")}
-                  </span>
-                </div>
+              {/* Target Legend */}
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-sm shadow-sm ring-1 ring-green-500/30"></div>
+                <span className="text-xs text-text-secondary">
+                  <span className="font-semibold text-text-primary">
+                    {t("sidebar.legend.green")}
+                  </span>{" "}
+                  {t("sidebar.legend.target")}
+                </span>
               </div>
             </div>
-          )}
+          </div>
         </CollapsibleSection>
       </div>
-    </aside>
+    </div>
   );
 }
 
@@ -264,7 +188,6 @@ interface CollapsibleSectionProps {
   title: string;
   isOpen: boolean;
   setIsOpen: (v: boolean) => void;
-  isSidebarExpanded: boolean;
   children: React.ReactNode;
 }
 
@@ -272,18 +195,8 @@ function CollapsibleSection({
   title,
   isOpen,
   setIsOpen,
-  isSidebarExpanded,
   children,
 }: CollapsibleSectionProps) {
-  if (!isSidebarExpanded) {
-    return (
-      <div className="py-2 flex flex-col gap-1 items-center animate-in fade-in zoom-in duration-200">
-        <div className="w-8 h-px bg-surface-border/50 mb-2" />
-        {children}
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col">
       <button
@@ -312,7 +225,6 @@ interface DraggableItemProps {
   icon: React.ReactNode;
   label: string;
   color: string;
-  isExpanded: boolean;
   onDragStart: (event: React.DragEvent, type: stereotype) => void;
 }
 
@@ -321,18 +233,14 @@ function DraggableItem({
   icon,
   label,
   color,
-  isExpanded,
   onDragStart,
 }: DraggableItemProps) {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <div
-      title={label} 
-      className={`
-        group flex items-center cursor-grab active:cursor-grabbing rounded-lg transition-all duration-200 border
-        ${isExpanded ? "flex-row gap-3 px-3 py-2.5 justify-start" : "flex-col gap-1 p-2 justify-center"}
-      `}
+      title={label}
+      className="group flex items-center cursor-grab active:cursor-grabbing rounded-lg transition-all duration-200 border flex-row gap-3 px-3 py-2.5 justify-start"
       draggable
       onDragStart={(e) => onDragStart(e, type)}
       onMouseEnter={() => setIsHovered(true)}
@@ -351,14 +259,12 @@ function DraggableItem({
         </span>
       </div>
 
-      {isExpanded && (
-        <span 
-          className="font-medium text-sm transition-all whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200"
-          style={{ color: isHovered ? "var(--color-text-primary)" : "var(--color-text-muted)" }}
-        >
-          {label}
-        </span>
-      )}
+      <span
+        className="font-medium text-sm transition-all whitespace-nowrap overflow-hidden animate-in fade-in slide-in-from-left-2 duration-200"
+        style={{ color: isHovered ? "var(--color-text-primary)" : "var(--color-text-muted)" }}
+      >
+        {label}
+      </span>
     </div>
   );
 }
@@ -370,7 +276,6 @@ interface ConnectionItemProps {
   icon: React.ReactNode;
   label: string;
   color: string;
-  isExpanded: boolean;
 }
 
 function ConnectionItem({
@@ -380,33 +285,25 @@ function ConnectionItem({
   icon,
   label,
   color,
-  isExpanded,
 }: ConnectionItemProps) {
   const isActive = activeMode === mode;
   const [isHovered, setIsHovered] = useState(false);
 
   return (
     <button
-      title={label} 
+      title={label}
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`
-        group flex items-center rounded-lg transition-all duration-200 border
-        ${
-          isExpanded
-            ? "flex-row gap-3 px-3 py-2.5 justify-start"
-            : "flex-col gap-1 p-2 justify-center"
-        }
-      `}
+      className="group flex items-center rounded-lg transition-all duration-200 border flex-row gap-3 px-3 py-2.5 justify-start"
       style={{
         borderColor: isActive || isHovered
           ? color
           : `color-mix(in srgb, ${color} 30%, transparent)`,
-        backgroundColor: isActive 
-          ? color 
-          : isHovered 
-          ? `color-mix(in srgb, ${color} 15%, transparent)` 
+        backgroundColor: isActive
+          ? color
+          : isHovered
+          ? `color-mix(in srgb, ${color} 15%, transparent)`
           : "transparent",
       }}
     >
@@ -424,14 +321,12 @@ function ConnectionItem({
         </span>
       </div>
 
-      {isExpanded && (
-        <span
-          className="font-medium text-sm transition-colors whitespace-nowrap"
-          style={{ color: isActive ? "#0B0F1A" : "#9CA3AF" }}
-        >
-          {label}
-        </span>
-      )}
+      <span
+        className="font-medium text-sm transition-colors whitespace-nowrap"
+        style={{ color: isActive ? "#0B0F1A" : "#9CA3AF" }}
+      >
+        {label}
+      </span>
     </button>
   );
 }

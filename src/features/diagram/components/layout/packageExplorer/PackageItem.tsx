@@ -41,29 +41,32 @@ export function PackageItem({
         {isExpanded ? <FolderOpen className="w-4 h-4 text-[#dcb67a]" /> : <Folder className="w-4 h-4 text-[#dcb67a]" />}
 
         {isEditing ? (
-          <div className="flex items-center gap-2 flex-1">
-            <input
-              type="text"
-              value={editingName}
-              onChange={(e) => onEditingNameChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onSaveEdit();
-                if (e.key === "Escape") onCancelEdit();
-              }}
-              className={`flex-1 px-2 py-0.5 text-sm rounded border focus:outline-none ${
-                isDark 
-                  ? 'bg-[#3c3c3c] text-[#cccccc] border-[#454545] focus:border-blue-500' 
-                  : 'bg-white text-[#383838] border-[#d0d0d0] focus:border-blue-600'
-              }`}
-              autoFocus
-            />
-            <button onClick={onSaveEdit} className={`p-0.5 text-green-500 rounded ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}>
-              <Check className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={onCancelEdit} className={`p-0.5 text-red-500 rounded ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}>
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <>
+            <Folder className="w-4 h-4 text-[#dcb67a]" />
+            <div className="flex items-center gap-2 flex-1">
+              <input
+                type="text"
+                value={editingName}
+                onChange={(e) => onEditingNameChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onSaveEdit();
+                  if (e.key === "Escape") onCancelEdit();
+                }}
+                className={`flex-1 px-2 py-0.5 text-sm rounded border focus:outline-none ${
+                  isDark 
+                    ? 'bg-[#3c3c3c] text-[#cccccc] border-[#454545] focus:border-blue-500' 
+                    : 'bg-white text-[#383838] border-[#d0d0d0] focus:border-blue-600'
+                }`}
+                autoFocus
+              />
+              <button onClick={onSaveEdit} className={`p-0.5 text-green-500 rounded ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}>
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button onClick={onCancelEdit} className={`p-0.5 text-red-500 rounded ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}>
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <span className="flex-1 text-sm font-medium">{pkg.name}</span>

@@ -204,9 +204,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
       deletePackage: (id, deleteClasses) => set((state) => {
         const pkg = state.packages.find(p => p.id === id);
         if (!pkg) return state;
-        const oldName = pkg.name;
 
-        // Eliminar el paquete y todos sus subpaquetes
         const getAllPackageIds = (parentId: string): string[] => {
           const children = state.packages.filter(p => p.parentId === parentId);
           return [parentId, ...children.flatMap(child => getAllPackageIds(child.id))];

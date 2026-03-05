@@ -5,7 +5,6 @@ import type { UmlClassData } from "../../../types/diagram.types";
 import { useDiagramStore } from "../../../../../store/diagramStore";
 import { handleConfig } from "../../../../../config/theme.config";
 
-//  STRATEGY PATTERN: Define styles externally to keep the component clean
 const STYLE_CONFIG: Record<
   string,
   {
@@ -214,10 +213,17 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
                 className="hover:text-text-primary transition-colors py-0.5 leading-relaxed wrap-break-word"
               >
                 <div className="flex items-start">
-                  <div className="shrink-0 flex">
+                  <div className="shrink-0 flex items-center">
                     <span className={`font-bold mr-1 ${currentStyle.badgeColor}`}>
                       {method.visibility}
                     </span>
+                    
+                    {method.isConstructor && (
+                      <span className="text-purple-400 text-[10px] mr-1 italic font-normal tracking-tight">
+                        &lt;&lt;create&gt;&gt;
+                      </span>
+                    )}
+
                     <span
                       className={`text-text-primary ${method.isStatic ? "underline" : ""} ${
                         (data.stereotype === "interface" || data.stereotype === "abstract") &&
@@ -226,19 +232,23 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
                           : ""
                       }`}
                     >
-                      {method.name}
+                      {method.isConstructor ? data.label : method.name}
                     </span>
                     <span className="text-text-muted">(</span>
                   </div>
 
                   {params.length === 0 ? (
-                    <>
-                      <span className="text-text-muted">): </span>
-                      <span className="text-uml-interface-border">
-                        {method.returnType}
-                        {method.isReturnArray ? "[]" : ""}
-                      </span>
-                    </>
+                    method.isConstructor ? (
+                      <span className="text-text-muted">)</span>
+                    ) : (
+                      <>
+                        <span className="text-text-muted">): </span>
+                        <span className="text-uml-interface-border">
+                          {method.returnType}
+                          {method.isReturnArray ? "[]" : ""}
+                        </span>
+                      </>
+                    )
                   ) : (
                     <div className="flex flex-col flex-1 min-w-0">
                       {paramChunks.map((chunk, chunkIdx) => (
@@ -250,21 +260,24 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
 
                             return (
                               <span key={pIdx} className="text-uml-interface-border">
-                                {param.name}: {param.type}
-                                {param.isArray ? "[]" : ""}
-                                {!isLastOverall ? ", " : ""}
+                                {param.name}: {param.type}{param.isArray ? "[]" : ""}
+                                {!isLastOverall && <span className="mr-1.5">,</span>}
                               </span>
                             );
                           })}
                           
                           {chunkIdx === paramChunks.length - 1 && (
-                            <>
-                              <span className="text-text-muted">): </span>
-                              <span className="text-uml-interface-border ml-1">
-                                {method.returnType}
-                                {method.isReturnArray ? "[]" : ""}
-                              </span>
-                            </>
+                            method.isConstructor ? (
+                              <span className="text-text-muted">)</span>
+                            ) : (
+                              <>
+                                <span className="text-text-muted">): </span>
+                                <span className="text-uml-interface-border ml-1">
+                                  {method.returnType}
+                                  {method.isReturnArray ? "[]" : ""}
+                                </span>
+                              </>
+                            )
                           )}
                         </div>
                       ))}

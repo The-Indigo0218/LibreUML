@@ -37,6 +37,7 @@ export default function ClassEditorModal({
   onClose,
 }: ClassEditorModalProps) {
   const nodes = useDiagramStore((state) => state.nodes);
+  const packages = useDiagramStore((state) => state.packages);
   const { t } = useTranslation();
 
   const availableTypes = useMemo(() => {
@@ -170,15 +171,36 @@ export default function ClassEditorModal({
             <span className="text-uml-class-border">{t("modals.classEditor.title")}</span>
             {draft.label}
           </h2>
-          <div>
-            <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
-              {t("modals.classEditor.className")}
-            </label>
-            <input
-              className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-text-primary focus:border-uml-class-border outline-none"
-              value={draft.label}
-              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
+                {t("modals.classEditor.className")}
+              </label>
+              <input
+                className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-text-primary focus:border-uml-class-border outline-none"
+                value={draft.label}
+                onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+              />
+            </div>
+
+            {/* Package Selector */}
+            <div>
+              <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
+                {t("modals.classEditor.package")}
+              </label>
+              <select
+                className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-text-primary focus:border-uml-class-border outline-none"
+                value={draft.package || ""}
+                onChange={(e) => setDraft({ ...draft, package: e.target.value || undefined })}
+              >
+                <option value="">{t("modals.classEditor.noPackage")}</option>
+                {packages.map((pkg) => (
+                  <option key={pkg.id} value={pkg.name}>
+                    {pkg.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

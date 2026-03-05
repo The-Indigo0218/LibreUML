@@ -36,6 +36,7 @@ export interface UmlMethod {
 export interface UmlPackage {
   id: string;
   name: string;
+  parentId?: string;
 }
 
 export interface UmlClassData {

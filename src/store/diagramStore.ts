@@ -76,9 +76,9 @@ interface DiagramStoreState {
   setEdges: (edges: Edge[]) => void;               
 
   // --- Package Actions (Relational) ---
-  addPackage: (name: string) => void;
+  addPackage: (name: string, parentId?: string) => void;
   updatePackageName: (id: string, newName: string) => void;
-  deletePackage: (id: string) => void;
+  deletePackage: (id: string, deleteClasses: boolean) => void;
 
   // --- Node Actions ---
   addNode: (position: { x: number; y: number }, stereotype?: stereotype) => void;
@@ -179,8 +179,8 @@ export const useDiagramStore = create<DiagramStoreState>()(
       },
 
       // --- Package Operations (Arquitectura Relacional) ---
-      addPackage: (name) => set((state) => ({
-        packages: [...state.packages, { id: crypto.randomUUID(), name }],
+      addPackage: (name, parentId) => set((state) => ({
+        packages: [...state.packages, { id: crypto.randomUUID(), name, parentId }],
         isDirty: true
       })),
 
@@ -201,21 +201,50 @@ export const useDiagramStore = create<DiagramStoreState>()(
         return { packages: newPackages, nodes: newNodes, isDirty: true };
       }),
 
-      deletePackage: (id) => set((state) => {
+      deletePackage: (id, deleteClasses) => set((state) => {
         const pkg = state.packages.find(p => p.id === id);
         if (!pkg) return state;
         const oldName = pkg.name;
 
-        const newPackages = state.packages.filter(p => p.id !== id);
-        
-        const newNodes = state.nodes.map(node => {
-          if (node.data.package === oldName) {
-            return { ...node, data: { ...node.data, package: undefined } }; 
-          }
-          return node;
-        });
+        // Eliminar el paquete y todos sus subpaquetes
+        const getAllPackageIds = (parentId: string): string[] => {
+          const children = state.packages.filter(p => p.parentId === parentId);
+          return [parentId, ...children.flatMap(child => getAllPackageIds(child.id))];
+        };
 
-        return { packages: newPackages, nodes: newNodes, isDirty: true };
+        const packageIdsToDelete = getAllPackageIds(id);
+        const packageNamesToDelete = state.packages
+          .filter(p => packageIdsToDelete.includes(p.id))
+          .map(p => p.name);
+
+        const newPackages = state.packages.filter(p => !packageIdsToDelete.includes(p.id));
+        
+        let newNodes;
+        let newEdges = state.edges;
+
+        if (deleteClasses) {
+          // Eliminar todas las clases que pertenecen a estos paquetes
+          const nodeIdsToDelete = state.nodes
+            .filter(node => node.data.package && packageNamesToDelete.includes(node.data.package))
+            .map(node => node.id);
+
+          newNodes = state.nodes.filter(node => !nodeIdsToDelete.includes(node.id));
+          
+          // También eliminar las conexiones de esos nodos
+          newEdges = state.edges.filter(
+            edge => !nodeIdsToDelete.includes(edge.source) && !nodeIdsToDelete.includes(edge.target)
+          );
+        } else {
+          // Solo desasignar las clases (moverlas a "Sin Paquete")
+          newNodes = state.nodes.map(node => {
+            if (node.data.package && packageNamesToDelete.includes(node.data.package)) {
+              return { ...node, data: { ...node.data, package: undefined } };
+            }
+            return node;
+          });
+        }
+
+        return { packages: newPackages, nodes: newNodes, edges: newEdges, isDirty: true };
       }),
 
       // --- Node Operations ---

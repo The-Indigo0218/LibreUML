@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { ReactFlowProvider } from "reactflow";
 import DiagramCanvas from "./DiagramCanvas";
-import Sidebar from "./Sidebar";
 import AppMenubar from "../menubar/AppMenubar";
 import Toast from "../../../../components/shared/Toast";
 import { useDiagramStore } from "../../../../store/diagramStore";
+import ActivityBar, { type ActivityTab } from "./ActivityBar";
+import PrimarySideBar from "./PrimarySideBar";
 
 import { useAutoSave } from "../../../../hooks/useAutosave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
@@ -18,6 +20,7 @@ function EditorLogic() {
   const activeToast = useDiagramStore((s) => s.activeToast);
   const dismissToast = useDiagramStore((s) => s.dismissToast);
   const isHydrated = useDiagramStore((s) => s.isHydrated);
+  const [activeTab, setActiveTab] = useState<ActivityTab>("tools");
 
   if (!isHydrated) {
     return (
@@ -36,7 +39,8 @@ function EditorLogic() {
       <AppMenubar />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <Sidebar />
+        <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />
+        <PrimarySideBar activeTab={activeTab} />
 
         <div className="flex-1 relative bg-slate-50 min-w-0">
           <DiagramCanvas />

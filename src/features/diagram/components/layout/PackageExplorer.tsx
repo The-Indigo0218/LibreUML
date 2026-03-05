@@ -101,7 +101,7 @@ export default function PackageExplorer() {
   };
 
   return (
-    <div className={`flex flex-col h-full ${isDark ? 'bg-[#252526] text-[#cccccc]' : 'bg-[#f3f3f3] text-[#383838]'}`}>
+    <div className={`flex flex-col h-full ${isDark ? 'bg-[#0b0f1a] text-[#cccccc]' : 'bg-[#f3f3f3] text-[#383838]'}`}>
       <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-[#2d2d2d]' : 'border-[#e0e0e0]'}`}>
         <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-[#cccccc]' : 'text-[#616161]'}`}>
           {t("sidebar.explorer")}

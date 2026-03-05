@@ -33,6 +33,11 @@ export interface UmlMethod {
   }[];
 }
 
+export interface UmlPackage {
+  id: string;
+  name: string;
+}
+
 export interface UmlClassData {
   label: string;
   generics?: string;
@@ -41,6 +46,7 @@ export interface UmlClassData {
   methods: UmlMethod[];
   stereotype: stereotype;
   isMain?: boolean;
+  package?: string; 
 }
 
 export interface UmlClassNode {
@@ -91,6 +97,7 @@ export interface DiagramState {
   name: string;
   nodes: UmlClassNode[];
   edges: UmlEdge[];
+  packages?: UmlPackage[]; 
   activeConnectionMode?: UmlRelationType;
   viewport: {
     x: number;

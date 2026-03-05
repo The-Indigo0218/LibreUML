@@ -131,13 +131,24 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
           </div>
         )}
 
-        {/* Stereotype Label (e.g. <<interface>>) */}
-        {currentStyle.showStereotype && (
-          <small
-            className={`block text-[10px] leading-tight mb-0.5 font-mono ${currentStyle.labelFormat.includes("italic") ? "italic" : ""} ${currentStyle.badgeColor}`}
-          >
-            &lt;&lt;{data.stereotype}&gt;&gt;
-          </small>
+        {(currentStyle.showStereotype || data.package) && (
+          <div className="flex items-center justify-center gap-1.5 mb-0.5">
+            {currentStyle.showStereotype && (
+              <small
+                className={`text-[10px] leading-tight font-mono ${
+                  currentStyle.labelFormat.includes("italic") ? "italic" : ""
+                } ${currentStyle.badgeColor}`}
+              >
+                &lt;&lt;{data.stereotype}&gt;&gt;
+              </small>
+            )}
+            
+            {data.package && (
+              <small className="text-[10px] leading-tight font-mono text-text-muted truncate max-w-30" title={data.package}>
+                {data.package}
+              </small>
+            )}
+          </div>
         )}
 
         {/* Class Name */}

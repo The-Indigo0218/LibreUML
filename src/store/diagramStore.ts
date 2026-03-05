@@ -17,6 +17,7 @@ import type {
   UmlRelationType,
   DiagramState as SavedDiagramState,
   UmlEdgeData,
+  UmlPackage,
 } from "../features/diagram/types/diagram.types";
 
 type ToastType = {
@@ -39,6 +40,7 @@ interface DiagramStoreState {
   diagramName: string;
   nodes: Node<UmlClassData>[];
   edges: Edge[];
+  packages: UmlPackage[]; 
   activeConnectionMode: UmlRelationType;
   currentFilePath?: string;
   isDirty: boolean;
@@ -73,11 +75,13 @@ interface DiagramStoreState {
   setNodes: (nodes: Node<UmlClassData>[]) => void; 
   setEdges: (edges: Edge[]) => void;               
 
+  // --- Package Actions (Relational) ---
+  addPackage: (name: string, parentId?: string) => void;
+  updatePackageName: (id: string, newName: string) => void;
+  deletePackage: (id: string, deleteClasses: boolean) => void;
+
   // --- Node Actions ---
-  addNode: (
-    position: { x: number; y: number },
-    stereotype?: stereotype,
-  ) => void;
+  addNode: (position: { x: number; y: number }, stereotype?: stereotype) => void;
   updateNodeData: (nodeId: string, newData: Partial<UmlClassData>) => void;
   deleteNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => void;
@@ -99,6 +103,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
       diagramName: "Untitled Diagram",
       nodes: [],
       edges: [],
+      packages: [],
       activeConnectionMode: "association",
       showMiniMap: false,
       showGrid: true,
@@ -134,38 +139,24 @@ export const useDiagramStore = create<DiagramStoreState>()(
         const targetNode = nodes.find((n) => n.id === connection.target);
 
         if (!sourceNode || !targetNode) return;
-        
         if (targetNode.type === "umlNote") return; 
         
-        if (
-          connection.targetHandle === "right" ||
-          connection.targetHandle === "bottom"
-        ) {
+        if (connection.targetHandle === "right" || connection.targetHandle === "bottom") {
           return;
         }
 
-        const isDuplicate = edges.some(
-          (e) =>
-            e.source === connection.source && e.target === connection.target,
-        );
+        const isDuplicate = edges.some(e => e.source === connection.source && e.target === connection.target);
         if (isDuplicate) return;
-
-        if (sourceNode.type === "umlNote" && targetNode.type === "umlNote")
-          return;
+        if (sourceNode.type === "umlNote" && targetNode.type === "umlNote") return;
 
         if (sourceNode.type !== "umlNote") {
-           const isValid = validateConnection(
-             sourceNode.data.stereotype,
-             targetNode.data.stereotype,
-             activeConnectionMode
-           );
-
+           const isValid = validateConnection(sourceNode.data.stereotype, targetNode.data.stereotype, activeConnectionMode);
            if (!isValid) {
             set({
-               activeToast: {
-                 message: `🚫 Rule Violation: Cannot connect [${sourceNode.data.stereotype}] to [${targetNode.data.stereotype}] via ${activeConnectionMode}.`,
-                 type: "error"
-               }
+                 activeToast: {
+                   message: `🚫 Rule Violation: Cannot connect [${sourceNode.data.stereotype}] to [${targetNode.data.stereotype}] via ${activeConnectionMode}.`,
+                   type: "error"
+                 }
              });
              return; 
            }
@@ -182,13 +173,77 @@ export const useDiagramStore = create<DiagramStoreState>()(
         }
 
         set({
-          edges: addEdge(
-            { ...connection, ...edgeOptions, data: edgeData },
-            get().edges,
-          ),
+          edges: addEdge({ ...connection, ...edgeOptions, data: edgeData }, get().edges),
           isDirty: true,
         });
       },
+
+      // --- Package Operations (Arquitectura Relacional) ---
+      addPackage: (name, parentId) => set((state) => ({
+        packages: [...state.packages, { id: crypto.randomUUID(), name, parentId }],
+        isDirty: true
+      })),
+
+      updatePackageName: (id, newName) => set((state) => {
+        const pkg = state.packages.find(p => p.id === id);
+        if (!pkg) return state;
+        const oldName = pkg.name;
+        
+        const newPackages = state.packages.map(p => p.id === id ? { ...p, name: newName } : p);
+        
+        const newNodes = state.nodes.map(node => {
+          if (node.data.package === oldName) {
+            return { ...node, data: { ...node.data, package: newName } };
+          }
+          return node;
+        });
+
+        return { packages: newPackages, nodes: newNodes, isDirty: true };
+      }),
+
+      deletePackage: (id, deleteClasses) => set((state) => {
+        const pkg = state.packages.find(p => p.id === id);
+        if (!pkg) return state;
+
+        const getAllPackageIds = (parentId: string): string[] => {
+          const children = state.packages.filter(p => p.parentId === parentId);
+          return [parentId, ...children.flatMap(child => getAllPackageIds(child.id))];
+        };
+
+        const packageIdsToDelete = getAllPackageIds(id);
+        const packageNamesToDelete = state.packages
+          .filter(p => packageIdsToDelete.includes(p.id))
+          .map(p => p.name);
+
+        const newPackages = state.packages.filter(p => !packageIdsToDelete.includes(p.id));
+        
+        let newNodes;
+        let newEdges = state.edges;
+
+        if (deleteClasses) {
+          // Eliminar todas las clases que pertenecen a estos paquetes
+          const nodeIdsToDelete = state.nodes
+            .filter(node => node.data.package && packageNamesToDelete.includes(node.data.package))
+            .map(node => node.id);
+
+          newNodes = state.nodes.filter(node => !nodeIdsToDelete.includes(node.id));
+          
+          // También eliminar las conexiones de esos nodos
+          newEdges = state.edges.filter(
+            edge => !nodeIdsToDelete.includes(edge.source) && !nodeIdsToDelete.includes(edge.target)
+          );
+        } else {
+          // Solo desasignar las clases (moverlas a "Sin Paquete")
+          newNodes = state.nodes.map(node => {
+            if (node.data.package && packageNamesToDelete.includes(node.data.package)) {
+              return { ...node, data: { ...node.data, package: undefined } };
+            }
+            return node;
+          });
+        }
+
+        return { packages: newPackages, nodes: newNodes, edges: newEdges, isDirty: true };
+      }),
 
       // --- Node Operations ---
       addNode: (position, stereotype = "class") => {
@@ -243,15 +298,8 @@ export const useDiagramStore = create<DiagramStoreState>()(
             },
           };
 
-          const otherNodes = nodes.map((node) => ({
-            ...node,
-            selected: false,
-          }));
-
-          set({
-            nodes: [...otherNodes, newNode],
-            isDirty: true,
-          });
+          const otherNodes = nodes.map((node) => ({ ...node, selected: false }));
+          set({ nodes: [...otherNodes, newNode], isDirty: true });
         }
       },
 
@@ -269,10 +317,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
         set({ activeConnectionMode: mode, isDirty: true }),
 
       deleteEdge: (edgeId) => {
-        set({
-          edges: get().edges.filter((e) => e.id !== edgeId),
-          isDirty: true,
-        });
+        set({ edges: get().edges.filter((e) => e.id !== edgeId), isDirty: true });
       },
 
       changeEdgeType: (edgeId, newType) => {
@@ -296,10 +341,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
         set({
           edges: get().edges.map((edge) => {
             if (edge.id === edgeId) {
-              return {
-                ...edge,
-                data: { ...edge.data, ...newData } as UmlEdgeData,
-              };
+              return { ...edge, data: { ...edge.data, ...newData } as UmlEdgeData };
             }
             return edge;
           }),
@@ -317,22 +359,12 @@ export const useDiagramStore = create<DiagramStoreState>()(
 
         if (!newSourceNode || !newTargetNode) return;
 
-        const { sourceHandle, targetHandle } = getSmartEdgeHandles(
-          newSourceNode,
-          newTargetNode,
-        );
+        const { sourceHandle, targetHandle } = getSmartEdgeHandles(newSourceNode, newTargetNode);
 
         set({
           edges: edges.map((e) => {
             if (e.id === edgeId) {
-              return {
-                ...e,
-                source: e.target,
-                target: e.source,
-                sourceHandle,
-                targetHandle,
-                isDirty: true,
-              };
+              return { ...e, source: e.target, target: e.source, sourceHandle, targetHandle, isDirty: true };
             }
             return e;
           }),
@@ -352,22 +384,17 @@ export const useDiagramStore = create<DiagramStoreState>()(
             options = getEdgeOptions(type as UmlRelationType);
           }
 
-          return {
-            ...edge,
-            ...options,
-            data: { ...edgeData, type },
-          };
+          return { ...edge, ...options, data: { ...edgeData, type } };
         }) as Edge[];
 
         set((state) => ({
           diagramId: data.id || crypto.randomUUID(),
           diagramName: data.name || "Imported",
           currentFilePath: preservePath ? state.currentFilePath : undefined,
-
           activeConnectionMode: data.activeConnectionMode || "association",
-
           nodes: data.nodes,
           edges: hydratedEdges,
+          packages: data.packages || [], 
           isDirty: false,
         }));
       },
@@ -376,10 +403,11 @@ export const useDiagramStore = create<DiagramStoreState>()(
         set((state) => ({
           nodes: [...state.nodes],
           edges: [...state.edges],
+          packages: [...state.packages] 
         })),
 
       clearCanvas: () => {
-        set({ nodes: [], edges: [], isDirty: true });
+        set({ nodes: [], edges: [], packages: [], isDirty: true });
       },
 
       resetDiagram: () => {
@@ -388,6 +416,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
           diagramName: "Untitled Diagram",
           nodes: [],
           edges: [],
+          packages: [], 
           currentFilePath: undefined,
           isDirty: false,
         });
@@ -398,7 +427,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
     {
       limit: 50,
       partialize: (state) => {
-        const { nodes, edges } = state;
+        const { nodes, edges, packages } = state;
 
         const cleanNodes = nodes.map((n) => ({
           id: n.id,
@@ -419,8 +448,7 @@ export const useDiagramStore = create<DiagramStoreState>()(
           data: e.data,
           animated: e.animated,
         }));
-
-        return { nodes: cleanNodes, edges: cleanEdges };
+        return { nodes: cleanNodes, edges: cleanEdges, packages };
       },
       equality: (pastState, currentState) => {
         return JSON.stringify(pastState) === JSON.stringify(currentState);

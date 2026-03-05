@@ -25,11 +25,18 @@ export interface UmlMethod {
   isReturnArray?: boolean;
   visibility: visibility;
   isStatic?: boolean;
+  isConstructor?: boolean;
   parameters: { 
     name: string; 
     type: string;
     isArray?: boolean;
   }[];
+}
+
+export interface UmlPackage {
+  id: string;
+  name: string;
+  parentId?: string;
 }
 
 export interface UmlClassData {
@@ -40,6 +47,7 @@ export interface UmlClassData {
   methods: UmlMethod[];
   stereotype: stereotype;
   isMain?: boolean;
+  package?: string; 
 }
 
 export interface UmlClassNode {
@@ -90,6 +98,7 @@ export interface DiagramState {
   name: string;
   nodes: UmlClassNode[];
   edges: UmlEdge[];
+  packages?: UmlPackage[]; 
   activeConnectionMode?: UmlRelationType;
   viewport: {
     x: number;

@@ -15,7 +15,7 @@ export default function PrimarySideBar({ activeTab }: PrimarySideBarProps) {
 
   return (
     <div className={`w-64 border-r flex flex-col z-10 shadow-xl ${
-      isDark ? 'bg-[#252526] border-[#2d2d2d]' : 'bg-[#f3f3f3] border-[#e0e0e0]'
+      isDark ? 'bg-[#0b0f1a] border-[#2d2d2d]' : 'bg-[#f3f3f3] border-[#e0e0e0]'
     }`}>
       {activeTab === "explorer" && <PackageExplorer />}
       {activeTab === "tools" && <Sidebar />}

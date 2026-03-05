@@ -18,7 +18,7 @@ export default function ActivityBar({ activeTab, onTabChange }: ActivityBarProps
 
   return (
     <aside className={`w-12 border-r flex flex-col items-center py-2 gap-1 z-20 ${
-      isDark ? 'bg-[#333333] border-[#454545]' : 'bg-[#2c2c2c] border-[#3e3e3e]'
+      isDark ? 'bg-[#0b0f1a] border-[#454545]' : 'bg-[#2c2c2c] border-[#3e3e3e]'
     }`}>
       <ActivityBarIcon
         icon={<Folder className="w-5 h-5" />}

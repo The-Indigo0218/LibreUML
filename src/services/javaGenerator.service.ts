@@ -16,6 +16,12 @@ export class JavaGeneratorService {
 
     const parts: string[] = [];
 
+    // Add package declaration at the very top if it exists
+    if (data.package) {
+      parts.push(`package ${data.package};`);
+      parts.push(""); // Empty line after package
+    }
+
     parts.push(this.buildSignature(node, allNodes, edges));
     parts.push("{");
 

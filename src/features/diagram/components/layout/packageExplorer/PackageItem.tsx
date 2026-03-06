@@ -1,141 +1,184 @@
-import { useState } from "react";
-import { Plus, ChevronRight, ChevronDown, Trash2, Edit2, Check, X, Folder, FolderOpen } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
 import { ClassItem } from "./ClassItem";
+import { InlinePackageInput } from "./InlinePackageInput";
 import type { PackageItemProps } from "./types";
 
 export function PackageItem({
-  pkg,
-  nodes,
-  childPackages,
-  allPackages,
-  allNodes,
-  isEditing,
-  editingName,
-  onEditingNameChange,
-  onStartEdit,
-  onSaveEdit,
-  onCancelEdit,
-  onDelete,
-  onAddSubPackage,
-  onClassClick,
-  isDark,
-  t,
+  node,
   level,
+  expandedPaths,
+  expandedClasses,
+  renamingId,
+  addingChildToPath,
+  onToggle,
+  onClassToggle,
+  onClassClick,
+  onPackageContextMenu,
+  onClassContextMenu,
+  onRenameClass,
+  onCancelRename,
+  onRenamePackage,
+  onAddChildPackage,
+  onCancelAddChild,
 }: PackageItemProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const paddingLeft = `${level * 12 + 12}px`;
+  const isExpanded = expandedPaths.has(node.fullPath);
+  const hasChildren = node.children.size > 0;
+  const hasClasses = node.classes.length > 0;
+  const isEmpty = !hasChildren && !hasClasses;
+  const isRenaming = renamingId === node.fullPath;
+  const isAddingChild = addingChildToPath === node.fullPath;
+  
+  const [editValue, setEditValue] = useState(node.name);
+  const [newChildName, setNewChildName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isRenaming && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isRenaming]);
+
+  const handleCommit = () => {
+    if (editValue.trim() && editValue !== node.name) {
+      onRenamePackage(node.fullPath, editValue.trim());
+    } else {
+      onCancelRename();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleCommit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setEditValue(node.name);
+      onCancelRename();
+    }
+  };
+
+  const handleAddChildCommit = () => {
+    if (newChildName.trim()) {
+      onAddChildPackage(node.fullPath, newChildName.trim());
+      setNewChildName("");
+    }
+  };
+
+  const handleAddChildCancel = () => {
+    setNewChildName("");
+    onCancelAddChild();
+  };
 
   return (
-    <div className={`border-b ${isDark ? 'border-[#2d2d2d]' : 'border-[#e0e0e0]'}`}>
-      <div 
-        className={`flex items-center gap-2 px-3 py-2 group ${isDark ? 'hover:bg-[#2a2a2a]' : 'hover:bg-[#e8e8e8]'}`}
-        style={{ paddingLeft }}
-      >
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className={`p-0.5 rounded ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}
+    <div>
+      {node.name !== "root" && (
+        <div
+          className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors"
+          style={{ paddingLeft: `${level * 12 + 8}px` }}
+          onClick={() => !isRenaming && onToggle(node.fullPath)}
+          onContextMenu={(e) => onPackageContextMenu(e, node.fullPath, node.name)}
         >
-          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-        </button>
-
-        {isExpanded ? <FolderOpen className="w-4 h-4 text-[#dcb67a]" /> : <Folder className="w-4 h-4 text-[#dcb67a]" />}
-
-        {isEditing ? (
-          <div className="flex items-center gap-2 flex-1">
-            <input
-              type="text"
-              value={editingName}
-              onChange={(e) => onEditingNameChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onSaveEdit();
-                if (e.key === "Escape") onCancelEdit();
-              }}
-              className={`flex-1 px-2 py-0.5 text-sm rounded border focus:outline-none ${
-                isDark 
-                  ? 'bg-[#3c3c3c] text-[#cccccc] border-[#454545] focus:border-blue-500' 
-                  : 'bg-white text-[#383838] border-[#d0d0d0] focus:border-blue-600'
-              }`}
-              autoFocus
-            />
-            <button onClick={onSaveEdit} className={`p-0.5 text-green-500 rounded ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}>
-              <Check className="w-3.5 h-3.5" />
+          {hasChildren || hasClasses ? (
+            <button className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text-primary">
+              {isExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
             </button>
-            <button onClick={onCancelEdit} className={`p-0.5 text-red-500 rounded ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}>
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <>
-            <span className="flex-1 text-sm font-medium">{pkg.name}</span>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => onAddSubPackage(pkg.id)}
-                className={`p-1 rounded ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}
-                title="Añadir Subpaquete"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => onStartEdit(pkg.id, pkg.name)}
-                className={`p-1 rounded ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}
-                title={t("sidebar.rename")}
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={onDelete}
-                className={`p-1 rounded text-red-400 ${isDark ? 'hover:bg-[#3c3c3c]' : 'hover:bg-[#d0d0d0]'}`}
-                title={t("sidebar.delete")}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {isExpanded && (
-        <div>
-          {nodes.length > 0 && (
-            <div style={{ paddingLeft: `${level * 12 + 24}px` }}>
-              {nodes.map((node) => (
-                <ClassItem key={node.id} node={node} onClassClick={onClassClick} isDark={isDark} />
-              ))}
-            </div>
+          ) : (
+            <div className="w-4" />
           )}
 
-          {childPackages.map((childPkg) => (
-            <PackageItem
-              key={childPkg.id}
-              pkg={childPkg}
-              nodes={allNodes.filter((n) => n.data.package === childPkg.name)}
-              childPackages={allPackages.filter(p => p.parentId === childPkg.id)}
-              allPackages={allPackages}
-              allNodes={allNodes}
-              isEditing={isEditing}
-              editingName={editingName}
-              onEditingNameChange={onEditingNameChange}
-              onStartEdit={onStartEdit}
-              onSaveEdit={onSaveEdit}
-              onCancelEdit={onCancelEdit}
-              onDelete={onDelete}
-              onAddSubPackage={onAddSubPackage}
-              onClassClick={onClassClick}
-              isDark={isDark}
-              t={t}
+          {isExpanded ? (
+            <FolderOpen className="w-4 h-4 text-yellow-500" />
+          ) : (
+            <Folder className="w-4 h-4 text-yellow-600" />
+          )}
+
+          {isRenaming ? (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={handleCommit}
+              className="flex-1 bg-surface-secondary text-sm text-text-primary outline-none px-1 py-0.5 rounded border border-uml-class-border"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className="text-sm text-text-secondary group-hover:text-text-primary flex-1 truncate">
+              {node.name}
+            </span>
+          )}
+
+          {!isRenaming && hasClasses && (
+            <span className="text-[10px] text-text-muted bg-surface-secondary px-1.5 py-0.5 rounded">
+              {node.classes.length}
+            </span>
+          )}
+
+          {!isRenaming && isEmpty && (
+            <span className="text-[10px] text-text-muted italic">empty</span>
+          )}
+        </div>
+      )}
+
+      {(isExpanded || node.name === "root") && (
+        <>
+          {isAddingChild && (
+            <InlinePackageInput
+              value={newChildName}
+              onChange={setNewChildName}
+              onCommit={handleAddChildCommit}
+              onCancel={handleAddChildCancel}
+              placeholder="subpackage"
               level={level + 1}
+            />
+          )}
+
+          {node.classes.map((classNode) => (
+            <ClassItem
+              key={classNode.id}
+              classNode={classNode}
+              level={level + 1}
+              isExpanded={expandedClasses.has(classNode.id)}
+              isRenaming={renamingId === classNode.id}
+              onToggle={onClassToggle}
+              onClassClick={onClassClick}
+              onContextMenu={onClassContextMenu}
+              onRename={onRenameClass}
+              onCancelRename={onCancelRename}
             />
           ))}
 
-          {nodes.length === 0 && childPackages.length === 0 && (
-            <div 
-              className={`px-3 py-2 text-xs italic ${isDark ? 'text-[#858585]' : 'text-[#9e9e9e]'}`}
-              style={{ paddingLeft: `${level * 12 + 24}px` }}
-            >
-              {t("sidebar.noClasses")}
-            </div>
-          )}
-        </div>
+          {Array.from(node.children.values())
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((childNode) => (
+              <PackageItem
+                key={childNode.fullPath}
+                node={childNode}
+                level={level + 1}
+                expandedPaths={expandedPaths}
+                expandedClasses={expandedClasses}
+                renamingId={renamingId}
+                addingChildToPath={addingChildToPath}
+                onToggle={onToggle}
+                onClassToggle={onClassToggle}
+                onClassClick={onClassClick}
+                onPackageContextMenu={onPackageContextMenu}
+                onClassContextMenu={onClassContextMenu}
+                onRenameClass={onRenameClass}
+                onCancelRename={onCancelRename}
+                onRenamePackage={onRenamePackage}
+                onAddChildPackage={onAddChildPackage}
+                onCancelAddChild={onCancelAddChild}
+              />
+            ))}
+        </>
       )}
     </div>
   );

@@ -7,7 +7,8 @@ import {
   Check,
   Grid3X3,
   Magnet,
-  Network
+  Network,
+  Wand2
 } from "lucide-react";
 import { useReactFlow } from "reactflow";
 import { useTranslation } from "react-i18next";
@@ -27,6 +28,7 @@ export function ViewMenu() {
   const toggleMiniMap = useDiagramStore((s) => s.toggleMiniMap);
   const showAllEdges = useDiagramStore((s) => s.showAllEdges);
   const toggleShowAllEdges = useDiagramStore((s) => s.toggleShowAllEdges);
+  const applyAutoLayout = useDiagramStore((s) => s.applyAutoLayout);
   
   // Grid & Snap 
   const showGrid = useDiagramStore((s) => s.showGrid);
@@ -113,6 +115,13 @@ export function ViewMenu() {
         icon={<Search className="w-4 h-4" />}
         shortcut="Ctrl + K"
         onClick={toggleSpotlight}
+      />
+
+      <MenubarItem
+        label={t("menubar.view.magicLayout") || "Magic Layout"}
+        icon={<Wand2 className="w-4 h-4 text-purple-400" />}
+        shortcut="Ctrl + L"
+        onClick={() => applyAutoLayout("TB")}
       />
 
     </MenubarTrigger>

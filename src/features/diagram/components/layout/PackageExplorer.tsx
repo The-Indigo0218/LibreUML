@@ -1,216 +1,380 @@
-import { useState } from "react";
-import { Plus, Check, X } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { useState, useMemo, useEffect } from "react";
 import { useReactFlow } from "reactflow";
+import { useTranslation } from "react-i18next";
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Package, FolderPlus } from "lucide-react";
 import { useDiagramStore } from "../../../../store/diagramStore";
 import { useSettingsStore } from "../../../../store/settingsStore";
+import { buildPackageTree } from "./packageExplorer/buildPackageTree";
 import { PackageItem } from "./packageExplorer/PackageItem";
-import { UnassignedClasses } from "./packageExplorer/UnassignedClasses";
+import { ClassItem } from "./packageExplorer/ClassItem";
+import { ExplorerContextMenu } from "./packageExplorer/ExplorerContextMenu";
+import { InlinePackageInput } from "./packageExplorer/InlinePackageInput";
 import { DeletePackageModal } from "./packageExplorer/DeletePackageModal";
-import type { DeleteConfirmation } from "./packageExplorer/types";
+import type { UmlClassNode } from "../../types/diagram.types";
+import type { ContextMenuState, DeletePackageState, TreeNode } from "./packageExplorer/types";
 
 export default function PackageExplorer() {
-  const { packages, nodes, addPackage, updatePackageName, deletePackage } = useDiagramStore();
-  const theme = useSettingsStore((state) => state.theme);
-  const { t } = useTranslation();
-  const reactFlowInstance = useReactFlow();
+  const packages = useDiagramStore((s) => s.packages);
+  const nodes = useDiagramStore((s) => s.nodes);
+  const addPackage = useDiagramStore((s) => s.addPackage);
+  const updatePackageName = useDiagramStore((s) => s.updatePackageName);
+  const deletePackage = useDiagramStore((s) => s.deletePackage);
+  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
+  const deleteNode = useDiagramStore((s) => s.deleteNode);
+  const theme = useSettingsStore((s) => s.theme);
   
+  const { setCenter } = useReactFlow();
+  const { t } = useTranslation();
+
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
+  const [isAddingGlobal, setIsAddingGlobal] = useState(false);
   const [newPackageName, setNewPackageName] = useState("");
-  const [isAdding, setIsAdding] = useState(false);
-  const [addingParentId, setAddingParentId] = useState<string | undefined>(undefined);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [addingChildToPath, setAddingChildToPath] = useState<string | null>(null);
+  const [deletePackageState, setDeletePackageState] = useState<DeletePackageState | null>(null);
 
-  const isDark = theme === "dark";
-  const rootPackages = packages.filter(pkg => !pkg.parentId);
-  const getChildPackages = (parentId: string) => packages.filter(pkg => pkg.parentId === parentId);
+  const packageTree = useMemo(() => {
+    return buildPackageTree(packages, nodes as UmlClassNode[]);
+  }, [packages, nodes]);
 
-  const handleAddPackage = () => {
-    if (newPackageName.trim()) {
-      addPackage(newPackageName.trim(), addingParentId);
-      setNewPackageName("");
-      setIsAdding(false);
-      setAddingParentId(undefined);
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    if (contextMenu) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
     }
-  };
+  }, [contextMenu]);
 
-  const handleStartAddSubPackage = (parentId: string) => {
-    setAddingParentId(parentId);
-    setIsAdding(true);
-  };
-
-  const handleStartEdit = (id: string, currentName: string) => {
-    setEditingId(id);
-    setEditingName(currentName);
-  };
-
-  const handleSaveEdit = () => {
-    if (editingId && editingName.trim()) {
-      updatePackageName(editingId, editingName.trim());
-      setEditingId(null);
-      setEditingName("");
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditingName("");
-  };
-
-  const getAllPackageNames = (pkgId: string): string[] => {
-    const pkg = packages.find(p => p.id === pkgId);
-    if (!pkg) return [];
-    
-    const childPackages = packages.filter(p => p.parentId === pkgId);
-    const childNames = childPackages.flatMap(child => getAllPackageNames(child.id));
-    
-    return [pkg.name, ...childNames];
-  };
-
-  const handleDeleteClick = (id: string, name: string) => {
-    const packageNames = getAllPackageNames(id);
-    const classesInPackage = nodes.filter((n) => 
-      n.data.package && packageNames.includes(n.data.package)
-    );
-
-    setDeleteConfirmation({ 
-      id, 
-      name, 
-      hasClasses: classesInPackage.length > 0,
-      classCount: classesInPackage.length
+  const handleToggle = (path: string) => {
+    setExpandedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
     });
   };
 
-  const handleConfirmDelete = (deleteClasses: boolean) => {
-    if (deleteConfirmation) {
-      deletePackage(deleteConfirmation.id, deleteClasses);
-      setDeleteConfirmation(null);
-    }
+  const handleClassToggle = (classId: string) => {
+    setExpandedClasses((prev) => {
+      const next = new Set(prev);
+      if (next.has(classId)) {
+        next.delete(classId);
+      } else {
+        next.add(classId);
+      }
+      return next;
+    });
   };
 
   const handleClassClick = (nodeId: string) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (node && reactFlowInstance) {
-      reactFlowInstance.setCenter(
-        node.position.x + (node.width || 200) / 2,
-        node.position.y + (node.height || 100) / 2,
-        { zoom: 1.2, duration: 800 }
-      );
+    const node = nodes.find((n) => n.id === nodeId) as UmlClassNode;
+    if (node && node.position) {
+      const x = node.position.x + (node.width || 250) / 2;
+      const y = node.position.y + (node.height || 200) / 2;
+      
+      setCenter(x, y, { zoom: 1.2, duration: 800 });
     }
   };
 
+  const handleAddPackageClick = () => {
+    setIsAddingGlobal(true);
+    setNewPackageName("");
+  };
+
+  const handleCommitGlobalPackage = () => {
+    if (newPackageName.trim()) {
+      addPackage(newPackageName.trim());
+      setIsAddingGlobal(false);
+      setNewPackageName("");
+    }
+  };
+
+  const handleCancelGlobalPackage = () => {
+    setIsAddingGlobal(false);
+    setNewPackageName("");
+  };
+
+  const handleAddChildPackage = (parentPath: string, childName: string) => {
+    const fullPath = `${parentPath}.${childName}`;
+    addPackage(fullPath);
+    setAddingChildToPath(null);
+    
+    setExpandedPaths((prev) => new Set(prev).add(parentPath));
+  };
+
+  const handleCancelAddChild = () => {
+    setAddingChildToPath(null);
+  };
+
+  const handlePackageContextMenu = (e: React.MouseEvent, packagePath: string, packageName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const pkg = packages.find(p => p.name === packagePath);
+    if (!pkg) return;
+
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      type: "package",
+      id: pkg.id,
+      name: packageName,
+      packagePath: packagePath,
+    });
+  };
+
+  const handleClassContextMenu = (e: React.MouseEvent, classId: string, className: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      type: "class",
+      id: classId,
+      name: className,
+    });
+  };
+
+  const handleRenameClick = () => {
+    if (!contextMenu) return;
+    
+    if (contextMenu.type === "package") {
+      setRenamingId(contextMenu.packagePath!);
+    } else {
+      setRenamingId(contextMenu.id);
+    }
+    
+    setContextMenu(null);
+  };
+
+  const handleAddChildClick = () => {
+    if (!contextMenu || contextMenu.type !== "package") return;
+    
+    setAddingChildToPath(contextMenu.packagePath!);
+    setExpandedPaths((prev) => new Set(prev).add(contextMenu.packagePath!));
+    setContextMenu(null);
+  };
+
+  const handleDeleteClick = () => {
+    if (!contextMenu) return;
+    
+    if (contextMenu.type === "package") {
+      const pkg = packages.find(p => p.id === contextMenu.id);
+      if (!pkg) return;
+      
+      const classesInPackage = (nodes as UmlClassNode[]).filter(
+        node => node.data.package === contextMenu.packagePath
+      );
+      
+      setDeletePackageState({
+        id: contextMenu.id,
+        name: contextMenu.name,
+        packagePath: contextMenu.packagePath!,
+        hasClasses: classesInPackage.length > 0,
+        classCount: classesInPackage.length,
+      });
+    } else {
+      deleteNode(contextMenu.id);
+    }
+    
+    setContextMenu(null);
+  };
+
+  const handleConfirmDeletePackage = (deleteClasses: boolean) => {
+    if (!deletePackageState) return;
+    
+    deletePackage(deletePackageState.id, deleteClasses);
+    setDeletePackageState(null);
+  };
+
+  const handleCancelDeletePackage = () => {
+    setDeletePackageState(null);
+  };
+
+  const handleRenamePackage = (packagePath: string, newName: string) => {
+    const pkg = packages.find(p => p.name === packagePath);
+    if (pkg) {
+      const pathSegments = packagePath.split(".");
+      pathSegments[pathSegments.length - 1] = newName;
+      const newFullPath = pathSegments.join(".");
+      
+      updatePackageName(pkg.id, newFullPath);
+    }
+    setRenamingId(null);
+  };
+
+  const handleRenameClass = (classId: string, newName: string) => {
+    updateNodeData(classId, { label: newName });
+    setRenamingId(null);
+  };
+
+  const handleCancelRename = () => {
+    setRenamingId(null);
+  };
+
+  const totalClasses = nodes.filter((n) => n.type === "umlClass").length;
+  const unassignedClasses = packageTree.classes.length;
+
   return (
-    <div className={`flex flex-col h-full ${isDark ? 'bg-[#252526] text-[#cccccc]' : 'bg-[#f3f3f3] text-[#383838]'}`}>
-      <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-[#2d2d2d]' : 'border-[#e0e0e0]'}`}>
-        <span className={`text-xs font-semibold uppercase tracking-wider ${isDark ? 'text-[#cccccc]' : 'text-[#616161]'}`}>
-          {t("sidebar.explorer")}
-        </span>
+    <div className="flex flex-col h-full bg-surface-primary border-r border-surface-border">
+      <div className="px-4 py-3 border-b border-surface-border">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-uml-class-border" />
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wide">
+              Packages
+            </h3>
+          </div>
+          <button
+            onClick={handleAddPackageClick}
+            className="p-1.5 hover:bg-surface-hover rounded transition-colors text-text-secondary hover:text-uml-class-border"
+            title="New Package"
+          >
+            <FolderPlus className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          <span>{packages.length} packages</span>
+          <span>•</span>
+          <span>{totalClasses} classes</span>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+        {packages.length === 0 && totalClasses === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+            <Package className="w-12 h-12 text-text-muted/30 mb-3" />
+            <p className="text-sm text-text-muted">No packages or classes yet</p>
+            <p className="text-xs text-text-muted/70 mt-1">
+              Add classes to your diagram
+            </p>
+          </div>
+        ) : (
+          <>
+            {isAddingGlobal && (
+              <InlinePackageInput
+                value={newPackageName}
+                onChange={setNewPackageName}
+                onCommit={handleCommitGlobalPackage}
+                onCancel={handleCancelGlobalPackage}
+                placeholder="com.example.models"
+                level={0}
+              />
+            )}
+
+            {unassignedClasses > 0 && (
+              <div className="mb-4">
+                <div
+                  className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors"
+                  onClick={() => handleToggle("__unassigned__")}
+                >
+                  <button className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text-primary">
+                    {expandedPaths.has("__unassigned__") ? (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                  {expandedPaths.has("__unassigned__") ? (
+                    <FolderOpen className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <Folder className="w-4 h-4 text-gray-600" />
+                  )}
+                  <span className="text-sm text-text-secondary group-hover:text-text-primary flex-1">
+                    (No Package)
+                  </span>
+                  <span className="text-[10px] text-text-muted bg-surface-secondary px-1.5 py-0.5 rounded">
+                    {unassignedClasses}
+                  </span>
+                </div>
+
+                {expandedPaths.has("__unassigned__") &&
+                  packageTree.classes.map((classNode) => (
+                    <ClassItem
+                      key={classNode.id}
+                      classNode={classNode}
+                      level={1}
+                      isExpanded={expandedClasses.has(classNode.id)}
+                      isRenaming={renamingId === classNode.id}
+                      onToggle={handleClassToggle}
+                      onClassClick={handleClassClick}
+                      onContextMenu={handleClassContextMenu}
+                      onRename={handleRenameClass}
+                      onCancelRename={handleCancelRename}
+                    />
+                  ))}
+              </div>
+            )}
+
+            <PackageItem
+              node={packageTree}
+              level={0}
+              expandedPaths={expandedPaths}
+              expandedClasses={expandedClasses}
+              renamingId={renamingId}
+              addingChildToPath={addingChildToPath}
+              onToggle={handleToggle}
+              onClassToggle={handleClassToggle}
+              onClassClick={handleClassClick}
+              onPackageContextMenu={handlePackageContextMenu}
+              onClassContextMenu={handleClassContextMenu}
+              onRenameClass={handleRenameClass}
+              onCancelRename={handleCancelRename}
+              onRenamePackage={handleRenamePackage}
+              onAddChildPackage={handleAddChildPackage}
+              onCancelAddChild={handleCancelAddChild}
+            />
+          </>
+        )}
+      </div>
+
+      <div className="px-4 py-3 border-t border-surface-border">
         <button
-          onClick={() => setIsAdding(true)}
-          className={`p-1 rounded transition-colors ${isDark ? 'hover:bg-[#2a2a2a]' : 'hover:bg-[#e8e8e8]'}`}
-          title={t("sidebar.addPackage")}
+          className="w-full text-xs text-text-secondary hover:text-text-primary hover:bg-surface-hover py-2 rounded transition-colors"
+          onClick={() => {
+            const allPaths = new Set<string>();
+            const collectPaths = (node: TreeNode) => {
+              if (node.fullPath) allPaths.add(node.fullPath);
+              node.children.forEach((child) => collectPaths(child));
+            };
+            collectPaths(packageTree);
+            allPaths.add("__unassigned__");
+            setExpandedPaths(allPaths);
+          }}
         >
-          <Plus className="w-4 h-4" />
+          Expand All
+        </button>
+        <button
+          className="w-full text-xs text-text-secondary hover:text-text-primary hover:bg-surface-hover py-2 rounded transition-colors"
+          onClick={() => setExpandedPaths(new Set())}
+        >
+          Collapse All
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {isAdding && (
-          <div className={`px-3 py-2 border-b ${isDark ? 'border-[#2d2d2d] bg-[#1e1e1e]' : 'border-[#e0e0e0] bg-[#ffffff]'}`}>
-            <div className="flex items-center gap-2">
-              {addingParentId && (
-                <span className={`text-xs ${isDark ? 'text-[#858585]' : 'text-[#9e9e9e]'}`}>
-                  Subpaquete:
-                </span>
-              )}
-              <input
-                type="text"
-                value={newPackageName}
-                onChange={(e) => setNewPackageName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAddPackage();
-                  if (e.key === "Escape") {
-                    setIsAdding(false);
-                    setAddingParentId(undefined);
-                  }
-                }}
-                placeholder={t("sidebar.packageName")}
-                className={`flex-1 px-2 py-1 text-sm rounded border focus:outline-none ${
-                  isDark 
-                    ? 'bg-[#3c3c3c] text-[#cccccc] border-[#454545] focus:border-blue-500' 
-                    : 'bg-white text-[#383838] border-[#d0d0d0] focus:border-blue-600'
-                }`}
-                autoFocus
-              />
-              <button
-                onClick={handleAddPackage}
-                className={`p-1 rounded text-green-500 ${isDark ? 'hover:bg-[#2a2a2a]' : 'hover:bg-[#e8e8e8]'}`}
-              >
-                <Check className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => {
-                  setIsAdding(false);
-                  setAddingParentId(undefined);
-                }}
-                className={`p-1 rounded text-red-500 ${isDark ? 'hover:bg-[#2a2a2a]' : 'hover:bg-[#e8e8e8]'}`}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+      <ExplorerContextMenu
+        contextMenu={contextMenu}
+        onRename={handleRenameClick}
+        onDelete={handleDeleteClick}
+        onAddChild={handleAddChildClick}
+      />
 
-        {rootPackages.length === 0 && !isAdding && (
-          <div className={`px-4 py-8 text-center text-sm ${isDark ? 'text-[#858585]' : 'text-[#9e9e9e]'}`}>
-            {t("sidebar.noPackages")}
-          </div>
-        )}
-
-        {rootPackages.map((pkg) => (
-          <PackageItem
-            key={pkg.id}
-            pkg={pkg}
-            nodes={nodes.filter((n) => n.data.package === pkg.name)}
-            childPackages={getChildPackages(pkg.id)}
-            allPackages={packages}
-            allNodes={nodes}
-            isEditing={editingId === pkg.id}
-            editingName={editingName}
-            onEditingNameChange={setEditingName}
-            onStartEdit={handleStartEdit}
-            onSaveEdit={handleSaveEdit}
-            onCancelEdit={handleCancelEdit}
-            onDelete={() => handleDeleteClick(pkg.id, pkg.name)}
-            onAddSubPackage={handleStartAddSubPackage}
-            onClassClick={handleClassClick}
-            isDark={isDark}
-            t={t}
-            level={0}
-          />
-        ))}
-
-        <UnassignedClasses 
-          nodes={nodes.filter((n) => !n.data.package && n.type !== "umlNote")} 
-          onClassClick={handleClassClick}
-          isDark={isDark}
-          t={t}
-        />
-      </div>
-
-      {deleteConfirmation && (
-        <DeletePackageModal
-          isOpen={true}
-          packageName={deleteConfirmation.name}
-          hasClasses={deleteConfirmation.hasClasses}
-          classCount={deleteConfirmation.classCount}
-          onConfirm={handleConfirmDelete}
-          onCancel={() => setDeleteConfirmation(null)}
-          isDark={isDark}
-          t={t}
-        />
-      )}
+      <DeletePackageModal
+        isOpen={deletePackageState !== null}
+        packageName={deletePackageState?.name || ""}
+        hasClasses={deletePackageState?.hasClasses || false}
+        classCount={deletePackageState?.classCount || 0}
+        onConfirm={handleConfirmDeletePackage}
+        onCancel={handleCancelDeletePackage}
+        isDark={theme === "dark"}
+        t={t}
+      />
     </div>
   );
 }

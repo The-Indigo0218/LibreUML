@@ -6,6 +6,7 @@ import type {
 import { JavaParserService } from "./javaParser.service";
 import { edgeConfig } from "../config/theme.config";
 import { MarkerType } from "reactflow";
+import { useDiagramStore } from "../store/diagramStore";
 
 interface ReverseEngineeringResult {
   nodes: UmlClassNode[];
@@ -23,6 +24,11 @@ export class ReverseEngineeringService {
     if (!parsed) {
       console.warn("No se pudo parsear el código Java.");
       return { nodes: existingNodes, edges: existingEdges };
+    }
+
+    // Register package in global store if it exists
+    if (parsed.package) {
+      this.registerPackage(parsed.package);
     }
 
     const nodesMap = new Map<string, UmlClassNode>();
@@ -64,6 +70,7 @@ export class ReverseEngineeringService {
         attributes: parsed.attributes,
         methods: parsed.methods,
         isMain: parsed.isMain,
+        package: parsed.package, // Preserve package information
       },
     };
     nodesMap.set(mainNodeId, mainNode);
@@ -132,6 +139,28 @@ export class ReverseEngineeringService {
   }
 
   // --- Helpers ---
+
+  /**
+   * Registers a package in the global Zustand store if it doesn't already exist.
+   * This ensures the package appears in the package explorer.
+   */
+  private static registerPackage(packageName: string): void {
+    try {
+      const store = useDiagramStore.getState();
+      const existingPackages = store.packages || [];
+      
+      // Check if package already exists
+      const packageExists = existingPackages.some(
+        (pkg) => pkg.name === packageName
+      );
+
+      if (!packageExists) {
+        store.addPackage(packageName);
+      }
+    } catch (error) {
+      console.warn(`Failed to register package "${packageName}":`, error);
+    }
+  }
 
   private static handleRelation(
     sourceName: string,

@@ -22,13 +22,12 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
   const [generatedCode, setGeneratedCode] = useState("");
   const [copied, setCopied] = useState(false);
 
-  //  Determine target class priority
   useEffect(() => {
     if (!isOpen) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setGeneratedCode("");
         setCopied(false);
-        setLanguage("java"); 
+        setLanguage("java");
+        setSelectedClassId("");
         return;
     }
 
@@ -49,10 +48,8 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
     setSelectedClassId(targetId);
   }, [isOpen, editingId, nodes]);
 
-  //  Generate Code logic
   useEffect(() => {
     if (!selectedClassId) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setGeneratedCode("// " + t('modals.codePreview.noClassSelected', "No class selected"));
         return;
     }

@@ -79,7 +79,7 @@ export const NODE_WIDTH = 250;
 export const NODE_HEIGHT = 200;
 
 export const handleConfig = {
-  size: "w-3 h-3",
+  size: "w-3 h-3 relative cursor-crosshair transition-transform duration-200 hover:scale-150 after:content-[''] after:absolute after:-inset-4 after:bg-transparent",
 
   base: "border border-canvas-base transition-opacity",
 

@@ -57,5 +57,5 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openImportCode: () =>
     set({ activeModal: "import-code", editingId: null }),
 
-  closeModals: () => set({ activeModal: "none", editingId: null }),
+  closeModals: () => set({ activeModal: null, editingId: null }),
 }));

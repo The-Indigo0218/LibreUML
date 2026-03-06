@@ -13,6 +13,7 @@ export interface ParsedClass {
   methods: UmlMethod[];
   isMain?: boolean;
   generics?: string;
+  package?: string;
 }
 
 export class JavaParserService {
@@ -22,6 +23,9 @@ export class JavaParserService {
   static parse(code: string): ParsedClass | null {
     //  Clean comments
     const cleanCode = JavaParserService.removeComments(code);
+
+    //  Parse Package Declaration
+    const packageName = JavaParserService.parsePackageDeclaration(cleanCode);
 
     //  Parse Class Declaration
     const classInfo = JavaParserService.parseClassDeclaration(cleanCode);
@@ -50,6 +54,7 @@ export class JavaParserService {
       attributes,
       methods,
       isMain,
+      package: packageName,
     };
   }
 
@@ -57,9 +62,27 @@ export class JavaParserService {
     return code.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
   }
 
+  /**
+   * Extracts package declaration from Java code.
+   * Handles various formats: with/without semicolon, extra spaces, etc.
+   * @returns Package name or undefined if not found
+   */
+  private static parsePackageDeclaration(code: string): string | undefined {
+    // Match: package [package.name]; or package [package.name] (without semicolon)
+    // Handles extra whitespace and optional semicolon
+    const packageRegex = /^\s*package\s+([\w.]+)\s*;?/m;
+    const match = code.match(packageRegex);
+    
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    
+    return undefined;
+  }
+
   private static parseClassDeclaration(
     code: string,
-  ): Omit<ParsedClass, "attributes" | "methods"> | null {
+  ): Omit<ParsedClass, "attributes" | "methods" | "package"> | null {
     const classRegex =
       /(?:public\s+)?(?:abstract\s+)?(?:final\s+)?(class|interface|enum)\s+(\w+)(<[\w\s,]+>)?(?:\s+extends\s+(\w+))?(?:\s+implements\s+([\w\s,]+))?/;
     const match = code.match(classRegex);

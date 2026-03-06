@@ -32,6 +32,7 @@ import {
   updateSyncedEdges,
 } from "../util/geometry";
 import { validateConnection } from "../util/connectionValidator";
+import { getLayoutedElements, type LayoutDirection } from "../util/autoLayout";
 
 interface DiagramStoreState {
   // --- State Properties ---
@@ -92,6 +93,9 @@ interface DiagramStoreState {
   changeEdgeType: (edgeId: string, type: UmlRelationType) => void;
   reverseEdge: (edgeId: string) => void;
   updateEdgeData: (edgeId: string, data: Partial<UmlEdgeData>) => void;
+
+  // --- Layout Actions ---
+  applyAutoLayout: (direction?: LayoutDirection) => void;
 }
 
 export const useDiagramStore = create<DiagramStoreState>()(
@@ -419,6 +423,25 @@ export const useDiagramStore = create<DiagramStoreState>()(
           packages: [], 
           currentFilePath: undefined,
           isDirty: false,
+        });
+      },
+
+      // --- Layout Actions ---
+      applyAutoLayout: (direction: LayoutDirection = "TB") => {
+        const { nodes, edges } = get();
+        
+        if (nodes.length === 0) return;
+
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+          nodes,
+          edges,
+          direction
+        );
+
+        set({
+          nodes: layoutedNodes,
+          edges: layoutedEdges,
+          isDirty: true,
         });
       },
     }),

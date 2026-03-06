@@ -51,7 +51,8 @@
       "grid": "Mostrar Rejilla",
       "snap": "Ajustar a la Rejilla",
       "spotlight": "Búsqueda Rápida",
-      "connections": "Resaltar Conexiones"
+      "connections": "Resaltar Conexiones",
+      "magicLayout": "Diseño Mágico"
     },
     "edit": {
       "title": "Editar",

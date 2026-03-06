@@ -51,7 +51,8 @@
       "grid": "Show Grid",
       "snap": "Snap to Grid",
       "spotlight": "Spotlight Search",
-      "connections": "Highlight Connections"
+      "connections": "Highlight Connections",
+      "magicLayout": "Magic Layout"
     },
     "edit": {
       "title": "Edit",

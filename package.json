@@ -15,6 +15,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "dagre": "^0.8.5",
     "electron-is-dev": "^3.0.1",
     "html-to-image": "^1.11.13",
     "i18next": "^25.8.0",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/dagre": "^0.7.54",
     "@types/jszip": "^3.4.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",

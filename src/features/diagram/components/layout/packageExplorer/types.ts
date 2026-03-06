@@ -1,5 +1,7 @@
 import type { UmlClassNode } from "../../../types/diagram.types";
 
+export type TranslationFunction = (key: string, options?: Record<string, unknown>) => string;
+
 export interface TreeNode {
   name: string;
   fullPath: string;
@@ -23,6 +25,17 @@ export interface DeletePackageState {
   packagePath: string;
   hasClasses: boolean;
   classCount: number;
+}
+
+export interface DeletePackageModalProps {
+  isOpen: boolean;
+  packageName: string;
+  hasClasses: boolean;
+  classCount: number;
+  onConfirm: (deleteClasses: boolean) => void;
+  onCancel: () => void;
+  isDark: boolean;
+  t: TranslationFunction;
 }
 
 export interface PackageItemProps {

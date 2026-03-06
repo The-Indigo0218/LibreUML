@@ -1,15 +1,34 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { ClassItem } from "./ClassItem";
+import type { UmlClassNode } from "../../../types/diagram.types";
+import type { TranslationFunction } from "./types";
 
 interface UnassignedClassesProps {
-  nodes: any[];
+  nodes: UmlClassNode[];
+  expandedClasses: Set<string>;
+  renamingId: string | null;
   onClassClick: (nodeId: string) => void;
+  onClassToggle: (classId: string) => void;
+  onClassContextMenu?: (e: React.MouseEvent, classId: string, className: string) => void;
+  onRenameClass?: (classId: string, newName: string) => void;
+  onCancelRename?: () => void;
   isDark: boolean;
-  t: any;
+  t: TranslationFunction;
 }
 
-export function UnassignedClasses({ nodes, onClassClick, isDark, t }: UnassignedClassesProps) {
+export function UnassignedClasses({ 
+  nodes, 
+  expandedClasses,
+  renamingId,
+  onClassClick, 
+  onClassToggle,
+  onClassContextMenu,
+  onRenameClass,
+  onCancelRename,
+  isDark, 
+  t 
+}: UnassignedClassesProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   if (nodes.length === 0) return null;
@@ -34,7 +53,18 @@ export function UnassignedClasses({ nodes, onClassClick, isDark, t }: Unassigned
       {isExpanded && (
         <div className="pl-6">
           {nodes.map((node) => (
-            <ClassItem key={node.id} node={node} onClassClick={onClassClick} isDark={isDark} />
+            <ClassItem 
+              key={node.id} 
+              classNode={node}
+              level={1}
+              isExpanded={expandedClasses.has(node.id)}
+              isRenaming={renamingId === node.id}
+              onToggle={onClassToggle}
+              onClassClick={onClassClick}
+              onContextMenu={onClassContextMenu || (() => {})}
+              onRename={onRenameClass || (() => {})}
+              onCancelRename={onCancelRename || (() => {})}
+            />
           ))}
         </div>
       )}

@@ -1,244 +1,52 @@
-import { useState, useMemo } from "react";
-import { 
-  ChevronRight, 
-  ChevronDown, 
-  Folder, 
-  FolderOpen,
-  Package
-} from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { useReactFlow } from "reactflow";
+import { useTranslation } from "react-i18next";
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Package, FolderPlus } from "lucide-react";
 import { useDiagramStore } from "../../../../store/diagramStore";
+import { useSettingsStore } from "../../../../store/settingsStore";
+import { buildPackageTree } from "./packageExplorer/buildPackageTree";
+import { PackageItem } from "./packageExplorer/PackageItem";
+import { ClassItem } from "./packageExplorer/ClassItem";
+import { ExplorerContextMenu } from "./packageExplorer/ExplorerContextMenu";
+import { InlinePackageInput } from "./packageExplorer/InlinePackageInput";
+import { DeletePackageModal } from "./packageExplorer/DeletePackageModal";
 import type { UmlClassNode } from "../../types/diagram.types";
+import type { ContextMenuState, DeletePackageState, TreeNode } from "./packageExplorer/types";
 
-// Tree node structure for hierarchical package representation
-interface TreeNode {
-  name: string;
-  fullPath: string;
-  children: Map<string, TreeNode>;
-  classes: UmlClassNode[];
-  isExpanded: boolean;
-}
-
-/**
- * Builds a hierarchical tree structure from flat package names.
- * Converts ["com.hospital.models", "com.hospital.services"] into nested tree.
- */
-function buildPackageTree(
-  packages: { name: string }[],
-  nodes: UmlClassNode[]
-): TreeNode {
-  const root: TreeNode = {
-    name: "root",
-    fullPath: "",
-    children: new Map(),
-    classes: [],
-    isExpanded: true,
-  };
-
-  // Build tree structure from package names
-  packages.forEach((pkg) => {
-    const segments = pkg.name.split(".");
-    let currentNode = root;
-    let currentPath = "";
-
-    segments.forEach((segment) => {
-      currentPath = currentPath ? `${currentPath}.${segment}` : segment;
-
-      if (!currentNode.children.has(segment)) {
-        currentNode.children.set(segment, {
-          name: segment,
-          fullPath: currentPath,
-          children: new Map(),
-          classes: [],
-          isExpanded: false,
-        });
-      }
-
-      currentNode = currentNode.children.get(segment)!;
-    });
-  });
-
-  // Assign classes to their respective packages
-  nodes.forEach((node) => {
-    if (node.data.package) {
-      const segments = node.data.package.split(".");
-      let currentNode = root;
-
-      segments.forEach((segment) => {
-        const child = currentNode.children.get(segment);
-        if (child) {
-          currentNode = child;
-        }
-      });
-
-      currentNode.classes.push(node);
-    } else {
-      // Classes without package go to root
-      root.classes.push(node);
-    }
-  });
-
-  return root;
-}
-
-/**
- * Recursive tree node component
- */
-interface TreeNodeComponentProps {
-  node: TreeNode;
-  level: number;
-  expandedPaths: Set<string>;
-  onToggle: (path: string) => void;
-  onClassClick?: (nodeId: string) => void;
-}
-
-function TreeNodeComponent({
-  node,
-  level,
-  expandedPaths,
-  onToggle,
-  onClassClick,
-}: TreeNodeComponentProps) {
-  const isExpanded = expandedPaths.has(node.fullPath);
-  const hasChildren = node.children.size > 0;
-  const hasClasses = node.classes.length > 0;
-  const isEmpty = !hasChildren && !hasClasses;
-
-  // Stereotype icon colors
-  const getStereotypeIcon = (stereotype: string) => {
-    switch (stereotype) {
-      case "interface":
-        return (
-          <div className="w-4 h-4 rounded-full bg-green-500/20 border border-green-500 flex items-center justify-center text-[10px] font-bold text-green-400">
-            I
-          </div>
-        );
-      case "abstract":
-        return (
-          <div className="w-4 h-4 rounded-full bg-purple-500/20 border border-purple-500 flex items-center justify-center text-[10px] font-bold text-purple-400">
-            A
-          </div>
-        );
-      case "enum":
-        return (
-          <div className="w-4 h-4 rounded-full bg-yellow-500/20 border border-yellow-500 flex items-center justify-center text-[10px] font-bold text-yellow-400">
-            E
-          </div>
-        );
-      default:
-        return (
-          <div className="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500 flex items-center justify-center text-[10px] font-bold text-blue-400">
-            C
-          </div>
-        );
-    }
-  };
-
-  return (
-    <div>
-      {/* Package/Folder Row */}
-      {node.name !== "root" && (
-        <div
-          className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors"
-          style={{ paddingLeft: `${level * 12 + 8}px` }}
-          onClick={() => onToggle(node.fullPath)}
-        >
-          {/* Expand/Collapse Icon */}
-          {hasChildren || hasClasses ? (
-            <button className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text-primary">
-              {isExpanded ? (
-                <ChevronDown className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5" />
-              )}
-            </button>
-          ) : (
-            <div className="w-4" />
-          )}
-
-          {/* Folder Icon */}
-          {isExpanded ? (
-            <FolderOpen className="w-4 h-4 text-yellow-500" />
-          ) : (
-            <Folder className="w-4 h-4 text-yellow-600" />
-          )}
-
-          {/* Package Name */}
-          <span className="text-sm text-text-secondary group-hover:text-text-primary flex-1 truncate">
-            {node.name}
-          </span>
-
-          {/* Class Count Badge */}
-          {hasClasses && (
-            <span className="text-[10px] text-text-muted bg-surface-secondary px-1.5 py-0.5 rounded">
-              {node.classes.length}
-            </span>
-          )}
-
-          {/* Empty Package Indicator */}
-          {isEmpty && (
-            <span className="text-[10px] text-text-muted italic">empty</span>
-          )}
-        </div>
-      )}
-
-      {/* Expanded Content */}
-      {(isExpanded || node.name === "root") && (
-        <>
-          {/* Render Classes */}
-          {node.classes.map((classNode) => (
-            <div
-              key={classNode.id}
-              className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors"
-              style={{ paddingLeft: `${(level + 1) * 12 + 8}px` }}
-              onClick={() => onClassClick?.(classNode.id)}
-            >
-              <div className="w-4" />
-              {getStereotypeIcon(classNode.data.stereotype)}
-              <span className="text-sm text-text-primary group-hover:text-uml-class-border truncate flex-1">
-                {classNode.data.label}
-              </span>
-              {classNode.data.isMain && (
-                <span className="text-[9px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded font-bold">
-                  MAIN
-                </span>
-              )}
-            </div>
-          ))}
-
-          {/* Render Child Packages */}
-          {Array.from(node.children.values())
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((childNode) => (
-              <TreeNodeComponent
-                key={childNode.fullPath}
-                node={childNode}
-                level={level + 1}
-                expandedPaths={expandedPaths}
-                onToggle={onToggle}
-                onClassClick={onClassClick}
-              />
-            ))}
-        </>
-      )}
-    </div>
-  );
-}
-
-/**
- * Main Package Explorer Component
- */
 export default function PackageExplorer() {
   const packages = useDiagramStore((s) => s.packages);
   const nodes = useDiagramStore((s) => s.nodes);
+  const addPackage = useDiagramStore((s) => s.addPackage);
+  const updatePackageName = useDiagramStore((s) => s.updatePackageName);
+  const deletePackage = useDiagramStore((s) => s.deletePackage);
+  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
+  const deleteNode = useDiagramStore((s) => s.deleteNode);
+  const theme = useSettingsStore((s) => s.theme);
+  
+  const { setCenter } = useReactFlow();
+  const { t } = useTranslation();
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
+  const [isAddingGlobal, setIsAddingGlobal] = useState(false);
+  const [newPackageName, setNewPackageName] = useState("");
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [addingChildToPath, setAddingChildToPath] = useState<string | null>(null);
+  const [deletePackageState, setDeletePackageState] = useState<DeletePackageState | null>(null);
 
-  // Build tree structure
   const packageTree = useMemo(() => {
     return buildPackageTree(packages, nodes as UmlClassNode[]);
   }, [packages, nodes]);
 
-  // Toggle expand/collapse
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    if (contextMenu) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [contextMenu]);
+
   const handleToggle = (path: string) => {
     setExpandedPaths((prev) => {
       const next = new Set(prev);
@@ -251,25 +59,185 @@ export default function PackageExplorer() {
     });
   };
 
-  // Handle class click (could navigate to node, select it, etc.)
-  const handleClassClick = (nodeId: string) => {
-    // TODO: Implement class selection/navigation
-    console.log("Class clicked:", nodeId);
+  const handleClassToggle = (classId: string) => {
+    setExpandedClasses((prev) => {
+      const next = new Set(prev);
+      if (next.has(classId)) {
+        next.delete(classId);
+      } else {
+        next.add(classId);
+      }
+      return next;
+    });
   };
 
-  // Count total classes
+  const handleClassClick = (nodeId: string) => {
+    const node = nodes.find((n) => n.id === nodeId) as UmlClassNode;
+    if (node && node.position) {
+      const x = node.position.x + (node.width || 250) / 2;
+      const y = node.position.y + (node.height || 200) / 2;
+      
+      setCenter(x, y, { zoom: 1.2, duration: 800 });
+    }
+  };
+
+  const handleAddPackageClick = () => {
+    setIsAddingGlobal(true);
+    setNewPackageName("");
+  };
+
+  const handleCommitGlobalPackage = () => {
+    if (newPackageName.trim()) {
+      addPackage(newPackageName.trim());
+      setIsAddingGlobal(false);
+      setNewPackageName("");
+    }
+  };
+
+  const handleCancelGlobalPackage = () => {
+    setIsAddingGlobal(false);
+    setNewPackageName("");
+  };
+
+  const handleAddChildPackage = (parentPath: string, childName: string) => {
+    const fullPath = `${parentPath}.${childName}`;
+    addPackage(fullPath);
+    setAddingChildToPath(null);
+    
+    setExpandedPaths((prev) => new Set(prev).add(parentPath));
+  };
+
+  const handleCancelAddChild = () => {
+    setAddingChildToPath(null);
+  };
+
+  const handlePackageContextMenu = (e: React.MouseEvent, packagePath: string, packageName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const pkg = packages.find(p => p.name === packagePath);
+    if (!pkg) return;
+
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      type: "package",
+      id: pkg.id,
+      name: packageName,
+      packagePath: packagePath,
+    });
+  };
+
+  const handleClassContextMenu = (e: React.MouseEvent, classId: string, className: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      type: "class",
+      id: classId,
+      name: className,
+    });
+  };
+
+  const handleRenameClick = () => {
+    if (!contextMenu) return;
+    
+    if (contextMenu.type === "package") {
+      setRenamingId(contextMenu.packagePath!);
+    } else {
+      setRenamingId(contextMenu.id);
+    }
+    
+    setContextMenu(null);
+  };
+
+  const handleAddChildClick = () => {
+    if (!contextMenu || contextMenu.type !== "package") return;
+    
+    setAddingChildToPath(contextMenu.packagePath!);
+    setExpandedPaths((prev) => new Set(prev).add(contextMenu.packagePath!));
+    setContextMenu(null);
+  };
+
+  const handleDeleteClick = () => {
+    if (!contextMenu) return;
+    
+    if (contextMenu.type === "package") {
+      const pkg = packages.find(p => p.id === contextMenu.id);
+      if (!pkg) return;
+      
+      const classesInPackage = (nodes as UmlClassNode[]).filter(
+        node => node.data.package === contextMenu.packagePath
+      );
+      
+      setDeletePackageState({
+        id: contextMenu.id,
+        name: contextMenu.name,
+        packagePath: contextMenu.packagePath!,
+        hasClasses: classesInPackage.length > 0,
+        classCount: classesInPackage.length,
+      });
+    } else {
+      deleteNode(contextMenu.id);
+    }
+    
+    setContextMenu(null);
+  };
+
+  const handleConfirmDeletePackage = (deleteClasses: boolean) => {
+    if (!deletePackageState) return;
+    
+    deletePackage(deletePackageState.id, deleteClasses);
+    setDeletePackageState(null);
+  };
+
+  const handleCancelDeletePackage = () => {
+    setDeletePackageState(null);
+  };
+
+  const handleRenamePackage = (packagePath: string, newName: string) => {
+    const pkg = packages.find(p => p.name === packagePath);
+    if (pkg) {
+      const pathSegments = packagePath.split(".");
+      pathSegments[pathSegments.length - 1] = newName;
+      const newFullPath = pathSegments.join(".");
+      
+      updatePackageName(pkg.id, newFullPath);
+    }
+    setRenamingId(null);
+  };
+
+  const handleRenameClass = (classId: string, newName: string) => {
+    updateNodeData(classId, { label: newName });
+    setRenamingId(null);
+  };
+
+  const handleCancelRename = () => {
+    setRenamingId(null);
+  };
+
   const totalClasses = nodes.filter((n) => n.type === "umlClass").length;
   const unassignedClasses = packageTree.classes.length;
 
   return (
     <div className="flex flex-col h-full bg-surface-primary border-r border-surface-border">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-surface-border">
-        <div className="flex items-center gap-2 mb-2">
-          <Package className="w-4 h-4 text-uml-class-border" />
-          <h3 className="text-sm font-bold text-text-primary uppercase tracking-wide">
-            Packages
-          </h3>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-uml-class-border" />
+            <h3 className="text-sm font-bold text-text-primary uppercase tracking-wide">
+              Packages
+            </h3>
+          </div>
+          <button
+            onClick={handleAddPackageClick}
+            className="p-1.5 hover:bg-surface-hover rounded transition-colors text-text-secondary hover:text-uml-class-border"
+            title="New Package"
+          >
+            <FolderPlus className="w-4 h-4" />
+          </button>
         </div>
         <div className="flex items-center gap-2 text-xs text-text-muted">
           <span>{packages.length} packages</span>
@@ -278,7 +246,6 @@ export default function PackageExplorer() {
         </div>
       </div>
 
-      {/* Tree View */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
         {packages.length === 0 && totalClasses === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
@@ -290,7 +257,17 @@ export default function PackageExplorer() {
           </div>
         ) : (
           <>
-            {/* Unassigned Classes (No Package) */}
+            {isAddingGlobal && (
+              <InlinePackageInput
+                value={newPackageName}
+                onChange={setNewPackageName}
+                onCommit={handleCommitGlobalPackage}
+                onCancel={handleCancelGlobalPackage}
+                placeholder="com.example.models"
+                level={0}
+              />
+            )}
+
             {unassignedClasses > 0 && (
               <div className="mb-4">
                 <div
@@ -304,7 +281,11 @@ export default function PackageExplorer() {
                       <ChevronRight className="w-3.5 h-3.5" />
                     )}
                   </button>
-                  <Folder className="w-4 h-4 text-gray-500" />
+                  {expandedPaths.has("__unassigned__") ? (
+                    <FolderOpen className="w-4 h-4 text-gray-500" />
+                  ) : (
+                    <Folder className="w-4 h-4 text-gray-600" />
+                  )}
                   <span className="text-sm text-text-secondary group-hover:text-text-primary flex-1">
                     (No Package)
                   </span>
@@ -315,51 +296,48 @@ export default function PackageExplorer() {
 
                 {expandedPaths.has("__unassigned__") &&
                   packageTree.classes.map((classNode) => (
-                    <div
+                    <ClassItem
                       key={classNode.id}
-                      className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors ml-4"
-                      onClick={() => handleClassClick(classNode.id)}
-                    >
-                      <div className="w-4" />
-                      {classNode.data.stereotype === "interface" ? (
-                        <div className="w-4 h-4 rounded-full bg-green-500/20 border border-green-500 flex items-center justify-center text-[10px] font-bold text-green-400">
-                          I
-                        </div>
-                      ) : classNode.data.stereotype === "abstract" ? (
-                        <div className="w-4 h-4 rounded-full bg-purple-500/20 border border-purple-500 flex items-center justify-center text-[10px] font-bold text-purple-400">
-                          A
-                        </div>
-                      ) : (
-                        <div className="w-4 h-4 rounded-full bg-blue-500/20 border border-blue-500 flex items-center justify-center text-[10px] font-bold text-blue-400">
-                          C
-                        </div>
-                      )}
-                      <span className="text-sm text-text-primary group-hover:text-uml-class-border truncate flex-1">
-                        {classNode.data.label}
-                      </span>
-                    </div>
+                      classNode={classNode}
+                      level={1}
+                      isExpanded={expandedClasses.has(classNode.id)}
+                      isRenaming={renamingId === classNode.id}
+                      onToggle={handleClassToggle}
+                      onClassClick={handleClassClick}
+                      onContextMenu={handleClassContextMenu}
+                      onRename={handleRenameClass}
+                      onCancelRename={handleCancelRename}
+                    />
                   ))}
               </div>
             )}
 
-            {/* Package Tree */}
-            <TreeNodeComponent
+            <PackageItem
               node={packageTree}
               level={0}
               expandedPaths={expandedPaths}
+              expandedClasses={expandedClasses}
+              renamingId={renamingId}
+              addingChildToPath={addingChildToPath}
               onToggle={handleToggle}
+              onClassToggle={handleClassToggle}
               onClassClick={handleClassClick}
+              onPackageContextMenu={handlePackageContextMenu}
+              onClassContextMenu={handleClassContextMenu}
+              onRenameClass={handleRenameClass}
+              onCancelRename={handleCancelRename}
+              onRenamePackage={handleRenamePackage}
+              onAddChildPackage={handleAddChildPackage}
+              onCancelAddChild={handleCancelAddChild}
             />
           </>
         )}
       </div>
 
-      {/* Footer Actions */}
       <div className="px-4 py-3 border-t border-surface-border">
         <button
           className="w-full text-xs text-text-secondary hover:text-text-primary hover:bg-surface-hover py-2 rounded transition-colors"
           onClick={() => {
-            // Expand all packages
             const allPaths = new Set<string>();
             const collectPaths = (node: TreeNode) => {
               if (node.fullPath) allPaths.add(node.fullPath);
@@ -379,6 +357,24 @@ export default function PackageExplorer() {
           Collapse All
         </button>
       </div>
+
+      <ExplorerContextMenu
+        contextMenu={contextMenu}
+        onRename={handleRenameClick}
+        onDelete={handleDeleteClick}
+        onAddChild={handleAddChildClick}
+      />
+
+      <DeletePackageModal
+        isOpen={deletePackageState !== null}
+        packageName={deletePackageState?.name || ""}
+        hasClasses={deletePackageState?.hasClasses || false}
+        classCount={deletePackageState?.classCount || 0}
+        onConfirm={handleConfirmDeletePackage}
+        onCancel={handleCancelDeletePackage}
+        isDark={theme === "dark"}
+        t={t}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import type {
   UmlAttribute,
   UmlMethod,
 } from "../features/diagram/types/diagram.types";
+import { useDiagramStore } from "../store/diagramStore";
 
 /**
  * Service responsible for parsing XMI 2.1 / XMI 2.5 documents
@@ -36,10 +37,82 @@ export class XmiImporterService {
       throw new Error(`XMI parse error: ${parseError.textContent}`);
     }
 
-    const nodes = this.parseNodes(xmlDoc);
+    // Build package context map before parsing nodes
+    const packageContext = this.buildPackageContext(xmlDoc);
+
+    const nodes = this.parseNodes(xmlDoc, packageContext);
     const edges = this.parseEdges(xmlDoc, nodes);
 
+    // Register all discovered packages in the global store
+    this.registerPackages(packageContext);
+
     return { nodes, edges };
+  }
+
+  /**
+   * Builds a map of element IDs to their package names by traversing
+   * the XMI document and tracking package hierarchy.
+   */
+  private static buildPackageContext(xmlDoc: Document): Map<string, string> {
+    const packageMap = new Map<string, string>();
+
+    const traversePackages = (element: Element, currentPackage?: string) => {
+      const xmiType = element.getAttribute("xmi:type");
+      const xmiId = element.getAttribute("xmi:id");
+      const name = element.getAttribute("name");
+
+      // If this is a package element, update the current package context
+      if (xmiType === "uml:Package" && name) {
+        const packageName = currentPackage ? `${currentPackage}.${name}` : name;
+        
+        if (xmiId) {
+          packageMap.set(xmiId, packageName);
+        }
+
+        // Recursively traverse children with the new package context
+        Array.from(element.children).forEach((child) => {
+          traversePackages(child, packageName);
+        });
+      } else {
+        // For non-package elements, record their package context
+        if (xmiId && currentPackage) {
+          packageMap.set(xmiId, currentPackage);
+        }
+
+        // Continue traversing children with the same package context
+        Array.from(element.children).forEach((child) => {
+          traversePackages(child, currentPackage);
+        });
+      }
+    };
+
+    // Start traversal from the root
+    traversePackages(xmlDoc.documentElement);
+
+    return packageMap;
+  }
+
+  /**
+   * Registers all discovered packages in the global Zustand store.
+   */
+  private static registerPackages(packageContext: Map<string, string>): void {
+    try {
+      const store = useDiagramStore.getState();
+      const existingPackages = store.packages || [];
+      const existingPackageNames = new Set(existingPackages.map((pkg) => pkg.name));
+
+      // Get unique package names from the context
+      const uniquePackages = new Set(packageContext.values());
+
+      // Register each unique package that doesn't already exist
+      uniquePackages.forEach((packageName) => {
+        if (!existingPackageNames.has(packageName)) {
+          store.addPackage(packageName);
+        }
+      });
+    } catch (error) {
+      console.warn("Failed to register packages from XMI:", error);
+    }
   }
 
   private static findById(xmlDoc: Document, id: string): Element | null {
@@ -143,7 +216,10 @@ export class XmiImporterService {
   }
 
 
-  private static parseNodes(xmlDoc: Document): UmlClassNode[] {
+  private static parseNodes(
+    xmlDoc: Document,
+    packageContext: Map<string, string>
+  ): UmlClassNode[] {
     const nodes: UmlClassNode[] = [];
 
     const CLASS_LIKE_TYPES = new Set([
@@ -162,6 +238,9 @@ export class XmiImporterService {
       const name       = el.getAttribute("name") || "Unnamed";
       const xmiType    = el.getAttribute("xmi:type");
       const isAbstract = el.getAttribute("isAbstract") === "true";
+
+      // Get package from context map
+      const packageName = packageContext.get(id);
 
       let stereotype: "class" | "interface" | "abstract" | "enum" = "class";
       if (xmiType === "uml:Interface")   stereotype = "interface";
@@ -228,7 +307,13 @@ export class XmiImporterService {
         id,
         type: "umlClass",
         position,
-        data: { label: name, stereotype, attributes, methods },
+        data: { 
+          label: name, 
+          stereotype, 
+          attributes, 
+          methods,
+          package: packageName // Assign package from context
+        },
       });
     });
 

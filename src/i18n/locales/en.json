@@ -73,6 +73,7 @@
       "title": "Code",
       "generateClass": "Generate Class Code...",
       "generateProject": "Generate Project (.zip)...",
+      "downloadProject": "Download Project",
       "importJava": "Import Java Code...",
       "livePreview": "Live Code Preview"
     },

@@ -4,7 +4,6 @@ import type {
   UmlAttribute,
   UmlMethod,
 } from "../features/diagram/types/diagram.types";
-import { useDiagramStore } from "../store/diagramStore";
 
 /**
  * Service responsible for parsing XMI 2.1 / XMI 2.5 documents
@@ -37,27 +36,16 @@ export class XmiImporterService {
       throw new Error(`XMI parse error: ${parseError.textContent}`);
     }
 
-    // Build package context map before parsing nodes
     const packageContext = this.buildPackageContext(xmlDoc);
 
     const nodes = this.parseNodes(xmlDoc, packageContext);
     const edges = this.parseEdges(xmlDoc, nodes);
 
-    // NOTE: We no longer register packages here.
-    // The syncPackages() utility in the store will automatically
-    // create the hierarchical package structure from class package strings.
-
+ 
     return { nodes, edges };
   }
 
-  /**
-   * Builds a map of element IDs to their package names by traversing
-   * the XMI document and tracking package hierarchy.
-   * 
-   * This method only builds the package path strings (e.g., "com.hospital.models").
-   * It does NOT create package objects in the store. The syncPackages() utility
-   * will handle creating the hierarchical package structure automatically.
-   */
+
   private static buildPackageContext(xmlDoc: Document): Map<string, string> {
     const packageMap = new Map<string, string>();
 
@@ -66,7 +54,6 @@ export class XmiImporterService {
       const xmiId = element.getAttribute("xmi:id");
       const name = element.getAttribute("name");
 
-      // If this is a package element, update the current package context
       if (xmiType === "uml:Package" && name) {
         const packageName = currentPackage ? `${currentPackage}.${name}` : name;
         
@@ -74,41 +61,23 @@ export class XmiImporterService {
           packageMap.set(xmiId, packageName);
         }
 
-        // Recursively traverse children with the new package context
         Array.from(element.children).forEach((child) => {
           traversePackages(child, packageName);
         });
       } else {
-        // For non-package elements, record their package context
         if (xmiId && currentPackage) {
           packageMap.set(xmiId, currentPackage);
         }
 
-        // Continue traversing children with the same package context
         Array.from(element.children).forEach((child) => {
           traversePackages(child, currentPackage);
         });
       }
     };
 
-    // Start traversal from the root
     traversePackages(xmlDoc.documentElement);
 
     return packageMap;
-  }
-
-  /**
-   * Registers all discovered packages in the global Zustand store.
-   * 
-   * @deprecated This method is no longer used. Package hierarchy is now
-   * automatically created by the syncPackages() utility in the store,
-   * which extracts package strings from class nodes and builds the
-   * hierarchical structure. This prevents duplicate root-level packages.
-   */
-  private static registerPackages(packageContext: Map<string, string>): void {
-    // This method is intentionally left empty.
-    // Package creation is now handled by syncPackages() in the store.
-    // Keeping this method for backward compatibility in case it's referenced elsewhere.
   }
 
   private static findById(xmlDoc: Document, id: string): Element | null {
@@ -235,7 +204,6 @@ export class XmiImporterService {
       const xmiType    = el.getAttribute("xmi:type");
       const isAbstract = el.getAttribute("isAbstract") === "true";
 
-      // Get package from context map
       const packageName = packageContext.get(id);
 
       let stereotype: "class" | "interface" | "abstract" | "enum" = "class";
@@ -308,7 +276,7 @@ export class XmiImporterService {
           stereotype, 
           attributes, 
           methods,
-          package: packageName // Assign package from context
+          package: packageName 
         },
       });
     });

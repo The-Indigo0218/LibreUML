@@ -132,7 +132,8 @@
       "duplicate": "Duplicate",
       "edit": "Edit Properties",
       "delete": "Delete",
-      "generateCode": "Generate Code..."
+      "generateCode": "Generate Code...",
+      "generateMethods": "Generate Methods..."
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",
@@ -263,6 +264,17 @@
       "copied": "Copied!",
       "noClassSelected": "No class selected",
       "invalidNode": "Selected node is not a valid Class/Interface"
+    },
+    "methodGenerator": {
+      "title": "Generate Methods",
+      "selectAttributes": "Select Attributes",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "noAttributes": "No attributes available. Add attributes to the class first.",
+      "generateGettersSetters": "Getters & Setters",
+      "generateConstructor": "Constructor",
+      "generateAll": "Generate All",
+      "cancel": "Cancel"
     }
   },
   "alerts": {

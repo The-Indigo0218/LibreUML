@@ -43,8 +43,9 @@ export class XmiImporterService {
     const nodes = this.parseNodes(xmlDoc, packageContext);
     const edges = this.parseEdges(xmlDoc, nodes);
 
-    // Register all discovered packages in the global store
-    this.registerPackages(packageContext);
+    // NOTE: We no longer register packages here.
+    // The syncPackages() utility in the store will automatically
+    // create the hierarchical package structure from class package strings.
 
     return { nodes, edges };
   }
@@ -52,6 +53,10 @@ export class XmiImporterService {
   /**
    * Builds a map of element IDs to their package names by traversing
    * the XMI document and tracking package hierarchy.
+   * 
+   * This method only builds the package path strings (e.g., "com.hospital.models").
+   * It does NOT create package objects in the store. The syncPackages() utility
+   * will handle creating the hierarchical package structure automatically.
    */
   private static buildPackageContext(xmlDoc: Document): Map<string, string> {
     const packageMap = new Map<string, string>();
@@ -94,25 +99,16 @@ export class XmiImporterService {
 
   /**
    * Registers all discovered packages in the global Zustand store.
+   * 
+   * @deprecated This method is no longer used. Package hierarchy is now
+   * automatically created by the syncPackages() utility in the store,
+   * which extracts package strings from class nodes and builds the
+   * hierarchical structure. This prevents duplicate root-level packages.
    */
   private static registerPackages(packageContext: Map<string, string>): void {
-    try {
-      const store = useDiagramStore.getState();
-      const existingPackages = store.packages || [];
-      const existingPackageNames = new Set(existingPackages.map((pkg) => pkg.name));
-
-      // Get unique package names from the context
-      const uniquePackages = new Set(packageContext.values());
-
-      // Register each unique package that doesn't already exist
-      uniquePackages.forEach((packageName) => {
-        if (!existingPackageNames.has(packageName)) {
-          store.addPackage(packageName);
-        }
-      });
-    } catch (error) {
-      console.warn("Failed to register packages from XMI:", error);
-    }
+    // This method is intentionally left empty.
+    // Package creation is now handled by syncPackages() in the store.
+    // Keeping this method for backward compatibility in case it's referenced elsewhere.
   }
 
   private static findById(xmlDoc: Document, id: string): Element | null {

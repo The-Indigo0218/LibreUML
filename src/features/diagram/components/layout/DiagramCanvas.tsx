@@ -20,6 +20,7 @@ import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 import SpotlightModal from "../modals/SpotlightModal";
 import CustomUmlEdge from "../edges/CustomUmlEdge";
 import MultiplicityModal from "../modals/MultiplicityModal";
+import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 
 // Hooks
 import { useContextMenu } from "../../hooks/useContextMenu";
@@ -68,7 +69,8 @@ export default function DiagramCanvas() {
     editingId, 
     openClassEditor, 
     openMultiplicityEditor, 
-    openClearConfirmation, 
+    openClearConfirmation,
+    openMethodGenerator,
     closeModals 
   } = useUiStore();
 
@@ -90,6 +92,7 @@ export default function DiagramCanvas() {
     onEditNode: (id) => openClassEditor(id),
     onClearCanvas: () => openClearConfirmation(),
     onEditEdgeMultiplicity: (id) => openMultiplicityEditor(id),
+    onGenerateMethods: (id) => openMethodGenerator(id),
   });
 
   const {
@@ -230,6 +233,12 @@ export default function DiagramCanvas() {
 
       <ImportCodeModal 
         isOpen={activeModal === 'import-code'}
+        onClose={closeModals}
+      />
+
+      <MethodGeneratorModal
+        isOpen={activeModal === 'method-generator'}
+        nodeId={editingId}
         onClose={closeModals}
       />
 

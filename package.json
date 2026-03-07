@@ -15,6 +15,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@vercel/analytics": "^1.6.1",
     "dagre": "^0.8.5",
     "electron-is-dev": "^3.0.1",
     "html-to-image": "^1.11.13",

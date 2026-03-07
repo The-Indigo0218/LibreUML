@@ -11,6 +11,7 @@ export type ActiveModal =
   | "engineering-project"
   | "engineering-reverse"
   | "import-code"
+  | "method-generator"
   | null;
 
 interface UiStoreState {
@@ -27,6 +28,7 @@ interface UiStoreState {
   openProjectGenerator: () => void;
   openReverseEngineering: () => void;
   openImportCode: () => void;
+  openMethodGenerator: (nodeId: string) => void;
   closeModals: () => void;
 }
 
@@ -56,6 +58,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openImportCode: () =>
     set({ activeModal: "import-code", editingId: null }),
+
+  openMethodGenerator: (nodeId) =>
+    set({ activeModal: "method-generator", editingId: nodeId }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
 }));

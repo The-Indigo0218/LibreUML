@@ -18,12 +18,14 @@ interface UseDiagramMenusProps {
   onEditNode: (nodeId: string) => void;
   onClearCanvas: () => void;
   onEditEdgeMultiplicity: (edgeId: string) => void;
+  onGenerateMethods?: (nodeId: string) => void;
 }
 
 export const useDiagramMenus = ({ 
   onEditNode, 
   onClearCanvas, 
-  onEditEdgeMultiplicity 
+  onEditEdgeMultiplicity,
+  onGenerateMethods
 }: UseDiagramMenusProps) => {
   const { screenToFlowPosition } = useReactFlow();
   const { t } = useTranslation();
@@ -99,6 +101,13 @@ export const useDiagramMenus = ({
                 label: t('contextMenu.node.generateCode'),
                 onClick: () => openSingleGenerator(nodeId),
             });
+            
+            if (onGenerateMethods) {
+              baseOptions.push({
+                label: t('contextMenu.node.generateMethods'),
+                onClick: () => onGenerateMethods(nodeId),
+              });
+            }
         }
 
         baseOptions.push({ 
@@ -196,6 +205,7 @@ export const useDiagramMenus = ({
       onEditEdgeMultiplicity,
       screenToFlowPosition,
       openSingleGenerator,
+      onGenerateMethods,
       t
     ]
   );

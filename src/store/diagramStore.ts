@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { temporal } from "zundo";
 import {
   addEdge,
@@ -99,22 +100,23 @@ interface DiagramStoreState {
 }
 
 export const useDiagramStore = create<DiagramStoreState>()(
-  temporal(
-    (set, get) => ({
-      // --- Initial State ---
-      isHydrated: false,
-      diagramId: crypto.randomUUID(),
-      diagramName: "Untitled Diagram",
-      nodes: [],
-      edges: [],
-      packages: [],
-      activeConnectionMode: "association",
-      showMiniMap: false,
-      showGrid: true,
-      snapToGrid: true,
-      showAllEdges: false,
-      isDirty: false,
-      activeToast: null,
+  persist(
+    temporal(
+      (set, get) => ({
+        // --- Initial State ---
+        isHydrated: false,
+        diagramId: crypto.randomUUID(),
+        diagramName: "Untitled Diagram",
+        nodes: [],
+        edges: [],
+        packages: [],
+        activeConnectionMode: "association",
+        showMiniMap: false,
+        showGrid: true,
+        snapToGrid: true,
+        showAllEdges: false,
+        isDirty: false,
+        activeToast: null,
 
       // --- State Setters ---
       setHydrated: (status) => set({ isHydrated: status }),
@@ -425,7 +427,6 @@ export const useDiagramStore = create<DiagramStoreState>()(
           isDirty: false,
         });
       },
-
       // --- Layout Actions ---
       applyAutoLayout: (direction: LayoutDirection = "TB") => {
         const { nodes, edges } = get();
@@ -477,5 +478,9 @@ export const useDiagramStore = create<DiagramStoreState>()(
         return JSON.stringify(pastState) === JSON.stringify(currentState);
       },
     },
+  ),
+  {
+    name: "libreuml-storage",
+  }
   ),
 );

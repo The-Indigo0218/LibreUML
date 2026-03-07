@@ -2,7 +2,7 @@ import {
   FileCode, 
   Package, 
   Upload, 
-  Play 
+  Play
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
@@ -12,7 +12,6 @@ import { useUiStore } from "../../../../../store/uiStore";
 export function CodeMenu() {
   const { t } = useTranslation();
   
-  // Store actions
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator); 
   const openProjectGenerator = useUiStore((s) => s.openProjectGenerator); 
   const openImportModal = useUiStore((s) => s.openImportCode);

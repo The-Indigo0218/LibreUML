@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
 import { ClassItem } from "./ClassItem";
 import { InlinePackageInput } from "./InlinePackageInput";
+import { useDiagramStore } from "../../../../../store/diagramStore";
 import type { PackageItemProps } from "./types";
 
 export function PackageItem({
@@ -22,6 +23,7 @@ export function PackageItem({
   onAddChildPackage,
   onCancelAddChild,
 }: PackageItemProps) {
+  const packages = useDiagramStore((s) => s.packages);
   const isExpanded = expandedPaths.has(node.fullPath);
   const hasChildren = node.children.size > 0;
   const hasClasses = node.classes.length > 0;
@@ -31,6 +33,7 @@ export function PackageItem({
   
   const [editValue, setEditValue] = useState(node.name);
   const [newChildName, setNewChildName] = useState("");
+  const [hasError, setHasError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,9 +43,36 @@ export function PackageItem({
     }
   }, [isRenaming]);
 
+  const validatePackageName = (newName: string): boolean => {
+    const pathSegments = node.fullPath.split(".");
+    pathSegments[pathSegments.length - 1] = newName;
+    
+    const parentPath = pathSegments.slice(0, -1).join(".");
+    const siblings = packages.filter(pkg => {
+      if (pkg.name === node.fullPath) return false;
+      const pkgSegments = pkg.name.split(".");
+      const pkgParent = pkgSegments.slice(0, -1).join(".");
+      return pkgParent === parentPath && pkgSegments.length === pathSegments.length;
+    });
+    
+    return siblings.some(pkg => {
+      const pkgName = pkg.name.split(".").pop();
+      return pkgName === newName;
+    });
+  };
+
   const handleCommit = () => {
     if (editValue.trim() && editValue !== node.name) {
-      onRenamePackage(node.fullPath, editValue.trim());
+      if (validatePackageName(editValue.trim())) {
+        setHasError(true);
+        setTimeout(() => {
+          setEditValue(node.name);
+          setHasError(false);
+          onCancelRename();
+        }, 2000);
+      } else {
+        onRenamePackage(node.fullPath, editValue.trim());
+      }
     } else {
       onCancelRename();
     }
@@ -74,57 +104,64 @@ export function PackageItem({
   return (
     <div>
       {node.name !== "root" && (
-        <div
-          className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors"
-          style={{ paddingLeft: `${level * 12 + 8}px` }}
-          onClick={() => !isRenaming && onToggle(node.fullPath)}
-          onContextMenu={(e) => onPackageContextMenu(e, node.fullPath, node.name)}
-        >
-          {hasChildren || hasClasses ? (
-            <button className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text-primary">
-              {isExpanded ? (
-                <ChevronDown className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5" />
-              )}
-            </button>
-          ) : (
-            <div className="w-4" />
-          )}
+        <>
+          <div
+            className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors"
+            style={{ paddingLeft: `${level * 12 + 8}px` }}
+            onClick={() => !isRenaming && onToggle(node.fullPath)}
+            onContextMenu={(e) => onPackageContextMenu(e, node.fullPath, node.name)}
+          >
+            {hasChildren || hasClasses ? (
+              <button className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text-primary">
+                {isExpanded ? (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5" />
+                )}
+              </button>
+            ) : (
+              <div className="w-4" />
+            )}
 
-          {isExpanded ? (
-            <FolderOpen className="w-4 h-4 text-yellow-500" />
-          ) : (
-            <Folder className="w-4 h-4 text-yellow-600" />
-          )}
+            {isExpanded ? (
+              <FolderOpen className="w-4 h-4 text-yellow-500" />
+            ) : (
+              <Folder className="w-4 h-4 text-yellow-600" />
+            )}
 
-          {isRenaming ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onBlur={handleCommit}
-              className="flex-1 bg-surface-secondary text-sm text-text-primary outline-none px-1 py-0.5 rounded border border-uml-class-border"
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <span className="text-sm text-text-secondary group-hover:text-text-primary flex-1 truncate">
-              {node.name}
-            </span>
-          )}
+            {isRenaming ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={handleCommit}
+                className={`flex-1 bg-surface-secondary text-sm outline-none px-1 py-0.5 rounded border transition-colors ${
+                  hasError ? 'border-red-500 text-red-500' : 'border-uml-class-border text-text-primary'
+                }`}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span className="text-sm text-text-secondary group-hover:text-text-primary flex-1 truncate">
+                {node.name}
+              </span>
+            )}
 
-          {!isRenaming && hasClasses && (
-            <span className="text-[10px] text-text-muted bg-surface-secondary px-1.5 py-0.5 rounded">
-              {node.classes.length}
-            </span>
-          )}
+            {!isRenaming && hasClasses && (
+              <span className="text-[10px] text-text-muted bg-surface-secondary px-1.5 py-0.5 rounded">
+                {node.classes.length}
+              </span>
+            )}
 
-          {!isRenaming && isEmpty && (
-            <span className="text-[10px] text-text-muted italic">empty</span>
+            {!isRenaming && isEmpty && (
+              <span className="text-[10px] text-text-muted italic">empty</span>
+            )}
+          </div>
+          {hasError && (
+            <p className="text-xs text-red-500 mt-1 ml-2">Package name already exists at this level</p>
           )}
-        </div>
+        </>
       )}
 
       {(isExpanded || node.name === "root") && (
@@ -137,6 +174,7 @@ export function PackageItem({
               onCancel={handleAddChildCancel}
               placeholder="subpackage"
               level={level + 1}
+              parentPath={node.fullPath}
             />
           )}
 

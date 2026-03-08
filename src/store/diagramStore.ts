@@ -19,6 +19,7 @@ import type {
   DiagramState as SavedDiagramState,
   UmlEdgeData,
   UmlPackage,
+  UmlClassNode,
 } from "../features/diagram/types/diagram.types";
 
 type ToastType = {
@@ -27,6 +28,7 @@ type ToastType = {
 };
 
 import { getEdgeOptions, getNoteEdgeOptions } from "../util/edgeFactory";
+import { syncPackagesFromClasses } from "../features/diagram/utils/package-sync.utils";
 import {
   getSmartEdgeHandles,
   checkCollision,
@@ -78,9 +80,11 @@ interface DiagramStoreState {
   setEdges: (edges: Edge[]) => void;               
 
   // --- Package Actions (Relational) ---
-  addPackage: (name: string, parentId?: string) => void;
+  addPackage: (name: string) => void;
   updatePackageName: (id: string, newName: string) => void;
   deletePackage: (id: string, deleteClasses: boolean) => void;
+  syncPackages: () => void;
+  _syncPackagesSilent: () => void;
 
   // --- Node Actions ---
   addNode: (position: { x: number; y: number }, stereotype?: stereotype) => void;
@@ -129,7 +133,10 @@ export const useDiagramStore = create<DiagramStoreState>()(
       toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
       dismissToast: () => set({ activeToast: null }),
 
-      setNodes: (nodes) => set({ nodes, isDirty: true }), 
+      setNodes: (nodes) => {
+        set({ nodes, isDirty: true });
+        get().syncPackages();
+      },
       setEdges: (edges) => set({ edges, isDirty: true }), 
 
       // --- React Flow Callbacks ---
@@ -184,11 +191,39 @@ export const useDiagramStore = create<DiagramStoreState>()(
         });
       },
 
-      // --- Package Operations (Arquitectura Relacional) ---
-      addPackage: (name, parentId) => set((state) => ({
-        packages: [...state.packages, { id: crypto.randomUUID(), name, parentId }],
-        isDirty: true
-      })),
+      // --- Package Operations (Full Path Architecture) ---
+      // Packages store their FULL PATH in the name field (e.g., "com.hospital.models")
+      // This matches how buildPackageTree expects the data structure
+      // CRITICAL: Must create ALL intermediate packages for the tree to work correctly
+      addPackage: (name) => set((state) => {
+        const segments = name.split(".").map(s => s.trim()).filter(s => s !== "");
+        if (segments.length === 0) return state;
+
+        const newPackages = [...state.packages];
+        const existingNames = new Set(state.packages.map(p => p.name));
+
+        // Create all intermediate packages
+        // For "com.hospital.models", create: "com", "com.hospital", "com.hospital.models"
+        let currentPath = "";
+        segments.forEach((segment, index) => {
+          currentPath = index === 0 ? segment : `${currentPath}.${segment}`;
+          
+          // Only add if it doesn't already exist
+          if (!existingNames.has(currentPath)) {
+            newPackages.push({
+              id: crypto.randomUUID(),
+              name: currentPath,
+              parentId: undefined
+            });
+            existingNames.add(currentPath);
+          }
+        });
+
+        return {
+          packages: newPackages,
+          isDirty: true
+        };
+      }),
 
       updatePackageName: (id, newName) => set((state) => {
         const pkg = state.packages.find(p => p.id === id);
@@ -211,12 +246,26 @@ export const useDiagramStore = create<DiagramStoreState>()(
         const pkg = state.packages.find(p => p.id === id);
         if (!pkg) return state;
 
-        const getAllPackageIds = (parentId: string): string[] => {
-          const children = state.packages.filter(p => p.parentId === parentId);
-          return [parentId, ...children.flatMap(child => getAllPackageIds(child.id))];
+        // In the new architecture, packages have full paths in their names
+        // To find all child packages, we check if their name starts with the parent's name + "."
+        const getAllPackageIds = (packageName: string): string[] => {
+          const idsToDelete: string[] = [];
+          
+          state.packages.forEach(p => {
+            // Include the package itself
+            if (p.name === packageName) {
+              idsToDelete.push(p.id);
+            }
+            // Include all children (packages whose name starts with "parent.")
+            else if (p.name.startsWith(packageName + ".")) {
+              idsToDelete.push(p.id);
+            }
+          });
+          
+          return idsToDelete;
         };
 
-        const packageIdsToDelete = getAllPackageIds(id);
+        const packageIdsToDelete = getAllPackageIds(pkg.name);
         const packageNamesToDelete = state.packages
           .filter(p => packageIdsToDelete.includes(p.id))
           .map(p => p.name);
@@ -227,19 +276,19 @@ export const useDiagramStore = create<DiagramStoreState>()(
         let newEdges = state.edges;
 
         if (deleteClasses) {
-          // Eliminar todas las clases que pertenecen a estos paquetes
+          // Delete all classes that belong to these packages
           const nodeIdsToDelete = state.nodes
             .filter(node => node.data.package && packageNamesToDelete.includes(node.data.package))
             .map(node => node.id);
 
           newNodes = state.nodes.filter(node => !nodeIdsToDelete.includes(node.id));
           
-          // También eliminar las conexiones de esos nodos
+          // Also delete the connections of those nodes
           newEdges = state.edges.filter(
             edge => !nodeIdsToDelete.includes(edge.source) && !nodeIdsToDelete.includes(edge.target)
           );
         } else {
-          // Solo desasignar las clases (moverlas a "Sin Paquete")
+          // Only unassign the classes (move them to "No Package")
           newNodes = state.nodes.map(node => {
             if (node.data.package && packageNamesToDelete.includes(node.data.package)) {
               return { ...node, data: { ...node.data, package: undefined } };
@@ -251,17 +300,50 @@ export const useDiagramStore = create<DiagramStoreState>()(
         return { packages: newPackages, nodes: newNodes, edges: newEdges, isDirty: true };
       }),
 
+      syncPackages: () => set((state) => {
+        const { nodes, packages } = state;
+        const syncedPackages = syncPackagesFromClasses(nodes as UmlClassNode[], packages);
+        
+        // CRITICAL: Set isDirty to ensure React detects the state change
+        // and properly re-renders with event listeners attached to new packages
+        return { 
+          packages: syncedPackages,
+          isDirty: true 
+        };
+      }),
+
+      // Internal sync that doesn't mark as dirty (used during load operations)
+      _syncPackagesSilent: () => {
+        const state = get();
+        const syncedPackages = syncPackagesFromClasses(state.nodes as UmlClassNode[], state.packages);
+        set({ packages: syncedPackages });
+      },
+
       // --- Node Operations ---
       addNode: (position, stereotype = "class") => {
         const { nodes } = get();
         if (checkCollision(position, nodes)) return;
+
+        const generateUniqueName = (baseName: string): string => {
+          const existingNames = new Set(nodes.map(n => n.data.label));
+          if (!existingNames.has(baseName)) return baseName;
+          
+          let counter = 1;
+          while (existingNames.has(`${baseName}${counter}`)) {
+            counter++;
+          }
+          return `${baseName}${counter}`;
+        };
+
+        const baseName = stereotype === "note" ? "Nota" : `New${stereotype.charAt(0).toUpperCase() + stereotype.slice(1)}`;
+        const uniqueName = generateUniqueName(baseName);
 
         const newNode: Node<UmlClassData> = {
           id: crypto.randomUUID(),
           type: stereotype === "note" ? "umlNote" : "umlClass",
           position,
           data: {
-            label: stereotype === "note" ? "Nota" : `New ${stereotype}`,
+            label: uniqueName,
             attributes: [],
             methods: [],
             stereotype: stereotype,
@@ -403,6 +485,9 @@ export const useDiagramStore = create<DiagramStoreState>()(
           packages: data.packages || [], 
           isDirty: false,
         }));
+        
+        // Sync packages from class package declarations (silent mode to not mark as dirty)
+        get()._syncPackagesSilent();
       },
 
       triggerHistorySnapshot: () =>

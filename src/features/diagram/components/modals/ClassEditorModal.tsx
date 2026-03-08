@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useDiagramStore } from "../../../../store/diagramStore";
 import type {
@@ -9,6 +9,7 @@ import type {
 } from "../../types/diagram.types";
 import { Plus, Trash2, ArrowUp, ArrowDown, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useUiStore } from "../../../../store/uiStore";
 
 interface ClassEditorModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export default function ClassEditorModal({
 }: ClassEditorModalProps) {
   const nodes = useDiagramStore((state) => state.nodes);
   const packages = useDiagramStore((state) => state.packages);
+  const editingId = useUiStore((state) => state.editingId);
   const { t } = useTranslation();
 
   const availableTypes = useMemo(() => {
@@ -53,6 +55,11 @@ export default function ClassEditorModal({
     methods: Array.isArray(umlData.methods) && typeof umlData.methods[0] === "string" ? [] : umlData.methods?.map((m) => ({ ...m, parameters: m.parameters || [] })) || [],
   }));
 
+  const [classNameError, setClassNameError] = useState(false);
+  const [attributeErrors, setAttributeErrors] = useState<Set<number>>(new Set());
+  const [methodErrors, setMethodErrors] = useState<Set<number>>(new Set());
+  const classNameInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft((prev) => {
@@ -63,13 +70,68 @@ export default function ClassEditorModal({
     });
   }, [draft.label]);
 
-  // --- LOGIC: ATTRIBUTES ---
+  const validateClassName = (name: string): boolean => {
+    const currentPackage = draft.package || "";
+    return nodes.some(node => {
+      if (node.id === editingId) return false;
+      const nodePackage = node.data.package || "";
+      return node.data.label === name && nodePackage === currentPackage;
+    });
+  };
+
+  const validateAttributeName = (name: string, currentIndex: number): boolean => {
+    return draft.attributes.some((attr, idx) => idx !== currentIndex && attr.name === name);
+  };
+
+  const validateMethodSignature = (method: UmlMethod, currentIndex: number): boolean => {
+    return draft.methods.some((m, idx) => {
+      if (idx === currentIndex) return false;
+      if (m.name !== method.name) return false;
+      if (m.parameters.length !== method.parameters.length) return false;
+      return m.parameters.every((p, i) => {
+        const otherParam = method.parameters[i];
+        return p.type === otherParam.type && (p.isArray || false) === (otherParam.isArray || false);
+      });
+    });
+  };
+
+  const handleClassNameChange = (newName: string) => {
+    if (validateClassName(newName)) {
+      setClassNameError(true);
+      setTimeout(() => {
+        setDraft(prev => ({ ...prev, label: umlData.label }));
+        setClassNameError(false);
+      }, 2000);
+    } else {
+      setDraft({ ...draft, label: newName });
+    }
+  };
+
   const addAttribute = () => {
     const newAttr: UmlAttribute = { id: crypto.randomUUID(), visibility: "-", name: "newAttr", type: "String", isArray: false };
     setDraft((prev) => ({ ...prev, attributes: [...prev.attributes, newAttr] }));
   };
 
   const updateAttribute = (index: number, field: keyof UmlAttribute, value: string | boolean) => {
+    if (field === "name" && typeof value === "string") {
+      if (validateAttributeName(value, index)) {
+        setAttributeErrors(prev => new Set(prev).add(index));
+        setTimeout(() => {
+          setDraft(prev => {
+            const newAttrs = [...prev.attributes];
+            newAttrs[index] = { ...newAttrs[index], name: prev.attributes[index].name };
+            return { ...prev, attributes: newAttrs };
+          });
+          setAttributeErrors(prev => {
+            const next = new Set(prev);
+            next.delete(index);
+            return next;
+          });
+        }, 2000);
+        return;
+      }
+    }
+    
     const newAttrs = [...draft.attributes];
     newAttrs[index] = { ...newAttrs[index], [field]: value };
     setDraft((prev) => ({ ...prev, attributes: newAttrs }));
@@ -88,7 +150,6 @@ export default function ClassEditorModal({
     setDraft((prev) => ({ ...prev, attributes: newAttrs }));
   };
 
-  // --- LOGIC: CONSTRUCTORS (NEW) ---
   const addConstructor = (fromAttributes: boolean = false) => {
     const newConstructor: UmlMethod = {
       id: crypto.randomUUID(),
@@ -104,7 +165,6 @@ export default function ClassEditorModal({
     setDraft((prev) => ({ ...prev, methods: [newConstructor, ...prev.methods] }));
   };
 
-  // --- LOGIC: METHODS ---
   const addMethod = () => {
     const newMethod: UmlMethod = { id: crypto.randomUUID(), visibility: "+", name: "newMethod", returnType: "void", isReturnArray: false, parameters: [], isConstructor: false };
     setDraft((prev) => ({ ...prev, methods: [...prev.methods, newMethod] }));
@@ -114,6 +174,26 @@ export default function ClassEditorModal({
     const newMethods = [...draft.methods];
     newMethods[index] = { ...newMethods[index], [field]: value };
     if (field === "returnType" && value === "void") newMethods[index].isReturnArray = false;
+    
+    if (field === "name") {
+      if (validateMethodSignature(newMethods[index], index)) {
+        setMethodErrors(prev => new Set(prev).add(index));
+        setTimeout(() => {
+          setDraft(prev => {
+            const revertMethods = [...prev.methods];
+            revertMethods[index] = { ...revertMethods[index], name: prev.methods[index].name };
+            return { ...prev, methods: revertMethods };
+          });
+          setMethodErrors(prev => {
+            const next = new Set(prev);
+            next.delete(index);
+            return next;
+          });
+        }, 2000);
+        return;
+      }
+    }
+    
     setDraft((prev) => ({ ...prev, methods: newMethods }));
   };
 
@@ -130,16 +210,48 @@ export default function ClassEditorModal({
     setDraft((prev) => ({ ...prev, methods: newMethods }));
   };
 
-  // --- LOGIC: PARAMETERS ---
   const addParameter = (methodIndex: number) => {
     const newMethods = [...draft.methods];
     newMethods[methodIndex].parameters.push({ name: "param", type: "String", isArray: false });
+    
+    if (validateMethodSignature(newMethods[methodIndex], methodIndex)) {
+      setMethodErrors(prev => new Set(prev).add(methodIndex));
+      setTimeout(() => {
+        setMethodErrors(prev => {
+          const next = new Set(prev);
+          next.delete(methodIndex);
+          return next;
+        });
+      }, 2000);
+      return;
+    }
+    
     setDraft((prev) => ({ ...prev, methods: newMethods }));
   };
 
   const updateParameter = (methodIndex: number, paramIndex: number, field: "name" | "type" | "isArray", value: string | boolean) => {
     const newMethods = [...draft.methods];
     newMethods[methodIndex].parameters[paramIndex] = { ...newMethods[methodIndex].parameters[paramIndex], [field]: value };
+    
+    if (field === "type" || field === "isArray") {
+      if (validateMethodSignature(newMethods[methodIndex], methodIndex)) {
+        setMethodErrors(prev => new Set(prev).add(methodIndex));
+        setTimeout(() => {
+          setDraft(prev => {
+            const revertMethods = [...prev.methods];
+            revertMethods[methodIndex].parameters[paramIndex] = { ...prev.methods[methodIndex].parameters[paramIndex] };
+            return { ...prev, methods: revertMethods };
+          });
+          setMethodErrors(prev => {
+            const next = new Set(prev);
+            next.delete(methodIndex);
+            return next;
+          });
+        }, 2000);
+        return;
+      }
+    }
+    
     setDraft((prev) => ({ ...prev, methods: newMethods }));
   };
 
@@ -165,7 +277,6 @@ export default function ClassEditorModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm font-sans p-4">
       <div className="bg-surface-primary border border-surface-border p-6 rounded-xl shadow-2xl w-200 max-w-[95vw] text-text-primary max-h-[95vh] flex flex-col">
         
-        {/* HEADER - Sticky at top */}
         <div className="shrink-0 mb-6">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             <span className="text-uml-class-border">{t("modals.classEditor.title")}</span>
@@ -177,10 +288,16 @@ export default function ClassEditorModal({
                 {t("modals.classEditor.className")}
               </label>
               <input
-                className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-text-primary focus:border-uml-class-border outline-none"
+                ref={classNameInputRef}
+                className={`w-full bg-surface-secondary border rounded p-2 text-text-primary outline-none transition-colors ${
+                  classNameError ? 'border-red-500 text-red-500' : 'border-surface-border focus:border-uml-class-border'
+                }`}
                 value={draft.label}
-                onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+                onChange={(e) => handleClassNameChange(e.target.value)}
               />
+              {classNameError && (
+                <p className="text-xs text-red-500 mt-1">Class name already exists in this package</p>
+              )}
             </div>
 
             <div>
@@ -203,10 +320,8 @@ export default function ClassEditorModal({
           </div>
         </div>
 
-        {/* SCROLLABLE BODY - Contains both Attributes and Methods sections */}
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6">
           
-          {/* --- ATTRIBUTES SECTION --- */}
           <div className="flex flex-col">
             <div className="flex justify-between items-center mb-2">
               <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
@@ -219,30 +334,43 @@ export default function ClassEditorModal({
 
             <div className="space-y-2">
               {draft.attributes.map((attr, idx) => (
-                <div key={attr.id} className="flex items-center gap-3 bg-surface-secondary p-2 rounded border border-surface-border group">
-                  <select className="bg-transparent text-uml-abstract-border font-mono outline-none cursor-pointer" value={attr.visibility} onChange={(e) => updateAttribute(idx, "visibility", e.target.value)}>
-                    {VISIBILITY_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                  <input className="bg-transparent border-b border-transparent focus:border-uml-class-border outline-none flex-1 min-w-0 text-sm" placeholder={t("modals.classEditor.placeholders.name")} value={attr.name} onChange={(e) => updateAttribute(idx, "name", e.target.value)} />
-                  <span className="text-text-muted font-mono">:</span>
-                  <select className="bg-surface-primary border border-surface-border rounded px-2 py-1 text-xs text-uml-interface-border outline-none w-32" value={attr.type} onChange={(e) => updateAttribute(idx, "type", e.target.value)}>
-                    {availableTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <label className="flex items-center gap-1.5 cursor-pointer bg-surface-primary px-2 py-1 rounded border border-surface-border hover:border-uml-class-border transition-colors">
-                    <input type="checkbox" checked={attr.isArray} onChange={(e) => updateAttribute(idx, "isArray", e.target.checked)} className="accent-uml-class-border w-3 h-3" />
-                    <span className="text-xs font-mono text-text-muted">[]</span>
-                  </label>
-                  <div className="flex items-center gap-1 border-l border-surface-border pl-3 ml-1">
-                    <button onClick={() => moveAttribute(idx, "up")} disabled={idx === 0} className="text-text-muted hover:text-white disabled:opacity-30"><ArrowUp className="w-4 h-4" /></button>
-                    <button onClick={() => moveAttribute(idx, "down")} disabled={idx === draft.attributes.length - 1} className="text-text-muted hover:text-white disabled:opacity-30"><ArrowDown className="w-4 h-4" /></button>
-                    <button onClick={() => removeAttribute(idx)} className="text-red-400 hover:text-red-300 ml-1"><Trash2 className="w-4 h-4" /></button>
+                <div key={attr.id}>
+                  <div className={`flex items-center gap-3 bg-surface-secondary p-2 rounded border group transition-colors ${
+                    attributeErrors.has(idx) ? 'border-red-500' : 'border-surface-border'
+                  }`}>
+                    <select className="bg-transparent text-uml-abstract-border font-mono outline-none cursor-pointer" value={attr.visibility} onChange={(e) => updateAttribute(idx, "visibility", e.target.value)}>
+                      {VISIBILITY_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                    <input 
+                      className={`bg-transparent border-b outline-none flex-1 min-w-0 text-sm transition-colors ${
+                        attributeErrors.has(idx) ? 'border-red-500 text-red-500' : 'border-transparent focus:border-uml-class-border'
+                      }`}
+                      placeholder={t("modals.classEditor.placeholders.name")} 
+                      value={attr.name} 
+                      onChange={(e) => updateAttribute(idx, "name", e.target.value)} 
+                    />
+                    <span className="text-text-muted font-mono">:</span>
+                    <select className="bg-surface-primary border border-surface-border rounded px-2 py-1 text-xs text-uml-interface-border outline-none w-32" value={attr.type} onChange={(e) => updateAttribute(idx, "type", e.target.value)}>
+                      {availableTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <label className="flex items-center gap-1.5 cursor-pointer bg-surface-primary px-2 py-1 rounded border border-surface-border hover:border-uml-class-border transition-colors">
+                      <input type="checkbox" checked={attr.isArray} onChange={(e) => updateAttribute(idx, "isArray", e.target.checked)} className="accent-uml-class-border w-3 h-3" />
+                      <span className="text-xs font-mono text-text-muted">[]</span>
+                    </label>
+                    <div className="flex items-center gap-1 border-l border-surface-border pl-3 ml-1">
+                      <button onClick={() => moveAttribute(idx, "up")} disabled={idx === 0} className="text-text-muted hover:text-white disabled:opacity-30"><ArrowUp className="w-4 h-4" /></button>
+                      <button onClick={() => moveAttribute(idx, "down")} disabled={idx === draft.attributes.length - 1} className="text-text-muted hover:text-white disabled:opacity-30"><ArrowDown className="w-4 h-4" /></button>
+                      <button onClick={() => removeAttribute(idx)} className="text-red-400 hover:text-red-300 ml-1"><Trash2 className="w-4 h-4" /></button>
+                    </div>
                   </div>
+                  {attributeErrors.has(idx) && (
+                    <p className="text-xs text-red-500 mt-1 ml-2">Attribute name already exists in this class</p>
+                  )}
                 </div>
               ))}
             </div>
           </div>
 
-          {/* --- METHODS & CONSTRUCTORS SECTION --- */}
           <div className="flex flex-col pt-4 border-t border-surface-border">
             
             <div className="flex justify-between items-center mb-2">
@@ -273,15 +401,24 @@ export default function ClassEditorModal({
 
             <div className="space-y-3">
               {draft.methods.map((method, methodIdx) => (
-                <div key={method.id} className={`flex flex-col bg-surface-secondary rounded border overflow-hidden ${method.isConstructor ? 'border-purple-500/30' : 'border-surface-border'}`}>
+                <div key={method.id}>
+                  <div className={`flex flex-col bg-surface-secondary rounded border overflow-hidden transition-colors ${
+                    methodErrors.has(methodIdx) ? 'border-red-500' : method.isConstructor ? 'border-purple-500/30' : 'border-surface-border'
+                  }`}>
                   
-                  <div className={`flex items-center gap-3 p-2 border-b border-surface-border/50 ${method.isConstructor ? 'bg-purple-900/10' : 'bg-surface-secondary'}`}>
+                    <div className={`flex items-center gap-3 p-2 border-b border-surface-border/50 ${method.isConstructor ? 'bg-purple-900/10' : 'bg-surface-secondary'}`}>
                     <select className={`bg-transparent font-mono outline-none cursor-pointer ${method.isConstructor ? 'text-purple-400' : 'text-uml-abstract-border'}`} value={method.visibility} onChange={(e) => updateMethod(methodIdx, "visibility", e.target.value)}>
                       {VISIBILITY_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
                     </select>
 
                     <input
-                      className={`bg-transparent border-b border-transparent outline-none flex-1 min-w-0 text-sm font-medium ${method.isConstructor ? 'opacity-60 cursor-not-allowed' : 'focus:border-uml-class-border'}`}
+                      className={`bg-transparent border-b outline-none flex-1 min-w-0 text-sm font-medium transition-colors ${
+                        method.isConstructor 
+                          ? 'opacity-60 cursor-not-allowed border-transparent' 
+                          : methodErrors.has(methodIdx)
+                            ? 'border-red-500 text-red-500'
+                            : 'border-transparent focus:border-uml-class-border'
+                      }`}
                       placeholder={t("modals.classEditor.placeholders.methodName")}
                       value={method.isConstructor ? draft.label : method.name}
                       disabled={method.isConstructor}
@@ -313,7 +450,6 @@ export default function ClassEditorModal({
                     </div>
                   </div>
 
-                  {/* PARAMETERS SUB-SECTION */}
                   <div className="bg-black/20 p-3 flex flex-col gap-2">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
@@ -346,12 +482,15 @@ export default function ClassEditorModal({
                     )}
                   </div>
                 </div>
+                {methodErrors.has(methodIdx) && (
+                  <p className="text-xs text-red-500 mt-1 ml-2">Method signature already exists in this class</p>
+                )}
+              </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* FOOTER - Sticky at bottom */}
         <div className="shrink-0 flex justify-end gap-3 pt-4 mt-4 border-t border-surface-border">
           <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t("modals.classEditor.cancel")}</button>
           <button onClick={() => onSave(draft)} className="px-6 py-2 text-sm bg-uml-class-border text-white rounded font-medium hover:brightness-110 shadow-md transition-all active:scale-95">{t("modals.classEditor.save")}</button>

@@ -324,12 +324,26 @@ export const useDiagramStore = create<DiagramStoreState>()(
         const { nodes } = get();
         if (checkCollision(position, nodes)) return;
 
+        const generateUniqueName = (baseName: string): string => {
+          const existingNames = new Set(nodes.map(n => n.data.label));
+          if (!existingNames.has(baseName)) return baseName;
+          
+          let counter = 1;
+          while (existingNames.has(`${baseName}${counter}`)) {
+            counter++;
+          }
+          return `${baseName}${counter}`;
+        };
+
+        const baseName = stereotype === "note" ? "Nota" : `New${stereotype.charAt(0).toUpperCase() + stereotype.slice(1)}`;
+        const uniqueName = generateUniqueName(baseName);
+
         const newNode: Node<UmlClassData> = {
           id: crypto.randomUUID(),
           type: stereotype === "note" ? "umlNote" : "umlClass",
           position,
           data: {
-            label: stereotype === "note" ? "Nota" : `New ${stereotype}`,
+            label: uniqueName,
             attributes: [],
             methods: [],
             stereotype: stereotype,

@@ -1,4 +1,5 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
+import { useDiagramStore } from "../../../../../store/diagramStore";
 
 interface InlinePackageInputProps {
   value: string;
@@ -7,6 +8,7 @@ interface InlinePackageInputProps {
   onCancel: () => void;
   placeholder?: string;
   level?: number;
+  parentPath?: string;
 }
 
 export function InlinePackageInput({ 
@@ -15,9 +17,13 @@ export function InlinePackageInput({
   onCommit, 
   onCancel, 
   placeholder = "package.name",
-  level = 0
+  level = 0,
+  parentPath
 }: InlinePackageInputProps) {
+  const packages = useDiagramStore((s) => s.packages);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [hasError, setHasError] = useState(false);
+  const [originalValue] = useState(value);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -25,10 +31,28 @@ export function InlinePackageInput({
     }
   }, []);
 
+  const validatePackageName = (name: string): boolean => {
+    const fullPath = parentPath ? `${parentPath}.${name}` : name;
+    return packages.some(pkg => pkg.name === fullPath);
+  };
+
+  const handleCommit = () => {
+    if (value.trim() && validatePackageName(value.trim())) {
+      setHasError(true);
+      setTimeout(() => {
+        onChange(originalValue);
+        setHasError(false);
+        onCancel();
+      }, 2000);
+    } else {
+      onCommit();
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      onCommit();
+      handleCommit();
     } else if (e.key === "Escape") {
       e.preventDefault();
       onCancel();
@@ -37,7 +61,9 @@ export function InlinePackageInput({
 
   return (
     <div 
-      className="px-2 py-1.5 bg-surface-secondary/50 rounded border border-uml-class-border mb-1"
+      className={`px-2 py-1.5 bg-surface-secondary/50 rounded border mb-1 transition-colors ${
+        hasError ? 'border-red-500' : 'border-uml-class-border'
+      }`}
       style={{ marginLeft: `${level * 12 + 8}px` }}
     >
       <input
@@ -46,10 +72,15 @@ export function InlinePackageInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        onBlur={onCancel}
+        onBlur={handleCommit}
         placeholder={placeholder}
-        className="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted/50"
+        className={`w-full bg-transparent text-sm outline-none placeholder:text-text-muted/50 transition-colors ${
+          hasError ? 'text-red-500' : 'text-text-primary'
+        }`}
       />
+      {hasError && (
+        <p className="text-xs text-red-500 mt-1">Package name already exists</p>
+      )}
     </div>
   );
 }

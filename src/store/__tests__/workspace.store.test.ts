@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useWorkspaceStore } from '../workspace.store';
-import type { DiagramFile } from '../../core/domain/workspace/diagram-file.types';
 
 describe('Workspace Store', () => {
   beforeEach(() => {

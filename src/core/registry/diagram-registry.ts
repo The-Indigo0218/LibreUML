@@ -55,7 +55,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'CLASS',
-        name: partial?.['name'] || 'NewClass',
+        name: (partial as any)?.name || 'NewClass',
         attributes: [],
         methods: [],
       } as ClassNode;
@@ -64,7 +64,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'INTERFACE',
-        name: partial?.['name'] || 'NewInterface',
+        name: (partial as any)?.name || 'NewInterface',
         methods: [],
       } as InterfaceNode;
 
@@ -72,7 +72,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'ABSTRACT_CLASS',
-        name: partial?.['name'] || 'NewAbstractClass',
+        name: (partial as any)?.name || 'NewAbstractClass',
         attributes: [],
         methods: [],
       } as AbstractClassNode;
@@ -81,7 +81,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'ENUM',
-        name: partial?.['name'] || 'NewEnum',
+        name: (partial as any)?.name || 'NewEnum',
         literals: [],
       } as EnumNode;
 
@@ -89,7 +89,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'NOTE',
-        content: partial?.['content'] || 'New note',
+        content: (partial as any)?.content || 'New note',
       } as NoteNode;
 
     default:
@@ -184,21 +184,21 @@ function createUseCaseDiagramNode(
       return {
         ...baseNode,
         type: 'ACTOR',
-        name: partial?.['name'] || 'NewActor',
+        name: (partial as any)?.name || 'NewActor',
       } as ActorNode;
 
     case 'USE_CASE':
       return {
         ...baseNode,
         type: 'USE_CASE',
-        name: partial?.['name'] || 'NewUseCase',
+        name: (partial as any)?.name || 'NewUseCase',
       } as UseCaseNode;
 
     case 'SYSTEM_BOUNDARY':
       return {
         ...baseNode,
         type: 'SYSTEM_BOUNDARY',
-        name: partial?.['name'] || 'System',
+        name: (partial as any)?.name || 'System',
         containedUseCaseIds: [],
       } as SystemBoundaryNode;
 

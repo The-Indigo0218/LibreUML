@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ClassDiagramValidator } from '../class-diagram.validator';
 import type { ClassNode, InterfaceNode, EnumNode, AbstractClassNode } from '../../domain/models/nodes/class-diagram.types';
-import type { InheritanceEdge, ImplementationEdge, AssociationEdge } from '../../domain/models/edges/class-diagram.types';
+import type { AssociationEdge } from '../../domain/models/edges/class-diagram.types';
 
 describe('ClassDiagramValidator', () => {
   const validator = new ClassDiagramValidator();

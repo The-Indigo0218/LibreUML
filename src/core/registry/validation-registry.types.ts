@@ -1,4 +1,3 @@
-import type { DiagramType } from '../domain/workspace/diagram-file.types';
 import type { DiagramValidator } from './diagram-registry.types';
 
 /**

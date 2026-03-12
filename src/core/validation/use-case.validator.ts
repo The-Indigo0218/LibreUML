@@ -331,18 +331,11 @@ export class UseCaseDiagramValidator implements DiagramValidator {
    */
   validateEdge(
     edge: DomainEdge,
-    sourceNode: DomainNode,
-    targetNode: DomainNode
+    _sourceNode: DomainNode,
+    _targetNode: DomainNode
   ): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
-
-    // Validate edge type is a Use Case Diagram edge
-    const validEdgeTypes = ['ASSOCIATION', 'INCLUDE', 'EXTEND', 'GENERALIZATION'];
-
-    if (!validEdgeTypes.includes(edge.type)) {
-      errors.push(`Invalid edge type for Use Case Diagram: ${edge.type}`);
-    }
 
     // Extend-specific validation
     if (edge.type === 'EXTEND') {

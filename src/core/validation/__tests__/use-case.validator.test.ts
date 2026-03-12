@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { UseCaseDiagramValidator } from '../use-case.validator';
 import type { ActorNode, UseCaseNode, SystemBoundaryNode } from '../../domain/models/nodes/use-case.types';
-import type { UseCaseAssociationEdge, IncludeEdge, ExtendEdge, GeneralizationEdge } from '../../domain/models/edges/use-case.types';
+import type { IncludeEdge, ExtendEdge } from '../../domain/models/edges/use-case.types';
 
 describe('UseCaseDiagramValidator', () => {
   const validator = new UseCaseDiagramValidator();

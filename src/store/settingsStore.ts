@@ -10,6 +10,11 @@ interface SettingsState {
   language: string;
   suppressSvgWarning: boolean;
   
+  // --- canvas settings ---
+  showMiniMap: boolean;
+  showGrid: boolean;
+  snapToGrid: boolean;
+  
   // --- inside state  ---
   lastFilePath?: string; 
   
@@ -20,6 +25,9 @@ interface SettingsState {
   setLanguage: (lang: string) => void;
   setLastFilePath: (path: string | undefined) => void;
   setSuppressSvgWarning: (suppress: boolean) => void;
+  toggleMiniMap: () => void;
+  toggleGrid: () => void;
+  toggleSnapToGrid: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -31,6 +39,11 @@ export const useSettingsStore = create<SettingsState>()(
       language: "en",
       suppressSvgWarning: false,
       lastFilePath: undefined,
+      
+      // Canvas settings defaults
+      showMiniMap: false,
+      showGrid: true,
+      snapToGrid: true,
 
       toggleAutoSave: () => set((s) => ({ autoSave: !s.autoSave })),
       
@@ -46,6 +59,12 @@ export const useSettingsStore = create<SettingsState>()(
       setSuppressSvgWarning: (suppress) => set({ suppressSvgWarning: suppress }),
 
       setLastFilePath: (path) => set({ lastFilePath: path }),
+      
+      toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
+      
+      toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
+      
+      toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
     }),
     {
       name: "libreuml-settings",
@@ -56,6 +75,9 @@ export const useSettingsStore = create<SettingsState>()(
         language: state.language,
         lastFilePath: state.lastFilePath,
         suppressSvgWarning: state.suppressSvgWarning,
+        showMiniMap: state.showMiniMap,
+        showGrid: state.showGrid,
+        snapToGrid: state.snapToGrid,
       }),
     }
   )

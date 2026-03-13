@@ -58,6 +58,7 @@ export interface ClassDiagramMetadata {
     name: string; // Full path: "com.hospital.models"
   }>;
   activeConnectionMode?: 'ASSOCIATION' | 'INHERITANCE' | 'IMPLEMENTATION' | 'DEPENDENCY' | 'AGGREGATION' | 'COMPOSITION';
+  positionMap?: Record<string, { x: number; y: number }>; // UI position state per node
 }
 
 /**
@@ -66,4 +67,5 @@ export interface ClassDiagramMetadata {
 export interface UseCaseDiagramMetadata {
   systemName?: string;
   activeConnectionMode?: 'ASSOCIATION' | 'INCLUDE' | 'EXTEND' | 'GENERALIZATION';
+  positionMap?: Record<string, { x: number; y: number }>; // UI position state per node
 }

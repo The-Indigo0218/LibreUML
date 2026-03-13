@@ -5,7 +5,7 @@ import type { CSSProperties } from 'react';
  * View Model for an edge - wraps domain ID with UI concerns.
  * This is what React Flow consumes.
  */
-export interface EdgeView<TDomain extends DomainEdge = DomainEdge> {
+export interface EdgeView<_TDomain extends DomainEdge = DomainEdge> {
   // Reference to domain entity (SSOT)
   domainId: string;
   

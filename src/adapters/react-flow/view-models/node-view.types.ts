@@ -7,7 +7,7 @@ import type { DomainNode } from '../../../core/domain/models/nodes';
  * CRITICAL: The domain data is NOT duplicated here.
  * We only store the ID and UI-specific properties.
  */
-export interface NodeView<TDomain extends DomainNode = DomainNode> {
+export interface NodeView<_TDomain extends DomainNode = DomainNode> {
   // Reference to domain entity (SSOT)
   domainId: string;
   

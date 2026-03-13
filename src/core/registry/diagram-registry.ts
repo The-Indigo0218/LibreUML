@@ -55,7 +55,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'CLASS',
-        name: (partial as any)?.name || 'NewClass',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'NewClass',
         attributes: [],
         methods: [],
       } as ClassNode;
@@ -64,7 +64,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'INTERFACE',
-        name: (partial as any)?.name || 'NewInterface',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'NewInterface',
         methods: [],
       } as InterfaceNode;
 
@@ -72,7 +72,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'ABSTRACT_CLASS',
-        name: (partial as any)?.name || 'NewAbstractClass',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'NewAbstractClass',
         attributes: [],
         methods: [],
       } as AbstractClassNode;
@@ -81,7 +81,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'ENUM',
-        name: (partial as any)?.name || 'NewEnum',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'NewEnum',
         literals: [],
       } as EnumNode;
 
@@ -89,7 +89,7 @@ function createClassDiagramNode(
       return {
         ...baseNode,
         type: 'NOTE',
-        content: (partial as any)?.content || 'New note',
+        content: (partial && 'content' in partial ? partial.content : undefined) || 'New note',
       } as NoteNode;
 
     default:
@@ -184,21 +184,21 @@ function createUseCaseDiagramNode(
       return {
         ...baseNode,
         type: 'ACTOR',
-        name: (partial as any)?.name || 'NewActor',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'NewActor',
       } as ActorNode;
 
     case 'USE_CASE':
       return {
         ...baseNode,
         type: 'USE_CASE',
-        name: (partial as any)?.name || 'NewUseCase',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'NewUseCase',
       } as UseCaseNode;
 
     case 'SYSTEM_BOUNDARY':
       return {
         ...baseNode,
         type: 'SYSTEM_BOUNDARY',
-        name: (partial as any)?.name || 'System',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'System',
         containedUseCaseIds: [],
       } as SystemBoundaryNode;
 

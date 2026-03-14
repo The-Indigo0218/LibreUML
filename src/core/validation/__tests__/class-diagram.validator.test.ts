@@ -79,7 +79,7 @@ describe('ClassDiagramValidator', () => {
 
       const result = validator.validateConnection(sourceNode, targetNode, 'INHERITANCE');
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Cannot inherit from an Enum');
+      expect(result.errors).toContain('UML 2.5: Cannot inherit from an Enumeration');
     });
 
     it('should NOT allow Enum to inherit from anything', () => {
@@ -104,7 +104,7 @@ describe('ClassDiagramValidator', () => {
 
       const result = validator.validateConnection(sourceNode, targetNode, 'INHERITANCE');
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Enums cannot inherit from other types');
+      expect(result.errors).toContain('UML 2.5: Enumerations cannot have generalizations');
     });
 
     it('should allow Interface to inherit from Interface', () => {
@@ -152,7 +152,178 @@ describe('ClassDiagramValidator', () => {
 
       const result = validator.validateConnection(sourceNode, targetNode, 'INHERITANCE');
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Interfaces can only inherit from other Interfaces');
+      expect(result.errors).toContain('UML 2.5: Interfaces can only generalize other Interfaces');
+    });
+
+    it('should NOT allow self-inheritance', () => {
+      const node: ClassNode = {
+        id: 'class-1',
+        type: 'CLASS',
+        name: 'MyClass',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const result = validator.validateConnection(node, node, 'INHERITANCE');
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('UML 2.5: Self-inheritance is not allowed');
+    });
+
+    it('should NOT allow circular inheritance (direct cycle)', () => {
+      const classA: ClassNode = {
+        id: 'class-a',
+        type: 'CLASS',
+        name: 'ClassA',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const classB: ClassNode = {
+        id: 'class-b',
+        type: 'CLASS',
+        name: 'ClassB',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const existingEdges = [
+        {
+          id: 'edge-1',
+          type: 'INHERITANCE' as const,
+          sourceNodeId: 'class-a',
+          targetNodeId: 'class-b',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
+      ];
+
+      const allNodes = {
+        'class-a': classA,
+        'class-b': classB,
+      };
+
+      const result = validator.validateConnection(classB, classA, 'INHERITANCE', existingEdges, allNodes);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('UML 2.5: Circular inheritance is not allowed');
+    });
+
+    it('should NOT allow circular inheritance (indirect cycle)', () => {
+      const classA: ClassNode = {
+        id: 'class-a',
+        type: 'CLASS',
+        name: 'ClassA',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const classB: ClassNode = {
+        id: 'class-b',
+        type: 'CLASS',
+        name: 'ClassB',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const classC: ClassNode = {
+        id: 'class-c',
+        type: 'CLASS',
+        name: 'ClassC',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const existingEdges = [
+        {
+          id: 'edge-1',
+          type: 'INHERITANCE' as const,
+          sourceNodeId: 'class-a',
+          targetNodeId: 'class-b',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          id: 'edge-2',
+          type: 'INHERITANCE' as const,
+          sourceNodeId: 'class-b',
+          targetNodeId: 'class-c',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
+      ];
+
+      const allNodes = {
+        'class-a': classA,
+        'class-b': classB,
+        'class-c': classC,
+      };
+
+      const result = validator.validateConnection(classC, classA, 'INHERITANCE', existingEdges, allNodes);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('UML 2.5: Circular inheritance is not allowed');
+    });
+
+    it('should allow multiple inheritance (UML 2.5 supports it)', () => {
+      const child: ClassNode = {
+        id: 'child',
+        type: 'CLASS',
+        name: 'Child',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const parent1: ClassNode = {
+        id: 'parent-1',
+        type: 'CLASS',
+        name: 'Parent1',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const parent2: ClassNode = {
+        id: 'parent-2',
+        type: 'CLASS',
+        name: 'Parent2',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const existingEdges = [
+        {
+          id: 'edge-1',
+          type: 'INHERITANCE' as const,
+          sourceNodeId: 'child',
+          targetNodeId: 'parent-1',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }
+      ];
+
+      const allNodes = {
+        'child': child,
+        'parent-1': parent1,
+        'parent-2': parent2,
+      };
+
+      const result = validator.validateConnection(child, parent2, 'INHERITANCE', existingEdges, allNodes);
+      expect(result.isValid).toBe(true);
     });
   });
 
@@ -225,7 +396,32 @@ describe('ClassDiagramValidator', () => {
 
       const result = validator.validateConnection(sourceNode, targetNode, 'IMPLEMENTATION');
       expect(result.isValid).toBe(false);
-      expect(result.errors?.[0]).toContain('cannot implement interfaces');
+      expect(result.errors?.[0]).toContain('UML 2.5: Interfaces cannot realize other Interfaces');
+    });
+
+    it('should NOT allow self-implementation', () => {
+      const node: ClassNode = {
+        id: 'class-1',
+        type: 'CLASS',
+        name: 'MyClass',
+        attributes: [],
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const interfaceNode: InterfaceNode = {
+        id: 'interface-1',
+        type: 'INTERFACE',
+        name: 'MyInterface',
+        methods: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      const result = validator.validateConnection(interfaceNode, interfaceNode, 'IMPLEMENTATION');
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('UML 2.5: Self-realization is not allowed');
     });
   });
 
@@ -274,7 +470,7 @@ describe('ClassDiagramValidator', () => {
 
       const result = validator.validateNode(node);
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Class name cannot be empty');
+      expect(result.errors).toContain('CLASS name cannot be empty');
     });
 
     it('should reject Class with spaces in name', () => {
@@ -289,8 +485,8 @@ describe('ClassDiagramValidator', () => {
       };
 
       const result = validator.validateNode(node);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Class name cannot contain spaces');
+      expect(result.isValid).toBe(true);
+      expect(result.warnings).toContain('CLASS name contains spaces (not recommended for code generation)');
     });
 
     it('should reject Class with invalid Java identifier', () => {
@@ -305,8 +501,8 @@ describe('ClassDiagramValidator', () => {
       };
 
       const result = validator.validateNode(node);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Class name must be a valid Java identifier');
+      expect(result.isValid).toBe(true);
+      expect(result.warnings).toContain('CLASS name should be a valid identifier for code generation');
     });
 
     it('should validate Enum with literals', () => {

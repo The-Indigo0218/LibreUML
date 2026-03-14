@@ -3,13 +3,15 @@ import type { DomainEdge } from '../domain/models/edges';
 import type { ValidationResult } from '../registry/diagram-registry.types';
 
 /**
- * Base validator interface
+ * Base validator interface for UML diagram validation
  */
 export interface BaseValidator {
   validateConnection(
     sourceNode: DomainNode,
     targetNode: DomainNode,
-    edgeType: string
+    edgeType: string,
+    existingEdges?: DomainEdge[],
+    allNodes?: Record<string, DomainNode>
   ): ValidationResult;
   
   validateNode(node: DomainNode): ValidationResult;

@@ -95,17 +95,28 @@ const handleEditSelected = () => console.warn("TODO: SSOT - Edit selected from m
 
 ---
 
-### 5. ProjectGeneratorModal.tsx - Unused 'activeNodes' variable
-**Error**: `error TS6133: 'activeNodes' is declared but its value is never read`
+### 5. ProjectGeneratorModal.tsx - Unused '_activeNodes' variable
+**Error**: `error TS6133: '_activeNodes' is declared but its value is never read`
 
-**Fix**: Renamed to `_activeNodes` to indicate intentionally unused
+**Fix**: Removed unused variable and commented out imports
 ```typescript
-const _activeNodes = useProjectStore(useShallow(s => {
-  // ... code
-}));
+// Removed the entire _activeNodes declaration
+// Commented out unused imports:
+// import { useProjectStore } from "../../../../store/project.store"; // TODO: Will be needed for SSOT conversion
+// import { useShallow } from "zustand/react/shallow"; // TODO: Will be needed for SSOT conversion
+
+// Added comment showing how to fetch nodes when needed:
+// TODO: SSOT Migration - Need to convert SSOT nodes to UmlClassNode format
+// When implementing, fetch nodes like this:
+// const activeNodes = useProjectStore(useShallow(s => {
+//   if (!activeFileId) return [];
+//   const file = useWorkspaceStore.getState().getFile(activeFileId);
+//   if (!file) return [];
+//   return file.nodeIds.map(id => s.nodes[id]).filter(Boolean);
+// }));
 ```
 
-**Reason**: Variable is declared for future use but not currently used (TODO: SSOT migration).
+**Reason**: Variable was declared for future use but not currently needed. Removed to pass build, added clear TODO comment for when it's needed.
 
 ---
 
@@ -234,7 +245,8 @@ Error: Command "npm run build" exited with 2
    - Added stub functions for unimplemented actions
 
 5. **src/features/diagram/components/modals/ProjectGeneratorModal.tsx**
-   - Renamed `activeNodes` to `_activeNodes`
+   - Removed unused `_activeNodes` variable
+   - Commented out unused imports with TODO notes
 
 6. **src/features/diagram/components/modals/SpotlightModal.tsx**
    - Updated to use simplified node structure

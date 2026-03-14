@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Package, Download, Box, Hammer, Coffee } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useProjectStore } from "../../../../store/project.store";
-import { useShallow } from "zustand/react/shallow";
+// import { useProjectStore } from "../../../../store/project.store"; // TODO: Will be needed for SSOT conversion
+// import { useShallow } from "zustand/react/shallow"; // TODO: Will be needed for SSOT conversion
 import { ProjectZipperService } from "../../../../services/project-zipper.service";
 import type { UmlClassNode, UmlEdge } from "../../types/diagram.types";
 import { useTranslation } from "react-i18next";
@@ -14,14 +14,16 @@ interface Props {
 
 export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
   // TODO: SSOT Migration - Need to convert SSOT nodes to UmlClassNode format
+  // When implementing, fetch nodes like this:
+  // const activeNodes = useProjectStore(useShallow(s => {
+  //   if (!activeFileId) return [];
+  //   const file = useWorkspaceStore.getState().getFile(activeFileId);
+  //   if (!file) return [];
+  //   return file.nodeIds.map(id => s.nodes[id]).filter(Boolean);
+  // }));
+  
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const getFile = useWorkspaceStore((s) => s.getFile);
-  const _activeNodes = useProjectStore(useShallow(s => {
-    if (!activeFileId) return [];
-    const file = useWorkspaceStore.getState().getFile(activeFileId);
-    if (!file) return [];
-    return file.nodeIds.map(id => s.nodes[id]).filter(Boolean);
-  }));
   
   const activeFile = activeFileId ? getFile(activeFileId) : undefined;
   const diagramName = activeFile?.name || "Untitled";

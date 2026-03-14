@@ -52,10 +52,11 @@ export function useDiagram(fileId?: string) {
   const removeEdge = useProjectStore((s) => s.removeEdge);
   const getEdgesForNode = useProjectStore((s) => s.getEdgesForNode);
 
-  const positionMap: PositionMap = useMemo(() => {
-    if (!file) return {};
-    return (file.metadata as any)?.positionMap || {};
-  }, [file]);
+  const positionMap: PositionMap = useWorkspaceStore(useShallow(state => {
+    if (!targetFileId) return {};
+    const f = state.getFile(targetFileId);
+    return (f?.metadata as any)?.positionMap || {};
+  }));
 
   const domainNodes = useProjectStore(useShallow(s => file ? s.getNodes(file.nodeIds) : []));
   const domainEdges = useProjectStore(useShallow(s => file ? s.getEdges(file.edgeIds) : []));

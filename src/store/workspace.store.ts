@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { DiagramFile, DiagramType, Viewport } from '../core/domain/workspace/diagram-file.types';
+import { storageAdapter } from '../adapters/storage/storage.adapter';
 
 /**
  * Workspace Store State - Multi-tab file management
@@ -248,6 +249,18 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
     {
       name: 'libreuml-workspace-storage',
       version: 1,
+      storage: {
+        getItem: (name) => {
+          const value = storageAdapter.getItem(name);
+          return value ? JSON.parse(value) : null;
+        },
+        setItem: (name, value) => {
+          storageAdapter.setItem(name, JSON.stringify(value));
+        },
+        removeItem: (name) => {
+          storageAdapter.removeItem(name);
+        },
+      },
       onRehydrateStorage: () => (state) => {
         if (state && state.files.length === 0) {
           const defaultFile = state.createNewFile('CLASS_DIAGRAM', 'Untitled Diagram');

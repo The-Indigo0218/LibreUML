@@ -4,9 +4,15 @@ import DiagramCanvas from "./DiagramCanvas";
 import AppMenubar from "../menubar/AppMenubar";
 import ActivityBar, { type ActivityTab } from "./ActivityBar";
 import PrimarySideBar from "./PrimarySideBar";
+import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
+import { useAutoRestore } from "../../../../hooks/useAutoRestore";
 
 function EditorLogic() {
   const [activeTab, setActiveTab] = useState<ActivityTab>("tools");
+
+  // Initialize auto-save and auto-restore
+  useAutoSave();
+  useAutoRestore();
 
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-gray-50">

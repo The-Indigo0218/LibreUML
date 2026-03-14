@@ -19,12 +19,10 @@ export function EditMenu() {
     undo, 
     redo, 
     selectAll,
+    duplicateSelected,
+    deleteSelected,
+    editSelected,
   } = useEditActions();
-
-  // TODO: SSOT - These actions need proper implementation
-  const handleDuplicate = () => console.warn("TODO: SSOT - Duplicate from menu not implemented");
-  const handleDelete = () => console.warn("TODO: SSOT - Delete from menu not implemented");
-  const handleEditSelected = () => console.warn("TODO: SSOT - Edit selected from menu not implemented");
 
   return (
     <MenubarTrigger label={t("menubar.edit.title") || "Edit"}>
@@ -50,14 +48,14 @@ export function EditMenu() {
         label={t("menubar.edit.duplicate") || "Duplicate"}
         icon={<Copy className="w-4 h-4" />}
         shortcut="Ctrl+D"
-        onClick={handleDuplicate}
+        onClick={duplicateSelected}
       />
 
       <MenubarItem
         label={t("menubar.edit.edit") || "Edit Properties"}
         icon={<Pencil className="w-4 h-4" />}
         shortcut="Enter"
-        onClick={handleEditSelected}
+        onClick={editSelected}
       />
 
       <MenubarItem
@@ -65,7 +63,7 @@ export function EditMenu() {
         icon={<Trash2 className="w-4 h-4" />}
         shortcut="Supr"
         danger
-        onClick={handleDelete}
+        onClick={deleteSelected}
       />
 
       <div className="h-px bg-surface-border my-1" />

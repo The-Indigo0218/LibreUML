@@ -76,26 +76,31 @@ export function FileMenu({ actions }: FileMenuProps) {
         const file = getFile(activeFileId);
         if (!file) return;
 
-        // Extract positions from imported nodes into positionMap
         const newPositionMap: Record<string, { x: number; y: number }> = {
           ...(file.metadata as any)?.positionMap || {}
         };
 
-        // Process Nodes - use imported coordinates directly
         importedData.nodes.forEach(node => {
+          const stereotype = node.data.stereotype || "class";
+          
+          const domainType = stereotype.toUpperCase() === 'ABSTRACT' 
+            ? 'ABSTRACT_CLASS' 
+            : stereotype.toUpperCase();
+          
           const domainNode = {
             id: node.id,
-            type: node.data.stereotype || "class",
+            type: domainType,
             name: node.data.label,
             package: node.data.package || "default",
             attributes: node.data.attributes || [],
-            methods: node.data.methods || []
+            methods: node.data.methods || [],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           } as any;
           
           addNode(domainNode);
           addNodeToFile(activeFileId, node.id);
           
-          // Save imported position to positionMap
           if ('position' in node && node.position) {
             newPositionMap[node.id] = node.position;
           }
@@ -103,20 +108,23 @@ export function FileMenu({ actions }: FileMenuProps) {
 
         // Process Edges
         importedData.edges.forEach(edge => {
+          const edgeType = edge.type || edge.data?.type || "association";
+          
           const domainEdge = {
             id: edge.id,
             sourceNodeId: edge.source,
             targetNodeId: edge.target,
-            type: edge.type || edge.data?.type || "association",
+            type: edgeType.toUpperCase(),
             sourceMultiplicity: edge.data?.sourceMultiplicity,
-            targetMultiplicity: edge.data?.targetMultiplicity
+            targetMultiplicity: edge.data?.targetMultiplicity,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
           } as any;
 
           addEdge(domainEdge);
           addEdgeToFile(activeFileId, edge.id);
         });
 
-        // Update Workspace File Metadata with Positions
         updateFile(activeFileId, {
           name: fileName,
           metadata: {

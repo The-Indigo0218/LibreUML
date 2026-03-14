@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   Box,
   CircleDot,
@@ -14,9 +14,6 @@ import {
   Diamond,
 } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useProjectStore } from "../../../../store/project.store";
-import { useShallow } from "zustand/react/shallow";
-import { Folder, FolderOpen as FolderOpenIcon, FileJson } from "lucide-react";
 import type { stereotype, UmlRelationType } from "../../types/diagram.types";
 import { edgeConfig } from "../../../../config/theme.config";
 import { useTranslation } from "react-i18next";
@@ -46,50 +43,6 @@ export default function Sidebar() {
 
   const [isNodesOpen, setIsNodesOpen] = useState(true);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(true);
-  const [isExplorerOpen, setIsExplorerOpen] = useState(true);
-  const [expandedPackages, setExpandedPackages] = useState<Record<string, boolean>>({});
-
-  const activeFileNodeIds = useWorkspaceStore(useShallow(s => {
-    if (!s.activeFileId) return [];
-    return s.getFile(s.activeFileId)?.nodeIds || [];
-  }));
-
-  const activeNodes = useProjectStore(useShallow(s => {
-    return activeFileNodeIds.map(id => s.nodes[id]).filter(Boolean);
-  }));
-
-  const fileEdgeIds = useWorkspaceStore(useShallow(s => s.activeFileId ? s.getFile(s.activeFileId)?.edgeIds || [] : []));
-  const edges = useProjectStore(useShallow(s => 
-    fileEdgeIds.map(id => s.edges[id]).filter(Boolean)
-  ));
-
-  const packages = useMemo(() => {
-    const map = new Map<string, typeof activeNodes>();
-    activeNodes.forEach(node => {
-      const pkg = (node as any).package || "default";
-      if (!map.has(pkg)) map.set(pkg, []);
-      map.get(pkg)!.push(node);
-    });
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [activeNodes]);
-
-  const inheritanceSourceIds = useMemo(() => {
-    const set = new Set<string>();
-    edges.forEach(edge => {
-      if (edge.type === "INHERITANCE") {
-        set.add(edge.sourceNodeId);
-      }
-    });
-    return set;
-  }, [edges]);
-
-  const isSubclass = (nodeId: string) => {
-    return inheritanceSourceIds.has(nodeId);
-  };
-
-  const togglePackage = (pkg: string) => {
-    setExpandedPackages(prev => ({ ...prev, [pkg]: !prev[pkg] }));
-  };
 
   const { t } = useTranslation();
 
@@ -244,70 +197,6 @@ export default function Sidebar() {
                 </span>
               </div>
             </div>
-          </div>
-        </CollapsibleSection>
-
-        <div className="mx-4 my-2 h-px bg-surface-border/30" />
-
-        {/* === Section 3: Project Explorer === */}
-        <CollapsibleSection
-          title="Project Explorer"
-          isOpen={isExplorerOpen}
-          setIsOpen={setIsExplorerOpen}
-        >
-          <div className="flex flex-col gap-1 px-3 pb-2 text-sm text-text-secondary select-none">
-            {activeNodes.length === 0 ? (
-              <div className="px-3 py-2 text-xs italic text-text-muted">No classes in project</div>
-            ) : (
-              packages.map(([pkgName, pkgNodes]) => {
-                const isExpanded = expandedPackages[pkgName] !== false;
-                return (
-                  <div key={pkgName} className="flex flex-col">
-                    {/* Package Header */}
-                    <div 
-                      className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-surface-secondary/50 rounded-md group transition-colors"
-                      onClick={() => togglePackage(pkgName)}
-                    >
-                      <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`} />
-                      {isExpanded ? (
-                        <FolderOpenIcon className="w-4 h-4 text-blue-400 group-hover:text-blue-300" />
-                      ) : (
-                        <Folder className="w-4 h-4 text-blue-400 group-hover:text-blue-300 fill-current opacity-70" />
-                      )}
-                      <span className="font-semibold text-[13px] text-text-primary truncate">{pkgName}</span>
-                      <span className="text-[10px] text-text-muted ml-auto bg-surface-tertiary px-1.5 rounded">{pkgNodes.length}</span>
-                    </div>
-
-                    {/* Nodes within Package */}
-                    <div 
-                      className={`flex flex-col overflow-hidden transition-all duration-300 ease-in-out pl-6 border-l border-surface-border/50 ml-4 ${
-                        isExpanded ? "max-h-96 opacity-100 mt-1 mb-2" : "max-h-0 opacity-0 m-0"
-                      }`}
-                    >
-                      {pkgNodes.sort((a,b) => ((a as any).name || "").localeCompare((b as any).name || "")).map(node => {
-                        const subclass = isSubclass(node.id);
-                        return (
-                          <div 
-                            key={node.id} 
-                            title={subclass ? "Sub-class" : undefined}
-                            className="flex items-center gap-2 pl-2 pr-2 py-1 hover:bg-surface-secondary rounded cursor-pointer group"
-                          >
-                            {subclass ? (
-                              <ArrowUp className="w-3.5 h-3.5 text-edge-inheritance" />
-                            ) : (
-                              <FileJson className="w-3.5 h-3.5 text-text-muted group-hover:text-blue-300" />
-                            )}
-                            <span className={`text-[12px] truncate ${subclass ? 'text-text-primary ml-1' : 'text-text-secondary'}`}>
-                              {(node as any).name || "Unnamed"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })
-            )}
           </div>
         </CollapsibleSection>
       </div>

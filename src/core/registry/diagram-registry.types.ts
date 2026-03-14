@@ -3,6 +3,45 @@ import type { DomainNode } from '../domain/models/nodes';
 import type { DomainEdge } from '../domain/models/edges';
 
 /**
+ * Tool type for UI rendering
+ */
+export type ToolType = 'NODE' | 'EDGE';
+
+/**
+ * Tool configuration for UI rendering in Sidebar
+ */
+export interface ToolConfig {
+  id: string;
+  type: ToolType;
+  label: string;
+  icon: string; // Lucide icon name
+  color?: string; // CSS color value
+  translationKey?: string; // i18n key for label
+}
+
+/**
+ * Code generation action configuration
+ */
+export interface CodeGenerationAction {
+  id: string;
+  label: string;
+  translationKey?: string;
+  icon: string; // Lucide icon name
+  enabled: boolean;
+}
+
+/**
+ * Export action configuration
+ */
+export interface ExportAction {
+  id: string;
+  label: string;
+  translationKey?: string;
+  icon: string; // Lucide icon name
+  enabled: boolean;
+}
+
+/**
  * Registry entry for a diagram type.
  * Each diagram type registers its capabilities.
  */
@@ -22,6 +61,18 @@ export interface DiagramTypeRegistry {
   
   // Default edge type when creating new edges
   defaultEdgeType: string;
+  
+  // UI Tool configurations for Sidebar rendering
+  tools: {
+    nodes: ToolConfig[];
+    edges: ToolConfig[];
+  };
+  
+  // Code generation actions available for this diagram type
+  codeGenerationActions: CodeGenerationAction[];
+  
+  // Export actions available for this diagram type
+  exportActions: ExportAction[];
   
   // Validation rules
   validator: DiagramValidator;

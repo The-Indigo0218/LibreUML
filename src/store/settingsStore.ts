@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import i18n from "../i18n/config";
+import { storageAdapter } from "../adapters/storage/storage.adapter";
 
 interface SettingsState {
   // --- preferences ---
@@ -73,18 +74,18 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "libreuml-settings",
-      partialize: (state) => ({
-        autoSave: state.autoSave,
-        restoreSession: state.restoreSession,
-        theme: state.theme,
-        language: state.language,
-        lastFilePath: state.lastFilePath,
-        suppressSvgWarning: state.suppressSvgWarning,
-        showMiniMap: state.showMiniMap,
-        showGrid: state.showGrid,
-        snapToGrid: state.snapToGrid,
-        showAllEdges: state.showAllEdges,
-      }),
+      storage: {
+        getItem: (name) => {
+          const value = storageAdapter.getItem(name);
+          return value ? JSON.parse(value) : null;
+        },
+        setItem: (name, value) => {
+          storageAdapter.setItem(name, JSON.stringify(value));
+        },
+        removeItem: (name) => {
+          storageAdapter.removeItem(name);
+        },
+      },
     }
   )
 );

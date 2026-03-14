@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { DomainNode } from '../core/domain/models/nodes';
 import type { DomainEdge } from '../core/domain/models/edges';
 import { normalizeAllNodeTypes } from './migrations/normalize-node-types';
+import { storageAdapter } from '../adapters/storage/storage.adapter';
 
 /**
  * Project Store State - Single Source of Truth (SSOT)
@@ -316,6 +317,18 @@ export const useProjectStore = create<ProjectStoreState>()(
     {
       name: 'libreuml-project-storage',
       version: 1,
+      storage: {
+        getItem: (name) => {
+          const value = storageAdapter.getItem(name);
+          return value ? JSON.parse(value) : null;
+        },
+        setItem: (name, value) => {
+          storageAdapter.setItem(name, JSON.stringify(value));
+        },
+        removeItem: (name) => {
+          storageAdapter.removeItem(name);
+        },
+      },
       onRehydrateStorage: () => (state) => {
         if (state) {
           const normalizedNodes = normalizeAllNodeTypes(state.nodes);

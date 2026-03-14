@@ -49,11 +49,14 @@ export default function Sidebar() {
   const [isExplorerOpen, setIsExplorerOpen] = useState(true);
   const [expandedPackages, setExpandedPackages] = useState<Record<string, boolean>>({});
 
-  const fileNodeIds = useWorkspaceStore(useShallow(s => s.activeFileId ? s.getFile(s.activeFileId)?.nodeIds || [] : []));
-  
-  const nodes = useProjectStore(useShallow(s => 
-    fileNodeIds.map(id => s.nodes[id]).filter(Boolean)
-  ));
+  const activeFileNodeIds = useWorkspaceStore(useShallow(s => {
+    if (!s.activeFileId) return [];
+    return s.getFile(s.activeFileId)?.nodeIds || [];
+  }));
+
+  const activeNodes = useProjectStore(useShallow(s => {
+    return activeFileNodeIds.map(id => s.nodes[id]).filter(Boolean);
+  }));
 
   const fileEdgeIds = useWorkspaceStore(useShallow(s => s.activeFileId ? s.getFile(s.activeFileId)?.edgeIds || [] : []));
   const edges = useProjectStore(useShallow(s => 
@@ -61,14 +64,14 @@ export default function Sidebar() {
   ));
 
   const packages = useMemo(() => {
-    const map = new Map<string, typeof nodes>();
-    nodes.forEach(node => {
+    const map = new Map<string, typeof activeNodes>();
+    activeNodes.forEach(node => {
       const pkg = (node as any).package || "default";
       if (!map.has(pkg)) map.set(pkg, []);
       map.get(pkg)!.push(node);
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [nodes]);
+  }, [activeNodes]);
 
   const inheritanceSourceIds = useMemo(() => {
     const set = new Set<string>();
@@ -253,11 +256,11 @@ export default function Sidebar() {
           setIsOpen={setIsExplorerOpen}
         >
           <div className="flex flex-col gap-1 px-3 pb-2 text-sm text-text-secondary select-none">
-            {packages.length === 0 ? (
+            {activeNodes.length === 0 ? (
               <div className="px-3 py-2 text-xs italic text-text-muted">No classes in project</div>
             ) : (
               packages.map(([pkgName, pkgNodes]) => {
-                const isExpanded = expandedPackages[pkgName] !== false; // Default to true if undefined
+                const isExpanded = expandedPackages[pkgName] !== false;
                 return (
                   <div key={pkgName} className="flex flex-col">
                     {/* Package Header */}

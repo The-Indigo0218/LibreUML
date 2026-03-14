@@ -41,6 +41,7 @@ export const useDiagramMenus = ({
   const removeEdge = useProjectStore((s) => s.removeEdge);
   const updateEdge = useProjectStore((s) => s.updateEdge);
   const getEdgesForNode = useProjectStore((s) => s.getEdgesForNode);
+  const getEdgeIdsForNode = useProjectStore((s) => s.getEdgeIdsForNode);
   const removeNodeFromFile = useWorkspaceStore((s) => s.removeNodeFromFile);
   const removeEdgeFromFile = useWorkspaceStore((s) => s.removeEdgeFromFile);
   const markFileDirty = useWorkspaceStore((s) => s.markFileDirty);
@@ -49,17 +50,20 @@ export const useDiagramMenus = ({
     (nodeId: string) => {
       if (!file) return;
 
-      const connectedEdges = getEdgesForNode(nodeId);
-      connectedEdges.forEach((edge) => {
-        removeEdgeFromFile(file.id, edge.id);
-        removeEdge(edge.id);
+      // Get edge IDs BEFORE removing the node (cascade delete will remove edges from ProjectStore)
+      const connectedEdgeIds = getEdgeIdsForNode(nodeId);
+
+      // Remove from WorkspaceStore
+      removeNodeFromFile(file.id, nodeId);
+      connectedEdgeIds.forEach((edgeId) => {
+        removeEdgeFromFile(file.id, edgeId);
       });
 
-      removeNodeFromFile(file.id, nodeId);
+      // Remove from ProjectStore (cascade delete handles edges automatically)
       removeNode(nodeId);
       markFileDirty(file.id);
     },
-    [file, getEdgesForNode, removeEdgeFromFile, removeEdge, removeNodeFromFile, removeNode, markFileDirty]
+    [file, getEdgeIdsForNode, removeEdgeFromFile, removeNodeFromFile, removeNode, markFileDirty]
   );
 
   const duplicateNode = useCallback(

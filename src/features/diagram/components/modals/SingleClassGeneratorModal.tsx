@@ -57,33 +57,14 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
         return;
     }
 
-    const node = nodes.find(n => n.id === selectedClassId) as any;
+    const node = nodes.find(n => n.id === selectedClassId);
     if (node && (node.type === 'CLASS' || node.type === 'INTERFACE' || node.type === 'ABSTRACT_CLASS' || node.type === 'ENUM')) {
         if (language === 'java') {
-            const mapToLegacy = (n: any) => ({
-              id: n.id,
-              data: {
-                label: n.name,
-                stereotype: n.type.toLowerCase(),
-                generics: n.generics,
-                package: n.package,
-                attributes: n.attributes || [],
-                methods: n.methods || [],
-              }
-            } as any);
-
-            const legacyEdges = edges.map((e: any) => ({
-              id: e.id,
-              source: e.sourceNodeId,
-              target: e.targetNodeId,
-              type: e.type?.toLowerCase(),
-              data: { type: e.type?.toLowerCase() }
-            } as any));
-
+            // PHASE 4: Pass domain nodes directly to JavaGeneratorService
             const code = JavaGeneratorService.generate(
-              mapToLegacy(node), 
-              nodes.map(mapToLegacy), 
-              legacyEdges
+              node, 
+              nodes, 
+              edges
             );
             setGeneratedCode(code);
         } else {
@@ -95,7 +76,7 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
   }, [selectedClassId, nodes, language, t, edges]);
 
   const allClasses = useMemo(() => 
-    nodes.filter(n => n.type === 'CLASS' || n.type === 'INTERFACE' || n.type === 'ABSTRACT_CLASS' || n.type === 'ENUM') as any[], 
+    nodes.filter(n => n.type === 'CLASS' || n.type === 'INTERFACE' || n.type === 'ABSTRACT_CLASS' || n.type === 'ENUM'), 
   [nodes]);
 
   const handleCopy = async () => {
@@ -158,11 +139,14 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
                     value={selectedClassId}
                     onChange={(e) => setSelectedClassId(e.target.value)}
                 >
-                    {allClasses.map(node => (
-                        <option key={node.id} value={node.id}>
-                            {node.name} {node.type !== 'CLASS' ? `(${node.type.toLowerCase()})` : ''}
-                        </option>
-                    ))}
+                    {allClasses.map(node => {
+                        const nodeName = 'name' in node ? node.name : 'Unknown';
+                        return (
+                            <option key={node.id} value={node.id}>
+                                {nodeName} {node.type !== 'CLASS' ? `(${node.type.toLowerCase()})` : ''}
+                            </option>
+                        );
+                    })}
                 </select>
             </div>
         </div>

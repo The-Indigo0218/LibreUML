@@ -1,49 +1,63 @@
+import type { DomainNode } from "../core/domain/models/nodes";
+import type { DomainEdge } from "../core/domain/models/edges";
 import type {
-  UmlClassNode,
-  UmlAttribute,
-  UmlMethod,
-  UmlEdge, 
-} from "../features/diagram/types/diagram.types";
+  ClassNode,
+  InterfaceNode,
+  AbstractClassNode,
+  EnumNode,
+  ClassAttribute,
+  ClassMethod,
+} from "../core/domain/models/nodes/class-diagram.types";
 
 export class JavaGeneratorService {
   static generate(
-    node: UmlClassNode,
-    allNodes: UmlClassNode[] = [],
-    edges: UmlEdge[] = []
+    node: DomainNode,
+    allNodes: DomainNode[] = [],
+    edges: DomainEdge[] = []
   ): string {
-    const data = node.data;
-    const isInterface = data.stereotype === "interface";
-    const isEnum = data.stereotype === "enum";
+    // Type guard: Only process class diagram nodes
+    if (node.type === 'NOTE') {
+      throw new Error('Cannot generate Java code from a Note node');
+    }
+
+    const isInterface = node.type === 'INTERFACE';
+    const isEnum = node.type === 'ENUM';
 
     const parts: string[] = [];
 
-    if (data.package) {
-      parts.push(`package ${data.package};`);
+    // Access package from domain node
+    const pkg = 'package' in node ? node.package : undefined;
+    if (pkg) {
+      parts.push(`package ${pkg};`);
       parts.push("");
     }
 
     parts.push(this.buildSignature(node, allNodes, edges));
     parts.push("{");
 
-    if (!isInterface && !isEnum && data.attributes && data.attributes.length > 0) {
-      parts.push(this.buildAttributes(data.attributes));
+    // Access attributes from domain node (CLASS and ABSTRACT_CLASS only)
+    const attributes = ('attributes' in node) ? node.attributes : [];
+    if (!isInterface && !isEnum && attributes.length > 0) {
+      parts.push(this.buildAttributes(attributes));
     }
 
-    if (!isInterface && !isEnum && data.attributes && data.attributes.length > 0) {
+    if (!isInterface && !isEnum && attributes.length > 0) {
       parts.push("");
       parts.push(this.buildConstructor(node, allNodes, edges));
     }
 
-    if (!isInterface && !isEnum && data.attributes && data.attributes.length > 0) {
+    if (!isInterface && !isEnum && attributes.length > 0) {
       parts.push("");
-      parts.push(this.buildGettersAndSetters(data.attributes));
+      parts.push(this.buildGettersAndSetters(attributes));
     }
 
-    if (data.methods && data.methods.length > 0) {
-      if (!isInterface && data.attributes && data.attributes.length > 0) {
+    // Access methods from domain node
+    const methods = ('methods' in node) ? node.methods : [];
+    if (methods.length > 0) {
+      if (!isInterface && attributes.length > 0) {
         parts.push("");
       }
-      parts.push(this.buildMethods(data.methods, isInterface));
+      parts.push(this.buildMethods(methods, isInterface));
     }
 
     parts.push("}");
@@ -51,38 +65,41 @@ export class JavaGeneratorService {
   }
 
   private static buildSignature(
-    node: UmlClassNode,
-    allNodes: UmlClassNode[],
-    edges: UmlEdge[]
+    node: DomainNode,
+    allNodes: DomainNode[],
+    edges: DomainEdge[]
   ): string {
-    const data = node.data;
     const visibility = "public";
     let type = "class";
 
-    if (data.stereotype === "interface") type = "interface";
-    else if (data.stereotype === "abstract") type = "abstract class";
-    else if (data.stereotype === "enum") type = "enum";
+    if (node.type === 'INTERFACE') type = "interface";
+    else if (node.type === 'ABSTRACT_CLASS') type = "abstract class";
+    else if (node.type === 'ENUM') type = "enum";
 
-    const genericPart = data.generics ? `${data.generics}` : "";
+    // Access name and generics from domain node
+    const name = 'name' in node ? node.name : '';
+    const genericPart = ('generics' in node && node.generics) ? `${node.generics}` : "";
 
     let extendsClause = "";
     let implementsClause = "";
 
-    const outgoingEdges = edges.filter((e) => e.source === node.id);
+    const outgoingEdges = edges.filter((e) => e.sourceNodeId === node.id);
 
-    const inheritanceEdges = outgoingEdges.filter(
-      (e) => (e.data?.type || e.type) === "inheritance"
-    );
-    const implementationEdges = outgoingEdges.filter(
-      (e) => (e.data?.type || e.type) === "implementation"
-    );
+    const inheritanceEdges = outgoingEdges.filter((e) => e.type === 'INHERITANCE');
+    const implementationEdges = outgoingEdges.filter((e) => e.type === 'IMPLEMENTATION');
 
     const extendsNames = inheritanceEdges
-      .map((e) => allNodes.find((n) => n.id === e.target)?.data.label)
+      .map((e) => {
+        const targetNode = allNodes.find((n) => n.id === e.targetNodeId);
+        return targetNode && 'name' in targetNode ? targetNode.name : null;
+      })
       .filter(Boolean);
 
     const implementsNames = implementationEdges
-      .map((e) => allNodes.find((n) => n.id === e.target)?.data.label)
+      .map((e) => {
+        const targetNode = allNodes.find((n) => n.id === e.targetNodeId);
+        return targetNode && 'name' in targetNode ? targetNode.name : null;
+      })
       .filter(Boolean);
 
     if (extendsNames.length > 0) {
@@ -92,10 +109,10 @@ export class JavaGeneratorService {
       implementsClause = ` implements ${implementsNames.join(", ")}`;
     }
 
-    return `${visibility} ${type} ${data.label}${genericPart}${extendsClause}${implementsClause}`;
+    return `${visibility} ${type} ${name}${genericPart}${extendsClause}${implementsClause}`;
   }
 
-  private static buildAttributes(attributes: UmlAttribute[]): string {
+  private static buildAttributes(attributes: ClassAttribute[]): string {
     return attributes
       .map((attr) => {
         const vis = this.mapVisibility(attr.visibility);
@@ -153,12 +170,12 @@ export class JavaGeneratorService {
   }
 
   private static buildConstructor(
-    node: UmlClassNode,
-    allNodes: UmlClassNode[],
-    edges: UmlEdge[]
+    node: DomainNode,
+    allNodes: DomainNode[],
+    edges: DomainEdge[]
   ): string {
-    const className = node.data.label;
-    const attributes = node.data.attributes || [];
+    const className = 'name' in node ? node.name : '';
+    const attributes = ('attributes' in node) ? node.attributes : [];
     
     const parentAttributes = this.getParentAttributes(node, allNodes, edges);
     const allParams = this.buildConstructorParameters(parentAttributes, attributes);
@@ -181,25 +198,25 @@ export class JavaGeneratorService {
   }
 
   private static getParentAttributes(
-    node: UmlClassNode,
-    allNodes: UmlClassNode[],
-    edges: UmlEdge[]
-  ): UmlAttribute[] {
+    node: DomainNode,
+    allNodes: DomainNode[],
+    edges: DomainEdge[]
+  ): ClassAttribute[] {
     const inheritanceEdge = edges.find(
-      (e) => e.source === node.id && (e.data?.type === "inheritance" || e.type === "inheritance")
+      (e) => e.sourceNodeId === node.id && e.type === 'INHERITANCE'
     );
     
     if (!inheritanceEdge) return [];
     
-    const parentNode = allNodes.find((n) => n.id === inheritanceEdge.target);
-    return parentNode?.data.attributes || [];
+    const parentNode = allNodes.find((n) => n.id === inheritanceEdge.targetNodeId);
+    return (parentNode && 'attributes' in parentNode) ? parentNode.attributes : [];
   }
 
   private static buildConstructorParameters(
-    parentAttributes: UmlAttribute[],
-    ownAttributes: UmlAttribute[]
+    parentAttributes: ClassAttribute[],
+    ownAttributes: ClassAttribute[]
   ): string[] {
-    const formatParam = (attr: UmlAttribute) => {
+    const formatParam = (attr: ClassAttribute) => {
       const type = this.formatType(attr.type) + (attr.isArray ? "[]" : "");
       return `${type} ${attr.name}`;
     };
@@ -210,7 +227,7 @@ export class JavaGeneratorService {
     ];
   }
 
-  private static buildGettersAndSetters(attributes: UmlAttribute[]): string {
+  private static buildGettersAndSetters(attributes: ClassAttribute[]): string {
     const methods: string[] = [];
     
     attributes.forEach(attr => {
@@ -232,7 +249,7 @@ export class JavaGeneratorService {
   }
 
   private static buildMethods(
-    methods: UmlMethod[],
+    methods: ClassMethod[],
     isInterface: boolean
   ): string {
     return methods

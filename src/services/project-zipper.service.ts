@@ -1,5 +1,6 @@
 import JSZip from "jszip";
-import type { UmlClassNode, UmlEdge } from "../features/diagram/types/diagram.types"; 
+import type { DomainNode } from "../core/domain/models/nodes";
+import type { DomainEdge } from "../core/domain/models/edges";
 import { JavaGeneratorService } from "./javaGenerator.service"; 
 
 interface ProjectConfig {
@@ -7,9 +8,9 @@ interface ProjectConfig {
   groupId: string;
   artifactId: string;
   packageName: string;
-  nodes: UmlClassNode[];     
-  allNodes: UmlClassNode[];  
-  edges: UmlEdge[];        
+  nodes: DomainNode[];     
+  allNodes: DomainNode[];  
+  edges: DomainEdge[];        
   javaVersion: string;
   buildTool: "maven" | "gradle";
 }
@@ -28,8 +29,11 @@ export class ProjectZipperService {
 
     // Process each node and place in correct package folder
     config.nodes.forEach(node => {
+      // Skip NOTE nodes
+      if (node.type === 'NOTE') return;
+      
       // Determine the package for this class
-      const nodePackage = node.data.package || config.packageName;
+      const nodePackage = ('package' in node && node.package) ? node.package : config.packageName;
       
       // Track package statistics
       packageStats.set(nodePackage, (packageStats.get(nodePackage) || 0) + 1);
@@ -47,7 +51,9 @@ export class ProjectZipperService {
       
       if (!targetFolder) throw new Error(`Could not create folder for package: ${nodePackage}`);
       
-      targetFolder.file(`${node.data.label}.java`, javaCode);
+      // Get node name
+      const nodeName = 'name' in node ? node.name : 'UnknownClass';
+      targetFolder.file(`${nodeName}.java`, javaCode);
     });
 
     // Generate Main.java in the base package
@@ -168,11 +174,15 @@ java {
    * @returns Array of fully qualified import statements
    */
   private static resolveImports(
-    targetClass: UmlClassNode,
-    allNodes: UmlClassNode[]
+    targetClass: DomainNode,
+    allNodes: DomainNode[]
   ): string[] {
     const imports = new Set<string>();
-    const targetPackage = targetClass.data.package;
+    
+    // Skip NOTE nodes
+    if (targetClass.type === 'NOTE') return [];
+    
+    const targetPackage = ('package' in targetClass) ? targetClass.package : undefined;
     
     // Helper to extract base type name (removes array brackets and generics)
     const extractTypeName = (type: string): string => {
@@ -180,7 +190,7 @@ java {
     };
 
     // Helper to check if a type needs an import
-    const needsImport = (typeName: string, referencedClass: UmlClassNode): boolean => {
+    const needsImport = (typeName: string, referencedClass: DomainNode): boolean => {
       // Skip primitive types and java.lang classes
       const primitives = ["int", "double", "float", "long", "short", "byte", "boolean", "char", "void"];
       const javaLang = ["String", "Integer", "Double", "Float", "Long", "Short", "Byte", "Boolean", "Character", "Object"];
@@ -189,50 +199,65 @@ java {
         return false;
       }
       
+      // Skip NOTE nodes
+      if (referencedClass.type === 'NOTE') {
+        return false;
+      }
+      
       // Skip if no package (default package)
-      if (!referencedClass.data.package) {
+      const refPackage = ('package' in referencedClass) ? referencedClass.package : undefined;
+      if (!refPackage) {
         return false;
       }
       
       // Skip if same package
-      if (referencedClass.data.package === targetPackage) {
+      if (refPackage === targetPackage) {
         return false;
       }
       
       return true;
     };
 
-    // Scan attributes
-    if (targetClass.data.attributes) {
-      targetClass.data.attributes.forEach(attr => {
+    // Scan attributes (CLASS and ABSTRACT_CLASS only)
+    if ('attributes' in targetClass && targetClass.attributes) {
+      targetClass.attributes.forEach(attr => {
         const typeName = extractTypeName(attr.type);
-        const referencedClass = allNodes.find(n => n.data.label === typeName);
+        const referencedClass = allNodes.find(n => 'name' in n && n.name === typeName);
         
         if (referencedClass && needsImport(typeName, referencedClass)) {
-          imports.add(`import ${referencedClass.data.package}.${typeName};`);
+          const refPackage = ('package' in referencedClass) ? referencedClass.package : undefined;
+          if (refPackage) {
+            imports.add(`import ${refPackage}.${typeName};`);
+          }
         }
       });
     }
 
     // Scan methods (return types and parameters)
-    if (targetClass.data.methods) {
-      targetClass.data.methods.forEach(method => {
+    if ('methods' in targetClass && targetClass.methods) {
+      targetClass.methods.forEach(method => {
         // Check return type
         const returnTypeName = extractTypeName(method.returnType);
-        const returnClass = allNodes.find(n => n.data.label === returnTypeName);
+        const returnClass = allNodes.find(n => 'name' in n && n.name === returnTypeName);
         
         if (returnClass && needsImport(returnTypeName, returnClass)) {
-          imports.add(`import ${returnClass.data.package}.${returnTypeName};`);
+          const refPackage = ('package' in returnClass) ? returnClass.package : undefined;
+          if (refPackage) {
+            imports.add(`import ${refPackage}.${returnTypeName};`);
+          }
         }
         
         // Check parameters
         if (method.parameters) {
           method.parameters.forEach(param => {
             const paramTypeName = extractTypeName(param.type);
-            const paramClass = allNodes.find(n => n.data.label === paramTypeName);
+            const paramClass = allNodes.find(n => 'name' in n && n.name === paramTypeName);
             
             if (paramClass && needsImport(paramTypeName, paramClass)) {
-              imports.add(`import ${paramClass.data.package}.${paramTypeName};`);
+              const refPackage = ('package' in paramClass) ? paramClass.package : undefined;
+              if (refPackage) {
+                imports.add(`import ${refPackage}.${paramTypeName};`);
+              }
             }
           });
         }

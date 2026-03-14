@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useReactFlow } from "reactflow";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Package, FolderPlus } from "lucide-react";
@@ -6,6 +6,7 @@ import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useProjectStore } from "../../../../store/project.store";
 import { useShallow } from "zustand/react/shallow";
 import { useSettingsStore } from "../../../../store/settingsStore";
+import { useUiStore } from "../../../../store/uiStore";
 import { buildPackageTree } from "./packageExplorer/buildPackageTree";
 import { PackageItem } from "./packageExplorer/PackageItem";
 import { ClassItem } from "./packageExplorer/ClassItem";
@@ -22,46 +23,182 @@ export default function PackageExplorer() {
     return s.getFile(s.activeFileId)?.nodeIds || [];
   }));
 
+  // Fetch active file to get positionMap
+  const activeFile = useWorkspaceStore(useShallow(s => {
+    if (!s.activeFileId) return null;
+    return s.getFile(s.activeFileId);
+  }));
+
+  // Extract positionMap from file metadata
+  const positionMap = useMemo(() => {
+    if (!activeFile) return {};
+    return (activeFile.metadata as any)?.positionMap || {};
+  }, [activeFile]);
+
   // Fetch ONLY the required nodes using the IDs
   const activeNodes = useProjectStore(useShallow(s => {
     return activeFileNodeIds.map(id => s.nodes[id]).filter(Boolean);
   }));
 
   // Transform SSOT domain nodes to UmlClassNode format for buildPackageTree
+  // CRITICAL FIX: Use actual positions from positionMap instead of hardcoded (0,0)
   const transformedNodes: UmlClassNode[] = useMemo(() => {
-    return activeNodes.map(node => ({
-      id: node.id,
-      type: "umlClass" as const,
-      position: { x: 0, y: 0 }, // Position not needed for tree building
-      data: {
-        label: (node as any).name || "Unnamed",
-        stereotype: node.type?.toLowerCase() as any,
-        package: (node as any).package || "",
-        attributes: (node as any).attributes || [],
-        methods: (node as any).methods || [],
-      },
-    }));
-  }, [activeNodes]);
+    return activeNodes.map(node => {
+      const position = positionMap[node.id] || { x: 0, y: 0 };
+      return {
+        id: node.id,
+        type: "umlClass" as const,
+        position: position, // Use actual position from positionMap
+        data: {
+          label: (node as any).name || "Unnamed",
+          stereotype: node.type?.toLowerCase() as any,
+          package: (node as any).package || "",
+          attributes: (node as any).attributes || [],
+          methods: (node as any).methods || [],
+        },
+      };
+    });
+  }, [activeNodes, positionMap]);
 
-  // TODO: SSOT Migration - Package Management
-  // The legacy package management system needs to be replaced with a proper
-  // SSOT-compatible solution. For now, using empty arrays to prevent errors.
-  const packages: Array<{ id: string; name: string }> = [];
+  // SSOT Actions: Wire up ProjectStore and WorkspaceStore
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const updateFile = useWorkspaceStore((s) => s.updateFile);
+  const removeNodeFromFile = useWorkspaceStore((s) => s.removeNodeFromFile);
+  const markFileDirty = useWorkspaceStore((s) => s.markFileDirty);
+  
+  const updateNode = useProjectStore((s) => s.updateNode);
+  const removeNode = useProjectStore((s) => s.removeNode);
+  const getEdgeIdsForNode = useProjectStore((s) => s.getEdgeIdsForNode);
+  const removeEdgeFromFile = useWorkspaceStore((s) => s.removeEdgeFromFile);
+
+  // Package Management: Store packages in file metadata
+  const packages: Array<{ id: string; name: string }> = useMemo(() => {
+    if (!activeFile) return [];
+    return (activeFile.metadata as any)?.packages || [];
+  }, [activeFile]);
+
   const addPackage = useCallback((name: string) => {
-    console.warn("TODO: SSOT - addPackage not implemented", name);
-  }, []);
+    if (!activeFileId || !activeFile) return;
+    
+    const newPackage = {
+      id: crypto.randomUUID(),
+      name: name,
+    };
+    
+    const updatedPackages = [...packages, newPackage];
+    
+    updateFile(activeFileId, {
+      metadata: {
+        ...activeFile.metadata,
+        packages: updatedPackages,
+      } as any,
+    });
+    
+    markFileDirty(activeFileId);
+  }, [activeFileId, activeFile, packages, updateFile, markFileDirty]);
+
   const updatePackageName = useCallback((id: string, newName: string) => {
-    console.warn("TODO: SSOT - updatePackageName not implemented", id, newName);
-  }, []);
+    if (!activeFileId || !activeFile) return;
+    
+    const oldPackage = packages.find(p => p.id === id);
+    if (!oldPackage) return;
+    
+    const oldName = oldPackage.name;
+    
+    // Update package in metadata
+    const updatedPackages = packages.map(p => 
+      p.id === id ? { ...p, name: newName } : p
+    );
+    
+    // Update all nodes that belong to this package
+    activeNodes.forEach(node => {
+      if ((node as any).package === oldName) {
+        updateNode(node.id, { package: newName } as any);
+      }
+    });
+    
+    updateFile(activeFileId, {
+      metadata: {
+        ...activeFile.metadata,
+        packages: updatedPackages,
+      } as any,
+    });
+    
+    markFileDirty(activeFileId);
+  }, [activeFileId, activeFile, packages, activeNodes, updateNode, updateFile, markFileDirty]);
+
   const deletePackage = useCallback((id: string, deleteClasses: boolean) => {
-    console.warn("TODO: SSOT - deletePackage not implemented", id, deleteClasses);
-  }, []);
+    if (!activeFileId || !activeFile) return;
+    
+    const pkg = packages.find(p => p.id === id);
+    if (!pkg) return;
+    
+    // Remove package from metadata
+    const updatedPackages = packages.filter(p => p.id !== id);
+    
+    if (deleteClasses) {
+      // Delete all nodes in this package
+      const nodesToDelete = activeNodes.filter(node => 
+        (node as any).package === pkg.name
+      );
+      
+      nodesToDelete.forEach(node => {
+        // Get connected edges
+        const connectedEdgeIds = getEdgeIdsForNode(node.id);
+        
+        // Remove edges from file
+        connectedEdgeIds.forEach(edgeId => {
+          removeEdgeFromFile(activeFileId, edgeId);
+        });
+        
+        // Remove node from file and store
+        removeNodeFromFile(activeFileId, node.id);
+        removeNode(node.id);
+      });
+    } else {
+      // Just unassign the package from nodes
+      activeNodes.forEach(node => {
+        if ((node as any).package === pkg.name) {
+          updateNode(node.id, { package: "" } as any);
+        }
+      });
+    }
+    
+    updateFile(activeFileId, {
+      metadata: {
+        ...activeFile.metadata,
+        packages: updatedPackages,
+      } as any,
+    });
+    
+    markFileDirty(activeFileId);
+  }, [activeFileId, activeFile, packages, activeNodes, updateNode, removeNode, removeNodeFromFile, getEdgeIdsForNode, removeEdgeFromFile, updateFile, markFileDirty]);
+
   const updateNodeData = useCallback((nodeId: string, data: any) => {
-    console.warn("TODO: SSOT - updateNodeData not implemented", nodeId, data);
-  }, []);
+    if (!activeFileId) return;
+    
+    // Update node name in ProjectStore
+    updateNode(nodeId, { name: data.label } as any);
+    markFileDirty(activeFileId);
+  }, [activeFileId, updateNode, markFileDirty]);
+
   const deleteNode = useCallback((nodeId: string) => {
-    console.warn("TODO: SSOT - deleteNode not implemented", nodeId);
-  }, []);
+    if (!activeFileId) return;
+    
+    // Get connected edges
+    const connectedEdgeIds = getEdgeIdsForNode(nodeId);
+    
+    // Remove edges from file
+    connectedEdgeIds.forEach(edgeId => {
+      removeEdgeFromFile(activeFileId, edgeId);
+    });
+    
+    // Remove node from file and store (cascade delete handled in store)
+    removeNodeFromFile(activeFileId, nodeId);
+    removeNode(nodeId);
+    
+    markFileDirty(activeFileId);
+  }, [activeFileId, removeNodeFromFile, removeNode, getEdgeIdsForNode, removeEdgeFromFile, markFileDirty]);
   
   const theme = useSettingsStore((s) => s.theme);
 
@@ -96,6 +233,10 @@ export default function PackageExplorer() {
   
   const { setCenter } = useReactFlow();
   const { t } = useTranslation();
+  const { openClassEditor } = useUiStore();
+
+  // Focus tracking: Use a ref to track the last focused node and timestamp
+  const lastFocusRef = useRef<{ nodeId: string; timestamp: number } | null>(null);
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
@@ -143,13 +284,33 @@ export default function PackageExplorer() {
   };
 
   const handleClassClick = (nodeId: string) => {
+    console.log('[PackageExplorer] handleClassClick called with nodeId:', nodeId);
+    
     const node = transformedNodes.find((n) => n.id === nodeId);
+    console.log('[PackageExplorer] Found node:', node ? { id: node.id, label: node.data.label, position: node.position } : 'NOT FOUND');
+    
     if (node && node.position) {
       const x = node.position.x + (node.width || 250) / 2;
       const y = node.position.y + (node.height || 200) / 2;
       
+      console.log('[PackageExplorer] Centering on position:', { x, y });
+      
+      // Force re-focus even if same node by checking timestamp
+      const now = Date.now();
+      const lastFocus = lastFocusRef.current;
+      
+      // Always update the ref and trigger focus
+      lastFocusRef.current = { nodeId, timestamp: now };
+      
+      // If it's the same node clicked within 100ms, still re-trigger the animation
       setCenter(x, y, { zoom: 1.2, duration: 800 });
+    } else {
+      console.warn('[PackageExplorer] Cannot focus: node not found or has no position');
     }
+  };
+
+  const handleEditClass = (nodeId: string) => {
+    openClassEditor(nodeId);
   };
 
   const handleAddPackageClick = () => {
@@ -375,6 +536,7 @@ export default function PackageExplorer() {
                       isRenaming={renamingId === classNode.id}
                       onToggle={handleClassToggle}
                       onClassClick={handleClassClick}
+                      onEditClass={handleEditClass}
                       onContextMenu={handleClassContextMenu}
                       onRename={handleRenameClass}
                       onCancelRename={handleCancelRename}
@@ -393,6 +555,7 @@ export default function PackageExplorer() {
               onToggle={handleToggle}
               onClassToggle={handleClassToggle}
               onClassClick={handleClassClick}
+              onEditClass={handleEditClass}
               onPackageContextMenu={handlePackageContextMenu}
               onClassContextMenu={handleClassContextMenu}
               onRenameClass={handleRenameClass}

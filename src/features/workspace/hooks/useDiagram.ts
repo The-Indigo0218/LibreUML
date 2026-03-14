@@ -164,10 +164,27 @@ export function useDiagram(fileId?: string) {
         return;
       }
 
+      // Debug logging to see actual node types
+      console.log('[onConnect] DEBUG - Source node:', { 
+        id: sourceNode.id, 
+        type: sourceNode.type,
+        typeOf: typeof sourceNode.type,
+        fullNode: sourceNode 
+      });
+      console.log('[onConnect] DEBUG - Target node:', { 
+        id: targetNode.id, 
+        type: targetNode.type,
+        typeOf: typeof targetNode.type,
+        fullNode: targetNode 
+      });
+
       const metadata = file.metadata as any;
       let edgeType = metadata?.activeConnectionMode || registry.defaultEdgeType;
       
       edgeType = edgeType.toUpperCase();
+      
+      console.log('[onConnect] DEBUG - Edge type:', edgeType);
+      console.log('[onConnect] DEBUG - Supported node types:', registry.supportedNodeTypes);
 
       const validationResult = registry.validator.validateConnection(
         sourceNode,
@@ -181,7 +198,11 @@ export function useDiagram(fileId?: string) {
       );
 
       if (!validationResult.isValid) {
-        console.error('Invalid connection:', validationResult.errors?.[0]);
+        console.error('[onConnect] VALIDATION FAILED');
+        console.error('[onConnect] Error:', validationResult.errors?.[0]);
+        console.error('[onConnect] Source node type:', sourceNode.type, '(expected one of:', registry.supportedNodeTypes.join(', ') + ')');
+        console.error('[onConnect] Target node type:', targetNode.type, '(expected one of:', registry.supportedNodeTypes.join(', ') + ')');
+        console.error('[onConnect] Edge type:', edgeType);
         return;
       }
 

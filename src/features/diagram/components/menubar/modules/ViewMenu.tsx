@@ -15,32 +15,26 @@ import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useSpotlightStore } from "../../../hooks/useSpotlight";
+import { useSettingsStore } from "../../../../../store/settingsStore";
 
-/**
- * TODO: SSOT Migration - View Settings
- * 
- * View settings (minimap, grid, snap, showAllEdges) should be stored in:
- * - WorkspaceStore per-file metadata for file-specific settings
- * - SettingsStore for global preferences
- * 
- * For now, using hardcoded defaults to prevent build errors.
- */
 export function ViewMenu() {
   const { t } = useTranslation();
   
   // React Flow Controls
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
-  // TODO: SSOT - These should come from WorkspaceStore/SettingsStore
-  const showMiniMap = false;
-  const toggleMiniMap = () => console.warn("TODO: SSOT - toggleMiniMap not implemented");
-  const showAllEdges = true;
-  const toggleShowAllEdges = () => console.warn("TODO: SSOT - toggleShowAllEdges not implemented");
+  // PHASE 4.5: Connect to SettingsStore for view preferences
+  const showMiniMap = useSettingsStore((s) => s.showMiniMap);
+  const toggleMiniMap = useSettingsStore((s) => s.toggleMiniMap);
+  const showGrid = useSettingsStore((s) => s.showGrid);
+  const toggleGrid = useSettingsStore((s) => s.toggleGrid);
+  const snapToGrid = useSettingsStore((s) => s.snapToGrid);
+  const toggleSnapToGrid = useSettingsStore((s) => s.toggleSnapToGrid);
+  const showAllEdges = useSettingsStore((s) => s.showAllEdges);
+  const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
+
+  // TODO: SSOT - Auto layout needs implementation (separate service)
   const applyAutoLayout = (direction: string) => console.warn("TODO: SSOT - applyAutoLayout not implemented", direction);
-  const showGrid = false;
-  const toggleGrid = () => console.warn("TODO: SSOT - toggleGrid not implemented");
-  const snapToGrid = false;
-  const toggleSnapToGrid = () => console.warn("TODO: SSOT - toggleSnapToGrid not implemented");
 
   const toggleSpotlight = useSpotlightStore((s) => s.toggle);
 

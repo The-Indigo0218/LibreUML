@@ -1,7 +1,7 @@
 import { toPng, toSvg } from "html-to-image";
 import {
-  getRectOfNodes,
-  getTransformForBounds,
+  getNodesBounds,
+  getViewportForBounds,
   type Node,
   type ReactFlowJsonObject,
 } from "reactflow";
@@ -60,11 +60,11 @@ export const ExportService = {
     nodes: Node[],
     options: ExportImageOptions,
   ): Promise<void> => {
-    const nodesBounds = getRectOfNodes(nodes);
+    const nodesBounds = getNodesBounds(nodes);
 
     if (nodesBounds.width === 0 || nodesBounds.height === 0) return;
 
-    const transform = getTransformForBounds(
+    const viewport = getViewportForBounds(
       nodesBounds,
       nodesBounds.width,
       nodesBounds.height,
@@ -83,7 +83,7 @@ export const ExportService = {
       style: {
         width: `${nodesBounds.width}px`,
         height: `${nodesBounds.height}px`,
-        transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
+        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
         ...backgroundStyle,
       },
       backgroundColor:

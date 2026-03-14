@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useProjectStore } from "../../../../store/project.store";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
 import type {
   UmlClassData,
   UmlAttribute,
@@ -40,14 +41,34 @@ export default function ClassEditorModal({
   const projectNodes = useProjectStore((state) => state.nodes);
   const nodes = useMemo(() => Object.values(projectNodes), [projectNodes]);
   
+  // Get packages from WorkspaceStore file metadata (SSOT)
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
+  
   const packages = useMemo(() => {
-    const pkgs = new Set<string>();
+    if (!activeFileId) return [];
+    const file = getFile(activeFileId);
+    if (!file) return [];
+    
+    const filePackages = (file.metadata as any)?.packages || [];
+    
+    // Also include packages from nodes (for XMI imports)
+    const nodePackages = new Set<string>();
     nodes.forEach(node => {
       const pkg = (node as any)?.package;
-      if (pkg) pkgs.add(pkg);
+      if (pkg && pkg.trim() !== "") nodePackages.add(pkg);
     });
-    return Array.from(pkgs).map(name => ({ id: name, name }));
-  }, [nodes]);
+    
+    // Merge explicit packages with implicit ones
+    const allPackageNames = new Set([
+      ...filePackages.map((p: any) => p.name),
+      ...Array.from(nodePackages)
+    ]);
+    
+    return Array.from(allPackageNames)
+      .sort()
+      .map(name => ({ id: name, name }));
+  }, [activeFileId, getFile, nodes]);
 
   const editingId = useUiStore((state) => state.editingId);
   const { t } = useTranslation();

@@ -1,235 +1,44 @@
 import { useCallback } from "react";
-import { useReactFlow } from "reactflow";
-import { useDiagramStore } from "../../../../store/diagramStore";
-import type { 
-  DiagramState, 
-  UmlClassNode, 
-  UmlEdge, 
-  UmlClassData,
-  UmlEdgeData 
-} from "../../../diagram/types/diagram.types";
 
+/**
+ * TODO: SSOT Migration - File Lifecycle
+ * 
+ * This hook needs complete rewrite to use WorkspaceStore + ProjectStore.
+ * The legacy version used DiagramState format which is incompatible with SSOT.
+ * 
+ * Required changes:
+ * - Replace loadDiagram/resetDiagram with WorkspaceStore file operations
+ * - Update save/load to use SSOT format (separate nodes/edges in ProjectStore)
+ * - Implement proper file path management via WorkspaceStore
+ * - Handle viewport state per file
+ * 
+ * For now, returning stub functions to prevent build errors.
+ */
 export const useFileLifecycle = () => {
-  const { toObject, fitView } = useReactFlow();
-  const storeApi = useDiagramStore.getState;
-  const loadDiagram = useDiagramStore((s) => s.loadDiagram);
-  const resetDiagram = useDiagramStore((s) => s.resetDiagram);
-  const setFilePath = useDiagramStore((s) => s.setFilePath);
-
-  // --- HELPERS ---
-  const fitViewAfterLoad = useCallback(() => {
-    setTimeout(() => fitView({ duration: 800 }), 100);
-  }, [fitView]);
-
-  // --- INTERNAL LOADER ---
-  const loadFromFileContent = useCallback((content: string, filePath?: string) => {
-    try {
-      const data = JSON.parse(content) as DiagramState;
-
-      // Validación básica de integridad
-      if (!data.nodes || !Array.isArray(data.nodes)) {
-        throw new Error("Formato inválido: falta array de nodos");
-      }
-
-      // Asegurar viewport por defecto si no existe
-      const safeData: DiagramState = {
-        ...data,
-        viewport: data.viewport || { x: 0, y: 0, zoom: 1 }
-      };
-
-      loadDiagram(safeData);
-      
-      if (filePath) {
-        setFilePath(filePath);
-      }
-      
-      fitViewAfterLoad();
-
-    } catch (error) {
-      console.error("Error parsing diagram file:", error);
-      alert("Error al abrir el archivo. El formato es inválido o está corrupto.");
-    }
-  }, [loadDiagram, setFilePath, fitViewAfterLoad]);
-
-
-  // --- ACTIONS ---
-
   const createNewDiagram = useCallback(() => {
-    resetDiagram();
-  }, [resetDiagram]);
+    console.warn("TODO: SSOT - createNewDiagram not implemented");
+  }, []);
 
   const openDiagramFromDisk = useCallback(async () => {
-    if (!window.electronAPI?.isElectron()) return;
-
-    try {
-      const result = await window.electronAPI.openFile();
-      
-      if (!result.canceled && result.content) {
-        loadFromFileContent(result.content, result.filePath);
-      }
-    } catch (error) {
-      console.error("IPC Error opening file:", error);
-    }
-  }, [loadFromFileContent]);
+    console.warn("TODO: SSOT - openDiagramFromDisk not implemented");
+  }, []);
 
   const importFromWeb = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      loadFromFileContent(content);
-    };
-    reader.readAsText(file);
-    event.target.value = "";
-  }, [loadFromFileContent]);
+    console.warn("TODO: SSOT - importFromWeb not implemented");
+  }, []);
 
   const saveDiagram = useCallback(async () => {
-    const state = storeApi();
-    const flowObject = toObject(); 
-    
-   const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
-      id: node.id,
-      type: node.type === 'umlNote' ? 'umlNote' : 'umlClass', 
-      position: node.position,
-      data: node.data as UmlClassData,
-      selected: node.selected,
-      width: node.width || undefined,   
-      height: node.height || undefined
-    }));
-
-    const cleanEdges: UmlEdge[] = flowObject.edges.map(edge => {
-
-        const edgeData = edge.data as Partial<UmlEdgeData>;
-        
-        return {
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          sourceHandle: edge.sourceHandle,
-          targetHandle: edge.targetHandle,
-          type: edge.type,
-          animated: edge.animated,
-          markerEnd: edge.markerEnd,
-          style: edge.style,
-          data: {
-            type: edgeData.type || 'association',
-            sourceMultiplicity: edgeData.sourceMultiplicity,
-            targetMultiplicity: edgeData.targetMultiplicity, 
-          }
-        };
-    });
-
-    const dataToSave: DiagramState = {
-      id: state.diagramId,
-      name: state.diagramName,
-      nodes: cleanNodes,
-      edges: cleanEdges,
-      activeConnectionMode: state.activeConnectionMode, 
-      viewport: flowObject.viewport
-    };
-    
-    const content = JSON.stringify(dataToSave, null, 2);
-    document.body.style.cursor = "wait";
-
-    try {
-      if (window.electronAPI?.isElectron()) {
-        const result = await window.electronAPI.saveFile(
-          content, 
-          state.currentFilePath, 
-          state.diagramName
-        );
-
-        if (!result.canceled && result.filePath) {
-          setFilePath(result.filePath);
-          storeApi().setDirty(false);
-          return true;
-        }
-        return false;
-      } else {
-        const blob = new Blob([content], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${state.diagramName}.luml`;
-        link.click();
-        URL.revokeObjectURL(url);
-        storeApi().setDirty(false);
-        return true;
-      }
-    } finally {
-      document.body.style.cursor = "default";
-    }
-  }, [storeApi, toObject, setFilePath]);
+    console.warn("TODO: SSOT - saveDiagram not implemented");
+    return false;
+  }, []);
 
   const saveDiagramAs = useCallback(async () => {
-    const state = storeApi();
-    const flowObject = toObject(); 
-
-   const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
-      id: node.id,
-      type: node.type === 'umlNote' ? 'umlNote' : 'umlClass',
-      position: node.position,
-      data: node.data as UmlClassData,
-      width: node.width || undefined,
-      height: node.height || undefined,
-      selected: node.selected
-    }));
-
-    const cleanEdges: UmlEdge[] = flowObject.edges.map(edge => {
-        const edgeData = edge.data as Partial<UmlEdgeData>;
-        return {
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          sourceHandle: edge.sourceHandle,
-          targetHandle: edge.targetHandle,
-          type: edge.type,
-          animated: edge.animated,
-          markerEnd: edge.markerEnd,
-          style: edge.style,
-          data: {
-            type: edgeData.type || 'association',
-            sourceMultiplicity: edgeData.sourceMultiplicity,
-            targetMultiplicity: edgeData.targetMultiplicity,
-          }
-        };
-    });
-
-    const dataToSave: DiagramState = {
-      id: state.diagramId,
-      name: state.diagramName,
-      nodes: cleanNodes,
-      edges: cleanEdges,
-      activeConnectionMode: state.activeConnectionMode,
-      viewport: flowObject.viewport
-    };
-    
-    const content = JSON.stringify(dataToSave, null, 2);
-
-    if (window.electronAPI?.isElectron()) {
-      const result = await window.electronAPI.saveFile(content, undefined, state.diagramName);
-
-      if (!result.canceled && result.filePath) {
-        setFilePath(result.filePath);
-        storeApi().setDirty(false);
-      }
-    }
-  }, [storeApi, toObject, setFilePath]);
+    console.warn("TODO: SSOT - saveDiagramAs not implemented");
+  }, []);
 
   const revertDiagram = useCallback(async () => {
-    const currentPath = storeApi().currentFilePath;
-    if (currentPath && window.electronAPI?.isElectron()) {
-      const result = await window.electronAPI.readFile(currentPath);
-      if (result.success && result.content) {
-        loadFromFileContent(result.content, currentPath);
-        storeApi().setDirty(false);
-      } else {
-        alert("Error reloading file: " + result.error);
-      }
-    }
-  }, [storeApi, loadFromFileContent]);
+    console.warn("TODO: SSOT - revertDiagram not implemented");
+  }, []);
 
   return {
     createNewDiagram,

@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
 import { ClassItem } from "./ClassItem";
 import { InlinePackageInput } from "./InlinePackageInput";
-import { useDiagramStore } from "../../../../../store/diagramStore";
 import type { PackageItemProps } from "./types";
 
 export function PackageItem({
@@ -23,7 +22,9 @@ export function PackageItem({
   onAddChildPackage,
   onCancelAddChild,
 }: PackageItemProps) {
-  const packages = useDiagramStore((s) => s.packages);
+  // TODO: SSOT Migration - Package validation needs WorkspaceStore integration
+  const packages: Array<{ id: string; name: string }> = [];
+  
   const isExpanded = expandedPaths.has(node.fullPath);
   const hasChildren = node.children.size > 0;
   const hasClasses = node.classes.length > 0;

@@ -1,5 +1,4 @@
 import { useRef, useEffect, useState } from "react";
-import { useDiagramStore } from "../../../../../store/diagramStore";
 
 interface InlinePackageInputProps {
   value: string;
@@ -20,7 +19,9 @@ export function InlinePackageInput({
   level = 0,
   parentPath
 }: InlinePackageInputProps) {
-  const packages = useDiagramStore((s) => s.packages);
+  // TODO: SSOT Migration - Package validation needs WorkspaceStore integration
+  const packages: Array<{ id: string; name: string }> = [];
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const [hasError, setHasError] = useState(false);
   const [originalValue] = useState(value);

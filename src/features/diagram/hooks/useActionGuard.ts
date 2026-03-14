@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useDiagramStore } from "../../../store/diagramStore";
+import { useWorkspaceStore } from "../../../store/workspace.store";
 
 interface ConfirmationOptions {
   requireConfirm?: boolean;
@@ -8,7 +8,11 @@ interface ConfirmationOptions {
 }
 
 export const useActionGuard = () => {
-  const isDirty = useDiagramStore((s) => s.isDirty);
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
+  
+  const activeFile = activeFileId ? getFile(activeFileId) : undefined;
+  const isDirty = activeFile?.isDirty ?? false;
   
   // Estado Unificado de Modales
   const [modals, setModals] = useState({
@@ -37,11 +41,12 @@ export const useActionGuard = () => {
 
   const executeSafeAction = useCallback((action: () => void, options?: ConfirmationOptions) => {
     if (isDirty) {
+      const currentFile = activeFileId ? useWorkspaceStore.getState().getFile(activeFileId) : undefined;
       setModals(prev => ({
         ...prev,
         unsaved: {
           isOpen: true,
-          fileName: useDiagramStore.getState().diagramName,
+          fileName: currentFile?.name || "Untitled",
           pendingAction: action
         }
       }));
@@ -62,7 +67,7 @@ export const useActionGuard = () => {
     }
 
     action();
-  }, [isDirty]);
+  }, [isDirty, activeFileId]);
 
 
   const handleDiscard = useCallback(() => {

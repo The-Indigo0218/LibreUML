@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Package, Download, Box, Hammer, Coffee } from "lucide-react";
-import { useDiagramStore } from "../../../../store/diagramStore";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useProjectStore } from "../../../../store/project.store";
+import { useShallow } from "zustand/react/shallow";
 import { ProjectZipperService } from "../../../../services/project-zipper.service";
 import type { UmlClassNode, UmlEdge } from "../../types/diagram.types";
 import { useTranslation } from "react-i18next";
@@ -11,9 +13,23 @@ interface Props {
 }
 
 export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
-  const nodes = useDiagramStore((s) => s.nodes);
-  const diagramName = useDiagramStore((s) => s.diagramName);
-  const edges = useDiagramStore((s) => s.edges);
+  // TODO: SSOT Migration - Need to convert SSOT nodes to UmlClassNode format
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
+  const activeNodes = useProjectStore(useShallow(s => {
+    if (!activeFileId) return [];
+    const file = useWorkspaceStore.getState().getFile(activeFileId);
+    if (!file) return [];
+    return file.nodeIds.map(id => s.nodes[id]).filter(Boolean);
+  }));
+  
+  const activeFile = activeFileId ? getFile(activeFileId) : undefined;
+  const diagramName = activeFile?.name || "Untitled";
+  
+  // TODO: Convert SSOT nodes/edges to legacy format for ProjectZipperService
+  const nodes: UmlClassNode[] = [];
+  const edges: UmlEdge[] = [];
+  
   const { t } = useTranslation();
   
   // --- State  ---

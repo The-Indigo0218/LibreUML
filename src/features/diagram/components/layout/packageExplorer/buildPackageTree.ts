@@ -13,6 +13,7 @@ export function buildPackageTree(
     isExpanded: true,
   };
 
+  // TASK 2: Explicitly include ALL packages from metadata, even if they have 0 classes
   packages.forEach((pkg) => {
     if (!pkg.name || pkg.name.trim() === "") return;
     
@@ -37,6 +38,7 @@ export function buildPackageTree(
     });
   });
 
+  // Then assign nodes to their packages
   nodes.forEach((node) => {
     if (node.data.package && node.data.package.trim() !== "") {
       const segments = node.data.package.split(".").filter(seg => seg.trim() !== "");
@@ -44,6 +46,7 @@ export function buildPackageTree(
 
       segments.forEach((segment) => {
         if (!currentNode.children.has(segment)) {
+          // Create implicit package if it doesn't exist (for XMI imports)
           const pathSoFar = segments.slice(0, segments.indexOf(segment) + 1).join(".");
           currentNode.children.set(segment, {
             name: segment,
@@ -58,6 +61,7 @@ export function buildPackageTree(
 
       currentNode.classes.push(node);
     } else {
+      // TASK 3: Only add to root.classes (will be rendered in "(No Package)" section)
       root.classes.push(node);
     }
   });

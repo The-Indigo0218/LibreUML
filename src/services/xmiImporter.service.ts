@@ -41,6 +41,8 @@ export class XmiImporterService {
     const nodes = this.parseNodes(xmlDoc, packageContext);
     const edges = this.parseEdges(xmlDoc, nodes);
 
+    // TASK 4: Resolve type IDs to class names
+    this.resolveTypeReferences(nodes);
  
     return { nodes, edges };
   }
@@ -78,6 +80,52 @@ export class XmiImporterService {
     traversePackages(xmlDoc.documentElement);
 
     return packageMap;
+  }
+
+  /**
+   * TASK 4: Resolve type references from xmi:id to actual class names.
+   * This fixes the bug where imported XMI sets attribute/method types to IDs instead of names.
+   */
+  private static resolveTypeReferences(nodes: UmlClassNode[]): void {
+    // Build lookup map: NodeID -> NodeName
+    const idToNameMap = new Map<string, string>();
+    nodes.forEach(node => {
+      idToNameMap.set(node.id, node.data.label);
+    });
+
+    // Iterate through all nodes and resolve type references
+    nodes.forEach(node => {
+      // Resolve attribute types
+      node.data.attributes.forEach(attr => {
+        const cleanType = attr.type.replace(/\[\]$/, '').trim();
+        
+        // If the type matches a known node ID, replace it with the class name
+        if (idToNameMap.has(cleanType)) {
+          const resolvedName = idToNameMap.get(cleanType)!;
+          // Preserve array notation if it was present
+          attr.type = attr.isArray ? `${resolvedName}[]` : resolvedName;
+        }
+      });
+
+      // Resolve method return types and parameter types
+      node.data.methods.forEach(method => {
+        // Resolve return type
+        const cleanReturnType = method.returnType.replace(/\[\]$/, '').trim();
+        if (idToNameMap.has(cleanReturnType)) {
+          const resolvedName = idToNameMap.get(cleanReturnType)!;
+          method.returnType = method.isReturnArray ? `${resolvedName}[]` : resolvedName;
+        }
+
+        // Resolve parameter types
+        method.parameters.forEach(param => {
+          const cleanParamType = param.type.replace(/\[\]$/, '').trim();
+          if (idToNameMap.has(cleanParamType)) {
+            const resolvedName = idToNameMap.get(cleanParamType)!;
+            param.type = param.isArray ? `${resolvedName}[]` : resolvedName;
+          }
+        });
+      });
+    });
   }
 
   private static findById(xmlDoc: Document, id: string): Element | null {

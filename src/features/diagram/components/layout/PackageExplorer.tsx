@@ -80,9 +80,13 @@ export default function PackageExplorer() {
   const addPackage = useCallback((name: string) => {
     if (!activeFileId || !activeFile) return;
     
+    // TASK 1 & 2: Sanitize package name - trim whitespace and remove trailing non-alphanumeric characters
+    const sanitizedName = name.trim().replace(/\W+$/, '');
+    if (!sanitizedName) return; // Don't add empty packages
+    
     const newPackage = {
       id: crypto.randomUUID(),
-      name: name,
+      name: sanitizedName,
     };
     
     const updatedPackages = [...packages, newPackage];
@@ -105,15 +109,19 @@ export default function PackageExplorer() {
     
     const oldName = oldPackage.name;
     
+    // TASK 1 & 2: Sanitize package name - trim whitespace and remove trailing non-alphanumeric characters
+    const sanitizedName = newName.trim().replace(/\W+$/, '');
+    if (!sanitizedName) return; // Don't allow empty package names
+    
     // Update package in metadata
     const updatedPackages = packages.map(p => 
-      p.id === id ? { ...p, name: newName } : p
+      p.id === id ? { ...p, name: sanitizedName } : p
     );
     
     // Update all nodes that belong to this package
     activeNodes.forEach(node => {
       if ((node as any).package === oldName) {
-        updateNode(node.id, { package: newName } as any);
+        updateNode(node.id, { package: sanitizedName } as any);
       }
     });
     
@@ -331,7 +339,11 @@ export default function PackageExplorer() {
   };
 
   const handleAddChildPackage = (parentPath: string, childName: string) => {
-    const fullPath = `${parentPath}.${childName}`;
+    // TASK 1 & 2: Sanitize child name before creating full path
+    const sanitizedChildName = childName.trim().replace(/\W+$/, '');
+    if (!sanitizedChildName) return;
+    
+    const fullPath = `${parentPath}.${sanitizedChildName}`;
     addPackage(fullPath);
     setAddingChildToPath(null);
     
@@ -431,8 +443,12 @@ export default function PackageExplorer() {
   const handleRenamePackage = (packagePath: string, newName: string) => {
     const pkg = allPackages.find(p => p.name === packagePath);
     if (pkg) {
+      // TASK 1 & 2: Sanitize the new segment name
+      const sanitizedNewName = newName.trim().replace(/\W+$/, '');
+      if (!sanitizedNewName) return;
+      
       const pathSegments = packagePath.split(".");
-      pathSegments[pathSegments.length - 1] = newName;
+      pathSegments[pathSegments.length - 1] = sanitizedNewName;
       const newFullPath = pathSegments.join(".");
       
       updatePackageName(pkg.id, newFullPath);

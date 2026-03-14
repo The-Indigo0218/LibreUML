@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useWorkspaceStore } from "../store/workspace.store";
-import { useProjectStore } from "../store/project.store";
+// import { useProjectStore } from "../store/project.store"; // TODO: SSOT - Will be needed for autosave
 import { useSettingsStore } from "../store/settingsStore";
 
-const STORAGE_KEY = 'libreuml-backup';
+// const STORAGE_KEY = 'libreuml-backup'; // TODO: SSOT - Will be needed for autosave
 const BACKUP_DELAY = 3000; 
 
 /**

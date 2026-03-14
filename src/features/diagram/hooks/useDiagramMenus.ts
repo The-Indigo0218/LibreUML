@@ -41,7 +41,6 @@ export const useDiagramMenus = ({
   const removeNode = useProjectStore((s) => s.removeNode);
   const removeEdge = useProjectStore((s) => s.removeEdge);
   const updateEdge = useProjectStore((s) => s.updateEdge);
-  const getEdgesForNode = useProjectStore((s) => s.getEdgesForNode);
   const getEdgeIdsForNode = useProjectStore((s) => s.getEdgeIdsForNode);
   const addNodeToFile = useWorkspaceStore((s) => s.addNodeToFile);
   const updateFile = useWorkspaceStore((s) => s.updateFile);
@@ -85,7 +84,7 @@ export const useDiagramMenus = ({
         id: newNode.id,
         createdAt: newNode.createdAt,
         updatedAt: newNode.updatedAt,
-        name: `${originalNode.name}_copy`,
+        name: `${(originalNode as any).name}_copy`,
       } as any;
 
       // Add node to ProjectStore

@@ -16,7 +16,7 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
   // TODO: SSOT Migration - Need to convert SSOT nodes to UmlClassNode format
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const getFile = useWorkspaceStore((s) => s.getFile);
-  const activeNodes = useProjectStore(useShallow(s => {
+  const _activeNodes = useProjectStore(useShallow(s => {
     if (!activeFileId) return [];
     const file = useWorkspaceStore.getState().getFile(activeFileId);
     if (!file) return [];

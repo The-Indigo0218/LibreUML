@@ -6,22 +6,20 @@ import ReactFlow, {
   ConnectionMode,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useRef, useEffect, useCallback } from "react"; 
+import { useRef, useEffect, useCallback, useMemo } from "react"; 
 import { useUiStore } from "../../../../store/uiStore"; 
 import { useProjectStore } from "../../../../store/project.store";
 import { useSettingsStore } from "../../../../store/settingsStore";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useDiagram } from "../../../workspace/hooks/useDiagram";
 import { canvasConfig, miniMapColors } from "../../../../config/theme.config";
+import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
 
-// Components
-import UmlClassNode from "../nodes/uml/UmlClassNode";
-import UmlNoteNode from "../nodes/uml/UmlNoteNode";
+// Components (Modals only - node/edge components now come from registry)
 import ContextMenu from "../ui/ContextMenu";
 import ClassEditorModal from "../modals/ClassEditorModal";
 import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 import SpotlightModal from "../modals/SpotlightModal";
-import CustomUmlEdge from "../edges/CustomUmlEdge";
 import MultiplicityModal from "../modals/MultiplicityModal";
 import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 
@@ -39,15 +37,6 @@ import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
 import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
 import ImportCodeModal from "../modals/ImportCodeModal";
 
-const nodeTypes = {
-  umlClass: UmlClassNode,
-  umlNote: UmlNoteNode,
-};
-
-const edgeTypes = {
-  umlEdge: CustomUmlEdge,
-};
-
 export default function DiagramCanvas() {
   const { t } = useTranslation();
 
@@ -61,6 +50,21 @@ export default function DiagramCanvas() {
     file,
     isReady,
   } = useDiagram();
+
+  // PHASE 3: Get diagram type and registry
+  const diagramType = file?.diagramType || 'CLASS_DIAGRAM';
+  const registry = useMemo(() => {
+    try {
+      return getDiagramRegistry(diagramType);
+    } catch (error) {
+      console.error('Failed to get diagram registry:', error);
+      return getDiagramRegistry('CLASS_DIAGRAM'); // Fallback
+    }
+  }, [diagramType]);
+
+  // PHASE 3: Extract node and edge components from registry
+  const nodeTypes = useMemo(() => registry.nodeComponents, [registry]);
+  const edgeTypes = useMemo(() => registry.edgeComponents, [registry]);
 
   // === Settings (UI Preferences from SettingsStore) ===
   const showMiniMap = useSettingsStore((s) => s.showMiniMap);

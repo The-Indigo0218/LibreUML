@@ -1,12 +1,19 @@
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { StickyNote } from "lucide-react";
-import type { UmlClassData } from "../../../types/diagram.types";
+import type { NoteViewModel } from "../../../../../adapters/react-flow/view-models/node.view-model";
 import { useProjectStore } from "../../../../../store/project.store";
 import { handleConfig } from "../../../../../config/theme.config";
 
-const UmlNoteNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
+/**
+ * UmlNoteNode - Generic note renderer
+ * 
+ * PHASE 2: This component now receives a generic NoteViewModel instead of domain types.
+ * It has ZERO knowledge of domain models (NoteNode).
+ */
+const UmlNoteNode = ({ data, selected }: NodeProps<NoteViewModel>) => {
   const updateNode = useProjectStore((s) => s.updateNode);
+  const viewModel = data;
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingContent, setEditingContent] = useState(false);
@@ -52,30 +59,32 @@ const UmlNoteNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
       />
 
       {/*Note  Header  */}
-      <div
-        className="bg-surface-secondary p-2 border-b border-dashed border-uml-note-border rounded-t-sm flex items-center justify-between"
-        onDoubleClick={() => setEditingTitle(true)}
-      >
-        {editingTitle ? (
-          <input
-            autoFocus
-            className="w-full bg-transparent font-bold text-sm text-uml-note-border outline-none placeholder-uml-note-border/50"
-            value={data.label}
-            onChange={(e) => updateNode(id, { name: e.target.value } as any)}
-            onBlur={() => setEditingTitle(false)}
-            onKeyDown={(e) => e.key === "Enter" && setEditingTitle(false)}
-            placeholder="Título..."
-          />
-        ) : (
-          <div className="font-bold text-sm text-uml-note-border truncate w-full pr-4">
-            {data.label}
-          </div>
-        )}
+      {viewModel.title !== undefined && (
+        <div
+          className="bg-surface-secondary p-2 border-b border-dashed border-uml-note-border rounded-t-sm flex items-center justify-between"
+          onDoubleClick={() => setEditingTitle(true)}
+        >
+          {editingTitle ? (
+            <input
+              autoFocus
+              className="w-full bg-transparent font-bold text-sm text-uml-note-border outline-none placeholder-uml-note-border/50"
+              value={viewModel.title || ''}
+              onChange={(e) => updateNode(viewModel.domainId, { name: e.target.value } as any)}
+              onBlur={() => setEditingTitle(false)}
+              onKeyDown={(e) => e.key === "Enter" && setEditingTitle(false)}
+              placeholder="Título..."
+            />
+          ) : (
+            <div className="font-bold text-sm text-uml-note-border truncate w-full pr-4">
+              {viewModel.title}
+            </div>
+          )}
 
-        {!editingTitle && (
-          <StickyNote className="w-3 h-3 text-uml-note-border shrink-0" />
-        )}
-      </div>
+          {!editingTitle && (
+            <StickyNote className="w-3 h-3 text-uml-note-border shrink-0" />
+          )}
+        </div>
+      )}
 
       {/* Note Content */}
       <div
@@ -86,14 +95,14 @@ const UmlNoteNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
           <textarea
             autoFocus
             className="w-full h-full min-h-20 bg-transparent resize-none outline-none text-xs text-text-secondary leading-relaxed font-mono"
-            value={data.content || ""}
-            onChange={(e) => updateNode(id, { content: e.target.value } as any)}
+            value={viewModel.content}
+            onChange={(e) => updateNode(viewModel.domainId, { content: e.target.value } as any)}
             onBlur={() => setEditingContent(false)}
             placeholder="Escribe aquí..."
           />
         ) : (
           <div className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap font-mono">
-            {data.content || <span className="opacity-30 italic">...</span>}
+            {viewModel.content || <span className="opacity-30 italic">...</span>}
           </div>
         )}
       </div>

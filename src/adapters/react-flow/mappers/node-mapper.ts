@@ -1,5 +1,6 @@
 import type { DomainNode } from '../../../core/domain/models/nodes';
 import type { NodeView } from '../view-models/node-view.types';
+import { transformDomainNodeToViewModel } from '../transformers/node-view-model.transformer';
 
 /**
  * Maps a domain node type to its corresponding React Flow node type.
@@ -26,8 +27,9 @@ function getDomainNodeReactFlowType(domainNodeType: string): string {
 /**
  * Maps a domain node to a React Flow view node.
  * 
- * CRITICAL: This function passes the full domain node in the data property
- * so that React components can access all node properties for rendering.
+ * PHASE 2 UPDATE: This function now transforms the domain node into a generic
+ * NodeViewModel before passing it to React components. This eliminates domain
+ * type leakage into the UI layer.
  * 
  * @param domainNode - The domain entity (SSOT)
  * @param position - UI position {x, y}
@@ -37,6 +39,9 @@ export function mapDomainNodeToView(
   domainNode: DomainNode,
   position: { x: number; y: number }
 ): NodeView {
+  // Transform domain node to generic view model (PHASE 2: Abstraction Layer)
+  const viewModel = transformDomainNodeToViewModel(domainNode);
+  
   return {
     // Reference to domain entity
     domainId: domainNode.id,
@@ -51,8 +56,8 @@ export function mapDomainNodeToView(
       y: position.y,
     },
     
-    // React Flow data payload (contains full domain node for rendering)
-    data: domainNode as any, // Pass full domain node so components can access all properties
+    // React Flow data payload (contains generic view model, NOT domain node)
+    data: viewModel,
   };
 }
 

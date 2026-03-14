@@ -1,9 +1,4 @@
-import { 
-  FileCode, 
-  Package, 
-  Upload, 
-  Play
-} from "lucide-react";
+import { Play } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";

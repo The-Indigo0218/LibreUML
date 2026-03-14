@@ -50,12 +50,15 @@ export default function Sidebar() {
   const [expandedPackages, setExpandedPackages] = useState<Record<string, boolean>>({});
 
   const fileNodeIds = useWorkspaceStore(useShallow(s => s.activeFileId ? s.getFile(s.activeFileId)?.nodeIds || [] : []));
-  const projectNodes = useProjectStore(useShallow(s => Object.values(s.nodes)));
-  const allEdges = useProjectStore(useShallow(s => s.edges));
   
-  const nodes = useMemo(() => {
-    return projectNodes.filter(n => fileNodeIds.includes(n.id));
-  }, [projectNodes, fileNodeIds]);
+  const nodes = useProjectStore(useShallow(s => 
+    fileNodeIds.map(id => s.nodes[id]).filter(Boolean)
+  ));
+
+  const fileEdgeIds = useWorkspaceStore(useShallow(s => s.activeFileId ? s.getFile(s.activeFileId)?.edgeIds || [] : []));
+  const edges = useProjectStore(useShallow(s => 
+    fileEdgeIds.map(id => s.edges[id]).filter(Boolean)
+  ));
 
   const packages = useMemo(() => {
     const map = new Map<string, typeof nodes>();
@@ -67,8 +70,18 @@ export default function Sidebar() {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [nodes]);
 
+  const inheritanceSourceIds = useMemo(() => {
+    const set = new Set<string>();
+    edges.forEach(edge => {
+      if (edge.type === "INHERITANCE") {
+        set.add(edge.sourceNodeId);
+      }
+    });
+    return set;
+  }, [edges]);
+
   const isSubclass = (nodeId: string) => {
-    return Object.values(allEdges).some(e => e.type === "INHERITANCE" && e.sourceNodeId === nodeId);
+    return inheritanceSourceIds.has(nodeId);
   };
 
   const togglePackage = (pkg: string) => {

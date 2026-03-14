@@ -98,8 +98,15 @@ export function useDiagram(fileId?: string) {
           } as any,
         });
 
-        if (positionChanges.some((c) => c.type === 'position' && !c.dragging)) {
+        // Only mark dirty when drag stops (not during continuous dragging)
+        // This prevents history spam during pixel-by-pixel updates
+        const isDragComplete = positionChanges.some(
+          (c) => c.type === 'position' && !c.dragging
+        );
+        
+        if (isDragComplete) {
           markFileDirty(targetFileId);
+          console.log('[useDiagram] Position committed to history (drag complete)');
         }
       }
 
@@ -130,6 +137,9 @@ export function useDiagram(fileId?: string) {
       updateFile,
       markFileDirty,
       getEdgeIdsForNode,
+      removeNodeFromFile,
+      removeEdgeFromFile,
+      removeNode,
     ]
   );
   const onEdgesChange = useCallback(

@@ -17,7 +17,9 @@ export function EditMenu() {
   // Connect to the Logic Hook
   const { 
     undo, 
-    redo, 
+    redo,
+    canUndo,
+    canRedo,
     selectAll,
     duplicateSelected,
     deleteSelected,
@@ -33,12 +35,14 @@ export function EditMenu() {
         icon={<Undo2 className="w-4 h-4" />}
         shortcut="Ctrl+Z"
         onClick={undo}
+        disabled={!canUndo}
       />
       <MenubarItem
         label={t("menubar.edit.redo") || "Redo"}
         icon={<Redo2 className="w-4 h-4" />}
         shortcut="Ctrl+Y"
         onClick={redo}
+        disabled={!canRedo}
       />
 
       <div className="h-px bg-surface-border my-1" />

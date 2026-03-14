@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { temporal } from 'zundo';
 import type { DiagramFile, DiagramType, Viewport } from '../core/domain/workspace/diagram-file.types';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
 
@@ -61,12 +62,18 @@ interface WorkspaceStoreState {
  * - Persisted to localStorage
  * - Restores open tabs on page refresh
  * - Preserves viewport positions
+ * 
+ * History (Phase 7):
+ * - Tracks changes to positionMap (node positions)
+ * - Supports undo/redo for layout changes (50 steps)
+ * - History NOT persisted (memory only)
  */
 export const useWorkspaceStore = create<WorkspaceStoreState>()(
   persist(
-    (set, get) => ({
-      files: [],
-      activeFileId: null,
+    temporal(
+      (set, get) => ({
+        files: [],
+        activeFileId: null,
 
       addFile: (file) =>
         set((state) => ({
@@ -247,26 +254,38 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
         }),
     }),
     {
-      name: 'libreuml-workspace-storage',
-      version: 1,
-      storage: {
-        getItem: (name) => {
-          const value = storageAdapter.getItem(name);
-          return value ? JSON.parse(value) : null;
-        },
-        setItem: (name, value) => {
-          storageAdapter.setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => {
-          storageAdapter.removeItem(name);
-        },
-      },
-      onRehydrateStorage: () => (state) => {
-        if (state && state.files.length === 0) {
-          const defaultFile = state.createNewFile('CLASS_DIAGRAM', 'Untitled Diagram');
-          state.addFile(defaultFile);
-        }
+      // PHASE 7: Temporal (undo/redo) configuration for positions
+      limit: 50,
+      equality: (a, b) => a === b,
+      partialize: (state) => {
+        // Only track files array (which contains positionMap in metadata)
+        // Don't track activeFileId changes
+        const { files } = state;
+        return { files } as any;
       },
     }
+  ),
+  {
+    name: 'libreuml-workspace-storage',
+    version: 1,
+    storage: {
+      getItem: (name) => {
+        const value = storageAdapter.getItem(name);
+        return value ? JSON.parse(value) : null;
+      },
+      setItem: (name, value) => {
+        storageAdapter.setItem(name, JSON.stringify(value));
+      },
+      removeItem: (name) => {
+        storageAdapter.removeItem(name);
+      },
+    },
+    onRehydrateStorage: () => (state) => {
+      if (state && state.files.length === 0) {
+        const defaultFile = state.createNewFile('CLASS_DIAGRAM', 'Untitled Diagram');
+        state.addFile(defaultFile);
+      }
+    },
+  }
   )
 );

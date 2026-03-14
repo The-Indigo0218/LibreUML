@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { temporal } from 'zundo';
 import type { DomainNode } from '../core/domain/models/nodes';
 import type { DomainEdge } from '../core/domain/models/edges';
 import { normalizeAllNodeTypes } from './migrations/normalize-node-types';
@@ -58,12 +59,18 @@ interface ProjectStoreState {
  * - Persisted to localStorage
  * - Survives page refreshes
  * - Can be exported/imported for file saving
+ * 
+ * History (Phase 7):
+ * - Tracks changes to nodes and edges
+ * - Supports undo/redo (50 steps)
+ * - History NOT persisted (memory only)
  */
 export const useProjectStore = create<ProjectStoreState>()(
   persist(
-    (set, get) => ({
-      nodes: {},
-      edges: {},
+    temporal(
+      (set, get) => ({
+        nodes: {},
+        edges: {},
 
 
       addNode: (node) =>
@@ -315,28 +322,39 @@ export const useProjectStore = create<ProjectStoreState>()(
       },
     }),
     {
-      name: 'libreuml-project-storage',
-      version: 1,
-      storage: {
-        getItem: (name) => {
-          const value = storageAdapter.getItem(name);
-          return value ? JSON.parse(value) : null;
-        },
-        setItem: (name, value) => {
-          storageAdapter.setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => {
-          storageAdapter.removeItem(name);
-        },
-      },
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          const normalizedNodes = normalizeAllNodeTypes(state.nodes);
-          if (normalizedNodes !== state.nodes) {
-            state.nodes = normalizedNodes;
-          }
-        }
+      // PHASE 7: Temporal (undo/redo) configuration
+      limit: 50, // Maximum 50 history steps
+      equality: (a, b) => a === b, // Use reference equality for performance
+      partialize: (state) => {
+        // Only track nodes and edges in history
+        const { nodes, edges } = state;
+        return { nodes, edges } as any;
       },
     }
+  ),
+  {
+    name: 'libreuml-project-storage',
+    version: 1,
+    storage: {
+      getItem: (name) => {
+        const value = storageAdapter.getItem(name);
+        return value ? JSON.parse(value) : null;
+      },
+      setItem: (name, value) => {
+        storageAdapter.setItem(name, JSON.stringify(value));
+      },
+      removeItem: (name) => {
+        storageAdapter.removeItem(name);
+      },
+    },
+    onRehydrateStorage: () => (state) => {
+      if (state) {
+        const normalizedNodes = normalizeAllNodeTypes(state.nodes);
+        if (normalizedNodes !== state.nodes) {
+          state.nodes = normalizedNodes;
+        }
+      }
+    },
+  }
   )
 );

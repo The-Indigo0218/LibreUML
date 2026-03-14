@@ -1,7 +1,7 @@
-import { Folder, Wrench } from "lucide-react";
+import { Folder, Wrench, Clock } from "lucide-react";
 import { useSettingsStore } from "../../../../store/settingsStore";
 
-export type ActivityTab = "explorer" | "tools" | null;
+export type ActivityTab = "explorer" | "tools" | "timeline" | null;
 
 interface ActivityBarProps {
   activeTab: ActivityTab;
@@ -33,6 +33,14 @@ export default function ActivityBar({ activeTab, onTabChange }: ActivityBarProps
         label="Herramientas de Diagrama"
         isActive={activeTab === "tools"}
         onClick={() => handleTabClick("tools")}
+        isDark={isDark}
+      />
+
+      <ActivityBarIcon
+        icon={<Clock className="w-5 h-5" />}
+        label="Timeline (Undo/Redo History)"
+        isActive={activeTab === "timeline"}
+        onClick={() => handleTabClick("timeline")}
         isDark={isDark}
       />
     </aside>

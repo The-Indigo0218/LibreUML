@@ -1,6 +1,7 @@
 import type { ActivityTab } from "./ActivityBar";
 import PackageExplorer from "./PackageExplorer";
 import Sidebar from "./Sidebar";
+import { TimelinePanel } from "../timeline/TimelinePanel";
 import { useSettingsStore } from "../../../../store/settingsStore";
 
 interface PrimarySideBarProps {
@@ -19,6 +20,7 @@ export default function PrimarySideBar({ activeTab }: PrimarySideBarProps) {
     }`}>
       {activeTab === "explorer" && <PackageExplorer />}
       {activeTab === "tools" && <Sidebar />}
+      {activeTab === "timeline" && <TimelinePanel />}
     </div>
   );
 }

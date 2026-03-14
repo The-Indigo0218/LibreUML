@@ -3,18 +3,23 @@ import { useUiStore } from "../../../../store/uiStore";
 import { useProjectStore } from "../../../../store/project.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useReactFlow } from "reactflow";
+import { useHistoryActions } from "./useHistoryActions";
 
 /**
  * PHASE 4.5: Edit Actions - SSOT Implementation
+ * PHASE 7: Integrated with History (Undo/Redo)
  * 
  * Provides edit operations that work with the SSOT architecture:
  * - Selection management via React Flow
  * - Duplicate/Delete operations via ProjectStore + WorkspaceStore
- * - Undo/Redo (TODO: requires history middleware)
+ * - Undo/Redo via zundo temporal middleware
  */
 export const useEditActions = () => {
   const { openClassEditor } = useUiStore();
   const { getNodes, getEdges, setNodes, setEdges } = useReactFlow();
+
+  // PHASE 7: History actions
+  const { undo: historyUndo, redo: historyRedo, canUndo, canRedo } = useHistoryActions();
 
   // ProjectStore actions
   const getNode = useProjectStore((s) => s.getNode);
@@ -154,12 +159,12 @@ export const useEditActions = () => {
   }, [getNodes, openClassEditor]);
 
   const undo = useCallback(() => {
-    console.warn("TODO: SSOT - Undo not implemented. Requires history middleware (e.g., zundo)");
-  }, []);
+    historyUndo();
+  }, [historyUndo]);
 
   const redo = useCallback(() => {
-    console.warn("TODO: SSOT - Redo not implemented. Requires history middleware (e.g., zundo)");
-  }, []);
+    historyRedo();
+  }, [historyRedo]);
 
   return {
     selectAll,
@@ -169,6 +174,8 @@ export const useEditActions = () => {
     editSelected,
     undo,
     redo,
+    canUndo,
+    canRedo,
     openClassEditor,
   };
 };

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronRight, ChevronDown, Hash, FunctionSquare } from "lucide-react";
+import { ChevronRight, ChevronDown, Hash, FunctionSquare, Settings } from "lucide-react";
 import type { UmlAttribute, UmlMethod } from "../../../types/diagram.types";
 import type { ClassItemProps } from "./types";
 
@@ -9,7 +9,8 @@ export function ClassItem({
   isExpanded, 
   isRenaming,
   onToggle, 
-  onClassClick, 
+  onClassClick,
+  onEditClass,
   onContextMenu,
   onRename,
   onCancelRename
@@ -108,7 +109,7 @@ export function ClassItem({
           <div className="w-4" />
         )}
         
-        <div onClick={() => !isRenaming && onClassClick(classNode.id)} className="flex items-center gap-2 flex-1">
+        <div onClick={() => !isRenaming && onClassClick(classNode.id)} className="flex items-center gap-2 flex-1 min-w-0">
           {getStereotypeIcon(classNode.data.stereotype)}
           {isRenaming ? (
             <input
@@ -132,6 +133,20 @@ export function ClassItem({
             </span>
           )}
         </div>
+
+        {/* Edit Button - Only visible on hover */}
+        {!isRenaming && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditClass(classNode.id);
+            }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-surface-secondary rounded text-text-muted hover:text-uml-class-border"
+            title="Edit Properties"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {isExpanded && (

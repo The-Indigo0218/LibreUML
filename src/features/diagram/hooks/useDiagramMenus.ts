@@ -36,12 +36,15 @@ export const useDiagramMenus = ({
 
   const { addNodeToDiagram, file, registry } = useDiagram();
   const getNode = useProjectStore((s) => s.getNode);
+  const addNode = useProjectStore((s) => s.addNode);
   const getEdge = useProjectStore((s) => s.getEdge);
   const removeNode = useProjectStore((s) => s.removeNode);
   const removeEdge = useProjectStore((s) => s.removeEdge);
   const updateEdge = useProjectStore((s) => s.updateEdge);
   const getEdgesForNode = useProjectStore((s) => s.getEdgesForNode);
   const getEdgeIdsForNode = useProjectStore((s) => s.getEdgeIdsForNode);
+  const addNodeToFile = useWorkspaceStore((s) => s.addNodeToFile);
+  const updateFile = useWorkspaceStore((s) => s.updateFile);
   const removeNodeFromFile = useWorkspaceStore((s) => s.removeNodeFromFile);
   const removeEdgeFromFile = useWorkspaceStore((s) => s.removeEdgeFromFile);
   const markFileDirty = useWorkspaceStore((s) => s.markFileDirty);
@@ -73,26 +76,48 @@ export const useDiagramMenus = ({
       const originalNode = getNode(nodeId);
       if (!originalNode) return;
 
+      // Create a new node with the same type
       const newNode = registry.factories.createNode(originalNode.type);
 
-      const updatedNode = {
-        ...newNode,
+      // Copy all properties from original node except id, createdAt, updatedAt
+      const duplicatedNode = {
         ...originalNode,
         id: newNode.id,
         createdAt: newNode.createdAt,
         updatedAt: newNode.updatedAt,
-      };
+        name: `${originalNode.name}_copy`,
+      } as any;
 
+      // Add node to ProjectStore
+      addNode(duplicatedNode);
+
+      // Add node to file
+      addNodeToFile(file.id, newNode.id);
+
+      // Get original position and offset it
       const metadata = file.metadata as any;
       const positionMap = metadata?.positionMap || {};
       const originalPosition = positionMap[nodeId] || { x: 0, y: 0 };
 
-      addNodeToDiagram(updatedNode.type, {
-        x: originalPosition.x + 50,
-        y: originalPosition.y + 50,
+      const newPositionMap = {
+        ...positionMap,
+        [newNode.id]: {
+          x: originalPosition.x + 50,
+          y: originalPosition.y + 50,
+        },
+      };
+
+      // Update file with new position
+      updateFile(file.id, {
+        metadata: {
+          ...file.metadata,
+          positionMap: newPositionMap,
+        } as any,
       });
+
+      markFileDirty(file.id);
     },
-    [file, registry, getNode, addNodeToDiagram]
+    [file, registry, getNode, addNode, addNodeToFile, updateFile, markFileDirty]
   );
 
   const deleteEdge = useCallback(

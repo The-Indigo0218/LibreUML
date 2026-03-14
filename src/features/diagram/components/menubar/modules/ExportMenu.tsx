@@ -1,9 +1,4 @@
-import { 
-  Download, 
-  Image as ImageIcon,
-  Share2,
-  FileCode2 
-} from "lucide-react";
+import { Download, Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";

@@ -1,9 +1,12 @@
-import { BaseEdge, getSmoothStepPath, Position, EdgeLabelRenderer } from 'reactflow';
+import { BaseEdge, getSmoothStepPath, Position, EdgeLabelRenderer, useStore } from 'reactflow';
 import type { EdgeProps } from 'reactflow';
 import { useTranslation } from 'react-i18next';
+import { getEdgeParams } from '../../../../util/geometry';
 
 export default function CustomUmlEdge({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
@@ -18,13 +21,37 @@ export default function CustomUmlEdge({
   
   const { t } = useTranslation();
   
+  const sourceNode = useStore((s) => s.nodeInternals.get(source));
+  const targetNode = useStore((s) => s.nodeInternals.get(target));
+
+  let sx = sourceX;
+  let sy = sourceY;
+  let tx = targetX;
+  let ty = targetY;
+  let sp = sourcePosition;
+  let tp = targetPosition;
+
+  if (sourceNode && targetNode) {
+    const params = getEdgeParams(sourceNode, targetNode);
+    sx = params.sx;
+    sy = params.sy;
+    tx = params.tx;
+    ty = params.ty;
+    sp = params.sourcePos;
+    tp = params.targetPos;
+  }
+
+  if (isNaN(sx) || isNaN(sy) || isNaN(tx) || isNaN(ty)) {
+    return null;
+  }
+
   const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
+    sourceX: sx,
+    sourceY: sy,
+    sourcePosition: sp,
+    targetX: tx,
+    targetY: ty,
+    targetPosition: tp,
     borderRadius: 20,
   });
 
@@ -51,10 +78,10 @@ export default function CustomUmlEdge({
 
   // --- Marker Rendering & Geometry ---
   const getMarkerRotation = () => {
-    switch (targetPosition) {
+    switch (tp) {
       case Position.Top: return 90;
       case Position.Left: return 0;
-      case Position.Bottom: return   -90;
+      case Position.Bottom: return -90;
       case Position.Right: return 180;
       default: return 0;
     }
@@ -68,19 +95,19 @@ export default function CustomUmlEdge({
       case 'inheritance':
       case 'implementation':
         return (
-          <g transform={`translate(${targetX}, ${targetY}) rotate(${rotation})`}>
+          <g transform={`translate(${tx}, ${ty}) rotate(${rotation})`}>
             <path d="M -16,-8 L -16,8 L 0,0 Z" fill={canvasBase} stroke={strokeColor} strokeWidth="2" strokeLinejoin="round" />
           </g>
         );
       case 'aggregation':
         return (
-          <g transform={`translate(${targetX}, ${targetY}) rotate(${rotation})`}>
+          <g transform={`translate(${tx}, ${ty}) rotate(${rotation})`}>
             <path d="M 0,0 L -12,6 L -24,0 L -12,-6 Z" fill={canvasBase} stroke={strokeColor} strokeWidth="2" strokeLinejoin="round" />
           </g>
         );
       case 'composition':
         return (
-          <g transform={`translate(${targetX}, ${targetY}) rotate(${rotation})`}>
+          <g transform={`translate(${tx}, ${ty}) rotate(${rotation})`}>
             <path d="M 0,0 L -12,6 L -24,0 L -12,-6 Z" fill={strokeColor} stroke={strokeColor} strokeWidth="2" strokeLinejoin="round" />
           </g>
         );
@@ -140,7 +167,7 @@ export default function CustomUmlEdge({
 
         {sourceMultiplicity && (
           <div
-            style={getLabelStyle(sourceX, sourceY, sourcePosition, 10)}
+            style={getLabelStyle(sx, sy, sp, 10)}
             className={`${textStyleClass} z-10`} 
           >
             {sourceMultiplicity}
@@ -149,7 +176,7 @@ export default function CustomUmlEdge({
 
         {targetMultiplicity && (
           <div
-            style={getLabelStyle(targetX, targetY, targetPosition, hasBigMarker ? 28 : 12)} 
+            style={getLabelStyle(tx, ty, tp, hasBigMarker ? 28 : 12)} 
             className={`${textStyleClass} z-10`} 
           >
             {targetMultiplicity}

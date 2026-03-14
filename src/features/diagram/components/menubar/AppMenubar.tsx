@@ -1,14 +1,12 @@
-import { Pencil, UserCircle2 } from "lucide-react"; // Eliminamos 'Box' porque ya no se usa
-import { useDiagramStore } from "../../../../store/diagramStore";
+import { Pencil, UserCircle2 } from "lucide-react";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
 import WindowControls from "../../../../components/ui/menubar/WindowControls";
 import { useDiagramActions } from "../../hooks/useDiagramActions";
 import { useState, useRef, useEffect } from "react";
 
-// Modales
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 
-// Modules
 import { FileMenu } from "./modules/FileMenu";
 import { ViewMenu } from "./modules/ViewMenu";
 import { SettingsMenu } from "./modules/SettingsMenu";
@@ -19,9 +17,12 @@ import { EduMenu } from "./modules/EduMenu";
 import { HelpMenu } from "./modules/HelpMenu";
 
 export default function AppMenubar() {
-  const diagramName = useDiagramStore((s) => s.diagramName);
-  const setDiagramName = useDiagramStore((s) => s.setDiagramName);
-  const isDirty = useDiagramStore((s) => s.isDirty);
+  const getActiveFile = useWorkspaceStore((s) => s.getActiveFile);
+  const updateFile = useWorkspaceStore((s) => s.updateFile);
+  
+  const activeFile = getActiveFile();
+  const diagramName = activeFile?.name || "Untitled Diagram";
+  const isDirty = activeFile?.isDirty || false;
 
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,11 +39,19 @@ export default function AppMenubar() {
 
   const handleBlur = () => {
     setIsEditing(false);
-    if (!diagramName.trim()) setDiagramName("Untitled Diagram");
+    if (activeFile && !diagramName.trim()) {
+      updateFile(activeFile.id, { name: "Untitled Diagram" });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") setIsEditing(false);
+  };
+
+  const handleNameChange = (newName: string) => {
+    if (activeFile) {
+      updateFile(activeFile.id, { name: newName });
+    }
   };
 
   if (!modalState) return null;
@@ -50,9 +59,7 @@ export default function AppMenubar() {
   return (
     <>
       <header className="h-10 w-full bg-surface-primary border-b border-surface-border flex items-center justify-between select-none drag-region pl-3 pr-0 z-50 shrink-0">
-        {/* LEFT: Logo & Menus */}
         <div className="flex items-center gap-1 h-full">
-          {/* LOGO AREA */}
           <div className="flex items-center gap-2 font-bold text-sm no-drag mr-4">
             <img
               src="/logoTitle.svg"
@@ -76,14 +83,13 @@ export default function AppMenubar() {
           </div>
         </div>
 
-        {/* CENTER: Editable Title */}
         <div className="absolute left-1/2 -translate-x-1/2 text-xs text-text-muted hidden md:flex items-center gap-2 no-drag">
           {isEditing ? (
             <div className="flex items-center bg-white/5 rounded px-1 ring-1 ring-blue-500/30">
               <input
                 ref={inputRef}
                 value={diagramName}
-                onChange={(e) => setDiagramName(e.target.value)}
+                onChange={(e) => handleNameChange(e.target.value)}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
                 className="bg-transparent text-right outline-none w-auto min-w-5 max-w-37.5 text-text-primary"
@@ -109,7 +115,6 @@ export default function AppMenubar() {
           )}
         </div>
 
-        {/* RIGHT: Profile & Controls */}
         <div className="flex items-center no-drag">
           <div
             className="mr-2 p-1.5 text-text-muted/40 cursor-not-allowed flex items-center justify-center rounded-full hover:bg-white/5 relative group"

@@ -208,10 +208,13 @@ export function mapDomainEdgeToView(domainEdge: DomainEdge): EdgeView {
     animated: styleConfig.animated,
     markerEnd: styleConfig.markerEnd,
     
-    // React Flow data payload (contains domain reference)
+    // React Flow data payload (contains domain data for rendering)
     data: {
       domainId: domainEdge.id,
+      type: domainEdge.type.toLowerCase(),
       isHovered: false,
+      sourceMultiplicity: (domainEdge as any).sourceMultiplicity,
+      targetMultiplicity: (domainEdge as any).targetMultiplicity,
     },
   };
 }

@@ -2,11 +2,11 @@ import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { StickyNote } from "lucide-react";
 import type { UmlClassData } from "../../../types/diagram.types";
-import { useDiagramStore } from "../../../../../store/diagramStore";
+import { useProjectStore } from "../../../../../store/project.store";
 import { handleConfig } from "../../../../../config/theme.config";
 
 const UmlNoteNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
-  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
+  const updateNode = useProjectStore((s) => s.updateNode);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingContent, setEditingContent] = useState(false);
@@ -61,7 +61,7 @@ const UmlNoteNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
             autoFocus
             className="w-full bg-transparent font-bold text-sm text-uml-note-border outline-none placeholder-uml-note-border/50"
             value={data.label}
-            onChange={(e) => updateNodeData(id, { label: e.target.value })}
+            onChange={(e) => updateNode(id, { name: e.target.value } as any)}
             onBlur={() => setEditingTitle(false)}
             onKeyDown={(e) => e.key === "Enter" && setEditingTitle(false)}
             placeholder="Título..."
@@ -87,7 +87,7 @@ const UmlNoteNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
             autoFocus
             className="w-full h-full min-h-20 bg-transparent resize-none outline-none text-xs text-text-secondary leading-relaxed font-mono"
             value={data.content || ""}
-            onChange={(e) => updateNodeData(id, { content: e.target.value })}
+            onChange={(e) => updateNode(id, { content: e.target.value } as any)}
             onBlur={() => setEditingContent(false)}
             placeholder="Escribe aquí..."
           />

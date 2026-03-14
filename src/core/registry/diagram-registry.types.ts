@@ -37,23 +37,16 @@ export interface DiagramTypeRegistry {
  * Validator interface for diagram-specific rules
  */
 export interface DiagramValidator {
-  /**
-   * Validate if a connection between two nodes is allowed
-   */
   validateConnection(
     sourceNode: DomainNode,
     targetNode: DomainNode,
-    edgeType: string
+    edgeType: string,
+    existingEdges?: DomainEdge[],
+    allNodes?: Record<string, DomainNode>
   ): ValidationResult;
   
-  /**
-   * Validate if a node is valid in this diagram
-   */
   validateNode(node: DomainNode): ValidationResult;
   
-  /**
-   * Validate if an edge is valid in this diagram
-   */
   validateEdge(edge: DomainEdge, sourceNode: DomainNode, targetNode: DomainNode): ValidationResult;
 }
 

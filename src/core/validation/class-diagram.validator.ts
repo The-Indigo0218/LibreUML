@@ -227,8 +227,8 @@ export class ClassDiagramValidator implements BaseValidator {
   }
 
   private validateStructuralRelationship(
-    sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
-    targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode
+    _sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
+    _targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode
   ): ValidationResult {
     return { isValid: true };
   }

@@ -10,8 +10,8 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useReactFlow } from "reactflow";
-import { useDiagramStore } from "../../../../store/diagramStore";
 import { useSettingsStore } from "../../../../store/settingsStore";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { ExportService } from "../../../../services/export.service";
 
 interface ExportModalProps {
@@ -23,10 +23,12 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { t } = useTranslation();
   const { getNodes } = useReactFlow();
 
-  // Stores
-  const diagramName = useDiagramStore((s) => s.diagramName);
-  const showAllEdges = useDiagramStore((s) => s.showAllEdges);
-  const toggleShowAllEdges = useDiagramStore((s) => s.toggleShowAllEdges);
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
+  const diagramName = activeFileId ? getFile(activeFileId)?.name : "diagram";
+
+  const showAllEdges = useSettingsStore((s) => s.showAllEdges);
+  const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
 
   const suppressSvgWarning = useSettingsStore((s) => s.suppressSvgWarning);
   const setSuppressSvgWarning = useSettingsStore(
@@ -81,7 +83,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     const bgColor = computedStyle.getPropertyValue("--canvas-base").trim();
 
     //  VISUAL STATE FUNCTION (SNAPSHOT)
-    const originalShowEdgesState = useDiagramStore.getState().showAllEdges;
+    const originalShowEdgesState = useSettingsStore.getState().showAllEdges;
     let stateChanged = false;
 
     if (includeConnections && !originalShowEdgesState) {

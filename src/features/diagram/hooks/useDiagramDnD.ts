@@ -1,14 +1,21 @@
 import { useCallback } from "react";
-import { useReactFlow } from "reactflow";
-import { useDiagramStore } from "../../../store/diagramStore";
-import { checkCollision } from "../../..//util/geometry";
+import { useReactFlow, type Node } from "reactflow";
+import { useDiagram } from "../../workspace/hooks/useDiagram";
+import { checkCollision } from "../../../util/geometry";
 import { NODE_WIDTH, NODE_HEIGHT } from "../../../config/theme.config";
 import type { stereotype } from "../types/diagram.types";
 
+const stereotypeToNodeType: Record<stereotype, string> = {
+  class: 'CLASS',
+  interface: 'INTERFACE',
+  abstract: 'ABSTRACT_CLASS',
+  enum: 'ENUM',
+  note: 'NOTE',
+};
+
 export const useDiagramDnD = () => {
   const { screenToFlowPosition } = useReactFlow();
-
-  const addNode = useDiagramStore((state) => state.addNode);
+  const { addNodeToDiagram, nodes } = useDiagram();
 
   const getCenteredPosition = useCallback(
     (clientX: number, clientY: number) => {
@@ -27,38 +34,40 @@ export const useDiagramDnD = () => {
       event.dataTransfer.dropEffect = "move";
 
       const position = getCenteredPosition(event.clientX, event.clientY);
-
-      const currentNodes = useDiagramStore.getState().nodes;
-
-      const isColliding = checkCollision(position, currentNodes);
+      const isColliding = checkCollision(position, nodes as Node[]);
 
       if (isColliding) {
         event.dataTransfer.dropEffect = "none";
       }
     },
-    [getCenteredPosition],
+    [getCenteredPosition, nodes],
   );
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
 
-      const type = event.dataTransfer.getData(
+      const stereotype = event.dataTransfer.getData(
         "application/reactflow",
       ) as stereotype;
 
-      if (!type) return;
+      if (!stereotype) return;
 
       const position = getCenteredPosition(event.clientX, event.clientY);
-      const currentNodes = useDiagramStore.getState().nodes;
 
-      if (checkCollision(position, currentNodes)) {
+      if (checkCollision(position, nodes as Node[])) {
         return;
       }
 
-      addNode(position, type);
+      const nodeType = stereotypeToNodeType[stereotype];
+      if (!nodeType) {
+        console.warn(`Unknown stereotype: ${stereotype}`);
+        return;
+      }
+
+      addNodeToDiagram(nodeType, position);
     },
-    [addNode, getCenteredPosition],
+    [addNodeToDiagram, getCenteredPosition, nodes],
   );
 
   return { onDragOver, onDrop };

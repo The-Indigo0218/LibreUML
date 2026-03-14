@@ -8,7 +8,8 @@ import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useUiStore } from "../../../../../store/uiStore";
-import { useDiagramStore } from "../../../../../store/diagramStore"; 
+import { useProjectStore } from "../../../../../store/project.store";
+import { useWorkspaceStore } from "../../../../../store/workspace.store";
 import { XmiConverterService } from "../../../../../services/xmiConverter.service";
 import type { UmlClassNode, UmlEdge } from "../../../types/diagram.types";
 
@@ -16,18 +17,49 @@ export function ExportMenu() {
   const { t } = useTranslation();
   const openExportModal = useUiStore((s) => s.openExportModal);
   
-  const nodes = useDiagramStore((s) => s.nodes);
-  const edges = useDiagramStore((s) => s.edges);
-  const diagramName = useDiagramStore((s) => s.diagramName);
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
+  const activeFile = activeFileId ? getFile(activeFileId) : null;
+  const diagramName = activeFile?.name || "diagram";
+
+  const getNodes = useProjectStore((s) => s.getNodes);
+  const getEdges = useProjectStore((s) => s.getEdges);
 
   const handleExportXmi = () => {
+    if (!activeFile) return;
+    
+    const domainNodes = getNodes(activeFile.nodeIds);
+    const domainEdges = getEdges(activeFile.edgeIds);
+
+    const legacyNodes = domainNodes.map(n => ({
+      id: n.id,
+      type: 'umlClass',
+      position: { x: 0, y: 0 },
+      data: {
+        label: (n as any).name,
+        stereotype: n.type.toLowerCase() as any,
+        attributes: (n as any).attributes || [],
+        methods: (n as any).methods || [],
+        generics: (n as any).generics,
+        package: (n as any).package,
+      }
+    }));
+
+    const legacyEdges = domainEdges.map(e => ({
+      id: e.id,
+      source: e.sourceNodeId,
+      target: e.targetNodeId,
+      type: e.type.toLowerCase(),
+      data: { type: e.type.toLowerCase() }
+    }));
+
     const exportId = crypto.randomUUID();
 
     XmiConverterService.downloadXmi(
-      exportId, 
+      exportId,
       diagramName,
-      nodes as unknown as UmlClassNode[],
-      edges as unknown as UmlEdge[]
+      legacyNodes as unknown as UmlClassNode[],
+      legacyEdges as unknown as UmlEdge[]
     );
   };
 

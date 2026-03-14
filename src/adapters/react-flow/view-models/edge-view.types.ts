@@ -36,7 +36,10 @@ export interface EdgeView<_TDomain extends DomainEdge = DomainEdge> {
   // React Flow internal
   data?: {
     domainId: string;
+    type?: string;
     isHovered?: boolean;
+    sourceMultiplicity?: string;
+    targetMultiplicity?: string;
   };
 }
 

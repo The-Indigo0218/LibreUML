@@ -400,16 +400,6 @@ describe('ClassDiagramValidator', () => {
     });
 
     it('should NOT allow self-implementation', () => {
-      const node: ClassNode = {
-        id: 'class-1',
-        type: 'CLASS',
-        name: 'MyClass',
-        attributes: [],
-        methods: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
       const interfaceNode: InterfaceNode = {
         id: 'interface-1',
         type: 'INTERFACE',

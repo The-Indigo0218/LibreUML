@@ -13,8 +13,10 @@ import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useDiagramActions } from "../../../hooks/useDiagramActions";
-import { useDiagramStore } from "../../../../../store/diagramStore";
+import { useWorkspaceStore } from "../../../../../store/workspace.store";
+import { useProjectStore } from "../../../../../store/project.store";
 import { XmiImporterService } from "../../../../../services/xmiImporter.service";
+import { getLayoutedElements } from "../../../../../util/autoLayout";
 
 interface FileMenuProps {
   actions: ReturnType<typeof useDiagramActions>;
@@ -26,7 +28,14 @@ export function FileMenu({ actions }: FileMenuProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const xmiInputRef = useRef<HTMLInputElement>(null);
 
-  const loadDiagram = useDiagramStore((s) => s.loadDiagram);
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
+  const addNodeToFile = useWorkspaceStore((s) => s.addNodeToFile);
+  const addEdgeToFile = useWorkspaceStore((s) => s.addEdgeToFile);
+  const updateFile = useWorkspaceStore((s) => s.updateFile);
+
+  const addNode = useProjectStore((s) => s.addNode);
+  const addEdge = useProjectStore((s) => s.addEdge);
 
   const { 
     handleNew, 
@@ -60,12 +69,64 @@ export function FileMenu({ actions }: FileMenuProps) {
         
         const importedData = XmiImporterService.import(xmlContent);
         
-        loadDiagram({
-          id: crypto.randomUUID(),
+        if (!activeFileId) {
+          alert("Please open or create a diagram file first.");
+          return;
+        }
+
+        const file = getFile(activeFileId);
+        if (!file) return;
+
+        // Determine if we need to auto-layout (if XMI didn't provide coordinates, XmiImporterService uses a grid starting at 80,80)
+        // Auto-layout provides better organization
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+          importedData.nodes,
+          importedData.edges as any,
+          "TB"
+        );
+
+        const newPositionMap: Record<string, { x: number, y: number }> = {
+           ...(file.metadata as any)?.positionMap || {}
+        };
+
+        // Process Nodes
+        layoutedNodes.forEach(node => {
+          const domainNode = {
+            id: node.id,
+            type: node.data.stereotype || "class",
+            name: node.data.label,
+            package: node.data.package || "default",
+            attributes: node.data.attributes || [],
+            methods: node.data.methods || []
+          } as any;
+          
+          addNode(domainNode);
+          addNodeToFile(activeFileId, node.id);
+          newPositionMap[node.id] = node.position;
+        });
+
+        // Process Edges
+        layoutedEdges.forEach(edge => {
+          const domainEdge = {
+            id: edge.id,
+            sourceNodeId: edge.source,
+            targetNodeId: edge.target,
+            type: edge.type || edge.data?.type || "association",
+            sourceMultiplicity: edge.data?.sourceMultiplicity,
+            targetMultiplicity: edge.data?.targetMultiplicity
+          } as any;
+
+          addEdge(domainEdge);
+          addEdgeToFile(activeFileId, edge.id);
+        });
+
+        // Update Workspace File Metadata with Positions
+        updateFile(activeFileId, {
           name: fileName,
-          nodes: importedData.nodes,
-          edges: importedData.edges,
-          viewport: { x: 0, y: 0, zoom: 1 } 
+          metadata: {
+            ...file.metadata,
+            positionMap: newPositionMap
+          } as any
         });
         
         if (xmiInputRef.current) xmiInputRef.current.value = '';

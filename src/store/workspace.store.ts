@@ -64,36 +64,23 @@ interface WorkspaceStoreState {
 export const useWorkspaceStore = create<WorkspaceStoreState>()(
   persist(
     (set, get) => ({
-      // === Initial State ===
       files: [],
       activeFileId: null,
 
-      // === File Management Actions ===
-
-      /**
-       * Adds a new file to the workspace.
-       * Automatically sets it as the active file.
-       */
       addFile: (file) =>
         set((state) => ({
           files: [...state.files, file],
           activeFileId: file.id,
         })),
 
-      /**
-       * Removes a file from the workspace.
-       * If the removed file was active, switches to the previous file.
-       */
       removeFile: (fileId) =>
         set((state) => {
           const newFiles = state.files.filter((f) => f.id !== fileId);
           
           let newActiveFileId = state.activeFileId;
           
-          // If we removed the active file, switch to another
           if (state.activeFileId === fileId) {
             if (newFiles.length > 0) {
-              // Switch to the last file
               newActiveFileId = newFiles[newFiles.length - 1].id;
             } else {
               newActiveFileId = null;
@@ -106,10 +93,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           };
         }),
 
-      /**
-       * Updates a file with partial data.
-       * Automatically updates the `updatedAt` timestamp.
-       */
       updateFile: (fileId, updates) =>
         set((state) => ({
           files: state.files.map((file) =>
@@ -123,45 +106,25 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           ),
         })),
 
-      /**
-       * Gets a file by ID.
-       */
       getFile: (fileId) => {
         return get().files.find((f) => f.id === fileId);
       },
 
-      /**
-       * Gets the currently active file.
-       */
       getActiveFile: () => {
         const { files, activeFileId } = get();
         if (!activeFileId) return undefined;
         return files.find((f) => f.id === activeFileId);
       },
 
-      // === Active File Actions ===
-
-      /**
-       * Sets the active file by ID.
-       */
       setActiveFile: (fileId) =>
         set({
           activeFileId: fileId,
         }),
 
-      /**
-       * Switches to a different file (alias for setActiveFile).
-       */
       switchFile: (fileId) => {
         get().setActiveFile(fileId);
       },
 
-      // === File Content Actions ===
-
-      /**
-       * Adds a node ID to a file's nodeIds array.
-       * Marks the file as dirty.
-       */
       addNodeToFile: (fileId, nodeId) =>
         set((state) => ({
           files: state.files.map((file) =>
@@ -176,10 +139,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           ),
         })),
 
-      /**
-       * Removes a node ID from a file's nodeIds array.
-       * Marks the file as dirty.
-       */
       removeNodeFromFile: (fileId, nodeId) =>
         set((state) => ({
           files: state.files.map((file) =>
@@ -194,10 +153,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           ),
         })),
 
-      /**
-       * Adds an edge ID to a file's edgeIds array.
-       * Marks the file as dirty.
-       */
       addEdgeToFile: (fileId, edgeId) =>
         set((state) => ({
           files: state.files.map((file) =>
@@ -212,10 +167,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           ),
         })),
 
-      /**
-       * Removes an edge ID from a file's edgeIds array.
-       * Marks the file as dirty.
-       */
       removeEdgeFromFile: (fileId, edgeId) =>
         set((state) => ({
           files: state.files.map((file) =>
@@ -230,12 +181,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           ),
         })),
 
-      // === Viewport Actions ===
-
-      /**
-       * Updates the viewport state for a specific file.
-       * Used when user pans/zooms the canvas.
-       */
       updateFileViewport: (fileId, viewport) =>
         set((state) => ({
           files: state.files.map((file) =>
@@ -249,11 +194,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           ),
         })),
 
-      // === Dirty State Actions ===
-
-      /**
-       * Marks a file as having unsaved changes.
-       */
       markFileDirty: (fileId) =>
         set((state) => ({
           files: state.files.map((file) =>
@@ -267,9 +207,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           ),
         })),
 
-      /**
-       * Marks a file as saved (no unsaved changes).
-       */
       markFileClean: (fileId) =>
         set((state) => ({
           files: state.files.map((file) =>
@@ -282,12 +219,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           ),
         })),
 
-      // === Utility Actions ===
-
-      /**
-       * Creates a new diagram file with default settings.
-       * Returns the created file (does not add it to the store).
-       */
       createNewFile: (diagramType, name) => {
         const now = Date.now();
         const file: DiagramFile = {
@@ -308,10 +239,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
         return file;
       },
 
-      /**
-       * Closes all open files.
-       * USE WITH CAUTION: Unsaved changes will be lost.
-       */
       closeAllFiles: () =>
         set({
           files: [],
@@ -321,6 +248,12 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
     {
       name: 'libreuml-workspace-storage',
       version: 1,
+      onRehydrateStorage: () => (state) => {
+        if (state && state.files.length === 0) {
+          const defaultFile = state.createNewFile('CLASS_DIAGRAM', 'Untitled Diagram');
+          state.addFile(defaultFile);
+        }
+      },
     }
   )
 );

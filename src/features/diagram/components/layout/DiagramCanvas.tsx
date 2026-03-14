@@ -6,9 +6,12 @@ import ReactFlow, {
   ConnectionMode,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { useRef, useEffect } from "react"; 
-import { useDiagramStore } from "../../../../store/diagramStore";
+import { useRef, useEffect, useCallback } from "react"; 
 import { useUiStore } from "../../../../store/uiStore"; 
+import { useProjectStore } from "../../../../store/project.store";
+import { useSettingsStore } from "../../../../store/settingsStore";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useDiagram } from "../../../workspace/hooks/useDiagram";
 import { canvasConfig, miniMapColors } from "../../../../config/theme.config";
 
 // Components
@@ -48,20 +51,35 @@ const edgeTypes = {
 export default function DiagramCanvas() {
   const { t } = useTranslation();
 
-  // --- GLOBAL STATE (Business Logic) ---
+  // === NEW: Use Integration Hook (SSOT Architecture) ===
   const {
     nodes,
-    edges, 
+    edges,
     onNodesChange,
     onEdgesChange,
     onConnect,
-    clearCanvas,
-    updateNodeData,
-    updateEdgeData, 
-    showMiniMap,
-    showGrid,
-    snapToGrid
-  } = useDiagramStore();
+    file,
+    isReady,
+  } = useDiagram();
+
+  // === Settings (UI Preferences from SettingsStore) ===
+  const showMiniMap = useSettingsStore((s) => s.showMiniMap);
+  const showGrid = useSettingsStore((s) => s.showGrid);
+  const snapToGrid = useSettingsStore((s) => s.snapToGrid);
+
+  // === Domain Data Accessors (ProjectStore) ===
+  const updateNode = useProjectStore((s) => s.updateNode);
+  const updateEdge = useProjectStore((s) => s.updateEdge);
+  const getNode = useProjectStore((s) => s.getNode);
+  const getEdge = useProjectStore((s) => s.getEdge);
+  const removeNode = useProjectStore((s) => s.removeNode);
+  const removeEdge = useProjectStore((s) => s.removeEdge);
+
+  // === Workspace Actions ===
+  const removeNodeFromFile = useWorkspaceStore((s) => s.removeNodeFromFile);
+  const removeEdgeFromFile = useWorkspaceStore((s) => s.removeEdgeFromFile);
+  const updateFile = useWorkspaceStore((s) => s.updateFile);
+  const markFileDirty = useWorkspaceStore((s) => s.markFileDirty);
 
   // --- UI STATE (Modals & Interactions) ---
   const { 
@@ -74,8 +92,9 @@ export default function DiagramCanvas() {
     closeModals 
   } = useUiStore();
 
-  const editingNode = nodes.find((n) => n.id === editingId);
-  const editingEdge = edges.find((e) => e.id === editingId);
+  // === Fetch editing entities from ProjectStore ===
+  const editingNode = editingId ? getNode(editingId) : undefined;
+  const editingEdge = editingId ? getEdge(editingId) : undefined;
 
   // Ref for Drag & Drop
   const nodesRef = useRef(nodes);
@@ -87,7 +106,33 @@ export default function DiagramCanvas() {
   useKeyboardShortcuts();
   const { displayEdges, setHoveredNodeId, setHoveredEdgeId } = useEdgeStyling();
   const { onDragOver, onDrop } = useDiagramDnD();
-  
+
+  const clearCanvas = useCallback(() => {
+    if (!file) return;
+
+    const nodeIds = [...file.nodeIds];
+    const edgeIds = [...file.edgeIds];
+
+    edgeIds.forEach((edgeId) => {
+      removeEdgeFromFile(file.id, edgeId);
+      removeEdge(edgeId);
+    });
+
+    nodeIds.forEach((nodeId) => {
+      removeNodeFromFile(file.id, nodeId);
+      removeNode(nodeId);
+    });
+
+    updateFile(file.id, {
+      metadata: {
+        ...file.metadata,
+        positionMap: {},
+      } as any,
+    });
+
+    markFileDirty(file.id);
+  }, [file, removeEdgeFromFile, removeEdge, removeNodeFromFile, removeNode, updateFile, markFileDirty]);
+
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (id) => openClassEditor(id),
     onClearCanvas: () => openClearConfirmation(),
@@ -108,11 +153,20 @@ export default function DiagramCanvas() {
   // History Logic on Drag
   const { onNodeDragStart, onNodeDragStop } = useNodeDragging();
 
+  // === Loading State ===
+  if (!isReady) {
+    return (
+      <div className="flex w-full h-full items-center justify-center bg-canvas-base">
+        <div className="text-gray-400">{t("canvas.loading") || "Loading diagram..."}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full bg-canvas-base">
       <ReactFlow
-        nodes={nodes}
-        edges={displayEdges}
+        nodes={nodes as any}
+        edges={displayEdges as any}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -157,11 +211,15 @@ export default function DiagramCanvas() {
             className="shadow-2xl rounded-lg overflow-hidden border border-surface-border bg-surface-primary bottom-4! right-4!"
             maskColor="rgba(11, 15, 26, 0.7)"
             nodeColor={(node) => {
+              // Note: node.type in ReactFlow view is the component type (umlClass, umlNote)
+              // node.data contains the domain node data
               if (node.type === "umlNote") return miniMapColors.note;
-              if (node.data.stereotype === "interface")
-                return miniMapColors.interface;
-              if (node.data.stereotype === "abstract")
-                return miniMapColors.abstract;
+              
+              // Access domain node type from node.data
+              const domainType = (node.data as any)?.type;
+              if (domainType === "INTERFACE") return miniMapColors.interface;
+              if (domainType === "ABSTRACT_CLASS") return miniMapColors.abstract;
+              
               return miniMapColors.class;
             }}
           />
@@ -174,6 +232,7 @@ export default function DiagramCanvas() {
           y={menu.y}
           options={getMenuOptions(menu)}
           onClose={closeMenu}
+          centered={menu.type === "node"}
         />
       )}
 
@@ -181,10 +240,60 @@ export default function DiagramCanvas() {
         <ClassEditorModal
           key={editingId}
           isOpen={true}
-          umlData={editingNode.data}
+          umlData={
+            // Map domain node to modal's expected format
+            editingNode.type === 'CLASS' || 
+            editingNode.type === 'INTERFACE' || 
+            editingNode.type === 'ABSTRACT_CLASS'
+              ? {
+                  label: editingNode.name,
+                  generics: editingNode.generics,
+                  attributes: editingNode.type !== 'INTERFACE' ? editingNode.attributes : [],
+                  methods: editingNode.methods,
+                  stereotype: 
+                    editingNode.type === 'CLASS' ? 'class' : 
+                    editingNode.type === 'INTERFACE' ? 'interface' : 'abstract',
+                  package: editingNode.package,
+                }
+              : editingNode.type === 'ENUM'
+              ? {
+                  label: editingNode.name,
+                  attributes: [],
+                  methods: [],
+                  stereotype: 'enum',
+                  package: editingNode.package,
+                }
+              : {
+                  label: '',
+                  attributes: [],
+                  methods: [],
+                  stereotype: 'class',
+                }
+          }
           onClose={closeModals}
           onSave={(newData) => {
-            updateNodeData(editingNode.id, newData);
+            // Map modal data back to domain node structure
+            if (editingNode.type === 'CLASS' || editingNode.type === 'ABSTRACT_CLASS') {
+              updateNode(editingNode.id, {
+                name: newData.label,
+                generics: newData.generics,
+                attributes: newData.attributes,
+                methods: newData.methods,
+                package: newData.package,
+              });
+            } else if (editingNode.type === 'INTERFACE') {
+              updateNode(editingNode.id, {
+                name: newData.label,
+                generics: newData.generics,
+                methods: newData.methods,
+                package: newData.package,
+              });
+            } else if (editingNode.type === 'ENUM') {
+              updateNode(editingNode.id, {
+                name: newData.label,
+                package: newData.package,
+              });
+            }
             closeModals();
           }}
         />
@@ -193,14 +302,27 @@ export default function DiagramCanvas() {
       {activeModal === 'multiplicity-editor' && editingEdge && (
         <MultiplicityModal
           isOpen={true}
-          initialSource={(editingEdge.data?.sourceMultiplicity as string) || ""}
-          initialTarget={(editingEdge.data?.targetMultiplicity as string) || ""}
+          initialSource={
+            (editingEdge.type === 'ASSOCIATION' || 
+             editingEdge.type === 'AGGREGATION' || 
+             editingEdge.type === 'COMPOSITION')
+              ? (editingEdge as any).sourceMultiplicity || ""
+              : ""
+          }
+          initialTarget={
+            (editingEdge.type === 'ASSOCIATION' || 
+             editingEdge.type === 'AGGREGATION' || 
+             editingEdge.type === 'COMPOSITION')
+              ? (editingEdge as any).targetMultiplicity || ""
+              : ""
+          }
           onClose={closeModals}
           onSave={(source, target) => {
-            updateEdgeData(editingEdge.id, {
+            updateEdge(editingEdge.id, {
               sourceMultiplicity: source,
-              targetMultiplicity: target
-            });
+              targetMultiplicity: target,
+            } as any);
+            closeModals();
           }}
         />
       )}

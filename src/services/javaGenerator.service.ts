@@ -1,10 +1,6 @@
 import type { DomainNode } from "../core/domain/models/nodes";
 import type { DomainEdge } from "../core/domain/models/edges";
 import type {
-  ClassNode,
-  InterfaceNode,
-  AbstractClassNode,
-  EnumNode,
   ClassAttribute,
   ClassMethod,
 } from "../core/domain/models/nodes/class-diagram.types";

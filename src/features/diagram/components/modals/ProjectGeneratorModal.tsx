@@ -1,10 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Package, Download, Box, Hammer, Coffee } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-// import { useProjectStore } from "../../../../store/project.store"; // TODO: Will be needed for SSOT conversion
-// import { useShallow } from "zustand/react/shallow"; // TODO: Will be needed for SSOT conversion
+import { useProjectStore } from "../../../../store/project.store";
 import { ProjectZipperService } from "../../../../services/project-zipper.service";
-import type { UmlClassNode, UmlEdge } from "../../types/diagram.types";
 import { useTranslation } from "react-i18next";
 
 interface Props {
@@ -13,24 +11,24 @@ interface Props {
 }
 
 export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
-  // TODO: SSOT Migration - Need to convert SSOT nodes to UmlClassNode format
-  // When implementing, fetch nodes like this:
-  // const activeNodes = useProjectStore(useShallow(s => {
-  //   if (!activeFileId) return [];
-  //   const file = useWorkspaceStore.getState().getFile(activeFileId);
-  //   if (!file) return [];
-  //   return file.nodeIds.map(id => s.nodes[id]).filter(Boolean);
-  // }));
-  
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const getFile = useWorkspaceStore((s) => s.getFile);
+  const getNodes = useProjectStore((s) => s.getNodes);
+  const getEdges = useProjectStore((s) => s.getEdges);
   
   const activeFile = activeFileId ? getFile(activeFileId) : undefined;
   const diagramName = activeFile?.name || "Untitled";
   
-  // TODO: Convert SSOT nodes/edges to legacy format for ProjectZipperService
-  const nodes: UmlClassNode[] = [];
-  const edges: UmlEdge[] = [];
+  // PHASE 4: Fetch domain nodes and edges from ProjectStore
+  const nodes = useMemo(() => {
+    if (!activeFile) return [];
+    return getNodes(activeFile.nodeIds);
+  }, [activeFile, getNodes]);
+
+  const edges = useMemo(() => {
+    if (!activeFile) return [];
+    return getEdges(activeFile.edgeIds);
+  }, [activeFile, getEdges]);
   
   const { t } = useTranslation();
   
@@ -49,7 +47,9 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
     }
   }, [isOpen, diagramName]);
 
-  const classNodes = nodes.filter(n => n.type === 'umlClass') as UmlClassNode[];
+  const classNodes = useMemo(() => 
+    nodes.filter(n => n.type === 'CLASS' || n.type === 'INTERFACE' || n.type === 'ABSTRACT_CLASS' || n.type === 'ENUM'),
+  [nodes]);
 
   const packageName = `${groupId}.${artifactId}`.replace(/\.\./g, ".").toLowerCase();
 
@@ -58,14 +58,15 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
  const handleGenerate = async () => {
     setIsGenerating(true);
     try {
+      // PHASE 4: Pass domain nodes directly to ProjectZipperService
       await ProjectZipperService.generateAndDownloadZip({
         projectName: artifactId, 
         groupId,
         artifactId,      
         packageName,     
         nodes: classNodes,
-        allNodes: nodes as UmlClassNode[], 
-        edges: edges as UmlEdge[],    
+        allNodes: nodes, 
+        edges: edges,    
         javaVersion,     
         buildTool        
       });

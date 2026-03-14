@@ -299,5 +299,16 @@
     "aggregation": "has a",
     "dependency": "uses",
     "association": ""
+  },
+  "welcome": {
+    "title": "LibreUML",
+    "subtitle": "Free & Open Source UML Class Diagram Editor",
+    "actions": {
+      "newProject": "New Project",
+      "viewDocs": "View Documentation",
+      "starGitHub": "Star on GitHub",
+      "viewSource": "View Source Code"
+    },
+    "hint": "Start by creating a new project or opening an existing diagram"
   }
 }

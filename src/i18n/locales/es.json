@@ -300,5 +300,16 @@
     "aggregation": "tiene un",
     "dependency": "usa",
     "association": ""
+  },
+  "welcome": {
+    "title": "LibreUML",
+    "subtitle": "Editor de Diagramas de Clases UML Libre y de Código Abierto",
+    "actions": {
+      "newProject": "Nuevo Proyecto",
+      "viewDocs": "Ver Documentación",
+      "starGitHub": "Dar Estrella en GitHub",
+      "viewSource": "Ver Código Fuente"
+    },
+    "hint": "Comienza creando un nuevo proyecto o abriendo un diagrama existente"
   }
 }

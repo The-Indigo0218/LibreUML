@@ -9,6 +9,7 @@ import {
 } from '../../../adapters/react-flow/mappers';
 import type { NodeView } from '../../../adapters/react-flow/view-models/node-view.types';
 import type { EdgeView } from '../../../adapters/react-flow/view-models/edge-view.types';
+import type { DomainNode } from '../../../core/domain/models/nodes';
 
 /**
  * Position map stored per file for UI state
@@ -219,7 +220,12 @@ export function useDiagram(fileId?: string) {
       const validationResult = registry.validator.validateConnection(
         sourceNode,
         targetNode,
-        edgeType
+        edgeType,
+        domainEdges,
+        domainNodes.reduce((acc, node) => {
+          acc[node.id] = node;
+          return acc;
+        }, {} as Record<string, DomainNode>)
       );
 
       if (!validationResult.isValid) {

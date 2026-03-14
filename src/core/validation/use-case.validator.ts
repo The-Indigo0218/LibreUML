@@ -1,6 +1,7 @@
 import type { DomainNode } from '../domain/models/nodes';
 import type { DomainEdge } from '../domain/models/edges';
-import type { DiagramValidator, ValidationResult } from '../registry/diagram-registry.types';
+import type { BaseValidator } from './base-validator.types';
+import type { ValidationResult } from '../registry/diagram-registry.types';
 import type {
   ActorNode,
   UseCaseNode,
@@ -8,25 +9,13 @@ import type {
 } from '../domain/models/nodes/use-case.types';
 import type { UseCaseDiagramEdge } from '../domain/models/edges/use-case.types';
 
-/**
- * Use Case Diagram Validator
- * Implements UML 2.5 validation rules for Use Case Diagrams.
- */
-export class UseCaseDiagramValidator implements DiagramValidator {
-  /**
-   * Validates if a connection between two nodes is allowed.
-   * 
-   * Rules:
-   * - ASSOCIATION: Actor ↔ Use Case (bidirectional)
-   * - INCLUDE: Use Case → Use Case
-   * - EXTEND: Use Case → Use Case
-   * - GENERALIZATION: Actor → Actor OR Use Case → Use Case
-   * - INVALID: Actor → System Boundary, System Boundary → anything
-   */
+export class UseCaseDiagramValidator implements BaseValidator {
   validateConnection(
     sourceNode: DomainNode,
     targetNode: DomainNode,
-    edgeType: string
+    edgeType: string,
+    _existingEdges?: DomainEdge[],
+    _allNodes?: Record<string, DomainNode>
   ): ValidationResult {
     const sourceType = sourceNode.type;
     const targetType = targetNode.type;

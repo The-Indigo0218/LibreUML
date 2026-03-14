@@ -15,29 +15,14 @@ import type {
   CompositionEdge,
 } from '../domain/models/edges/class-diagram.types';
 
-/**
- * Class Diagram Validator
- * 
- * Implements UML 2.5 and Java semantic validation rules for Class Diagrams.
- * 
- * Key Rules:
- * - Classes can inherit from Classes or Abstract Classes
- * - Interfaces can only inherit from other Interfaces
- * - Enums cannot inherit from anything
- * - Classes, Abstract Classes, and Enums can implement Interfaces
- * - Interfaces cannot implement anything (they extend)
- * - All names must be valid Java identifiers
- */
 export class ClassDiagramValidator implements BaseValidator {
-  /**
-   * Validates a connection between two nodes
-   */
   validateConnection(
     sourceNode: DomainNode,
     targetNode: DomainNode,
-    edgeType: string
+    edgeType: string,
+    existingEdges: DomainEdge[] = [],
+    allNodes: Record<string, DomainNode> = {}
   ): ValidationResult {
-    // Type guard: ensure we're working with Class Diagram nodes
     if (!this.isClassDiagramNode(sourceNode) || !this.isClassDiagramNode(targetNode)) {
       return {
         isValid: false,
@@ -45,10 +30,9 @@ export class ClassDiagramValidator implements BaseValidator {
       };
     }
 
-    // Validate based on edge type
     switch (edgeType as ClassDiagramEdgeType) {
       case 'INHERITANCE':
-        return this.validateInheritance(sourceNode, targetNode);
+        return this.validateInheritance(sourceNode, targetNode, existingEdges, allNodes);
       
       case 'IMPLEMENTATION':
         return this.validateImplementation(sourceNode, targetNode);
@@ -57,7 +41,7 @@ export class ClassDiagramValidator implements BaseValidator {
       case 'AGGREGATION':
       case 'COMPOSITION':
       case 'DEPENDENCY':
-        return this.validateStructuralRelationship(sourceNode, targetNode, edgeType);
+        return this.validateStructuralRelationship(sourceNode, targetNode);
       
       default:
         return {
@@ -67,9 +51,6 @@ export class ClassDiagramValidator implements BaseValidator {
     }
   }
 
-  /**
-   * Validates a node's domain data
-   */
   validateNode(node: DomainNode): ValidationResult {
     if (!this.isClassDiagramNode(node)) {
       return {
@@ -81,22 +62,18 @@ export class ClassDiagramValidator implements BaseValidator {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Validate name (common to all types)
     if (!node.name || node.name.trim() === '') {
       errors.push(`${node.type} name cannot be empty`);
     } else {
-      // Check for spaces
       if (node.name.includes(' ')) {
-        errors.push(`${node.type} name cannot contain spaces`);
+        warnings.push(`${node.type} name contains spaces (not recommended for code generation)`);
       }
 
-      // Check for valid Java identifier
-      if (!this.isValidJavaIdentifier(node.name)) {
-        errors.push(`${node.type} name must be a valid Java identifier`);
+      if (!this.isValidIdentifier(node.name)) {
+        warnings.push(`${node.type} name should be a valid identifier for code generation`);
       }
     }
 
-    // Type-specific validation
     switch (node.type) {
       case 'CLASS':
       case 'ABSTRACT_CLASS':
@@ -119,18 +96,13 @@ export class ClassDiagramValidator implements BaseValidator {
     };
   }
 
-  /**
-   * Validates an edge's domain data
-   */
   validateEdge(
     edge: DomainEdge,
     _sourceNode: DomainNode,
     _targetNode: DomainNode
   ): ValidationResult {
-    const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Validate multiplicity for structural relationships
     if (
       edge.type === 'ASSOCIATION' ||
       edge.type === 'AGGREGATION' ||
@@ -158,19 +130,11 @@ export class ClassDiagramValidator implements BaseValidator {
     }
 
     return {
-      isValid: errors.length === 0,
-      errors: errors.length > 0 ? errors : undefined,
+      isValid: true,
       warnings: warnings.length > 0 ? warnings : undefined,
     };
   }
 
-  // ============================================================================
-  // Private Helper Methods
-  // ============================================================================
-
-  /**
-   * Type guard for Class Diagram nodes
-   */
   private isClassDiagramNode(
     node: DomainNode
   ): node is ClassNode | InterfaceNode | AbstractClassNode | EnumNode {
@@ -182,102 +146,167 @@ export class ClassDiagramValidator implements BaseValidator {
     );
   }
 
-  /**
-   * Validates inheritance relationships
-   */
   private validateInheritance(
     sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
-    targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode
+    targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
+    existingEdges: DomainEdge[],
+    allNodes: Record<string, DomainNode>
   ): ValidationResult {
-    // Rule: Enums cannot inherit from anything
+    if (sourceNode.id === targetNode.id) {
+      return {
+        isValid: false,
+        errors: ['UML 2.5: Self-inheritance is not allowed'],
+      };
+    }
+
+    if (this.wouldCreateCycle(sourceNode.id, targetNode.id, existingEdges, allNodes)) {
+      return {
+        isValid: false,
+        errors: ['UML 2.5: Circular inheritance is not allowed'],
+      };
+    }
+
     if (sourceNode.type === 'ENUM') {
       return {
         isValid: false,
-        errors: ['Enums cannot inherit from other types'],
+        errors: ['UML 2.5: Enumerations cannot have generalizations'],
       };
     }
 
-    // Rule: Cannot inherit from Enum
     if (targetNode.type === 'ENUM') {
       return {
         isValid: false,
-        errors: ['Cannot inherit from an Enum'],
+        errors: ['UML 2.5: Cannot inherit from an Enumeration'],
       };
     }
 
-    // Rule: Interfaces can only inherit from other Interfaces
-    if (sourceNode.type === 'INTERFACE') {
-      if (targetNode.type !== 'INTERFACE') {
-        return {
-          isValid: false,
-          errors: ['Interfaces can only inherit from other Interfaces'],
-        };
-      }
-      return { isValid: true };
-    }
-
-    // Rule: Classes can inherit from Classes or Abstract Classes
-    if (sourceNode.type === 'CLASS' || sourceNode.type === 'ABSTRACT_CLASS') {
-      if (targetNode.type === 'CLASS' || targetNode.type === 'ABSTRACT_CLASS') {
-        return { isValid: true };
-      }
+    if (sourceNode.type === 'INTERFACE' && targetNode.type !== 'INTERFACE') {
       return {
         isValid: false,
-        errors: [`${sourceNode.type} can only inherit from CLASS or ABSTRACT_CLASS`],
+        errors: ['UML 2.5: Interfaces can only generalize other Interfaces'],
+      };
+    }
+
+    if ((sourceNode.type === 'CLASS' || sourceNode.type === 'ABSTRACT_CLASS') &&
+        targetNode.type === 'INTERFACE') {
+      return {
+        isValid: false,
+        errors: ['UML 2.5: Classes cannot inherit from Interfaces (use realization instead)'],
       };
     }
 
     return { isValid: true };
   }
 
-  /**
-   * Validates implementation relationships
-   */
   private validateImplementation(
     sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
     targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode
   ): ValidationResult {
-    // Rule: Can only implement Interfaces
+    if (sourceNode.id === targetNode.id) {
+      return {
+        isValid: false,
+        errors: ['UML 2.5: Self-realization is not allowed'],
+      };
+    }
+
     if (targetNode.type !== 'INTERFACE') {
       return {
         isValid: false,
-        errors: ['Can only implement Interfaces'],
+        errors: ['UML 2.5: Can only realize (implement) Interfaces'],
       };
     }
 
-    // Rule: Interfaces cannot implement (they extend)
     if (sourceNode.type === 'INTERFACE') {
       return {
         isValid: false,
-        errors: ['Interfaces cannot implement interfaces (use inheritance instead)'],
+        errors: ['UML 2.5: Interfaces cannot realize other Interfaces (use generalization instead)'],
       };
     }
 
-    // Classes, Abstract Classes, and Enums can implement Interfaces
     return { isValid: true };
   }
 
-  /**
-   * Validates structural relationships (Association, Aggregation, Composition, Dependency)
-   */
   private validateStructuralRelationship(
-    _sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
-    _targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
-    _edgeType: string
+    sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
+    targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode
   ): ValidationResult {
-    // Structural relationships are generally allowed between any class diagram nodes
     return { isValid: true };
   }
 
-  /**
-   * Validates a Class or Abstract Class node
-   */
+  private wouldCreateCycle(
+    sourceId: string,
+    targetId: string,
+    existingEdges: DomainEdge[],
+    _allNodes: Record<string, DomainNode>
+  ): boolean {
+    const inheritanceEdges = existingEdges.filter(
+      edge => edge.type === 'INHERITANCE'
+    );
+
+    const simulatedEdges = [
+      ...inheritanceEdges,
+      {
+        id: 'temp',
+        type: 'INHERITANCE' as const,
+        sourceNodeId: sourceId,
+        targetNodeId: targetId,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+    ];
+
+    const visited = new Set<string>();
+    const recursionStack = new Set<string>();
+
+    const hasCycle = (nodeId: string): boolean => {
+      if (recursionStack.has(nodeId)) {
+        return true;
+      }
+
+      if (visited.has(nodeId)) {
+        return false;
+      }
+
+      visited.add(nodeId);
+      recursionStack.add(nodeId);
+
+      const children = simulatedEdges
+        .filter(edge => edge.targetNodeId === nodeId)
+        .map(edge => edge.sourceNodeId);
+
+      for (const childId of children) {
+        if (hasCycle(childId)) {
+          return true;
+        }
+      }
+
+      recursionStack.delete(nodeId);
+      return false;
+    };
+
+    const allNodeIds = new Set([
+      sourceId,
+      targetId,
+      ...simulatedEdges.map(e => e.sourceNodeId),
+      ...simulatedEdges.map(e => e.targetNodeId),
+    ]);
+
+    for (const nodeId of allNodeIds) {
+      if (!visited.has(nodeId)) {
+        if (hasCycle(nodeId)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
   private validateClassNode(
     node: ClassNode | AbstractClassNode,
     errors: string[],
     _warnings: string[]
   ): void {
-    // Validate attributes
     node.attributes.forEach((attr, index) => {
       if (!attr.name || attr.name.trim() === '') {
         errors.push(`Attribute at index ${index} has no name`);
@@ -287,19 +316,16 @@ export class ClassDiagramValidator implements BaseValidator {
       }
     });
 
-    // Validate methods
     node.methods.forEach((method, index) => {
       if (!method.name || method.name.trim() === '') {
         errors.push(`Method at index ${index} has no name`);
       }
       
-      // Constructors don't need return type
       const isConstructor = method.name === node.name;
       if (!isConstructor && (!method.returnType || method.returnType.trim() === '')) {
         errors.push(`Method "${method.name || index}" has no return type`);
       }
 
-      // Validate parameters
       method.parameters?.forEach((param, paramIndex) => {
         if (!param.name || param.name.trim() === '') {
           errors.push(`Parameter at index ${paramIndex} in method "${method.name}" has no name`);
@@ -311,33 +337,22 @@ export class ClassDiagramValidator implements BaseValidator {
     });
   }
 
-  /**
-   * Validates an Interface node
-   */
   private validateInterfaceNode(
     _node: InterfaceNode,
     _errors: string[],
     _warnings: string[]
   ): void {
-    // Interfaces in our model don't have attributes
-    // Methods are validated at the type level
-    // Additional validation can be added here if needed
   }
 
-  /**
-   * Validates an Enum node
-   */
   private validateEnumNode(
     node: EnumNode,
     _errors: string[],
     warnings: string[]
   ): void {
-    // Warn if enum has no literals
     if (!node.literals || node.literals.length === 0) {
       warnings.push('Enum has no literals defined');
     }
 
-    // Validate literals
     node.literals?.forEach((literal, index) => {
       if (!literal.name || literal.name.trim() === '') {
         warnings.push(`Enum literal at index ${index} has no name`);
@@ -345,29 +360,15 @@ export class ClassDiagramValidator implements BaseValidator {
     });
   }
 
-  /**
-   * Checks if a string is a valid Java identifier
-   */
-  private isValidJavaIdentifier(name: string): boolean {
-    // Java identifier rules:
-    // - Must start with letter, underscore, or dollar sign
-    // - Can contain letters, digits, underscores, or dollar signs
-    // - Cannot be a Java keyword (simplified check)
-    const javaIdentifierRegex = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
-    return javaIdentifierRegex.test(name);
+  private isValidIdentifier(name: string): boolean {
+    const identifierRegex = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+    return identifierRegex.test(name);
   }
 
-  /**
-   * Validates multiplicity format
-   */
   private isValidMultiplicity(multiplicity: string): boolean {
-    // Valid formats: 1, *, 0..1, 1..*, 0..*, n, 1..n, etc.
     const multiplicityRegex = /^(\d+|\*|n)(\.\.((\d+|\*|n)))?$/;
     return multiplicityRegex.test(multiplicity);
   }
 }
 
-/**
- * Singleton instance for use across the application
- */
 export const classDiagramValidator = new ClassDiagramValidator();

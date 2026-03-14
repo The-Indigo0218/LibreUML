@@ -1,26 +1,28 @@
-import { useState } from "react";
-import {
-  Box,
-  CircleDot,
-  BoxSelect,
-  StickyNote,
-  List,
-  ArrowUpRight,
-  GitCommitHorizontal,
-  ArrowUp,
-  MoveRight,
-  ChevronDown,
-  ChevronRight,
-  Diamond,
-} from "lucide-react";
+import { useState, useMemo } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import type { stereotype, UmlRelationType } from "../../types/diagram.types";
 import { edgeConfig } from "../../../../config/theme.config";
 import { useTranslation } from "react-i18next";
+import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
+import { getIconComponent } from "../../../../core/registry/icon-map";
 
 export default function Sidebar() {
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
   const updateFile = useWorkspaceStore((s) => s.updateFile);
+
+  const activeFile = activeFileId ? getFile(activeFileId) : null;
+  const diagramType = activeFile?.diagramType || 'CLASS_DIAGRAM'; 
+
+  const registry = useMemo(() => {
+    try {
+      return getDiagramRegistry(diagramType);
+    } catch (error) {
+      console.error('Failed to get diagram registry:', error);
+      return getDiagramRegistry('CLASS_DIAGRAM'); // Fallback to CLASS_DIAGRAM
+    }
+  }, [diagramType]);
 
   const activeConnectionMode = useWorkspaceStore((s) => {
     if (!activeFileId) return 'association';
@@ -61,113 +63,50 @@ export default function Sidebar() {
       </div>
 
       <div className="flex flex-col py-2 overflow-y-auto overflow-x-hidden custom-scrollbar h-full select-none">
-        {/* === SECTION 1: NODES === */}
         <CollapsibleSection
           title="Nodes"
           isOpen={isNodesOpen}
           setIsOpen={setIsNodesOpen}
         >
           <div className="flex flex-col gap-2 px-3">
-            <DraggableItem
-              type="class"
-              icon={<Box className="w-5 h-5" />}
-              label={t("sidebar.nodes.class")}
-              color="var(--color-uml-class-border)"
-              onDragStart={onDragStart}
-            />
-            <DraggableItem
-              type="interface"
-              icon={<CircleDot className="w-5 h-5" />}
-              label={t("sidebar.nodes.interface")}
-              color="var(--color-uml-interface-border)"
-              onDragStart={onDragStart}
-            />
-            <DraggableItem
-              type="abstract"
-              icon={<BoxSelect className="w-5 h-5" />}
-              label={t("sidebar.nodes.abstract")}
-              color="var(--color-uml-abstract-border)"
-              onDragStart={onDragStart}
-            />
-            <DraggableItem
-              type="enum"
-              icon={<List className="w-5 h-5" />}
-              label="Enum"
-              color="#A855F7"
-              onDragStart={onDragStart}
-            />
-            <DraggableItem
-              type="note"
-              icon={<StickyNote className="w-5 h-5" />}
-              label={t("sidebar.nodes.note")}
-              color="var(--color-uml-note-border)"
-              onDragStart={onDragStart}
-            />
+            {registry.tools.nodes.map((tool) => (
+              <DraggableItem
+                key={tool.id}
+                type={tool.id as stereotype}
+                icon={tool.icon}
+                label={tool.translationKey ? t(tool.translationKey) : tool.label}
+                color={tool.color || 'var(--color-uml-class-border)'}
+                onDragStart={onDragStart}
+              />
+            ))}
           </div>
         </CollapsibleSection>
 
         <div className="mx-4 my-2 h-px bg-surface-border/30" />
 
-        {/* === Section 2: relationships === */}
         <CollapsibleSection
           title={t("sidebar.connections.title")}
           isOpen={isConnectionsOpen}
           setIsOpen={setIsConnectionsOpen}
         >
           <div className="flex flex-col gap-2 px-3">
-            <ConnectionItem
-              mode="association"
-              activeMode={activeConnectionMode}
-              onClick={() => setConnectionMode("association")}
-              icon={<MoveRight className="w-5 h-5" />}
-              label={t("sidebar.connections.association")}
-              color={edgeConfig.types.association.highlight}
-            />
-
-            <ConnectionItem
-              mode="inheritance"
-              activeMode={activeConnectionMode}
-              onClick={() => setConnectionMode("inheritance")}
-              icon={<ArrowUp className="w-5 h-5" />}
-              label={t("sidebar.connections.inheritance")}
-              color={edgeConfig.types.inheritance.highlight}
-            />
-
-            <ConnectionItem
-              mode="implementation"
-              activeMode={activeConnectionMode}
-              onClick={() => setConnectionMode("implementation")}
-              icon={<ArrowUpRight className="w-5 h-5" />}
-              label={t("sidebar.connections.implementation")}
-              color={edgeConfig.types.implementation.highlight}
-            />
-
-            <ConnectionItem
-              mode="dependency"
-              activeMode={activeConnectionMode}
-              onClick={() => setConnectionMode("dependency")}
-              icon={<GitCommitHorizontal className="w-5 h-5" />}
-              label={t("sidebar.connections.dependency")}
-              color={edgeConfig.types.dependency.highlight}
-            />
-
-            <ConnectionItem
-              mode="aggregation"
-              activeMode={activeConnectionMode}
-              onClick={() => setConnectionMode("aggregation")}
-              icon={<Diamond className="w-5 h-5" />}
-              label={t("sidebar.connections.aggregation")}
-              color={edgeConfig.types.aggregation.highlight}
-            />
-
-            <ConnectionItem
-              mode="composition"
-              activeMode={activeConnectionMode}
-              onClick={() => setConnectionMode("composition")}
-              icon={<Diamond className="w-5 h-5 fill-current" />}
-              label={t("sidebar.connections.composition")}
-              color={edgeConfig.types.composition.highlight}
-            />
+            {registry.tools.edges.map((tool) => {
+              const edgeType = tool.id as UmlRelationType;
+              const edgeStyle = edgeConfig.types[edgeType as keyof typeof edgeConfig.types];
+              const color = edgeStyle?.highlight || 'var(--edge-base)';
+              
+              return (
+                <ConnectionItem
+                  key={tool.id}
+                  mode={edgeType}
+                  activeMode={activeConnectionMode}
+                  onClick={() => setConnectionMode(edgeType)}
+                  icon={tool.icon}
+                  label={tool.translationKey ? t(tool.translationKey) : tool.label}
+                  color={color}
+                />
+              );
+            })}
           </div>
 
           <div className="p-4 border-t border-surface-border bg-surface-secondary/30 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -242,7 +181,7 @@ function CollapsibleSection({
 
 interface DraggableItemProps {
   type: stereotype;
-  icon: React.ReactNode;
+  icon: string; // Icon name from Lucide
   label: string;
   color: string;
   onDragStart: (event: React.DragEvent, type: stereotype) => void;
@@ -256,6 +195,9 @@ function DraggableItem({
   onDragStart,
 }: DraggableItemProps) {
   const [isHovered, setIsHovered] = useState(false);
+  
+  // Get icon component dynamically
+  const IconComponent = getIconComponent(icon);
 
   return (
     <div
@@ -275,7 +217,7 @@ function DraggableItem({
           style={{ color: color }}
           className="group-hover:brightness-125 transition-all"
         >
-          {icon}
+          {IconComponent && <IconComponent className="w-5 h-5" />}
         </span>
       </div>
 
@@ -293,7 +235,7 @@ interface ConnectionItemProps {
   mode: UmlRelationType;
   activeMode: UmlRelationType;
   onClick: () => void;
-  icon: React.ReactNode;
+  icon: string; // Icon name from Lucide
   label: string;
   color: string;
 }
@@ -308,6 +250,12 @@ function ConnectionItem({
 }: ConnectionItemProps) {
   const isActive = activeMode === mode;
   const [isHovered, setIsHovered] = useState(false);
+  
+  // Get icon component dynamically
+  const IconComponent = getIconComponent(icon);
+  
+  // Special handling for filled diamond (composition)
+  const isFilled = mode === 'composition';
 
   return (
     <button
@@ -337,7 +285,7 @@ function ConnectionItem({
             fontWeight: "bold",
           }}
         >
-          {icon}
+          {IconComponent && <IconComponent className={`w-5 h-5 ${isFilled ? 'fill-current' : ''}`} />}
         </span>
       </div>
 

@@ -278,6 +278,136 @@ const classDiagramRegistry: DiagramTypeRegistry = {
   defaultNodeType: 'CLASS',
   defaultEdgeType: 'ASSOCIATION',
 
+  tools: {
+    nodes: [
+      {
+        id: 'class',
+        type: 'NODE',
+        label: 'Class',
+        icon: 'Box',
+        color: 'var(--color-uml-class-border)',
+        translationKey: 'sidebar.nodes.class',
+      },
+      {
+        id: 'interface',
+        type: 'NODE',
+        label: 'Interface',
+        icon: 'CircleDot',
+        color: 'var(--color-uml-interface-border)',
+        translationKey: 'sidebar.nodes.interface',
+      },
+      {
+        id: 'abstract',
+        type: 'NODE',
+        label: 'Abstract Class',
+        icon: 'BoxSelect',
+        color: 'var(--color-uml-abstract-border)',
+        translationKey: 'sidebar.nodes.abstract',
+      },
+      {
+        id: 'enum',
+        type: 'NODE',
+        label: 'Enum',
+        icon: 'List',
+        color: '#A855F7',
+        translationKey: 'sidebar.nodes.enum',
+      },
+      {
+        id: 'note',
+        type: 'NODE',
+        label: 'Note',
+        icon: 'StickyNote',
+        color: 'var(--color-uml-note-border)',
+        translationKey: 'sidebar.nodes.note',
+      },
+    ],
+    edges: [
+      {
+        id: 'association',
+        type: 'EDGE',
+        label: 'Association',
+        icon: 'MoveRight',
+        translationKey: 'sidebar.connections.association',
+      },
+      {
+        id: 'inheritance',
+        type: 'EDGE',
+        label: 'Inheritance',
+        icon: 'ArrowUp',
+        translationKey: 'sidebar.connections.inheritance',
+      },
+      {
+        id: 'implementation',
+        type: 'EDGE',
+        label: 'Implementation',
+        icon: 'ArrowUpRight',
+        translationKey: 'sidebar.connections.implementation',
+      },
+      {
+        id: 'dependency',
+        type: 'EDGE',
+        label: 'Dependency',
+        icon: 'GitCommitHorizontal',
+        translationKey: 'sidebar.connections.dependency',
+      },
+      {
+        id: 'aggregation',
+        type: 'EDGE',
+        label: 'Aggregation',
+        icon: 'Diamond',
+        translationKey: 'sidebar.connections.aggregation',
+      },
+      {
+        id: 'composition',
+        type: 'EDGE',
+        label: 'Composition',
+        icon: 'Diamond',
+        translationKey: 'sidebar.connections.composition',
+      },
+    ],
+  },
+
+  codeGenerationActions: [
+    {
+      id: 'generate-class',
+      label: 'Generate Java Class',
+      translationKey: 'menubar.code.generateClass',
+      icon: 'FileCode',
+      enabled: true,
+    },
+    {
+      id: 'generate-project',
+      label: 'Generate Project',
+      translationKey: 'menubar.code.generateProject',
+      icon: 'Package',
+      enabled: true,
+    },
+    {
+      id: 'import-java',
+      label: 'Import Java Code',
+      translationKey: 'menubar.code.importJava',
+      icon: 'Upload',
+      enabled: true,
+    },
+  ],
+
+  exportActions: [
+    {
+      id: 'export-image',
+      label: 'Export Image',
+      translationKey: 'menubar.export.image',
+      icon: 'ImageIcon',
+      enabled: true,
+    },
+    {
+      id: 'export-xmi',
+      label: 'Export XMI',
+      translationKey: 'menubar.export.xmi',
+      icon: 'FileCode2',
+      enabled: true,
+    },
+  ],
+
   validator: classDiagramValidator,
 
   factories: {
@@ -299,6 +429,77 @@ const useCaseDiagramRegistry: DiagramTypeRegistry = {
 
   defaultNodeType: 'USE_CASE',
   defaultEdgeType: 'ASSOCIATION',
+
+  tools: {
+    nodes: [
+      {
+        id: 'actor',
+        type: 'NODE',
+        label: 'Actor',
+        icon: 'User',
+        color: '#10B981',
+        translationKey: 'sidebar.nodes.actor',
+      },
+      {
+        id: 'use_case',
+        type: 'NODE',
+        label: 'Use Case',
+        icon: 'Circle',
+        color: '#3B82F6',
+        translationKey: 'sidebar.nodes.useCase',
+      },
+      {
+        id: 'system_boundary',
+        type: 'NODE',
+        label: 'System Boundary',
+        icon: 'Square',
+        color: '#8B5CF6',
+        translationKey: 'sidebar.nodes.systemBoundary',
+      },
+    ],
+    edges: [
+      {
+        id: 'association',
+        type: 'EDGE',
+        label: 'Association',
+        icon: 'MoveRight',
+        translationKey: 'sidebar.connections.association',
+      },
+      {
+        id: 'include',
+        type: 'EDGE',
+        label: 'Include',
+        icon: 'ArrowRight',
+        translationKey: 'sidebar.connections.include',
+      },
+      {
+        id: 'extend',
+        type: 'EDGE',
+        label: 'Extend',
+        icon: 'ArrowUpRight',
+        translationKey: 'sidebar.connections.extend',
+      },
+      {
+        id: 'generalization',
+        type: 'EDGE',
+        label: 'Generalization',
+        icon: 'ArrowUp',
+        translationKey: 'sidebar.connections.generalization',
+      },
+    ],
+  },
+
+  codeGenerationActions: [],
+
+  exportActions: [
+    {
+      id: 'export-image',
+      label: 'Export Image',
+      translationKey: 'menubar.export.image',
+      icon: 'ImageIcon',
+      enabled: true,
+    },
+  ],
 
   validator: useCaseDiagramValidator,
 

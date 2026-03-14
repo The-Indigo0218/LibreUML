@@ -16,13 +16,15 @@ export function EditMenu() {
   
   // Connect to the Logic Hook
   const { 
-    handleUndo, 
-    handleRedo, 
-    handleDuplicate, 
-    handleDelete, 
-    handleSelectAll,
-    handleEditSelected
+    undo, 
+    redo, 
+    selectAll,
   } = useEditActions();
+
+  // TODO: SSOT - These actions need proper implementation
+  const handleDuplicate = () => console.warn("TODO: SSOT - Duplicate from menu not implemented");
+  const handleDelete = () => console.warn("TODO: SSOT - Delete from menu not implemented");
+  const handleEditSelected = () => console.warn("TODO: SSOT - Edit selected from menu not implemented");
 
   return (
     <MenubarTrigger label={t("menubar.edit.title") || "Edit"}>
@@ -32,13 +34,13 @@ export function EditMenu() {
         label={t("menubar.edit.undo") || "Undo"}
         icon={<Undo2 className="w-4 h-4" />}
         shortcut="Ctrl+Z"
-        onClick={handleUndo}
+        onClick={undo}
       />
       <MenubarItem
         label={t("menubar.edit.redo") || "Redo"}
         icon={<Redo2 className="w-4 h-4" />}
         shortcut="Ctrl+Y"
-        onClick={handleRedo}
+        onClick={redo}
       />
 
       <div className="h-px bg-surface-border my-1" />
@@ -73,7 +75,7 @@ export function EditMenu() {
         label={t("menubar.edit.selectAll") || "Select All"}
         icon={<CheckSquare className="w-4 h-4" />}
         shortcut="Ctrl+A"
-        onClick={handleSelectAll}
+        onClick={selectAll}
       />
 
     </MenubarTrigger>

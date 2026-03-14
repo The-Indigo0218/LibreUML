@@ -23,7 +23,7 @@ export const useFileLifecycle = () => {
     console.warn("TODO: SSOT - openDiagramFromDisk not implemented");
   }, []);
 
-  const importFromWeb = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const importFromWeb = useCallback((_event: React.ChangeEvent<HTMLInputElement>) => {
     console.warn("TODO: SSOT - importFromWeb not implemented");
   }, []);
 

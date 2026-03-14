@@ -64,21 +64,21 @@ export default function SpotlightModal() {
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-surface-hover transition-colors group text-left"
               >
                 <div className="p-2 rounded-md bg-surface-secondary border border-surface-border group-hover:border-uml-class-border/30 transition-colors">
-                  {getNodeIcon(node.type || "umlClass", node.data.stereotype)}
+                  {getNodeIcon(node.type || "CLASS", undefined)}
                 </div>
 
                 <div className="flex-1 truncate">
                   <span className="block font-medium text-text-primary group-hover:text-uml-class-border transition-colors">
-                    {node.data.label || "Untitled"}
+                    {node.name || "Untitled"}
                   </span>
-                  {node.type === "umlNote" && (
+                  {node.type === "NOTE" && (
                     <span className="text-xs text-text-muted truncate block max-w-md">
-                      {node.data.content || "Empty note..."}
+                      {node.name || "Empty note..."}
                     </span>
                   )}
-                  {node.type !== "umlNote" && (
+                  {node.type !== "NOTE" && (
                     <span className="text-xs text-text-muted font-mono">
-                      {node.data.stereotype || "class"}
+                      {node.type?.toLowerCase() || "class"}
                     </span>
                   )}
                 </div>

@@ -297,12 +297,11 @@ export default function PackageExplorer() {
       
       // Force re-focus even if same node by checking timestamp
       const now = Date.now();
-      const lastFocus = lastFocusRef.current;
       
       // Always update the ref and trigger focus
       lastFocusRef.current = { nodeId, timestamp: now };
       
-      // If it's the same node clicked within 100ms, still re-trigger the animation
+      // Trigger the animation
       setCenter(x, y, { zoom: 1.2, duration: 800 });
     } else {
       console.warn('[PackageExplorer] Cannot focus: node not found or has no position');

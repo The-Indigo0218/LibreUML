@@ -54,7 +54,7 @@ export default function DiagramCanvas() {
   // === NEW: Use Integration Hook (SSOT Architecture) ===
   const {
     nodes,
-    edges,
+    edges: _edges, // Renamed to indicate intentionally unused
     onNodesChange,
     onEdgesChange,
     onConnect,

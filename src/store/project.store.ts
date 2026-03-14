@@ -39,6 +39,8 @@ interface ProjectStoreState {
   // === Utility Actions ===
   clearAll: () => void;
   getEdgesForNode: (nodeId: string) => DomainEdge[];
+  getEdgeIdsForNode: (nodeId: string) => string[];
+  getEdgeIdsForNodes: (nodeIds: string[]) => string[];
 }
 
 /**
@@ -58,16 +60,10 @@ interface ProjectStoreState {
 export const useProjectStore = create<ProjectStoreState>()(
   persist(
     (set, get) => ({
-      // === Initial State ===
       nodes: {},
       edges: {},
 
-      // === Node Actions ===
 
-      /**
-       * Adds a new node to the SSOT.
-       * If a node with the same ID exists, it will be replaced.
-       */
       addNode: (node) =>
         set((state) => ({
           nodes: {
@@ -76,10 +72,7 @@ export const useProjectStore = create<ProjectStoreState>()(
           },
         })),
 
-      /**
-       * Updates an existing node with partial data.
-       * Automatically updates the `updatedAt` timestamp.
-       */
+
       updateNode: (nodeId, updates) =>
         set((state) => {
           const existingNode = state.nodes[nodeId];
@@ -100,15 +93,24 @@ export const useProjectStore = create<ProjectStoreState>()(
           };
         }),
 
-      /**
-       * Removes a node from the SSOT.
-       * WARNING: Does not automatically remove connected edges.
-       * Caller is responsible for cleaning up edges.
-       */
+
       removeNode: (nodeId) =>
         set((state) => {
-          const { [nodeId]: removed, ...remainingNodes } = state.nodes;
-          return { nodes: remainingNodes };
+          const connectedEdges = Object.values(state.edges).filter(
+            (edge) => edge.sourceNodeId === nodeId || edge.targetNodeId === nodeId
+          );
+
+          const { [nodeId]: removedNode, ...remainingNodes } = state.nodes;
+
+          const newEdges = { ...state.edges };
+          connectedEdges.forEach((edge) => {
+            delete newEdges[edge.id];
+          });
+
+          return {
+            nodes: remainingNodes,
+            edges: newEdges,
+          };
         }),
 
       /**
@@ -222,15 +224,34 @@ export const useProjectStore = create<ProjectStoreState>()(
 
       /**
        * Removes multiple nodes at once.
-       * WARNING: Does not automatically remove connected edges.
+       * Automatically performs CASCADE DELETE on all connected edges.
+       * This ensures data integrity and prevents orphaned edges.
        */
       removeNodes: (nodeIds) =>
         set((state) => {
+          const nodeIdSet = new Set(nodeIds);
+
+          // Find all edges connected to any of the nodes being removed
+          const connectedEdges = Object.values(state.edges).filter(
+            (edge) => nodeIdSet.has(edge.sourceNodeId) || nodeIdSet.has(edge.targetNodeId)
+          );
+
+          // Remove the nodes
           const newNodes = { ...state.nodes };
           nodeIds.forEach((id) => {
             delete newNodes[id];
           });
-          return { nodes: newNodes };
+
+          // Cascade delete: Remove all connected edges
+          const newEdges = { ...state.edges };
+          connectedEdges.forEach((edge) => {
+            delete newEdges[edge.id];
+          });
+
+          return {
+            nodes: newNodes,
+            edges: newEdges,
+          };
         }),
 
       /**
@@ -266,6 +287,29 @@ export const useProjectStore = create<ProjectStoreState>()(
         return Object.values(edges).filter(
           (edge) => edge.sourceNodeId === nodeId || edge.targetNodeId === nodeId
         );
+      },
+
+      /**
+       * Gets all edge IDs connected to a specific node.
+       * Useful for coordinating cascade deletes with WorkspaceStore.
+       */
+      getEdgeIdsForNode: (nodeId) => {
+        const { edges } = get();
+        return Object.values(edges)
+          .filter((edge) => edge.sourceNodeId === nodeId || edge.targetNodeId === nodeId)
+          .map((edge) => edge.id);
+      },
+
+      /**
+       * Gets all edge IDs connected to multiple nodes.
+       * Useful for bulk operations and coordinating cascade deletes.
+       */
+      getEdgeIdsForNodes: (nodeIds) => {
+        const { edges } = get();
+        const nodeIdSet = new Set(nodeIds);
+        return Object.values(edges)
+          .filter((edge) => nodeIdSet.has(edge.sourceNodeId) || nodeIdSet.has(edge.targetNodeId))
+          .map((edge) => edge.id);
       },
     }),
     {

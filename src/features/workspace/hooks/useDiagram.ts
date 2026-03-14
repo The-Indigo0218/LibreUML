@@ -50,7 +50,7 @@ export function useDiagram(fileId?: string) {
   const addEdge = useProjectStore((s) => s.addEdge);
   const removeNode = useProjectStore((s) => s.removeNode);
   const removeEdge = useProjectStore((s) => s.removeEdge);
-  const getEdgesForNode = useProjectStore((s) => s.getEdgesForNode);
+  const getEdgeIdsForNode = useProjectStore((s) => s.getEdgeIdsForNode);
 
   const positionMap: PositionMap = useWorkspaceStore(useShallow(state => {
     if (!targetFileId) return {};
@@ -109,12 +109,11 @@ export function useDiagram(fileId?: string) {
           if (change.type === 'remove') {
             const nodeId = change.id;
 
-            removeNodeFromFile(targetFileId, nodeId);
+            const connectedEdgeIds = getEdgeIdsForNode(nodeId);
 
-            const connectedEdges = getEdgesForNode(nodeId);
-            connectedEdges.forEach((edge) => {
-              removeEdgeFromFile(targetFileId, edge.id);
-              removeEdge(edge.id);
+            removeNodeFromFile(targetFileId, nodeId);
+            connectedEdgeIds.forEach((edgeId) => {
+              removeEdgeFromFile(targetFileId, edgeId);
             });
 
             removeNode(nodeId);
@@ -130,11 +129,7 @@ export function useDiagram(fileId?: string) {
       positionMap,
       updateFile,
       markFileDirty,
-      removeNodeFromFile,
-      removeEdgeFromFile,
-      getEdgesForNode,
-      removeNode,
-      removeEdge,
+      getEdgeIdsForNode,
     ]
   );
   const onEdgesChange = useCallback(
@@ -172,7 +167,6 @@ export function useDiagram(fileId?: string) {
       const metadata = file.metadata as any;
       let edgeType = metadata?.activeConnectionMode || registry.defaultEdgeType;
       
-      // Enforce uppercase edge types for validation/creation registry keys
       edgeType = edgeType.toUpperCase();
 
       const validationResult = registry.validator.validateConnection(

@@ -9,7 +9,6 @@ import { useWorkspaceStore } from "../../../../../store/workspace.store";
 import { XmiConverterService } from "../../../../../services/xmiConverter.service";
 import { getDiagramRegistry } from "../../../../../core/registry/diagram-registry";
 import { getIconComponent } from "../../../../../core/registry/icon-map";
-import type { UmlClassNode, UmlEdge } from "../../../types/diagram.types";
 
 export function ExportMenu() {
   const { t } = useTranslation();
@@ -41,35 +40,14 @@ export function ExportMenu() {
     const domainNodes = getNodes(activeFile.nodeIds);
     const domainEdges = getEdges(activeFile.edgeIds);
 
-    const legacyNodes = domainNodes.map(n => ({
-      id: n.id,
-      type: 'umlClass',
-      position: { x: 0, y: 0 },
-      data: {
-        label: (n as any).name,
-        stereotype: n.type.toLowerCase() as any,
-        attributes: (n as any).attributes || [],
-        methods: (n as any).methods || [],
-        generics: (n as any).generics,
-        package: (n as any).package,
-      }
-    }));
-
-    const legacyEdges = domainEdges.map(e => ({
-      id: e.id,
-      source: e.sourceNodeId,
-      target: e.targetNodeId,
-      type: e.type.toLowerCase(),
-      data: { type: e.type.toLowerCase() }
-    }));
-
     const exportId = crypto.randomUUID();
 
+    // PHASE 4: Pass domain nodes directly to XmiConverterService
     XmiConverterService.downloadXmi(
       exportId,
       diagramName,
-      legacyNodes as unknown as UmlClassNode[],
-      legacyEdges as unknown as UmlEdge[]
+      domainNodes,
+      domainEdges
     );
   };
 

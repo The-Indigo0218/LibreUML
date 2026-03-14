@@ -167,13 +167,13 @@ export class JavaParserService {
   private static mapVisibility(javaVis: string): Visibility {
     switch (javaVis) {
       case "public":
-        return "PUBLIC";
+        return "+";
       case "private":
-        return "PRIVATE";
+        return "-";
       case "protected":
-        return "PROTECTED";
+        return "#";
       default:
-        return "PUBLIC";
+        return "+";
     }
   }
 }

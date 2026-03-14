@@ -1,26 +1,55 @@
 import { describe, it, expect } from 'vitest';
 import { JavaGeneratorService } from '../javaGenerator.service';
-import type { UmlClassNode, UmlEdge } from '../../features/diagram/types/diagram.types';
+import type { DomainEdge } from '../../core/domain/models/edges';
+import type { ClassNode, InterfaceNode, AbstractClassNode, EnumNode } from '../../core/domain/models/nodes/class-diagram.types';
 
 describe('JavaGeneratorService', () => {
 
-  // Helper function to create nodes easily
+  // Helper function to create domain nodes easily
   const createNode = (
     name: string, 
-    stereotype: 'class' | 'interface' | 'abstract' | 'enum' = 'class',
+    nodeType: 'CLASS' | 'INTERFACE' | 'ABSTRACT_CLASS' | 'ENUM' = 'CLASS',
     packageName?: string
-  ): UmlClassNode => ({
-    id: '1',
-    type: 'umlClass',
-    position: { x: 0, y: 0 },
-    data: {
-      label: name,
-      stereotype,
-      attributes: [],
-      methods: [],
-      package: packageName
+  ): ClassNode | InterfaceNode | AbstractClassNode | EnumNode => {
+    const baseNode = {
+      id: '1',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      package: packageName,
+    };
+
+    if (nodeType === 'CLASS') {
+      return {
+        ...baseNode,
+        type: 'CLASS',
+        name,
+        attributes: [],
+        methods: [],
+      } as ClassNode;
+    } else if (nodeType === 'INTERFACE') {
+      return {
+        ...baseNode,
+        type: 'INTERFACE',
+        name,
+        methods: [],
+      } as InterfaceNode;
+    } else if (nodeType === 'ABSTRACT_CLASS') {
+      return {
+        ...baseNode,
+        type: 'ABSTRACT_CLASS',
+        name,
+        attributes: [],
+        methods: [],
+      } as AbstractClassNode;
+    } else {
+      return {
+        ...baseNode,
+        type: 'ENUM',
+        name,
+        literals: [],
+      } as EnumNode;
     }
-  });
+  };
 
   it('should generate a simple empty class', () => {
     const node = createNode('User');
@@ -32,7 +61,7 @@ describe('JavaGeneratorService', () => {
   });
 
   it('should generate an interface correctly', () => {
-    const node = createNode('Auditable', 'interface');
+    const node = createNode('Auditable', 'INTERFACE');
     const code = JavaGeneratorService.generate(node);
 
     expect(code).toContain('public interface Auditable');
@@ -41,7 +70,7 @@ describe('JavaGeneratorService', () => {
 
   it('should generate attributes with correct visibility and types', () => {
     const node = createNode('Product');
-    node.data.attributes = [
+    (node as ClassNode).attributes = [
       { id: 'a1', name: 'price', type: 'double', visibility: '-', isArray: false },
       { id: 'a2', name: 'tags', type: 'String', visibility: '+', isArray: true }
     ];
@@ -54,7 +83,7 @@ describe('JavaGeneratorService', () => {
 
   it('should generate methods with parameters', () => {
     const node = createNode('Calculator');
-    node.data.methods = [
+    (node as ClassNode).methods = [
       { 
         id: 'm1', 
         name: 'sum', 
@@ -73,7 +102,7 @@ describe('JavaGeneratorService', () => {
   });
 
   it('should handle Abstract classes', () => {
-    const node = createNode('Shape', 'abstract');
+    const node = createNode('Shape', 'ABSTRACT_CLASS');
     const code = JavaGeneratorService.generate(node);
 
     expect(code).toContain('public abstract class Shape');
@@ -84,7 +113,7 @@ describe('JavaGeneratorService', () => {
   describe('Package Declaration Generation', () => {
     
     it('should prepend package declaration when package is defined', () => {
-      const node = createNode('User', 'class', 'com.example.models');
+      const node = createNode('User', 'CLASS', 'com.example.models');
       const code = JavaGeneratorService.generate(node);
 
       expect(code).toContain('package com.example.models;');
@@ -93,7 +122,7 @@ describe('JavaGeneratorService', () => {
     });
 
     it('should place package declaration before class declaration', () => {
-      const node = createNode('Service', 'class', 'com.example.services');
+      const node = createNode('Service', 'CLASS', 'com.example.services');
       const code = JavaGeneratorService.generate(node);
 
       const packageIndex = code.indexOf('package com.example.services;');
@@ -104,14 +133,14 @@ describe('JavaGeneratorService', () => {
     });
 
     it('should add empty line after package declaration', () => {
-      const node = createNode('Helper', 'class', 'utils');
+      const node = createNode('Helper', 'CLASS', 'utils');
       const code = JavaGeneratorService.generate(node);
 
       expect(code).toMatch(/^package utils;\n\npublic class Helper/);
     });
 
     it('should not add package declaration when package is undefined', () => {
-      const node = createNode('NoPackage', 'class');
+      const node = createNode('NoPackage', 'CLASS');
       const code = JavaGeneratorService.generate(node);
 
       expect(code).not.toContain('package');
@@ -119,7 +148,7 @@ describe('JavaGeneratorService', () => {
     });
 
     it('should handle package with interface', () => {
-      const node = createNode('Repository', 'interface', 'com.example.repositories');
+      const node = createNode('Repository', 'INTERFACE', 'com.example.repositories');
       const code = JavaGeneratorService.generate(node);
 
       expect(code).toContain('package com.example.repositories;');
@@ -127,7 +156,7 @@ describe('JavaGeneratorService', () => {
     });
 
     it('should handle package with abstract class', () => {
-      const node = createNode('BaseEntity', 'abstract', 'com.example.domain');
+      const node = createNode('BaseEntity', 'ABSTRACT_CLASS', 'com.example.domain');
       const code = JavaGeneratorService.generate(node);
 
       expect(code).toContain('package com.example.domain;');
@@ -135,12 +164,12 @@ describe('JavaGeneratorService', () => {
     });
 
     it('should generate complete class with package, attributes, and methods', () => {
-      const node = createNode('Product', 'class', 'com.example.models');
-      node.data.attributes = [
+      const node = createNode('Product', 'CLASS', 'com.example.models');
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'name', type: 'String', visibility: '-', isArray: false },
         { id: 'a2', name: 'price', type: 'double', visibility: '-', isArray: false }
       ];
-      node.data.methods = [
+      (node as ClassNode).methods = [
         { 
           id: 'm1', 
           name: 'getPrice', 
@@ -160,14 +189,14 @@ describe('JavaGeneratorService', () => {
     });
 
     it('should handle deeply nested package names', () => {
-      const node = createNode('Feature', 'class', 'com.company.project.module.submodule');
+      const node = createNode('Feature', 'CLASS', 'com.company.project.module.submodule');
       const code = JavaGeneratorService.generate(node);
 
       expect(code).toContain('package com.company.project.module.submodule;');
     });
 
     it('should handle single-segment package names', () => {
-      const node = createNode('Util', 'class', 'utils');
+      const node = createNode('Util', 'CLASS', 'utils');
       const code = JavaGeneratorService.generate(node);
 
       expect(code).toContain('package utils;');
@@ -180,7 +209,7 @@ describe('JavaGeneratorService', () => {
     
     it('should initialize String attributes to empty string', () => {
       const node = createNode('User');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'name', type: 'String', visibility: '-', isArray: false },
         { id: 'a2', name: 'email', type: 'String', visibility: '-', isArray: false }
       ];
@@ -193,7 +222,7 @@ describe('JavaGeneratorService', () => {
 
     it('should initialize List collections', () => {
       const node = createNode('Course');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'students', type: 'List<String>', visibility: '-', isArray: false }
       ];
 
@@ -204,7 +233,7 @@ describe('JavaGeneratorService', () => {
 
     it('should initialize ArrayList collections', () => {
       const node = createNode('Classroom');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'items', type: 'ArrayList<Item>', visibility: '-', isArray: false }
       ];
 
@@ -215,7 +244,7 @@ describe('JavaGeneratorService', () => {
 
     it('should initialize Set collections', () => {
       const node = createNode('Group');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'members', type: 'Set<User>', visibility: '-', isArray: false }
       ];
 
@@ -226,7 +255,7 @@ describe('JavaGeneratorService', () => {
 
     it('should initialize Map collections', () => {
       const node = createNode('Registry');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'data', type: 'Map<String, Integer>', visibility: '-', isArray: false }
       ];
 
@@ -237,7 +266,7 @@ describe('JavaGeneratorService', () => {
 
     it('should NOT initialize primitive types', () => {
       const node = createNode('Counter');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'count', type: 'int', visibility: '-', isArray: false },
         { id: 'a2', name: 'active', type: 'boolean', visibility: '-', isArray: false }
       ];
@@ -253,7 +282,7 @@ describe('JavaGeneratorService', () => {
 
     it('should NOT initialize String arrays', () => {
       const node = createNode('Data');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'tags', type: 'String', visibility: '-', isArray: true }
       ];
 
@@ -269,7 +298,7 @@ describe('JavaGeneratorService', () => {
     
     it('should generate getters with explicit this.propertyName return', () => {
       const node = createNode('Person');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'name', type: 'String', visibility: '-', isArray: false },
         { id: 'a2', name: 'age', type: 'int', visibility: '-', isArray: false }
       ];
@@ -284,7 +313,7 @@ describe('JavaGeneratorService', () => {
 
     it('should generate setters with explicit this.propertyName assignment', () => {
       const node = createNode('Person');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'name', type: 'String', visibility: '-', isArray: false },
         { id: 'a2', name: 'age', type: 'int', visibility: '-', isArray: false }
       ];
@@ -299,7 +328,7 @@ describe('JavaGeneratorService', () => {
 
     it('should generate getters and setters for collection types', () => {
       const node = createNode('Library');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'books', type: 'List<String>', visibility: '-', isArray: false }
       ];
 
@@ -316,7 +345,7 @@ describe('JavaGeneratorService', () => {
     
     it('should generate constructor with all attributes as parameters', () => {
       const node = createNode('Student');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'name', type: 'String', visibility: '-', isArray: false },
         { id: 'a2', name: 'age', type: 'int', visibility: '-', isArray: false }
       ];
@@ -330,7 +359,7 @@ describe('JavaGeneratorService', () => {
 
     it('should use this keyword in constructor assignments', () => {
       const node = createNode('Product');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'price', type: 'double', visibility: '-', isArray: false }
       ];
 
@@ -346,7 +375,7 @@ describe('JavaGeneratorService', () => {
       // Create parent class
       const parentNode = createNode('Animal');
       parentNode.id = 'parent-1';
-      parentNode.data.attributes = [
+      (parentNode as ClassNode).attributes = [
         { id: 'a1', name: 'name', type: 'String', visibility: '-', isArray: false },
         { id: 'a2', name: 'age', type: 'int', visibility: '-', isArray: false }
       ];
@@ -354,17 +383,19 @@ describe('JavaGeneratorService', () => {
       // Create child class
       const childNode = createNode('Dog');
       childNode.id = 'child-1';
-      childNode.data.attributes = [
+      (childNode as ClassNode).attributes = [
         { id: 'a3', name: 'breed', type: 'String', visibility: '-', isArray: false }
       ];
 
       // Create inheritance edge
-      const edges: UmlEdge[] = [
+      const edges: DomainEdge[] = [
         {
           id: 'edge-1',
-          source: 'child-1',
-          target: 'parent-1',
-          data: { type: 'inheritance' }
+          sourceNodeId: 'child-1',
+          targetNodeId: 'parent-1',
+          type: 'INHERITANCE',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         }
       ];
 
@@ -389,31 +420,33 @@ describe('JavaGeneratorService', () => {
       // Grandparent
       const grandparent = createNode('LivingBeing');
       grandparent.id = 'gp-1';
-      grandparent.data.attributes = [
+      (grandparent as ClassNode).attributes = [
         { id: 'a1', name: 'alive', type: 'boolean', visibility: '-', isArray: false }
       ];
 
       // Parent
       const parent = createNode('Animal');
       parent.id = 'p-1';
-      parent.data.attributes = [
+      (parent as ClassNode).attributes = [
         { id: 'a2', name: 'name', type: 'String', visibility: '-', isArray: false }
       ];
 
       // Child
       const child = createNode('Cat');
       child.id = 'c-1';
-      child.data.attributes = [
+      (child as ClassNode).attributes = [
         { id: 'a3', name: 'color', type: 'String', visibility: '-', isArray: false }
       ];
 
       // Edges: Cat -> Animal (we only check direct parent)
-      const edges: UmlEdge[] = [
+      const edges: DomainEdge[] = [
         {
           id: 'e1',
-          source: 'c-1',
-          target: 'p-1',
-          data: { type: 'inheritance' }
+          sourceNodeId: 'c-1',
+          targetNodeId: 'p-1',
+          type: 'INHERITANCE',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         }
       ];
 
@@ -427,7 +460,7 @@ describe('JavaGeneratorService', () => {
 
     it('should not add super() call when class has no parent', () => {
       const node = createNode('IndependentClass');
-      node.data.attributes = [
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'value', type: 'int', visibility: '-', isArray: false }
       ];
 
@@ -441,22 +474,24 @@ describe('JavaGeneratorService', () => {
     it('should handle child class with collections and parent', () => {
       const parent = createNode('Vehicle');
       parent.id = 'v-1';
-      parent.data.attributes = [
+      (parent as ClassNode).attributes = [
         { id: 'a1', name: 'brand', type: 'String', visibility: '-', isArray: false }
       ];
 
       const child = createNode('Car');
       child.id = 'c-1';
-      child.data.attributes = [
+      (child as ClassNode).attributes = [
         { id: 'a2', name: 'passengers', type: 'List<String>', visibility: '-', isArray: false }
       ];
 
-      const edges: UmlEdge[] = [
+      const edges: DomainEdge[] = [
         {
           id: 'e1',
-          source: 'c-1',
-          target: 'v-1',
-          data: { type: 'inheritance' }
+          sourceNodeId: 'c-1',
+          targetNodeId: 'v-1',
+          type: 'INHERITANCE',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         }
       ];
 
@@ -475,8 +510,8 @@ describe('JavaGeneratorService', () => {
   describe('Complete Class Generation', () => {
     
     it('should generate a complete class with all features', () => {
-      const node = createNode('Student', 'class', 'com.university.models');
-      node.data.attributes = [
+      const node = createNode('Student', 'CLASS', 'com.university.models');
+      (node as ClassNode).attributes = [
         { id: 'a1', name: 'name', type: 'String', visibility: '-', isArray: false },
         { id: 'a2', name: 'courses', type: 'List<String>', visibility: '-', isArray: false },
         { id: 'a3', name: 'gpa', type: 'double', visibility: '-', isArray: false }

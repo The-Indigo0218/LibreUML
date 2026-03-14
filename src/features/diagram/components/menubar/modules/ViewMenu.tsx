@@ -16,6 +16,7 @@ import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrig
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useSpotlightStore } from "../../../hooks/useSpotlight";
 import { useSettingsStore } from "../../../../../store/settingsStore";
+import { useLayoutActions } from "../../../hooks/actions/useLayoutActions";
 
 export function ViewMenu() {
   const { t } = useTranslation();
@@ -33,8 +34,8 @@ export function ViewMenu() {
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
   const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
 
-  // TODO: SSOT - Auto layout needs implementation (separate service)
-  const applyAutoLayout = (direction: string) => console.warn("TODO: SSOT - applyAutoLayout not implemented", direction);
+  // PHASE 6: Auto-layout with Dagre
+  const { applyAutoLayout } = useLayoutActions();
 
   const toggleSpotlight = useSpotlightStore((s) => s.toggle);
 

@@ -56,7 +56,7 @@ const UmlClassNode = ({ data, selected }: NodeProps<NodeViewModel>) => {
     <div
       className={`border-2 rounded-sm min-w-[16rem] max-w-lg w-fit overflow-visible group transition-all duration-200 ${currentStyle.containerClass} ${selectionClasses}`}
     >
-      {/* Target Handles (Green) */}
+      {/* Target Handles (Blue - Top/Left receive connections) */}
       <Handle
         type="target"
         position={Position.Top}
@@ -70,7 +70,7 @@ const UmlClassNode = ({ data, selected }: NodeProps<NodeViewModel>) => {
         className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.target} opacity-0 group-hover:opacity-100`}
       />
 
-      {/* Source Handles (Blue) */}
+      {/* Source Handles (Green - Bottom/Right send connections) */}
       <Handle
         type="source"
         position={Position.Right}

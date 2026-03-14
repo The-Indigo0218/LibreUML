@@ -84,8 +84,11 @@ export const handleConfig = {
   base: "border border-canvas-base transition-opacity",
 
   colors: {
-    target: "bg-green-500!",
-    source: "bg-blue-500!",
+    // PHASE 6: Inverted colors for Top-Down mental model
+    // Target handles (Top/Left) are now BLUE (receive connections from above/left)
+    // Source handles (Bottom/Right) are now GREEN (send connections below/right)
+    target: "bg-blue-500!",
+    source: "bg-green-500!",
     note: "bg-uml-note-border!",
   },
 };

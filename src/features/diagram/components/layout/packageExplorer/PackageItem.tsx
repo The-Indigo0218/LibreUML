@@ -14,6 +14,7 @@ export function PackageItem({
   onToggle,
   onClassToggle,
   onClassClick,
+  onEditClass,
   onPackageContextMenu,
   onClassContextMenu,
   onRenameClass,
@@ -188,6 +189,7 @@ export function PackageItem({
               isRenaming={renamingId === classNode.id}
               onToggle={onClassToggle}
               onClassClick={onClassClick}
+              onEditClass={onEditClass}
               onContextMenu={onClassContextMenu}
               onRename={onRenameClass}
               onCancelRename={onCancelRename}
@@ -208,6 +210,7 @@ export function PackageItem({
                 onToggle={onToggle}
                 onClassToggle={onClassToggle}
                 onClassClick={onClassClick}
+                onEditClass={onEditClass}
                 onPackageContextMenu={onPackageContextMenu}
                 onClassContextMenu={onClassContextMenu}
                 onRenameClass={onRenameClass}

@@ -16,7 +16,6 @@ import { useDiagramActions } from "../../../hooks/useDiagramActions";
 import { useWorkspaceStore } from "../../../../../store/workspace.store";
 import { useProjectStore } from "../../../../../store/project.store";
 import { XmiImporterService } from "../../../../../services/xmiImporter.service";
-import { getLayoutedElements } from "../../../../../util/autoLayout";
 
 interface FileMenuProps {
   actions: ReturnType<typeof useDiagramActions>;
@@ -77,20 +76,13 @@ export function FileMenu({ actions }: FileMenuProps) {
         const file = getFile(activeFileId);
         if (!file) return;
 
-        // Determine if we need to auto-layout (if XMI didn't provide coordinates, XmiImporterService uses a grid starting at 80,80)
-        // Auto-layout provides better organization
-        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-          importedData.nodes,
-          importedData.edges as any,
-          "TB"
-        );
-
-        const newPositionMap: Record<string, { x: number, y: number }> = {
-           ...(file.metadata as any)?.positionMap || {}
+        // Extract positions from imported nodes into positionMap
+        const newPositionMap: Record<string, { x: number; y: number }> = {
+          ...(file.metadata as any)?.positionMap || {}
         };
 
-        // Process Nodes
-        layoutedNodes.forEach(node => {
+        // Process Nodes - use imported coordinates directly
+        importedData.nodes.forEach(node => {
           const domainNode = {
             id: node.id,
             type: node.data.stereotype || "class",
@@ -102,11 +94,15 @@ export function FileMenu({ actions }: FileMenuProps) {
           
           addNode(domainNode);
           addNodeToFile(activeFileId, node.id);
-          newPositionMap[node.id] = node.position;
+          
+          // Save imported position to positionMap
+          if ('position' in node && node.position) {
+            newPositionMap[node.id] = node.position;
+          }
         });
 
         // Process Edges
-        layoutedEdges.forEach(edge => {
+        importedData.edges.forEach(edge => {
           const domainEdge = {
             id: edge.id,
             sourceNodeId: edge.source,

@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect } from "react";
 import { useReactFlow } from "reactflow";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Package, FolderPlus } from "lucide-react";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useProjectStore } from "../../../../store/project.store";
+import { useShallow } from "zustand/react/shallow";
 import { useDiagramStore } from "../../../../store/diagramStore";
 import { useSettingsStore } from "../../../../store/settingsStore";
 import { buildPackageTree } from "./packageExplorer/buildPackageTree";
@@ -14,14 +17,69 @@ import type { UmlClassNode } from "../../types/diagram.types";
 import type { ContextMenuState, DeletePackageState, TreeNode } from "./packageExplorer/types";
 
 export default function PackageExplorer() {
+  // SSOT Reactive Selection: Fetch IDs first to ensure referential stability
+  const activeFileNodeIds = useWorkspaceStore(useShallow(s => {
+    if (!s.activeFileId) return [];
+    return s.getFile(s.activeFileId)?.nodeIds || [];
+  }));
+
+  // Fetch ONLY the required nodes using the IDs
+  const activeNodes = useProjectStore(useShallow(s => {
+    return activeFileNodeIds.map(id => s.nodes[id]).filter(Boolean);
+  }));
+
+  // Transform SSOT domain nodes to UmlClassNode format for buildPackageTree
+  const transformedNodes: UmlClassNode[] = useMemo(() => {
+    return activeNodes.map(node => ({
+      id: node.id,
+      type: "umlClass" as const,
+      position: { x: 0, y: 0 }, // Position not needed for tree building
+      data: {
+        label: (node as any).name || "Unnamed",
+        stereotype: node.type?.toLowerCase() as any,
+        package: (node as any).package || "",
+        attributes: (node as any).attributes || [],
+        methods: (node as any).methods || [],
+      },
+    }));
+  }, [activeNodes]);
+
   const packages = useDiagramStore((s) => s.packages);
-  const nodes = useDiagramStore((s) => s.nodes);
   const addPackage = useDiagramStore((s) => s.addPackage);
   const updatePackageName = useDiagramStore((s) => s.updatePackageName);
   const deletePackage = useDiagramStore((s) => s.deletePackage);
   const updateNodeData = useDiagramStore((s) => s.updateNodeData);
   const deleteNode = useDiagramStore((s) => s.deleteNode);
   const theme = useSettingsStore((s) => s.theme);
+
+  // Merge explicit packages with implicit packages discovered from nodes
+  const allPackages = useMemo(() => {
+    const explicitPackages = new Map(packages.map(pkg => [pkg.name, pkg]));
+    
+    // Discover packages from nodes (XMI imports) and register ALL ancestor paths
+    transformedNodes.forEach(node => {
+      const pkgName = node.data.package;
+      if (pkgName && pkgName.trim() !== "") {
+        const segments = pkgName.split(".").filter(seg => seg.trim() !== "");
+        let currentPath = "";
+        
+        // Register each ancestor path (e.g., "com", "com.hospital", "com.hospital.models")
+        segments.forEach((segment) => {
+          currentPath = currentPath ? `${currentPath}.${segment}` : segment;
+          
+          if (!explicitPackages.has(currentPath)) {
+            // Create synthetic package entry for implicit packages
+            explicitPackages.set(currentPath, {
+              id: `implicit-${currentPath}`,
+              name: currentPath,
+            });
+          }
+        });
+      }
+    });
+    
+    return Array.from(explicitPackages.values());
+  }, [packages, transformedNodes]);
   
   const { setCenter } = useReactFlow();
   const { t } = useTranslation();
@@ -36,8 +94,8 @@ export default function PackageExplorer() {
   const [deletePackageState, setDeletePackageState] = useState<DeletePackageState | null>(null);
 
   const packageTree = useMemo(() => {
-    return buildPackageTree(packages, nodes as UmlClassNode[]);
-  }, [packages, nodes]);
+    return buildPackageTree(allPackages, transformedNodes);
+  }, [allPackages, transformedNodes]);
 
   useEffect(() => {
     const handleClickOutside = () => setContextMenu(null);
@@ -72,7 +130,7 @@ export default function PackageExplorer() {
   };
 
   const handleClassClick = (nodeId: string) => {
-    const node = nodes.find((n) => n.id === nodeId) as UmlClassNode;
+    const node = transformedNodes.find((n) => n.id === nodeId);
     if (node && node.position) {
       const x = node.position.x + (node.width || 250) / 2;
       const y = node.position.y + (node.height || 200) / 2;
@@ -115,7 +173,7 @@ export default function PackageExplorer() {
     e.preventDefault();
     e.stopPropagation();
     
-    const pkg = packages.find(p => p.name === packagePath);
+    const pkg = allPackages.find(p => p.name === packagePath);
     if (!pkg) return;
 
     setContextMenu({
@@ -165,10 +223,10 @@ export default function PackageExplorer() {
     if (!contextMenu) return;
     
     if (contextMenu.type === "package") {
-      const pkg = packages.find(p => p.id === contextMenu.id);
+      const pkg = allPackages.find(p => p.id === contextMenu.id);
       if (!pkg) return;
       
-      const classesInPackage = (nodes as UmlClassNode[]).filter(
+      const classesInPackage = transformedNodes.filter(
         node => node.data.package === contextMenu.packagePath
       );
       
@@ -198,7 +256,7 @@ export default function PackageExplorer() {
   };
 
   const handleRenamePackage = (packagePath: string, newName: string) => {
-    const pkg = packages.find(p => p.name === packagePath);
+    const pkg = allPackages.find(p => p.name === packagePath);
     if (pkg) {
       const pathSegments = packagePath.split(".");
       pathSegments[pathSegments.length - 1] = newName;
@@ -218,7 +276,7 @@ export default function PackageExplorer() {
     setRenamingId(null);
   };
 
-  const totalClasses = nodes.filter((n) => n.type === "umlClass").length;
+  const totalClasses = transformedNodes.filter((n) => n.type === "umlClass").length;
   const unassignedClasses = packageTree.classes.length;
 
   return (
@@ -240,14 +298,14 @@ export default function PackageExplorer() {
           </button>
         </div>
         <div className="flex items-center gap-2 text-xs text-text-muted">
-          <span>{packages.length} packages</span>
+          <span>{allPackages.length} packages</span>
           <span>•</span>
           <span>{totalClasses} classes</span>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-        {packages.length === 0 && totalClasses === 0 ? (
+        {transformedNodes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <Package className="w-12 h-12 text-text-muted/30 mb-3" />
             <p className="text-sm text-text-muted">No packages or classes yet</p>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 interface ContextMenuProps {
   x: number;
@@ -6,9 +7,10 @@ interface ContextMenuProps {
   options: {
     label: string;
     onClick: () => void;
-    danger?: boolean; 
+    danger?: boolean;
   }[];
   onClose: () => void;
+  centered?: boolean;
 }
 
 export default function ContextMenu({
@@ -16,6 +18,7 @@ export default function ContextMenu({
   y,
   options,
   onClose,
+  centered = false,
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -31,11 +34,13 @@ export default function ContextMenu({
     };
   }, [onClose]);
 
-  return (
+  const menu = (
     <div
       ref={menuRef}
-      className="absolute z-50 min-w-45 bg-surface-primary border border-surface-border rounded-md shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100 flex flex-col overflow-hidden"
-      style={{ top: y, left: x }}
+      className={`z-50 min-w-45 bg-surface-primary border border-surface-border rounded-md shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100 flex flex-col overflow-hidden ${
+        centered ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" : "absolute"
+      }`}
+      style={centered ? undefined : { top: y, left: x }}
     >
       {options.map((option, index) => (
         <button
@@ -57,4 +62,16 @@ export default function ContextMenu({
       ))}
     </div>
   );
+
+  if (centered) {
+    return createPortal(
+      <>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
+        {menu}
+      </>,
+      document.body
+    );
+  }
+
+  return menu;
 }

@@ -14,6 +14,7 @@ interface SettingsState {
   showMiniMap: boolean;
   showGrid: boolean;
   snapToGrid: boolean;
+  showAllEdges: boolean;
   
   // --- inside state  ---
   lastFilePath?: string; 
@@ -28,6 +29,7 @@ interface SettingsState {
   toggleMiniMap: () => void;
   toggleGrid: () => void;
   toggleSnapToGrid: () => void;
+  toggleShowAllEdges: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -44,6 +46,7 @@ export const useSettingsStore = create<SettingsState>()(
       showMiniMap: false,
       showGrid: true,
       snapToGrid: true,
+      showAllEdges: false,
 
       toggleAutoSave: () => set((s) => ({ autoSave: !s.autoSave })),
       
@@ -65,6 +68,8 @@ export const useSettingsStore = create<SettingsState>()(
       toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
       
       toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
+      
+      toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
     }),
     {
       name: "libreuml-settings",
@@ -78,6 +83,7 @@ export const useSettingsStore = create<SettingsState>()(
         showMiniMap: state.showMiniMap,
         showGrid: state.showGrid,
         snapToGrid: state.snapToGrid,
+        showAllEdges: state.showAllEdges,
       }),
     }
   )

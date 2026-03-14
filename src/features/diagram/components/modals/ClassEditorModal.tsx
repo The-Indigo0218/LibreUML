@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useDiagramStore } from "../../../../store/diagramStore";
+import { useProjectStore } from "../../../../store/project.store";
 import type {
   UmlClassData,
   UmlAttribute,
@@ -37,15 +37,25 @@ export default function ClassEditorModal({
   onSave,
   onClose,
 }: ClassEditorModalProps) {
-  const nodes = useDiagramStore((state) => state.nodes);
-  const packages = useDiagramStore((state) => state.packages);
+  const projectNodes = useProjectStore((state) => state.nodes);
+  const nodes = useMemo(() => Object.values(projectNodes), [projectNodes]);
+  
+  const packages = useMemo(() => {
+    const pkgs = new Set<string>();
+    nodes.forEach(node => {
+      const pkg = (node as any)?.package;
+      if (pkg) pkgs.add(pkg);
+    });
+    return Array.from(pkgs).map(name => ({ id: name, name }));
+  }, [nodes]);
+
   const editingId = useUiStore((state) => state.editingId);
   const { t } = useTranslation();
 
   const availableTypes = useMemo(() => {
     const classTypes = nodes
-      .filter((node) => node.type === "umlClass")
-      .map((node) => node.data.label);
+      .filter((node) => node.type === "CLASS" || node.type === "INTERFACE" || node.type === "ABSTRACT_CLASS" || node.type === "ENUM")
+      .map((node) => node.name);
     return [...PRIMITIVE_TYPES, ...classTypes];
   }, [nodes]);
 
@@ -74,8 +84,8 @@ export default function ClassEditorModal({
     const currentPackage = draft.package || "";
     return nodes.some(node => {
       if (node.id === editingId) return false;
-      const nodePackage = node.data.package || "";
-      return node.data.label === name && nodePackage === currentPackage;
+      const nodePackage = (node as any).package || "";
+      return (node as any).name === name && nodePackage === currentPackage;
     });
   };
 

@@ -26,8 +26,8 @@ function getDomainNodeReactFlowType(domainNodeType: string): string {
 /**
  * Maps a domain node to a React Flow view node.
  * 
- * CRITICAL: This function does NOT duplicate domain data.
- * It only creates a lightweight UI wrapper with position and rendering metadata.
+ * CRITICAL: This function passes the full domain node in the data property
+ * so that React components can access all node properties for rendering.
  * 
  * @param domainNode - The domain entity (SSOT)
  * @param position - UI position {x, y}
@@ -51,10 +51,8 @@ export function mapDomainNodeToView(
       y: position.y,
     },
     
-    // React Flow data payload (contains domain reference)
-    data: {
-      domainId: domainNode.id,
-    },
+    // React Flow data payload (contains full domain node for rendering)
+    data: domainNode as any, // Pass full domain node so components can access all properties
   };
 }
 

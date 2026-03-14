@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { X, Check, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useDiagramStore } from "../../../../store/diagramStore";
-import type { UmlClassNode, UmlMethod, UmlAttribute } from "../../types/diagram.types";
+import { useProjectStore } from "../../../../store/project.store";
+import type { DomainNode } from "../../../../core/domain/models/nodes";
 
 interface MethodGeneratorModalProps {
   isOpen: boolean;
@@ -10,21 +10,47 @@ interface MethodGeneratorModalProps {
   onClose: () => void;
 }
 
+// Helper types matching the domain model attribute/method shapes
+interface DomainAttribute {
+  id: string;
+  name: string;
+  type: string;
+  visibility: string;
+  isArray?: boolean;
+  isStatic?: boolean;
+}
+
+interface DomainMethod {
+  id: string;
+  name: string;
+  returnType: string;
+  visibility: string;
+  isReturnArray?: boolean;
+  isStatic?: boolean;
+  isConstructor?: boolean;
+  parameters: { name: string; type: string; isArray?: boolean }[];
+}
+
 export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: MethodGeneratorModalProps) {
   const { t } = useTranslation();
-  const nodes = useDiagramStore((s) => s.nodes);
-  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
+  const getNode = useProjectStore((s) => s.getNode);
+  const updateNode = useProjectStore((s) => s.updateNode);
 
   const classNode = useMemo(() => {
-    return nodes.find((n) => n.id === nodeId) as UmlClassNode | undefined;
-  }, [nodes, nodeId]);
+    if (!nodeId) return undefined;
+    return getNode(nodeId);
+  }, [nodeId, getNode]);
 
   const [selectedAttributes, setSelectedAttributes] = useState<Set<string>>(new Set());
 
   if (!isOpen || !classNode) return null;
+  if (classNode.type !== 'CLASS' && classNode.type !== 'ABSTRACT_CLASS') return null;
 
-  const attributes = classNode.data.attributes;
-  const existingMethods = classNode.data.methods;
+  // Access domain model properties
+  const typedNode = classNode as DomainNode & { attributes: DomainAttribute[]; methods: DomainMethod[] };
+  const attributes = typedNode.attributes || [];
+  const existingMethods = typedNode.methods || [];
+  const className = classNode.name;
 
   const toggleAttribute = (attrId: string) => {
     setSelectedAttributes((prev) => {
@@ -50,7 +76,7 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
     return str.charAt(0).toUpperCase() + str.slice(1);
   };
 
-  const generateGetter = (attr: UmlAttribute): UmlMethod => {
+  const generateGetter = (attr: DomainAttribute): DomainMethod => {
     return {
       id: crypto.randomUUID(),
       name: `get${capitalizeFirst(attr.name)}`,
@@ -62,7 +88,7 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
     };
   };
 
-  const generateSetter = (attr: UmlAttribute): UmlMethod => {
+  const generateSetter = (attr: DomainAttribute): DomainMethod => {
     return {
       id: crypto.randomUUID(),
       name: `set${capitalizeFirst(attr.name)}`,
@@ -80,10 +106,10 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
     };
   };
 
-  const generateConstructor = (selectedAttrs: UmlAttribute[]): UmlMethod => {
+  const generateConstructor = (selectedAttrs: DomainAttribute[]): DomainMethod => {
     return {
       id: crypto.randomUUID(),
-      name: classNode.data.label,
+      name: className,
       returnType: "",
       isReturnArray: false,
       visibility: "+",
@@ -99,16 +125,16 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
 
   const handleGenerateGettersSetters = () => {
     const selectedAttrs = attributes.filter((a) => selectedAttributes.has(a.id));
-    const newMethods: UmlMethod[] = [];
+    const newMethods: DomainMethod[] = [];
 
     selectedAttrs.forEach((attr) => {
       newMethods.push(generateGetter(attr));
       newMethods.push(generateSetter(attr));
     });
 
-    updateNodeData(classNode.id, {
+    updateNode(classNode.id, {
       methods: [...existingMethods, ...newMethods],
-    });
+    } as any);
 
     setSelectedAttributes(new Set());
     onClose();
@@ -118,9 +144,9 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
     const selectedAttrs = attributes.filter((a) => selectedAttributes.has(a.id));
     const constructor = generateConstructor(selectedAttrs);
 
-    updateNodeData(classNode.id, {
+    updateNode(classNode.id, {
       methods: [...existingMethods, constructor],
-    });
+    } as any);
 
     setSelectedAttributes(new Set());
     onClose();
@@ -128,7 +154,7 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
 
   const handleGenerateAll = () => {
     const selectedAttrs = attributes.filter((a) => selectedAttributes.has(a.id));
-    const newMethods: UmlMethod[] = [];
+    const newMethods: DomainMethod[] = [];
 
     const constructor = generateConstructor(selectedAttrs);
     newMethods.push(constructor);
@@ -138,9 +164,9 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
       newMethods.push(generateSetter(attr));
     });
 
-    updateNodeData(classNode.id, {
+    updateNode(classNode.id, {
       methods: [...existingMethods, ...newMethods],
-    });
+    } as any);
 
     setSelectedAttributes(new Set());
     onClose();
@@ -158,7 +184,7 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
                 {t("modals.methodGenerator.title")}
               </h2>
               <p className="text-sm text-text-muted">
-                {classNode.data.label}
+                {className}
               </p>
             </div>
           </div>

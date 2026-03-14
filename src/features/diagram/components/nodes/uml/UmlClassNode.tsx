@@ -1,9 +1,18 @@
 import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { Play } from "lucide-react";
-import type { UmlClassData } from "../../../types/diagram.types";
-import { useDiagramStore } from "../../../../../store/diagramStore";
+import type { ClassNode, InterfaceNode, AbstractClassNode, EnumNode } from "../../../../../core/domain/models/nodes/class-diagram.types";
+import { useProjectStore } from "../../../../../store/project.store";
 import { handleConfig } from "../../../../../config/theme.config";
+
+type UmlNodeData = ClassNode | InterfaceNode | AbstractClassNode | EnumNode;
+
+const domainTypeToStereotype: Record<string, string> = {
+  'CLASS': 'class',
+  'INTERFACE': 'interface',
+  'ABSTRACT_CLASS': 'abstract',
+  'ENUM': 'enum',
+};
 
 const STYLE_CONFIG: Record<
   string,
@@ -47,15 +56,18 @@ const STYLE_CONFIG: Record<
   },
 };
 
-const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
-  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
-  const [isEditing, setIsEditing] = useState(() => data.label === "NewClass");
+const UmlClassNode = ({ id, data, selected }: NodeProps<UmlNodeData>) => {
+  const updateNode = useProjectStore((s) => s.updateNode);
+  const domainNode = data as UmlNodeData;
+  
+  const [isEditing, setIsEditing] = useState(() => domainNode.name === "NewClass");
   const [editValue, setEditValue] = useState("");
 
   const startEditing = () => {
-    const fullText = data.generics
-      ? `${data.label}${data.generics}`
-      : data.label;
+    const hasGenerics = 'generics' in domainNode && domainNode.generics;
+    const fullText = hasGenerics
+      ? `${domainNode.name}${domainNode.generics}`
+      : domainNode.name;
     setEditValue(fullText);
     setIsEditing(true);
   };
@@ -69,18 +81,28 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
       const cleanLabel = match[1].trim();
       const cleanGeneric = match[2] ? match[2].trim() : undefined;
 
-      updateNodeData(id, {
-        label: cleanLabel,
+      updateNode(id, {
+        name: cleanLabel,
         generics: cleanGeneric,
       });
     } else {
-      updateNodeData(id, { label: editValue });
+      updateNode(id, { name: editValue });
     }
   };
 
-  const isMain = data.isMain;
+  const stereotype = domainTypeToStereotype[domainNode.type] || 'class';
+  const currentStyle = STYLE_CONFIG[stereotype] || STYLE_CONFIG.class;
 
-  const currentStyle = STYLE_CONFIG[data.stereotype] || STYLE_CONFIG.class;
+  const isMain = (domainNode as any).isMain;
+  const attributes = domainNode.type !== 'INTERFACE' && domainNode.type !== 'ENUM' 
+    ? (domainNode as ClassNode | AbstractClassNode).attributes 
+    : [];
+  const methods = domainNode.type !== 'ENUM' 
+    ? (domainNode as ClassNode | InterfaceNode | AbstractClassNode).methods 
+    : [];
+  const literals = domainNode.type === 'ENUM' 
+    ? (domainNode as EnumNode).literals 
+    : [];
 
   const selectionClasses = selected
     ? "ring-2 ring-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)] !border-cyan-500 z-10"
@@ -131,7 +153,7 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
           </div>
         )}
 
-        {(currentStyle.showStereotype || data.package) && (
+        {(currentStyle.showStereotype || domainNode.package) && (
           <div className="flex items-center justify-center gap-1.5 mb-0.5">
             {currentStyle.showStereotype && (
               <small
@@ -139,19 +161,18 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
                   currentStyle.labelFormat.includes("italic") ? "italic" : ""
                 } ${currentStyle.badgeColor}`}
               >
-                &lt;&lt;{data.stereotype}&gt;&gt;
+                &lt;&lt;{stereotype}&gt;&gt;
               </small>
             )}
             
-            {data.package && (
-              <small className="text-[10px] leading-tight font-mono text-text-muted truncate max-w-30" title={data.package}>
-                {data.package}
+            {domainNode.package && (
+              <small className="text-[10px] leading-tight font-mono text-text-muted truncate max-w-30" title={domainNode.package}>
+                {domainNode.package}
               </small>
             )}
           </div>
         )}
 
-        {/* Class Name */}
         {isEditing ? (
           <input
             autoFocus
@@ -165,17 +186,16 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
           <strong
             className={`text-sm block text-text-primary ${currentStyle.labelFormat}`}
           >
-            {data.label}
-            {data.generics && (
+            {domainNode.name}
+            {'generics' in domainNode && domainNode.generics && (
               <span className="text-yellow-600 font-mono ml-0.5 text-xs opacity-90">
-                {data.generics}
+                {domainNode.generics}
               </span>
             )}
           </strong>
         )}
       </div>
 
-      {/* BODY: Attributes */}
       <div
         className={`p-2 border-b-2 min-h-6 text-xs text-left font-mono text-text-secondary ${
           selected
@@ -185,8 +205,8 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
                 .find((c) => c.startsWith("border-")) 
         }`}
       >
-        {data.attributes && data.attributes.length > 0 ? (
-          data.attributes.map((attr) => (
+        {attributes && attributes.length > 0 ? (
+          attributes.map((attr) => (
             <div
               key={attr.id}
               className="truncate hover:text-text-primary transition-colors flex items-center gap-1"
@@ -202,15 +222,26 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
               </span>
             </div>
           ))
+        ) : literals && literals.length > 0 ? (
+          literals.map((literal) => (
+            <div
+              key={literal.id}
+              className="truncate hover:text-text-primary transition-colors"
+            >
+              <span className="text-text-primary font-semibold">{literal.name}</span>
+              {literal.value !== undefined && (
+                <span className="text-text-muted ml-1">= {literal.value}</span>
+              )}
+            </div>
+          ))
         ) : (
           <div className="h-2"></div>
         )}
       </div>
 
-     {/* FOOTER: Methods */}
-      <div className="p-2 min-h-6 text-xs text-left font-mono text-text-secondary">
-        {data.methods && data.methods.length > 0 ? (
-          data.methods.map((method, index) => {
+     <div className="p-2 min-h-6 text-xs text-left font-mono text-text-secondary">
+        {methods && methods.length > 0 ? (
+          methods.map((method, index) => {
             const params = method.parameters || [];
             
             const paramChunks = [];
@@ -237,13 +268,13 @@ const UmlClassNode = ({ id, data, selected }: NodeProps<UmlClassData>) => {
 
                     <span
                       className={`text-text-primary ${method.isStatic ? "underline" : ""} ${
-                        (data.stereotype === "interface" || data.stereotype === "abstract") &&
+                        (stereotype === "interface" || stereotype === "abstract") &&
                         method.visibility !== "-"
                           ? "italic"
                           : ""
                       }`}
                     >
-                      {method.isConstructor ? data.label : method.name}
+                      {method.isConstructor ? domainNode.name : method.name}
                     </span>
                     <span className="text-text-muted">(</span>
                   </div>

@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { Copy, Check, FileCode, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useDiagramStore } from "../../../../store/diagramStore";
+import { useProjectStore } from "../../../../store/project.store";
 import { useUiStore } from "../../../../store/uiStore";
 import { JavaGeneratorService } from "../../../../services/javaGenerator.service";
-import type { UmlClassNode, UmlEdge } from "../../types/diagram.types";
 
 interface Props {
   isOpen: boolean;
@@ -13,9 +12,13 @@ interface Props {
 
 export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
   const { t } = useTranslation();
-  const nodes = useDiagramStore((s) => s.nodes);
+  const projectNodes = useProjectStore((s) => s.nodes);
+  const nodes = useMemo(() => Object.values(projectNodes), [projectNodes]);
+  
   const editingId = useUiStore((s) => s.editingId); 
-  const edges = useDiagramStore((s) => s.edges);
+  
+  const projectEdges = useProjectStore((s) => s.edges);
+  const edges = useMemo(() => Object.values(projectEdges), [projectEdges]);
   
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [language, setLanguage] = useState("java"); 
@@ -36,11 +39,11 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
     if (editingId) {
         targetId = editingId;
     } else {
-        const selectedNodes = nodes.filter(n => n.selected && n.type === 'umlClass');
+        const selectedNodes = nodes.filter(n => n.id === editingId); // Simplified selection model doesn't store 'selected' on domain node
         if (selectedNodes.length === 1) {
             targetId = selectedNodes[0].id;
         } else if (nodes.length > 0) {
-            const firstClass = nodes.find(n => n.type === 'umlClass');
+            const firstClass = nodes.find(n => n.type === 'CLASS' || n.type === 'ABSTRACT_CLASS' || n.type === 'INTERFACE');
             if (firstClass) targetId = firstClass.id;
         }
     }
@@ -54,10 +57,34 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
         return;
     }
 
-    const node = nodes.find(n => n.id === selectedClassId) as UmlClassNode;
-    if (node && node.type === 'umlClass') {
+    const node = nodes.find(n => n.id === selectedClassId) as any;
+    if (node && (node.type === 'CLASS' || node.type === 'INTERFACE' || node.type === 'ABSTRACT_CLASS' || node.type === 'ENUM')) {
         if (language === 'java') {
-            const code = JavaGeneratorService.generate(node, nodes as UmlClassNode[], edges as UmlEdge[]);
+            const mapToLegacy = (n: any) => ({
+              id: n.id,
+              data: {
+                label: n.name,
+                stereotype: n.type.toLowerCase(),
+                generics: n.generics,
+                package: n.package,
+                attributes: n.attributes || [],
+                methods: n.methods || [],
+              }
+            } as any);
+
+            const legacyEdges = edges.map((e: any) => ({
+              id: e.id,
+              source: e.sourceNodeId,
+              target: e.targetNodeId,
+              type: e.type?.toLowerCase(),
+              data: { type: e.type?.toLowerCase() }
+            } as any));
+
+            const code = JavaGeneratorService.generate(
+              mapToLegacy(node), 
+              nodes.map(mapToLegacy), 
+              legacyEdges
+            );
             setGeneratedCode(code);
         } else {
             setGeneratedCode("// Coming soon...");
@@ -68,7 +95,7 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
   }, [selectedClassId, nodes, language, t, edges]);
 
   const allClasses = useMemo(() => 
-    nodes.filter(n => n.type === 'umlClass') as UmlClassNode[], 
+    nodes.filter(n => n.type === 'CLASS' || n.type === 'INTERFACE' || n.type === 'ABSTRACT_CLASS' || n.type === 'ENUM') as any[], 
   [nodes]);
 
   const handleCopy = async () => {
@@ -133,7 +160,7 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
                 >
                     {allClasses.map(node => (
                         <option key={node.id} value={node.id}>
-                            {node.data.label} {node.data.stereotype !== 'class' ? `(${node.data.stereotype})` : ''}
+                            {node.name} {node.type !== 'CLASS' ? `(${node.type.toLowerCase()})` : ''}
                         </option>
                     ))}
                 </select>

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useReactFlow } from "reactflow";
 import { create } from "zustand";
-import { useDiagramStore } from "../../../store/diagramStore";
+import { useProjectStore } from "../../../store/project.store";
+import { useWorkspaceStore } from "../../../store/workspace.store";
 
 interface SpotlightState {
   isOpen: boolean;
@@ -20,7 +21,25 @@ export const useSpotlight = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { fitView } = useReactFlow();
   
-  const nodes = useDiagramStore((state) => state.nodes);
+  // Read from SSOT: get active file's node IDs, then get domain nodes
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
+  const projectNodes = useProjectStore((s) => s.nodes);
+
+  const file = activeFileId ? getFile(activeFileId) : undefined;
+  
+  // Build a lightweight node list for spotlight search
+  const nodes = useMemo(() => {
+    if (!file) return [];
+    return file.nodeIds
+      .map((id) => projectNodes[id])
+      .filter(Boolean)
+      .map((node) => ({
+        id: node.id,
+        name: (node as any).name || (node as any).label || (node as any).content || 'Unnamed Node',
+        type: node.type,
+      }));
+  }, [file, projectNodes]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -43,26 +62,23 @@ export const useSpotlight = () => {
     if (!searchTerm) return nodes;
     
     return nodes.filter((node) => {
-      const label = node.data.label?.toLowerCase() || "";
-      const content = node.data.content?.toLowerCase() || "";
+      const name = node.name?.toLowerCase() || "";
+      const type = node.type?.toLowerCase() || "";
       const term = searchTerm.toLowerCase();
       
-      return label.includes(term) || content.includes(term);
+      return name.includes(term) || type.includes(term);
     });
   }, [nodes, searchTerm]);
 
   const onSelectNode = useCallback((nodeId: string) => {
-    const targetNode = nodes.find((n) => n.id === nodeId);
-    if (!targetNode) return;
-
     fitView({
-      nodes: [targetNode],
+      nodes: [{ id: nodeId }],
       duration: 800,
       padding: 1.5,
     });
     
     setIsOpen(false);
-  }, [fitView, nodes, setIsOpen]);
+  }, [fitView, setIsOpen]);
 
   return {
     isOpen,

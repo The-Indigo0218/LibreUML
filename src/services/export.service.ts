@@ -5,11 +5,6 @@ import {
   type Node,
   type ReactFlowJsonObject,
 } from "reactflow";
-import type {
-  DiagramState,
-  UmlClassNode,
-  UmlEdge,
-} from "../features/diagram/types/diagram.types";
 
 export interface ExportImageOptions {
   fileName: string;
@@ -19,6 +14,7 @@ export interface ExportImageOptions {
   backgroundColor: string;
 }
 
+// PHASE 4: Export service works with generic React Flow objects, not UI types
 export const ExportService = {
   // --- JSON (NATIVO) ---
   downloadJson: (
@@ -39,11 +35,12 @@ export const ExportService = {
       return semanticNode;
     });
 
-    const exportData: DiagramState = {
+    // PHASE 4: Use generic structure instead of casting to UI types
+    const exportData = {
       id,
       name,
-      nodes: cleanNodes as unknown as UmlClassNode[],
-      edges: cleanEdges as unknown as UmlEdge[],
+      nodes: cleanNodes,
+      edges: cleanEdges,
       viewport: flowObject.viewport,
     };
 

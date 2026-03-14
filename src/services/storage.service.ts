@@ -1,7 +1,7 @@
 import type { ReactFlowJsonObject } from "reactflow";
 import { ExportService } from "./export.service";
-import type { DiagramState, UmlClassNode, UmlEdge } from "../features/diagram/types/diagram.types";
 
+// PHASE 4: Remove UI type dependencies - storage works with generic React Flow objects
 export const StorageService = {
   // --- SAVE DIAGRAM ---
   saveDiagram: async (
@@ -16,11 +16,12 @@ export const StorageService = {
       return semanticEdge;
     });
 
-    const exportData: DiagramState = {
+    // PHASE 4: Use generic structure instead of casting to UI types
+    const exportData = {
       id,
       name,
-      nodes: flowObject.nodes as unknown as UmlClassNode[],
-      edges: cleanEdges as unknown as UmlEdge[],
+      nodes: flowObject.nodes,
+      edges: cleanEdges,
       viewport: flowObject.viewport,
     };
 
@@ -43,13 +44,13 @@ export const StorageService = {
   },
 
   // --- OPEN WITH DIALOG ---
-  openDiagram: async (): Promise<{ data: DiagramState; filePath: string } | null> => {
+  openDiagram: async (): Promise<{ data: any; filePath: string } | null> => {
     if (window.electronAPI?.isElectron()) {
       try {
         const result = await window.electronAPI.openFile();
         if (result.canceled || !result.content || !result.filePath) return null;
 
-        const parsedData = JSON.parse(result.content) as DiagramState;
+        const parsedData = JSON.parse(result.content);
 
         return { 
             data: parsedData, 
@@ -66,12 +67,12 @@ export const StorageService = {
   },
 
   // RELOAD FROM DISK (SILENT) ---
-  reloadDiagram: async (filePath: string): Promise<DiagramState | null> => {
+  reloadDiagram: async (filePath: string): Promise<any | null> => {
     if (window.electronAPI?.isElectron()) {
       try {
         const result = await window.electronAPI.readFile(filePath);
         if (result.success && result.content) {
-           return JSON.parse(result.content) as DiagramState;
+           return JSON.parse(result.content);
         }
       } catch (error) {
         console.error("Error reloading file:", error);

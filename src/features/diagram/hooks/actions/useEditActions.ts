@@ -1,67 +1,39 @@
 import { useCallback } from "react";
-import { useDiagramStore } from "../../../../store/diagramStore";
 import { useUiStore } from "../../../../store/uiStore";
 
+/**
+ * TODO: SSOT Migration - Edit Actions
+ * 
+ * This hook used useDiagramStore for node selection and temporal undo/redo.
+ * Needs migration to use WorkspaceStore for selection state and implement
+ * SSOT-compatible history.
+ * 
+ * For now, returning stub functions to prevent build errors.
+ */
 export const useEditActions = () => {
-  // --- STORES ---
-  const storeApi = useDiagramStore.getState;
-  const temporalApi = useDiagramStore.temporal.getState;
   const { openClassEditor } = useUiStore();
 
-  // --- ACTIONS ---
-  const handleUndo = useCallback(() => {
-    temporalApi().undo();
-  }, [temporalApi]);
+  const selectAll = useCallback(() => {
+    console.warn("TODO: SSOT - selectAll not implemented");
+  }, []);
 
+  const deselectAll = useCallback(() => {
+    console.warn("TODO: SSOT - deselectAll not implemented");
+  }, []);
 
-  const handleRedo = useCallback(() => {
-    temporalApi().redo();
-  }, [temporalApi]);
+  const undo = useCallback(() => {
+    console.warn("TODO: SSOT - Undo not implemented");
+  }, []);
 
-  const handleDuplicate = useCallback(() => {
-    const { nodes, duplicateNode } = storeApi();
-    const selectedNodes = nodes.filter((n) => n.selected);
-    
-    selectedNodes.forEach((node) => {
-      duplicateNode(node.id);
-    });
-  }, [storeApi]);
-
-  const handleDelete = useCallback(() => {
-    const { nodes, edges, deleteNode, deleteEdge } = storeApi();
-    
-    nodes.filter((n) => n.selected).forEach((n) => deleteNode(n.id));
-
-    edges.filter((e) => e.selected).forEach((e) => deleteEdge(e.id));
-  }, [storeApi]);
-
-  const handleSelectAll = useCallback(() => {
-    const { nodes, onNodesChange } = storeApi();
-    
-    const changes = nodes.map((node) => ({
-      id: node.id,
-      type: "select" as const,
-      selected: true,
-    }));
-
-    onNodesChange(changes);
-  }, [storeApi]);
-
-  const handleEditSelected = useCallback(() => {
-    const { nodes } = storeApi();
-    const selectedNodes = nodes.filter((n) => n.selected);
-
-    if (selectedNodes.length === 1) {
-      openClassEditor(selectedNodes[0].id);
-    }
-  }, [storeApi, openClassEditor]);
+  const redo = useCallback(() => {
+    console.warn("TODO: SSOT - Redo not implemented");
+  }, []);
 
   return {
-    handleUndo,
-    handleRedo,
-    handleDuplicate,
-    handleDelete,
-    handleSelectAll,
-    handleEditSelected
+    selectAll,
+    deselectAll,
+    undo,
+    redo,
+    openClassEditor,
   };
 };

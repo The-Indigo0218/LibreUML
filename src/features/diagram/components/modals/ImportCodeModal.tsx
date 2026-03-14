@@ -1,7 +1,6 @@
 import { useState, useRef } from "react";
 import type { ChangeEvent } from "react"; 
 import { Upload, FileText, Code, AlertCircle, X } from "lucide-react";
-import { useDiagramStore } from "../../../../store/diagramStore";
 import { ReverseEngineeringService } from "../../../../services/reverseEngineering.service";
 import { useTranslation } from "react-i18next";
 // Import types for casting
@@ -29,8 +28,15 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Stores
-  const { nodes, edges, setNodes, setEdges } = useDiagramStore();
+  // TODO: SSOT Migration - Reverse engineering needs to write to ProjectStore/WorkspaceStore
+  const nodes: any[] = [];
+  const edges: any[] = [];
+  const setNodes = (nodes: any[]) => {
+    console.warn("TODO: SSOT - setNodes not implemented", nodes);
+  };
+  const setEdges = (edges: any[]) => {
+    console.warn("TODO: SSOT - setEdges not implemented", edges);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 

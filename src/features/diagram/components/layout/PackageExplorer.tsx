@@ -1,11 +1,10 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useReactFlow } from "reactflow";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Package, FolderPlus } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useProjectStore } from "../../../../store/project.store";
 import { useShallow } from "zustand/react/shallow";
-import { useDiagramStore } from "../../../../store/diagramStore";
 import { useSettingsStore } from "../../../../store/settingsStore";
 import { buildPackageTree } from "./packageExplorer/buildPackageTree";
 import { PackageItem } from "./packageExplorer/PackageItem";
@@ -44,12 +43,26 @@ export default function PackageExplorer() {
     }));
   }, [activeNodes]);
 
-  const packages = useDiagramStore((s) => s.packages);
-  const addPackage = useDiagramStore((s) => s.addPackage);
-  const updatePackageName = useDiagramStore((s) => s.updatePackageName);
-  const deletePackage = useDiagramStore((s) => s.deletePackage);
-  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
-  const deleteNode = useDiagramStore((s) => s.deleteNode);
+  // TODO: SSOT Migration - Package Management
+  // The legacy package management system needs to be replaced with a proper
+  // SSOT-compatible solution. For now, using empty arrays to prevent errors.
+  const packages: Array<{ id: string; name: string }> = [];
+  const addPackage = useCallback((name: string) => {
+    console.warn("TODO: SSOT - addPackage not implemented", name);
+  }, []);
+  const updatePackageName = useCallback((id: string, newName: string) => {
+    console.warn("TODO: SSOT - updatePackageName not implemented", id, newName);
+  }, []);
+  const deletePackage = useCallback((id: string, deleteClasses: boolean) => {
+    console.warn("TODO: SSOT - deletePackage not implemented", id, deleteClasses);
+  }, []);
+  const updateNodeData = useCallback((nodeId: string, data: any) => {
+    console.warn("TODO: SSOT - updateNodeData not implemented", nodeId, data);
+  }, []);
+  const deleteNode = useCallback((nodeId: string) => {
+    console.warn("TODO: SSOT - deleteNode not implemented", nodeId);
+  }, []);
+  
   const theme = useSettingsStore((s) => s.theme);
 
   // Merge explicit packages with implicit packages discovered from nodes

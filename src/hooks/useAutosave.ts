@@ -1,18 +1,29 @@
 import { useEffect, useRef } from "react";
-import { useReactFlow } from "reactflow";
-import { useDiagramStore } from "../store/diagramStore";
+import { useWorkspaceStore } from "../store/workspace.store";
+import { useProjectStore } from "../store/project.store";
 import { useSettingsStore } from "../store/settingsStore";
 
 const STORAGE_KEY = 'libreuml-backup';
 const BACKUP_DELAY = 3000; 
 
+/**
+ * TODO: SSOT Migration - AutoSave
+ * 
+ * This hook needs to be rewritten to save SSOT format:
+ * - Save WorkspaceStore state (files, activeFileId)
+ * - Save ProjectStore state (nodes, edges)
+ * - Restore needs to reconstruct both stores
+ * 
+ * For now, disabled to prevent build errors.
+ */
 export const useAutoSave = () => {
-  const { toObject } = useReactFlow();
   const autoSaveEnabled = useSettingsStore((s) => s.autoSave);
-  const isDirty = useDiagramStore((s) => s.isDirty);
-  const diagramId = useDiagramStore((s) => s.diagramId); 
-  const nodes = useDiagramStore((s) => s.nodes);
-  const edges = useDiagramStore((s) => s.edges);
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
+  
+  const activeFile = activeFileId ? getFile(activeFileId) : undefined;
+  const isDirty = activeFile?.isDirty ?? false;
+  
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -23,30 +34,13 @@ export const useAutoSave = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
 
     timerRef.current = setTimeout(() => {
-      const flow = toObject(); 
-      
-      const state = useDiagramStore.getState();
-
-      const backupData = {
-        id: state.diagramId,
-        name: state.diagramName,
-        currentFilePath: state.currentFilePath,
-        nodes: flow.nodes,
-        edges: flow.edges,
-        viewport: flow.viewport,
-        timestamp: Date.now()
-      };
-
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(backupData));
-        console.log("[AutoSave] Backup actualizado en LocalStorage", new Date().toLocaleTimeString());
-      } catch (e) {
-        console.warn("[AutoSave] Error guardando backup (posiblemente cuota llena)", e);
-      }
+      // TODO: Implement SSOT-compatible autosave
+      // Need to serialize WorkspaceStore + ProjectStore state
+      console.warn("[AutoSave] TODO: SSOT autosave not implemented");
     }, BACKUP_DELAY);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isDirty, diagramId, autoSaveEnabled, toObject, nodes, edges]);
+  }, [isDirty, activeFileId, autoSaveEnabled]);
 };

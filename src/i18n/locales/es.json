@@ -1,5 +1,6 @@
 {
   "header": {
+    "projectName": "Proyecto Sin Título",
     "diagramNamePlaceholder": "Nombre del Diagrama",
     "search": "Buscar (Ctrl+K)",
     "switchLanguage": "Cambiar Idioma",
@@ -23,6 +24,9 @@
     }
   },
   "menubar": {
+    "more": {
+      "title": "Más"
+    },
     "file": {
       "title": "Archivo",
       "newProject": "Nuevo Proyecto",
@@ -160,6 +164,27 @@
     }
   },
   "modals": {
+    "createDiagram": {
+      "title": "Crear Nuevo Diagrama",
+      "name": "Nombre",
+      "namePlaceholder": "Ingresa el nombre del diagrama",
+      "diagramType": "Tipo de Diagrama",
+      "modelingLanguage": "Lenguaje de Modelado",
+      "futureFeature": "Marcador visual - afecta la generación de código futura",
+      "create": "Crear",
+      "types": {
+        "classDiagram": "Diagrama de Clases",
+        "useCaseDiagram": "Diagrama de Casos de Uso",
+        "objectDiagram": "Diagrama de Objetos"
+      },
+      "languages": {
+        "umlDefault": "UML Predeterminado",
+        "java": "Java",
+        "csharp": "C#",
+        "typescript": "TypeScript",
+        "python": "Python"
+      }
+    },
     "common": {
       "save": "Guardar",
       "cancel": "Cancelar",
@@ -332,5 +357,63 @@
     "hintPart2": "o",
     "hintAction2": "abriendo",
     "hintPart3": "un diagrama existente"
+  },
+  "statusBar": {
+    "unsaved": "Sin Guardar",
+    "encoding": "UTF-8",
+    "errors": "Errores",
+    "warnings": "Advertencias",
+    "modelingLanguage": "UML Predeterminado",
+    "modelingLanguageTooltip": "Seleccionar lenguaje de modelado (Java, C#, Python, etc.)",
+    "diagramTypes": {
+      "classDiagram": "Diagrama de Clases",
+      "useCaseDiagram": "Diagrama de Casos de Uso"
+    }
+  },
+  "tabBar": {
+    "closeTab": "Cerrar",
+    "unsavedChanges": "Cambios sin guardar"
+  },
+  "activityBar": {
+    "diagrams": "Diagramas del Proyecto",
+    "packages": "Paquetes del Diagrama",
+    "explorer": "Explorador de Paquetes",
+    "tools": "Herramientas de Diagrama",
+    "timeline": "Línea de Tiempo (Historial Deshacer/Rehacer)",
+    "profile": "Perfil / Iniciar Sesión (Próximamente)",
+    "cloud": "Sincronización en la Nube (Próximamente)",
+    "github": "Integración con GitHub (Próximamente)",
+    "feedback": "Reportar Problema / Comentarios"
+  },
+  "diagramExplorer": {
+    "title": "Diagramas",
+    "createNew": "Crear Nuevo Diagrama",
+    "empty": "No hay diagramas aún. Haz clic en + para crear uno.",
+    "rename": "Renombrar",
+    "delete": "Eliminar",
+    "confirmDelete": "¿Estás seguro de que deseas eliminar este diagrama?"
+  },
+  "timeline": {
+    "title": "Línea de Tiempo",
+    "past": "pasado",
+    "future": "futuro",
+    "undo": "Deshacer (Ctrl+Z)",
+    "redo": "Rehacer (Ctrl+Y)",
+    "clearHistory": "Limpiar Historial",
+    "noHistory": "No hay historial registrado aún.",
+    "noHistoryHint": "Realiza algunos cambios en el diagrama.",
+    "jumpToPast": "Haz clic para saltar a este estado",
+    "jumpToFuture": "Haz clic para saltar a este estado",
+    "savedState": "Estado Guardado",
+    "currentState": "Estado Actual",
+    "node": "nodo",
+    "nodes": "nodos",
+    "edge": "conexión",
+    "edges": "conexiones",
+    "step": "paso",
+    "steps": "pasos",
+    "inHistory": "en el historial",
+    "limitReached": "límite alcanzado",
+    "shortcuts": "Usa Ctrl+Z para deshacer, Ctrl+Y para rehacer"
   }
 }

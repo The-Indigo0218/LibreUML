@@ -8,18 +8,20 @@ import { useHistoryActions } from "./useHistoryActions";
 /**
  * PHASE 4.5: Edit Actions - SSOT Implementation
  * PHASE 7: Integrated with History (Undo/Redo)
+ * PHASE 9.6.3: Integrated with per-file history system
  * 
  * Provides edit operations that work with the SSOT architecture:
  * - Selection management via React Flow
  * - Duplicate/Delete operations via ProjectStore + WorkspaceStore
- * - Undo/Redo via zundo temporal middleware
+ * - Undo/Redo via per-file history system
+ * - Automatic snapshot saving after modifications
  */
 export const useEditActions = () => {
   const { openClassEditor } = useUiStore();
   const { getNodes, getEdges, setNodes, setEdges } = useReactFlow();
 
-  // PHASE 7: History actions
-  const { undo: historyUndo, redo: historyRedo, canUndo, canRedo } = useHistoryActions();
+  // PHASE 9.6.3: Per-file history actions
+  const { undo: historyUndo, redo: historyRedo, canUndo, canRedo, saveSnapshot } = useHistoryActions();
 
   // ProjectStore actions
   const getNode = useProjectStore((s) => s.getNode);
@@ -102,7 +104,10 @@ export const useEditActions = () => {
     });
 
     markFileDirty(file.id);
-  }, [getNodes, getNode, addNode, addNodeToFile, getActiveFile, updateFile, markFileDirty]);
+    
+    // PHASE 9.6.3: Save snapshot after modification
+    saveSnapshot();
+  }, [getNodes, getNode, addNode, addNodeToFile, getActiveFile, updateFile, markFileDirty, saveSnapshot]);
 
   const deleteSelected = useCallback(() => {
     const file = getActiveFile();
@@ -137,6 +142,9 @@ export const useEditActions = () => {
     });
 
     markFileDirty(file.id);
+    
+    // PHASE 9.6.3: Save snapshot after modification
+    saveSnapshot();
   }, [
     getNodes,
     getEdges,
@@ -147,6 +155,7 @@ export const useEditActions = () => {
     removeNode,
     removeEdge,
     markFileDirty,
+    saveSnapshot,
   ]);
 
   const editSelected = useCallback(() => {

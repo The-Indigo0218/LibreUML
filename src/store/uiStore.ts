@@ -13,6 +13,7 @@ export type ActiveModal =
   | "import-code"
   | "method-generator"
   | "not-a-project"
+  | "create-diagram"
   | null;
 
 interface UiStoreState {
@@ -33,6 +34,7 @@ interface UiStoreState {
   openImportCode: () => void;
   openMethodGenerator: (nodeId: string) => void;
   openNotAProjectModal: (fileName: string, content: string, fileType: 'luml' | 'xmi') => void;
+  openCreateDiagram: () => void;
   setIsFileLoading: (isLoading: boolean) => void;
   closeModals: () => void;
 }
@@ -75,6 +77,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
       editingId: null,
       pendingFileData: { fileName, content, fileType }
     }),
+
+  openCreateDiagram: () =>
+    set({ activeModal: "create-diagram", editingId: null }),
 
   setIsFileLoading: (isLoading) =>
     set({ isFileLoading: isLoading }),

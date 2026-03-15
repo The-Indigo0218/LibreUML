@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { temporal } from 'zundo';
 import type { DiagramFile, DiagramType, Viewport } from '../core/domain/workspace/diagram-file.types';
+import { createEmptyHistory } from '../core/domain/workspace/history.types';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
+import { useProjectStore } from './project.store';
 
 /**
  * Workspace Store State - Multi-tab file management
@@ -12,13 +14,14 @@ import { storageAdapter } from '../adapters/storage/storage.adapter';
  * - Active file selection
  * - Per-file viewport state
  * 
- * CRITICAL: DiagramFiles only store ID references to domain entities.
- * The actual domain data lives in ProjectStore (SSOT).
+ * PHASE 9.5: Added freeze/hydrate architecture for true state isolation.
+ * Each file stores its own snapshot of nodes and edges in the `data` property.
  */
 interface WorkspaceStoreState {
   // === State ===
   files: DiagramFile[];
   activeFileId: string | null;
+  projectName: string;
 
   // === File Management Actions ===
   addFile: (file: DiagramFile) => void;
@@ -48,6 +51,9 @@ interface WorkspaceStoreState {
   createNewFile: (diagramType: DiagramType, name?: string) => DiagramFile;
   closeAllFiles: () => void;
   clearWorkspace: () => void;
+  
+  // === Project Actions ===
+  setProjectName: (name: string) => void;
 }
 
 /**
@@ -75,6 +81,7 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
       (set, get) => ({
         files: [],
         activeFileId: null,
+        projectName: "Untitled Project",
 
       addFile: (file) =>
         set((state) => ({
@@ -130,8 +137,66 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           activeFileId: fileId,
         }),
 
+      /**
+       * PHASE 9.5: Context Switching with Freeze/Hydrate
+       * PHASE 9.6.3: Simplified - history is now stored per-file, no swapping needed
+       * 
+       * Orchestrates the complete tab switch sequence:
+       * 1. FREEZE: Save current ProjectStore state into the currently active file's data
+       * 2. SWITCH: Change activeFileId to the new target
+       * 3. HYDRATE: Load the new file's data into ProjectStore
+       * 
+       * History is now automatically preserved because it's stored in file.data.history
+       * and managed by useFileHistory hook, not by Zundo's global temporal state.
+       */
       switchFile: (fileId) => {
+        const currentActiveFileId = get().activeFileId;
+        
+        // FREEZE: Save current state before switching (if there is an active file)
+        if (currentActiveFileId) {
+          const currentFile = get().getFile(currentActiveFileId);
+          if (currentFile) {
+            const projectState = useProjectStore.getState();
+            const currentNodes = Object.values(projectState.nodes);
+            const currentEdges = Object.values(projectState.edges);
+            
+            // Freeze current state into the file's data property
+            // History is already stored in file.data.history by useFileHistory
+            get().updateFile(currentActiveFileId, {
+              data: {
+                ...currentFile.data,
+                nodes: currentNodes,
+                edges: currentEdges,
+                // history is preserved from currentFile.data.history
+              },
+            });
+            
+            console.log(`[WorkspaceStore] FREEZE: Saved ${currentNodes.length} nodes and ${currentEdges.length} edges to file ${currentFile.name}`);
+          }
+        }
+        
+        // SWITCH: Change active file
         get().setActiveFile(fileId);
+        
+        // HYDRATE: Load new file's data into ProjectStore
+        const newFile = get().getFile(fileId);
+        if (newFile) {
+          const projectStore = useProjectStore.getState();
+          
+          // Clear ProjectStore completely
+          projectStore.clearAll();
+          
+          // Hydrate with new file's data
+          if (newFile.data.nodes.length > 0) {
+            projectStore.addNodes(newFile.data.nodes);
+          }
+          if (newFile.data.edges.length > 0) {
+            projectStore.addEdges(newFile.data.edges);
+          }
+          
+          console.log(`[WorkspaceStore] HYDRATE: Loaded ${newFile.data.nodes.length} nodes and ${newFile.data.edges.length} edges from file ${newFile.name}`);
+          console.log(`[WorkspaceStore] History is managed per-file by useFileHistory hook`);
+        }
       },
 
       addNodeToFile: (fileId, nodeId) =>
@@ -236,6 +301,11 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           diagramType,
           nodeIds: [],
           edgeIds: [],
+          data: {
+            nodes: [],
+            edges: [],
+            history: createEmptyHistory(), // Initialize with empty custom history
+          },
           viewport: {
             x: 0,
             y: 0,
@@ -258,6 +328,11 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
         set({
           files: [],
           activeFileId: null,
+        }),
+
+      setProjectName: (name) =>
+        set({
+          projectName: name,
         }),
     }),
     {

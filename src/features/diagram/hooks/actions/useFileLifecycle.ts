@@ -37,10 +37,50 @@ export const useFileLifecycle = () => {
   // Hidden file input ref for web fallback
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  /**
+   * PHASE 9.5: Create new diagram with freeze/hydrate
+   * 
+   * When creating a new diagram:
+   * 1. FREEZE: Save current state to the currently active file (if any)
+   * 2. CREATE: Create new file with empty data
+   * 3. HYDRATE: Clear ProjectStore and load empty state
+   * 4. CLEAR HISTORY: Purge Zundo history
+   */
   const createNewDiagram = useCallback(
     (diagramType: DiagramType = "CLASS_DIAGRAM", name?: string) => {
+      const getActiveFile = useWorkspaceStore.getState().getActiveFile;
+      const updateFile = useWorkspaceStore.getState().updateFile;
+      const currentActiveFile = getActiveFile();
+      
+      // FREEZE: Save current state before creating new diagram
+      // History is already managed by useFileHistory, just save nodes/edges
+      if (currentActiveFile) {
+        const projectState = useProjectStore.getState();
+        const currentNodes = Object.values(projectState.nodes);
+        const currentEdges = Object.values(projectState.edges);
+        
+        updateFile(currentActiveFile.id, {
+          data: {
+            ...currentActiveFile.data,
+            nodes: currentNodes,
+            edges: currentEdges,
+            // history is preserved from currentActiveFile.data.history
+          },
+        });
+        
+        console.log(`[FileLifecycle] FREEZE: Saved ${currentNodes.length} nodes and ${currentEdges.length} edges to file ${currentActiveFile.name}`);
+      }
+      
+      // CREATE: Create new file with empty data and empty history
       const newFile = createNewFile(diagramType, name);
       addFile(newFile);
+      
+      // HYDRATE: Clear ProjectStore for fresh start
+      const projectStore = useProjectStore.getState();
+      projectStore.clearAll();
+      
+      console.log(`[FileLifecycle] Created new diagram: ${newFile.name} with clean state and empty history`);
+      
       return newFile;
     },
     [createNewFile, addFile]
@@ -355,6 +395,7 @@ export const useFileLifecycle = () => {
 
   /**
    * PHASE 8.2: Close Project - Total State Annihilation
+   * PHASE 9.5: Enhanced with proper freeze/hydrate cleanup
    * 
    * Performs a complete reset of all application state:
    * - Clears all files from WorkspaceStore
@@ -373,12 +414,16 @@ export const useFileLifecycle = () => {
     // Clear project data and purge history
     clearProject();
     
+    // Clear workspace temporal history as well
+    useWorkspaceStore.temporal.getState().clear();
+    
     console.log("[FileLifecycle] Project closed - Welcome Screen should now be visible");
   }, [clearWorkspace, clearProject]);
 
   /**
    * PHASE 8.4: Process file after "Not a Project" modal confirmation
    * PHASE 8.5: Stub implementation - content parameter will be used in Phase 9
+   * PHASE 9.5: Enhanced with freeze/hydrate for proper state isolation
    * 
    * This is a stub for Phase 9. Currently just creates a new diagram
    * to clear the Welcome Screen.
@@ -388,6 +433,7 @@ export const useFileLifecycle = () => {
     
     // PHASE 8.5: Stub - just create a new diagram to clear Welcome Screen
     // Phase 9 will use _content to parse and populate the workspace
+    // PHASE 9.5: Uses enhanced createNewDiagram with freeze/hydrate
     createNewDiagram("CLASS_DIAGRAM", fileName.replace(/\.(luml|xmi|json)$/, ""));
   }, [createNewDiagram]);
 

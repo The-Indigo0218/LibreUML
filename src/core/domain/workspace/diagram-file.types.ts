@@ -1,3 +1,7 @@
+import type { DomainNode } from '../models/nodes';
+import type { DomainEdge } from '../models/edges';
+import type { FileHistory } from './history.types';
+
 /**
  * Supported diagram types in the workspace
  */
@@ -16,8 +20,25 @@ export interface Viewport {
 }
 
 /**
+ * PHASE 9.5: Diagram data storage for true state isolation
+ * Each file stores its own snapshot of nodes and edges
+ * 
+ * PHASE 9.6.3: Replaced Zundo-based history with custom per-file history system
+ * Each file maintains its own independent Undo/Redo stack
+ */
+export interface DiagramData {
+  nodes: DomainNode[];
+  edges: DomainEdge[];
+  history?: FileHistory; // Custom per-file history (not Zundo)
+}
+
+/**
  * A diagram file represents a single tab/document in the workspace.
  * It contains references to domain entities (by ID) and their view state.
+ * 
+ * PHASE 9.5: Added `data` property for freeze/hydrate architecture.
+ * When switching tabs, the current ProjectStore state is frozen into `data`,
+ * and the new file's `data` is hydrated into ProjectStore.
  */
 export interface DiagramFile<TDiagramType extends DiagramType = DiagramType> {
   id: string;
@@ -27,6 +48,9 @@ export interface DiagramFile<TDiagramType extends DiagramType = DiagramType> {
   // References to domain entities (SSOT lives in ProjectState)
   nodeIds: string[]; // Array of domain node IDs
   edgeIds: string[]; // Array of domain edge IDs
+  
+  // PHASE 9.5: Isolated data storage (freeze/hydrate)
+  data: DiagramData; // Snapshot of nodes and edges for this diagram
   
   // View state (UI concerns, not domain)
   viewport: Viewport;

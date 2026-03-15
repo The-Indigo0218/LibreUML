@@ -17,6 +17,7 @@ import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useDiagramActions } from "../../../hooks/useDiagramActions";
 import { useWorkspaceStore } from "../../../../../store/workspace.store";
 import { useProjectStore } from "../../../../../store/project.store";
+import { useUiStore } from "../../../../../store/uiStore";
 import { XmiImporterService } from "../../../../../services/xmiImporter.service";
 
 interface FileMenuProps {
@@ -28,6 +29,8 @@ export function FileMenu({ actions }: FileMenuProps) {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const xmiInputRef = useRef<HTMLInputElement>(null);
+
+  const openCreateDiagram = useUiStore((s) => s.openCreateDiagram);
 
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const getFile = useWorkspaceStore((s) => s.getFile);
@@ -179,7 +182,7 @@ export function FileMenu({ actions }: FileMenuProps) {
         <MenubarItem
           label={t("menubar.file.newFile") || "New File"}
           icon={<File className="w-4 h-4" />}
-          onClick={handleNew}
+          onClick={openCreateDiagram}
         />
         
         <div className="h-px bg-surface-border my-1" />

@@ -12,6 +12,7 @@ import type { EdgeView } from '../../../adapters/react-flow/view-models/edge-vie
 import type { DomainNode } from '../../../core/domain/models/nodes';
 import { useShallow } from 'zustand/react/shallow';
 import { getNextDefaultName } from '../../../core/utils/name-generator.util';
+import { useFileHistory } from '../../diagram/hooks/actions/useFileHistory';
 
 interface PositionMap {
   [nodeId: string]: { x: number; y: number };
@@ -21,6 +22,9 @@ export function useDiagram(fileId?: string) {
   const [isHydrated, setIsHydrated] = useState(() => 
     useProjectStore.persist.hasHydrated() && useWorkspaceStore.persist.hasHydrated()
   );
+
+  // PHASE 9.6.3: Per-file history
+  const { saveSnapshot } = useFileHistory();
 
   useEffect(() => {
     const checkHydration = () => {
@@ -225,6 +229,9 @@ export function useDiagram(fileId?: string) {
       addEdge(newEdge);
       addEdgeToFile(targetFileId, newEdge.id);
       markFileDirty(targetFileId);
+      
+      // PHASE 9.6.3: Save snapshot after creating edge
+      saveSnapshot();
     },
     [
       file,
@@ -277,6 +284,9 @@ export function useDiagram(fileId?: string) {
         });
 
         markFileDirty(targetFileId);
+        
+        // PHASE 9.6.3: Save snapshot after creating node
+        saveSnapshot();
 
         return newNode;
       },

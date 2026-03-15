@@ -1,5 +1,6 @@
 {
   "header": {
+    "projectName": "Untitled Project",
     "diagramNamePlaceholder": "Diagram Name",
     "search": "Search (Ctrl+K)",
     "switchLanguage": "Switch Language",
@@ -23,6 +24,9 @@
     }
   },
   "menubar": {
+    "more": {
+      "title": "More"
+    },
     "file": {
       "title": "File",
       "newProject": "New Project",
@@ -154,6 +158,27 @@
     }
   },
   "modals": {
+    "createDiagram": {
+      "title": "Create New Diagram",
+      "name": "Name",
+      "namePlaceholder": "Enter diagram name",
+      "diagramType": "Diagram Type",
+      "modelingLanguage": "Modeling Language",
+      "futureFeature": "Visual placeholder - affects future code generation",
+      "create": "Create",
+      "types": {
+        "classDiagram": "Class Diagram",
+        "useCaseDiagram": "Use Case Diagram",
+        "objectDiagram": "Object Diagram"
+      },
+      "languages": {
+        "umlDefault": "UML Default",
+        "java": "Java",
+        "csharp": "C#",
+        "typescript": "TypeScript",
+        "python": "Python"
+      }
+    },
     "common": {
       "save": "Save",
       "cancel": "Cancel",
@@ -331,5 +356,63 @@
     "hintPart2": "or",
     "hintAction2": "opening",
     "hintPart3": "an existing diagram"
+  },
+  "statusBar": {
+    "unsaved": "Unsaved",
+    "encoding": "UTF-8",
+    "errors": "Errors",
+    "warnings": "Warnings",
+    "modelingLanguage": "UML Default",
+    "modelingLanguageTooltip": "Select modeling language (Java, C#, Python, etc.)",
+    "diagramTypes": {
+      "classDiagram": "Class Diagram",
+      "useCaseDiagram": "Use Case Diagram"
+    }
+  },
+  "tabBar": {
+    "closeTab": "Close",
+    "unsavedChanges": "Unsaved changes"
+  },
+  "activityBar": {
+    "diagrams": "Project Diagrams",
+    "packages": "Diagram Packages",
+    "explorer": "Package Explorer",
+    "tools": "Diagram Tools",
+    "timeline": "Timeline (Undo/Redo History)",
+    "profile": "Profile / Login (Coming Soon)",
+    "cloud": "Cloud Sync (Coming Soon)",
+    "github": "GitHub Integration (Coming Soon)",
+    "feedback": "Report Issue / Feedback"
+  },
+  "diagramExplorer": {
+    "title": "Diagrams",
+    "createNew": "Create New Diagram",
+    "empty": "No diagrams yet. Click + to create one.",
+    "rename": "Rename",
+    "delete": "Delete",
+    "confirmDelete": "Are you sure you want to delete this diagram?"
+  },
+  "timeline": {
+    "title": "Timeline",
+    "past": "past",
+    "future": "future",
+    "undo": "Undo (Ctrl+Z)",
+    "redo": "Redo (Ctrl+Y)",
+    "clearHistory": "Clear History",
+    "noHistory": "No history recorded yet.",
+    "noHistoryHint": "Make some changes to the diagram.",
+    "jumpToPast": "Click to jump to this state",
+    "jumpToFuture": "Click to jump to this state",
+    "savedState": "Saved State",
+    "currentState": "Current State",
+    "node": "node",
+    "nodes": "nodes",
+    "edge": "edge",
+    "edges": "edges",
+    "step": "step",
+    "steps": "steps",
+    "inHistory": "in history",
+    "limitReached": "limit reached",
+    "shortcuts": "Use Ctrl+Z to undo, Ctrl+Y to redo"
   }
 }

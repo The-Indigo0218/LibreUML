@@ -47,6 +47,7 @@ interface WorkspaceStoreState {
   // === Utility Actions ===
   createNewFile: (diagramType: DiagramType, name?: string) => DiagramFile;
   closeAllFiles: () => void;
+  clearWorkspace: () => void;
 }
 
 /**
@@ -252,6 +253,12 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           files: [],
           activeFileId: null,
         }),
+
+      clearWorkspace: () =>
+        set({
+          files: [],
+          activeFileId: null,
+        }),
     }),
     {
       // PHASE 7: Temporal (undo/redo) configuration for positions
@@ -280,12 +287,13 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
         storageAdapter.removeItem(name);
       },
     },
-    onRehydrateStorage: () => (state) => {
-      if (state && state.files.length === 0) {
-        const defaultFile = state.createNewFile('CLASS_DIAGRAM', 'Untitled Diagram');
-        state.addFile(defaultFile);
-      }
-    },
+    // PHASE 8.2: Removed auto-create behavior to allow Welcome Screen
+    // onRehydrateStorage: () => (state) => {
+    //   if (state && state.files.length === 0) {
+    //     const defaultFile = state.createNewFile('CLASS_DIAGRAM', 'Untitled Diagram');
+    //     state.addFile(defaultFile);
+    //   }
+    // },
   }
   )
 );

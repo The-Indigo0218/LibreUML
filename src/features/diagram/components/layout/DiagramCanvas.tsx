@@ -15,7 +15,12 @@ import { useDiagram } from "../../../workspace/hooks/useDiagram";
 import { canvasConfig, miniMapColors } from "../../../../config/theme.config";
 import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
 
-// Components (Modals only - node/edge components now come from registry)
+// PHASE 8.7: Import node/edge components directly for stable reference
+import UmlClassNode from "../nodes/uml/UmlClassNode";
+import UmlNoteNode from "../nodes/uml/UmlNoteNode";
+import CustomUmlEdge from "../edges/CustomUmlEdge";
+
+// Components (Modals only)
 import ContextMenu from "../ui/ContextMenu";
 import ClassEditorModal from "../modals/ClassEditorModal";
 import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
@@ -37,6 +42,17 @@ import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
 import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
 import ImportCodeModal from "../modals/ImportCodeModal";
 
+// PHASE 8.7: Define nodeTypes and edgeTypes OUTSIDE component for stable reference
+// This prevents React Flow from losing node type references on re-renders
+const nodeTypes = {
+  umlClass: UmlClassNode,
+  umlNote: UmlNoteNode,
+};
+
+const edgeTypes = {
+  umlEdge: CustomUmlEdge,
+};
+
 export default function DiagramCanvas() {
   const { t } = useTranslation();
 
@@ -51,7 +67,7 @@ export default function DiagramCanvas() {
     isReady,
   } = useDiagram();
 
-  // PHASE 3: Get diagram type and registry
+  // PHASE 3: Get diagram type and registry (for validation and tools, not for components)
   const diagramType = file?.diagramType || 'CLASS_DIAGRAM';
   const registry = useMemo(() => {
     try {
@@ -61,10 +77,6 @@ export default function DiagramCanvas() {
       return getDiagramRegistry('CLASS_DIAGRAM'); // Fallback
     }
   }, [diagramType]);
-
-  // PHASE 3: Extract node and edge components from registry
-  const nodeTypes = useMemo(() => registry.nodeComponents, [registry]);
-  const edgeTypes = useMemo(() => registry.edgeComponents, [registry]);
 
   // === Settings (UI Preferences from SettingsStore) ===
   const showMiniMap = useSettingsStore((s) => s.showMiniMap);
@@ -88,7 +100,7 @@ export default function DiagramCanvas() {
   // --- UI STATE (Modals & Interactions) ---
   const { 
     activeModal, 
-    editingId, 
+    editingId,
     openClassEditor, 
     openMultiplicityEditor, 
     openClearConfirmation,

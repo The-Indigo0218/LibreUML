@@ -79,6 +79,14 @@ export const useDiagramActions = () => {
     }
   }, [modalState.unsaved, handleSave]);
 
+  const handleCloseProject = useCallback(() => {
+    executeSafeAction(fileLifecycle.closeProject, {
+      requireConfirm: true,
+      confirmTitle: t("menubar.file.closeProject"),
+      confirmMessage: t("modals.confirmation.closeProjectMessage"),
+    });
+  }, [executeSafeAction, fileLifecycle, t]);
+
   return {
     handleNew,
     handleOpen,
@@ -87,6 +95,7 @@ export const useDiagramActions = () => {
     handleSaveAs,
     handleCloseFile: handleNew,
     handleDiscardChangesAction,
+    handleCloseProject,
     
     handleExit,
     

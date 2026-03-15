@@ -41,6 +41,7 @@ interface ProjectStoreState {
 
   // === Utility Actions ===
   clearAll: () => void;
+  clearProject: () => void;
   getEdgesForNode: (nodeId: string) => DomainEdge[];
   getEdgeIdsForNode: (nodeId: string) => string[];
   getEdgeIdsForNodes: (nodeIds: string[]) => string[];
@@ -286,6 +287,19 @@ export const useProjectStore = create<ProjectStoreState>()(
           nodes: {},
           edges: {},
         }),
+
+      /**
+       * PHASE 8.2: Clears all project data and purges Zundo history.
+       * This is used when closing a project to ensure complete state reset.
+       */
+      clearProject: () => {
+        set({
+          nodes: {},
+          edges: {},
+        });
+        // Clear Zundo history to prevent state leakage
+        useProjectStore.temporal.getState().clear();
+      },
 
       /**
        * Gets all edges connected to a specific node.

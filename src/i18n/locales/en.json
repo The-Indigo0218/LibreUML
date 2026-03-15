@@ -25,13 +25,18 @@
   "menubar": {
     "file": {
       "title": "File",
+      "newProject": "New Project",
+      "newFile": "New File",
       "new": "New Diagram",
       "open": "Open...",
       "save": "Save",
       "saveAs": "Save As...",
       "discard": "Discard Changes",
+      "closeFile": "Close File",
+      "closeProject": "Close Project",
       "close": "Close Editor",
-      "exit": "Exit"
+      "exit": "Exit",
+      "importXmi": "Import XMI..."
     },
     "settings": {
       "title": "Settings",
@@ -198,6 +203,7 @@
       "defaultTitle": "Confirmation",
       "defaultMessage": "Are you sure you want to proceed?",
       "exitMessage": "Are you sure you want to exit? Unsaved changes will be lost.",
+      "closeProjectMessage": "Are you sure you want to close the project? All unsaved changes will be lost and you will return to the Welcome Screen.",
       "clearTitle": "Clear Entire Canvas?",
       "clearMessage": "This action cannot be undone and you will lose unsaved changes.",
       "newTitle": "Create New Diagram",
@@ -276,12 +282,20 @@
       "generateConstructor": "Constructor",
       "generateAll": "Generate All",
       "cancel": "Cancel"
+    },
+    "notAProject": {
+      "title": "Not a Project",
+      "message": "This file is a single diagram, not a project workspace. Create a new project from this file?",
+      "createProject": "Create Project"
     }
   },
   "alerts": {
     "exportError": "Could not generate the image. Please try again.",
     "savedSuccess": "Diagram saved successfully",
     "importError": "Error loading file. Make sure it is a valid .json or .luml."
+  },
+  "loading": {
+    "file": "Loading file..."
   },
   "connections": {
     "title": "Connections",
@@ -302,13 +316,20 @@
   },
   "welcome": {
     "title": "LibreUML",
-    "subtitle": "Free & Open Source UML Class Diagram Editor",
+    "subtitle": "Free & Open Source UML Diagram Editor",
     "actions": {
       "newProject": "New Project",
+      "openProject": "Open Project",
+      "viewFeatures": "View Features",
+      "getStarted": "Get Started",
       "viewDocs": "View Documentation",
       "starGitHub": "Star on GitHub",
       "viewSource": "View Source Code"
     },
-    "hint": "Start by creating a new project or opening an existing diagram"
+    "hintPart1": "Start by creating a",
+    "hintAction1": "new project",
+    "hintPart2": "or",
+    "hintAction2": "opening",
+    "hintPart3": "an existing diagram"
   }
 }

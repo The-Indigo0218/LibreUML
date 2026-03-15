@@ -7,7 +7,9 @@ import {
   XCircle, 
   FileOutput, 
   RotateCcw,
-  FileCode2 
+  FileCode2,
+  File,
+  FolderX
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
@@ -43,6 +45,7 @@ export function FileMenu({ actions }: FileMenuProps) {
     handleSave, 
     handleSaveAs, 
     handleCloseFile, 
+    handleCloseProject,
     handleExit, 
     hasFilePath,
     handleDiscardChangesAction,
@@ -167,11 +170,21 @@ export function FileMenu({ actions }: FileMenuProps) {
       />
 
       <MenubarTrigger label={t("menubar.file.title") || "File"}>
+        {/* New Project / New File */}
         <MenubarItem
-          label={t("menubar.file.new") || "New Diagram"}
+          label={t("menubar.file.newProject") || "New Project"}
           icon={<FilePlus className="w-4 h-4" />}
           onClick={handleNew}
         />
+        <MenubarItem
+          label={t("menubar.file.newFile") || "New File"}
+          icon={<File className="w-4 h-4" />}
+          onClick={handleNew}
+        />
+        
+        <div className="h-px bg-surface-border my-1" />
+        
+        {/* Open */}
         <MenubarItem
           label={t("menubar.file.open") || "Open..."}
           icon={<FolderOpen className="w-4 h-4" />}
@@ -187,6 +200,7 @@ export function FileMenu({ actions }: FileMenuProps) {
         
         <div className="h-px bg-surface-border my-1" />
         
+        {/* Save */}
         <MenubarItem
           label={t("menubar.file.save") || "Save"}
           icon={<Save className="w-4 h-4" />}
@@ -211,11 +225,23 @@ export function FileMenu({ actions }: FileMenuProps) {
 
         <div className="h-px bg-surface-border my-1" />
 
+        {/* Close File / Close Project */}
         <MenubarItem
-          label={t("menubar.file.close") || "Close Editor"}
+          label={t("menubar.file.closeFile") || "Close File"}
           icon={<XCircle className="w-4 h-4" />}
           onClick={handleCloseFile}
+          disabled={true}
         />
+        
+        <MenubarItem
+          label={t("menubar.file.closeProject") || "Close Project"}
+          icon={<FolderX className="w-4 h-4" />}
+          onClick={handleCloseProject}
+        />
+
+        <div className="h-px bg-surface-border my-1" />
+
+        {/* Exit */}
         <MenubarItem
           label={t("menubar.file.exit") || "Exit"}
           icon={<LogOut className="w-4 h-4" />}

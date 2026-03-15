@@ -12,12 +12,15 @@ export type ActiveModal =
   | "engineering-reverse"
   | "import-code"
   | "method-generator"
+  | "not-a-project"
   | null;
 
 interface UiStoreState {
   // state
   activeModal: ActiveModal;
   editingId: string | null;
+  pendingFileData: { fileName: string; content: string; fileType: 'luml' | 'xmi' } | null;
+  isFileLoading: boolean;
 
   // actions
   openClassEditor: (nodeId: string) => void;
@@ -29,12 +32,16 @@ interface UiStoreState {
   openReverseEngineering: () => void;
   openImportCode: () => void;
   openMethodGenerator: (nodeId: string) => void;
+  openNotAProjectModal: (fileName: string, content: string, fileType: 'luml' | 'xmi') => void;
+  setIsFileLoading: (isLoading: boolean) => void;
   closeModals: () => void;
 }
 
 export const useUiStore = create<UiStoreState>((set) => ({
   activeModal:null,
   editingId: null,
+  pendingFileData: null,
+  isFileLoading: false,
 
   openClassEditor: (nodeId) =>
     set({ activeModal: "class-editor", editingId: nodeId }),
@@ -62,5 +69,15 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openMethodGenerator: (nodeId) =>
     set({ activeModal: "method-generator", editingId: nodeId }),
 
-  closeModals: () => set({ activeModal: null, editingId: null }),
+  openNotAProjectModal: (fileName, content, fileType) =>
+    set({ 
+      activeModal: "not-a-project", 
+      editingId: null,
+      pendingFileData: { fileName, content, fileType }
+    }),
+
+  setIsFileLoading: (isLoading) =>
+    set({ isFileLoading: isLoading }),
+
+  closeModals: () => set({ activeModal: null, editingId: null, pendingFileData: null }),
 }));

@@ -25,13 +25,18 @@
   "menubar": {
     "file": {
       "title": "Archivo",
+      "newProject": "Nuevo Proyecto",
+      "newFile": "Nuevo Archivo",
       "new": "Nuevo Diagrama",
       "open": "Abrir...",
       "save": "Guardar",
       "saveAs": "Guardar Como...",
       "discard": "Descartar Cambios",
+      "closeFile": "Cerrar Archivo",
+      "closeProject": "Cerrar Proyecto",
       "close": "Cerrar Editor",
-      "exit": "Salir"
+      "exit": "Salir",
+      "importXmi": "Importar XMI..."
     },
     "settings": {
       "title": "Ajustes",
@@ -204,6 +209,7 @@
       "defaultTitle": "Confirmación",
       "defaultMessage": "¿Estás seguro de que deseas continuar?",
       "exitMessage": "¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.",
+      "closeProjectMessage": "¿Estás seguro de que deseas cerrar el proyecto? Todos los cambios no guardados se perderán y volverás a la Pantalla de Bienvenida.",
       "clearTitle": "¿Limpiar todo el Lienzo?",
       "clearMessage": "Esta acción no se puede deshacer y perderás los cambios no guardados.",
       "newTitle": "Crear Nuevo Diagrama",
@@ -277,12 +283,20 @@
     "copied": "¡Copiado!",
     "noClassSelected": "No hay clase seleccionada",
     "invalidNode": "El nodo seleccionado no es una Clase/Interfaz válida"
-  }
+  },
+    "notAProject": {
+      "title": "No es un Proyecto",
+      "message": "Este archivo es un diagrama individual, no un proyecto. ¿Crear un proyecto a partir de este archivo?",
+      "createProject": "Crear Proyecto"
+    }
   },
   "alerts": {
     "exportError": "No se pudo generar la imagen. Intenta de nuevo.",
     "savedSuccess": "Diagrama guardado correctamente",
     "importError": "Error al leer el archivo. Asegúrate de que sea un .json o .luml válido."
+  },
+  "loading": {
+    "file": "Cargando archivo..."
   },
   "connections": {
     "title": "Conexiones",
@@ -303,13 +317,20 @@
   },
   "welcome": {
     "title": "LibreUML",
-    "subtitle": "Editor de Diagramas de Clases UML Libre y de Código Abierto",
+    "subtitle": "Editor de Diagramas UML Libre y de Código Abierto",
     "actions": {
       "newProject": "Nuevo Proyecto",
+      "openProject": "Abrir Proyecto",
+      "viewFeatures": "Ver Funcionalidades",
+      "getStarted": "Cómo Empezar",
       "viewDocs": "Ver Documentación",
       "starGitHub": "Dar Estrella en GitHub",
       "viewSource": "Ver Código Fuente"
     },
-    "hint": "Comienza creando un nuevo proyecto o abriendo un diagrama existente"
+    "hintPart1": "Comienza creando un",
+    "hintAction1": "nuevo proyecto",
+    "hintPart2": "o",
+    "hintAction2": "abriendo",
+    "hintPart3": "un diagrama existente"
   }
 }

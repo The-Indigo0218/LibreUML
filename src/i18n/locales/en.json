@@ -97,11 +97,15 @@
   },
   "sidebar": {
     "toolbox": "Toolbox",
+    "project_structure": "Project Structure",
+    "outline": "Outline",
+    "project_files": "Project Files",
     "nodes": {
       "title": "Nodes",
       "class": "Class",
       "interface": "Interface",
       "abstract": "Abstract",
+      "enum": "Enum",
       "note": "Note"
     },
     "connections": {
@@ -299,5 +303,64 @@
     "aggregation": "has a",
     "dependency": "uses",
     "association": ""
+  },
+  "common": {
+    "open_file": "Open file"
+  },
+  "tools": {
+    "enum": "Enum"
+  },
+  "actions": {
+    "rename": "Rename",
+    "delete": "Delete",
+    "open": "Open",
+    "addToProject": "Add to project"
+  },
+  "activityBar": {
+    "projectStructure": "Project Structure",
+    "packageExplorer": "Package Explorer",
+    "modelingTools": "Modeling Tools",
+    "userProfile": "User Profile",
+    "cloudSync": "Cloud Sync",
+    "githubIntegration": "GitHub Integration",
+    "bugReport": "Bug Report"
+  },
+  "statusbar": {
+    "problems": "Problems",
+    "activeFile": "Active file",
+    "untitled": "Untitled",
+    "validator": "UML Validator",
+    "umlValidator": "UML Validator",
+    "languageMode": "Select target language",
+    "cloudSynced": "Cloud synced",
+    "cloudDisconnected": "Cloud disconnected"
+  },
+  "welcome": {
+    "subtitle": "Design, Generate, and Evolve your software architecture.",
+    "recentProjects": "Recent Projects",
+    "startActions": "Start Actions",
+    "openProject": "Open project",
+    "createProject": "Create new project",
+    "openGithub": "Open GitHub project",
+    "starRepo": "Star repository",
+    "viewDocs": "View documentation",
+    "getStarted": "Get started",
+    "footerPrefix": "To get started",
+    "footerOpenLink": "open a project",
+    "footerOr": "or",
+    "footerCreateLink": "create a new one"
+  },
+  "sleepScreen": {
+    "title": "No file open",
+    "subtitle": "Open a file or create a new diagram to get started",
+    "shortcuts": {
+      "newFile": "New File",
+      "openFile": "Open File",
+      "save": "Save",
+      "quickOpen": "Quick Open",
+      "spotlight": "Spotlight Search",
+      "export": "Export Diagram"
+    },
+    "quote": "\"Good architecture makes the system easy to understand, easy to develop, easy to maintain, and easy to deploy. The goal is to minimize lifetime cost and maximize programmer productivity.\" — Robert C. Martin"
   }
 }

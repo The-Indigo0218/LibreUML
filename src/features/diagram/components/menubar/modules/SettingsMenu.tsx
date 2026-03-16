@@ -12,7 +12,7 @@ import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrig
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useSettingsStore } from "../../../../../store/settingsStore"; 
 
-export function SettingsMenu() {
+export function SettingsMenuContent() {
   const { t} = useTranslation();
   
   const { 
@@ -45,10 +45,7 @@ export function SettingsMenu() {
   };
 
   return (
-    <MenubarTrigger label={t("menubar.settings.title") || "Settings"}>
-      
-      {/* --- GENERAL PREFERENCES --- */}
-      
+    <>
       <MenubarItem
         label={t("menubar.settings.autoSave") || "Auto Save"}
         icon={
@@ -57,7 +54,7 @@ export function SettingsMenu() {
             {autoSave && <Check className="w-3 h-3 absolute -bottom-1 -right-1 text-green-500 font-bold" />}
           </div>
         }
-        onClick={toggleAutoSave} // <--- Conectado
+        onClick={toggleAutoSave}
       />
 
       <MenubarItem
@@ -68,22 +65,18 @@ export function SettingsMenu() {
             {restoreSession && <Check className="w-3 h-3 absolute -bottom-1 -right-1 text-green-500 font-bold" />}
           </div>
         }
-        onClick={toggleRestoreSession} // <--- Conectado
+        onClick={toggleRestoreSession}
       />
 
       <div className="h-px bg-surface-border my-1" />
-
-      {/* --- SYSTEM INTEGRATION --- */}
 
       <MenubarItem
         label={t("menubar.settings.fileAssoc") || "Associate .luml Files"}
         icon={<FileType className="w-4 h-4" />}
-        onClick={handleAssociateFiles} // <--- Conectado
+        onClick={handleAssociateFiles}
       />
 
       <div className="h-px bg-surface-border my-1" />
-
-      {/* --- APPEARANCE & LOCALIZATION --- */}
 
       <MenubarItem
         label={`${t("menubar.settings.language")}: ${language.toUpperCase()}`}
@@ -96,6 +89,16 @@ export function SettingsMenu() {
         icon={theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
         onClick={toggleTheme}
       />
+    </>
+  );
+}
+
+export function SettingsMenu() {
+  const { t } = useTranslation();
+
+  return (
+    <MenubarTrigger label={t("menubar.settings.title") || "Settings"}>
+      <SettingsMenuContent />
     </MenubarTrigger>
   );
 }

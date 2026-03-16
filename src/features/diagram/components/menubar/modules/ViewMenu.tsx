@@ -17,13 +17,11 @@ import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useSpotlightStore } from "../../../hooks/useSpotlight";
 import { useSettingsStore } from "../../../../../store/settingsStore";
 
-export function ViewMenu() {
+export function ViewMenuContent() {
   const { t } = useTranslation();
   
-  // React Flow Controls
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
-  // PHASE 4.5: Connect to SettingsStore for view preferences
   const showMiniMap = useSettingsStore((s) => s.showMiniMap);
   const toggleMiniMap = useSettingsStore((s) => s.toggleMiniMap);
   const showGrid = useSettingsStore((s) => s.showGrid);
@@ -33,15 +31,12 @@ export function ViewMenu() {
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
   const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
 
-  // TODO: SSOT - Auto layout needs implementation (separate service)
   const applyAutoLayout = (direction: string) => console.warn("TODO: SSOT - applyAutoLayout not implemented", direction);
 
   const toggleSpotlight = useSpotlightStore((s) => s.toggle);
 
   return (
-    <MenubarTrigger label={t("menubar.view.title") || "View"}>
-      
-      {/* --- ZOOM CONTROLS --- */}
+    <>
       <MenubarItem
         label={t("menubar.view.zoomIn") || "Zoom In"}
         icon={<ZoomIn className="w-4 h-4" />}
@@ -63,7 +58,6 @@ export function ViewMenu() {
 
       <div className="h-px bg-surface-border my-1" />
 
-      {/* --- VISUAL AIDS --- */}
       <MenubarItem
         label={t("menubar.view.minimap") || "Show Minimap"}
         icon={
@@ -109,7 +103,6 @@ export function ViewMenu() {
 
       <div className="h-px bg-surface-border my-1" />
 
-      {/* --- TOOLS --- */}
       <MenubarItem
         label={t("menubar.view.spotlight") || "Spotlight Search"}
         icon={<Search className="w-4 h-4" />}
@@ -123,7 +116,16 @@ export function ViewMenu() {
         shortcut="Ctrl + L"
         onClick={() => applyAutoLayout("TB")}
       />
+    </>
+  );
+}
 
+export function ViewMenu() {
+  const { t } = useTranslation();
+
+  return (
+    <MenubarTrigger label={t("menubar.view.title") || "View"}>
+      <ViewMenuContent />
     </MenubarTrigger>
   );
 }

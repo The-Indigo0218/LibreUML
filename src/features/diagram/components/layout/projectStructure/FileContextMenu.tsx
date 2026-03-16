@@ -4,9 +4,10 @@ import { useTranslation } from "react-i18next";
 interface FileContextMenuState {
   x: number;
   y: number;
-  fileId: string;
-  fileName: string;
+  nodeId: string;
+  nodeName: string;
   isOutlineFile: boolean;
+  isFolder: boolean;
 }
 
 interface FileContextMenuProps {
@@ -47,13 +48,15 @@ export function FileContextMenu({
         </button>
       )}
       
-      <button
-        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-text-primary hover:bg-surface-hover transition-colors"
-        onClick={onOpen}
-      >
-        <ExternalLink className="w-4 h-4 text-blue-400" />
-        <span>{t('actions.open')}</span>
-      </button>
+      {!contextMenu.isFolder && (
+        <button
+          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-text-primary hover:bg-surface-hover transition-colors"
+          onClick={onOpen}
+        >
+          <ExternalLink className="w-4 h-4 text-blue-400" />
+          <span>{t('actions.open')}</span>
+        </button>
+      )}
       
       <button
         className="w-full flex items-center gap-3 px-3 py-2 text-sm text-text-primary hover:bg-surface-hover transition-colors"

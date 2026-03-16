@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
 import { getIconComponent } from "../../../../core/registry/icon-map";
 
-export default function Sidebar() {
+export default function ToolPalette() {
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const getFile = useWorkspaceStore((s) => s.getFile);
   const updateFile = useWorkspaceStore((s) => s.updateFile);

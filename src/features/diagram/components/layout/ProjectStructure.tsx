@@ -11,8 +11,14 @@ import {
   FileCode,
   Trash2,
   Edit2,
+  Info,
+  Edit3,
 } from "lucide-react";
 import { useVFSStore } from "../../../../store/vfs.store";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import CreateFileModal from "./CreateFileModal";
+import CreateFolderModal from "./CreateFolderModal";
+import ViewDescriptionModal from "./ViewDescriptionModal";
 import type { VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
 type VFSNode = VFSFolder | VFSFile;
@@ -38,6 +44,7 @@ interface TreeItemProps {
   onEditCancel: () => void;
   onInlineNewFile: (folderId: string) => void;
   onInlineNewFolder: (folderId: string) => void;
+  onOpenFile: (fileId: string) => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
@@ -54,6 +61,7 @@ function TreeItem({
   onEditCancel,
   onInlineNewFile,
   onInlineNewFolder,
+  onOpenFile,
   inputRef,
 }: TreeItemProps) {
   const { project } = useVFSStore();
@@ -147,7 +155,7 @@ function TreeItem({
           )}
         </div>
         {isExpanded && (
-          <div>
+          <div className="ml-3 pl-1 border-l border-surface-border/50">
             {children.map((child) => (
               <TreeItem
                 key={child.id}
@@ -163,6 +171,7 @@ function TreeItem({
                 onEditCancel={onEditCancel}
                 onInlineNewFile={onInlineNewFile}
                 onInlineNewFolder={onInlineNewFolder}
+                onOpenFile={onOpenFile}
                 inputRef={inputRef}
               />
             ))}
@@ -179,6 +188,7 @@ function TreeItem({
       className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover transition-colors cursor-pointer group"
       style={{ paddingLeft: `${paddingLeft + 20}px` }}
       onContextMenu={(e) => onContextMenu(e, node)}
+      onDoubleClick={() => onOpenFile(node.id)}
     >
       {isEditing ? (
         <>
@@ -206,13 +216,22 @@ function TreeItem({
 }
 
 export default function ProjectStructure() {
-  const { project, createFolder, createFile, deleteNode, renameNode } = useVFSStore();
+  const { project, deleteNode, renameNode } = useVFSStore();
+  const { openTab } = useWorkspaceStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [isNewNode, setIsNewNode] = useState(false);
+  const [isCreateFileModalOpen, setIsCreateFileModalOpen] = useState(false);
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+  const [isViewDescriptionModalOpen, setIsViewDescriptionModalOpen] = useState(false);
+  const [editFileNodeId, setEditFileNodeId] = useState<string | undefined>(undefined);
+  const [editFolderNodeId, setEditFolderNodeId] = useState<string | undefined>(undefined);
+  const [viewDescriptionNode, setViewDescriptionNode] = useState<{ name: string; description: string } | null>(null);
+  const [createFileParentId, setCreateFileParentId] = useState<string | null>(null);
+  const [createFolderParentId, setCreateFolderParentId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -231,17 +250,15 @@ export default function ProjectStructure() {
   }, [editingNodeId]);
 
   const handleNewFileAtRoot = () => {
-    const newId = createFile(null, "New Diagram", "CLASS_DIAGRAM", ".luml");
-    setEditingNodeId(newId);
-    setEditValue("New Diagram");
-    setIsNewNode(true);
+    setCreateFileParentId(null);
+    setEditFileNodeId(undefined);
+    setIsCreateFileModalOpen(true);
   };
 
   const handleNewFolderAtRoot = () => {
-    const newId = createFolder(null, "New Folder");
-    setEditingNodeId(newId);
-    setEditValue("New Folder");
-    setIsNewNode(true);
+    setCreateFolderParentId(null);
+    setEditFolderNodeId(undefined);
+    setIsCreateFolderModalOpen(true);
   };
 
   const handleToggleFolder = (folderId: string) => {
@@ -276,6 +293,31 @@ export default function ProjectStructure() {
     setContextMenu(null);
   };
 
+  const handleEditDetails = () => {
+    if (!contextMenu) return;
+    if (contextMenu.isFolder) {
+      setEditFolderNodeId(contextMenu.nodeId);
+      setIsCreateFolderModalOpen(true);
+    } else {
+      setEditFileNodeId(contextMenu.nodeId);
+      setIsCreateFileModalOpen(true);
+    }
+    setContextMenu(null);
+  };
+
+  const handleViewDescription = () => {
+    if (!contextMenu || !project) return;
+    const node = project.nodes[contextMenu.nodeId];
+    if (node) {
+      setViewDescriptionNode({
+        name: node.name,
+        description: node.description || "",
+      });
+      setIsViewDescriptionModalOpen(true);
+    }
+    setContextMenu(null);
+  };
+
   const handleDelete = () => {
     if (!contextMenu) return;
     deleteNode(contextMenu.nodeId);
@@ -284,38 +326,38 @@ export default function ProjectStructure() {
 
   const handleNewFileInside = () => {
     if (!contextMenu) return;
-    const newId = createFile(contextMenu.nodeId, "New Diagram", "CLASS_DIAGRAM", ".luml");
+    setCreateFileParentId(contextMenu.nodeId);
+    setEditFileNodeId(undefined);
+    setIsCreateFileModalOpen(true);
     setExpandedFolders((prev) => new Set(prev).add(contextMenu.nodeId));
-    setEditingNodeId(newId);
-    setEditValue("New Diagram");
-    setIsNewNode(true);
     setContextMenu(null);
   };
 
   const handleNewFolderInside = () => {
     if (!contextMenu) return;
-    const newId = createFolder(contextMenu.nodeId, "New Folder");
+    setCreateFolderParentId(contextMenu.nodeId);
+    setEditFolderNodeId(undefined);
+    setIsCreateFolderModalOpen(true);
     setExpandedFolders((prev) => new Set(prev).add(contextMenu.nodeId));
-    setEditingNodeId(newId);
-    setEditValue("New Folder");
-    setIsNewNode(true);
     setContextMenu(null);
   };
 
   const handleInlineNewFile = (folderId: string) => {
-    const newId = createFile(folderId, "New Diagram", "CLASS_DIAGRAM", ".luml");
+    setCreateFileParentId(folderId);
+    setEditFileNodeId(undefined);
+    setIsCreateFileModalOpen(true);
     setExpandedFolders((prev) => new Set(prev).add(folderId));
-    setEditingNodeId(newId);
-    setEditValue("New Diagram");
-    setIsNewNode(true);
+  };
+
+  const handleOpenFile = (fileId: string) => {
+    openTab(fileId);
   };
 
   const handleInlineNewFolder = (folderId: string) => {
-    const newId = createFolder(folderId, "New Folder");
+    setCreateFolderParentId(folderId);
+    setEditFolderNodeId(undefined);
+    setIsCreateFolderModalOpen(true);
     setExpandedFolders((prev) => new Set(prev).add(folderId));
-    setEditingNodeId(newId);
-    setEditValue("New Folder");
-    setIsNewNode(true);
   };
 
   const commitEdit = () => {
@@ -427,6 +469,7 @@ export default function ProjectStructure() {
               onEditCancel={cancelEdit}
               onInlineNewFile={handleInlineNewFile}
               onInlineNewFolder={handleInlineNewFolder}
+              onOpenFile={handleOpenFile}
               inputRef={inputRef}
             />
           ))
@@ -439,12 +482,41 @@ export default function ProjectStructure() {
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
+          {!contextMenu.isFolder && (
+            <>
+              <button
+                onClick={() => {
+                  openTab(contextMenu.nodeId);
+                  setContextMenu(null);
+                }}
+                className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
+              >
+                <FileText className="w-3 h-3" />
+                Open File
+              </button>
+              <div className="border-t border-surface-border my-1" />
+            </>
+          )}
           <button
             onClick={handleRename}
             className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
           >
             <Edit2 className="w-3 h-3" />
             Rename
+          </button>
+          <button
+            onClick={handleEditDetails}
+            className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
+          >
+            <Edit3 className="w-3 h-3" />
+            Edit Details
+          </button>
+          <button
+            onClick={handleViewDescription}
+            className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
+          >
+            <Info className="w-3 h-3" />
+            View Description
           </button>
           {contextMenu.isFolder && (
             <>
@@ -474,6 +546,36 @@ export default function ProjectStructure() {
           </button>
         </div>
       )}
+
+      <CreateFileModal
+        isOpen={isCreateFileModalOpen}
+        onClose={() => {
+          setIsCreateFileModalOpen(false);
+          setEditFileNodeId(undefined);
+        }}
+        parentId={createFileParentId}
+        editNodeId={editFileNodeId}
+      />
+
+      <CreateFolderModal
+        isOpen={isCreateFolderModalOpen}
+        onClose={() => {
+          setIsCreateFolderModalOpen(false);
+          setEditFolderNodeId(undefined);
+        }}
+        parentId={createFolderParentId}
+        editNodeId={editFolderNodeId}
+      />
+
+      <ViewDescriptionModal
+        isOpen={isViewDescriptionModalOpen}
+        onClose={() => {
+          setIsViewDescriptionModalOpen(false);
+          setViewDescriptionNode(null);
+        }}
+        nodeName={viewDescriptionNode?.name || ""}
+        description={viewDescriptionNode?.description || ""}
+      />
     </div>
   );
 }

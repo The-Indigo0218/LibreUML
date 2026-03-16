@@ -2,20 +2,18 @@ import { useState } from "react";
 import { FolderOpen, Plus, Github, Star, BookOpen, Play, Clock, Sun, Moon, Globe, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../../../store/settingsStore";
-import { useVFSStore } from "../../../store/vfs.store";
 import { useThemeSystem } from "../../../hooks/useThemeSystem";
-import type { LibreUMLProject } from "../../../core/domain/vfs/vfs.types";
+import CreateProjectModal from "../../diagram/components/layout/CreateProjectModal";
 
 interface WelcomeScreenProps {
   onOpenProject?: () => void;
-  onCreateProject?: () => void;
 }
 
-export default function WelcomeScreen({ onOpenProject, onCreateProject }: WelcomeScreenProps) {
-  const { t, i18n } = useTranslation();
+export default function WelcomeScreen({ onOpenProject }: WelcomeScreenProps) {
+  const { t } = useTranslation();
   const { theme, setTheme, setLanguage, language } = useSettingsStore();
-  const { loadProject } = useVFSStore();
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useThemeSystem();
 
@@ -28,26 +26,12 @@ export default function WelcomeScreen({ onOpenProject, onCreateProject }: Welcom
     setShowLanguageMenu(false);
   };
 
-  const handleInitializeWorkspace = () => {
-    const initialProject: LibreUMLProject = {
-      id: crypto.randomUUID(),
-      projectName: "My Project",
-      description: "A new LibreUML project",
-      version: "1.0.0",
-      domainModelId: crypto.randomUUID(),
-      nodes: {},
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    loadProject(initialProject);
-  };
-
   const handleOpenProject = () => {
     onOpenProject?.();
   };
 
   const handleCreateProject = () => {
-    onCreateProject?.();
+    setIsCreateModalOpen(true);
   };
 
   const handleStarRepo = () => {
@@ -140,10 +124,10 @@ export default function WelcomeScreen({ onOpenProject, onCreateProject }: Welcom
               </p>
             </div>
             <button
-              onClick={handleInitializeWorkspace}
+              onClick={handleCreateProject}
               className="px-6 py-3 rounded-lg bg-uml-class-border hover:bg-uml-interface-border text-white font-medium transition-colors shadow-lg hover:shadow-xl"
             >
-              Initialize Workspace
+              Create New Project
             </button>
           </div>
 
@@ -268,6 +252,8 @@ export default function WelcomeScreen({ onOpenProject, onCreateProject }: Welcom
           </button>
         </p>
       </div>
+
+      <CreateProjectModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} />
     </div>
   );
 }

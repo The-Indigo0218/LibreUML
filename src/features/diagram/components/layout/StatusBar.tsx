@@ -1,14 +1,18 @@
 import { XCircle, AlertTriangle, Shield, Globe, Cloud, CloudOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useSettingsStore } from "../../../../store/settingsStore";
+import { useVFSStore } from "../../../../store/vfs.store";
 
 export default function StatusBar() {
   const { t } = useTranslation();
-  const activeFile = useWorkspaceStore((s) => s.getActiveFile());
-  const language = useSettingsStore((s) => s.language);
+  const { activeTabId } = useWorkspaceStore();
+  const { project } = useVFSStore();
   
-  const fileName = activeFile?.name?.replace('.luml', '') || t('statusbar.untitled');
+  const activeNode = activeTabId && project?.nodes[activeTabId];
+  const activeFile = activeNode && activeNode.type === "FILE" ? activeNode : null;
+  
+  const fileName = activeFile?.name || t('statusbar.untitled');
+  const diagramType = activeFile?.diagramType || "UNSPECIFIED";
   const errorCount = 0;
   const warningCount = 0;
   const isCloudConnected = false;
@@ -30,7 +34,8 @@ export default function StatusBar() {
 
         <div className="h-4 w-px bg-surface-border" />
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-text-muted">{diagramType}</span>
           <span className="text-xs font-medium text-text-primary">{fileName}</span>
         </div>
       </div>

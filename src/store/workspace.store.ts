@@ -3,70 +3,88 @@ import { persist } from 'zustand/middleware';
 import type { DiagramFile, DiagramType, Viewport } from '../core/domain/workspace/diagram-file.types';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
 
-/**
- * Workspace Store State - Multi-tab file management
- * 
- * This store manages the workspace UI state:
- * - Open diagram files (tabs)
- * - Active file selection
- * - Per-file viewport state
- * 
- * CRITICAL: DiagramFiles only store ID references to domain entities.
- * The actual domain data lives in ProjectStore (SSOT).
- */
 interface WorkspaceStoreState {
-  // === State ===
+  openTabs: string[];
+  activeTabId: string | null;
   files: DiagramFile[];
   activeFileId: string | null;
 
-  // === File Management Actions ===
+  openTab: (fileId: string) => void;
+  closeTab: (fileId: string) => void;
+  setActiveTab: (fileId: string) => void;
+  closeAllTabs: () => void;
+
   addFile: (file: DiagramFile) => void;
   removeFile: (fileId: string) => void;
   updateFile: (fileId: string, updates: Partial<DiagramFile>) => void;
   getFile: (fileId: string) => DiagramFile | undefined;
   getActiveFile: () => DiagramFile | undefined;
-
-  // === Active File Actions ===
   setActiveFile: (fileId: string) => void;
   switchFile: (fileId: string) => void;
-
-  // === File Content Actions ===
   addNodeToFile: (fileId: string, nodeId: string) => void;
   removeNodeFromFile: (fileId: string, nodeId: string) => void;
   addEdgeToFile: (fileId: string, edgeId: string) => void;
   removeEdgeFromFile: (fileId: string, edgeId: string) => void;
-
-  // === Viewport Actions ===
   updateFileViewport: (fileId: string, viewport: Viewport) => void;
-
-  // === Dirty State Actions ===
   markFileDirty: (fileId: string) => void;
   markFileClean: (fileId: string) => void;
-
-  // === Utility Actions ===
   createNewFile: (diagramType: DiagramType, name?: string) => DiagramFile;
   closeAllFiles: () => void;
 }
 
-/**
- * Workspace Store - Multi-tab file management
- * 
- * Architecture:
- * - Manages open diagram files (tabs)
- * - Each file references domain entities by ID
- * - Stores viewport state per file
- * - Tracks dirty state for unsaved changes
- * 
- * Persistence:
- * - Persisted to localStorage
- * - Restores open tabs on page refresh
- * - Preserves viewport positions
- */
 export const useWorkspaceStore = create<WorkspaceStoreState>()(
   persist(
     (set, get) => ({
+      openTabs: [],
+      activeTabId: null,
       files: [],
       activeFileId: null,
+
+      openTab: (fileId) =>
+        set((state) => {
+          if (state.openTabs.includes(fileId)) {
+            return { activeTabId: fileId };
+          }
+          return {
+            openTabs: [...state.openTabs, fileId],
+            activeTabId: fileId,
+          };
+        }),
+
+      closeTab: (fileId) =>
+        set((state) => {
+          const newOpenTabs = state.openTabs.filter((id) => id !== fileId);
+          let newActiveTabId = state.activeTabId;
+
+          if (state.activeTabId === fileId) {
+            if (newOpenTabs.length === 0) {
+              newActiveTabId = null;
+            } else {
+              const closedIndex = state.openTabs.indexOf(fileId);
+              if (closedIndex > 0) {
+                newActiveTabId = newOpenTabs[closedIndex - 1];
+              } else {
+                newActiveTabId = newOpenTabs[0];
+              }
+            }
+          }
+
+          return {
+            openTabs: newOpenTabs,
+            activeTabId: newActiveTabId,
+          };
+        }),
+
+      setActiveTab: (fileId) =>
+        set({
+          activeTabId: fileId,
+        }),
+
+      closeAllTabs: () =>
+        set({
+          openTabs: [],
+          activeTabId: null,
+        }),
 
       addFile: (file) =>
         set((state) => ({
@@ -77,9 +95,8 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
       removeFile: (fileId) =>
         set((state) => {
           const newFiles = state.files.filter((f) => f.id !== fileId);
-          
           let newActiveFileId = state.activeFileId;
-          
+
           if (state.activeFileId === fileId) {
             if (newFiles.length > 0) {
               newActiveFileId = newFiles[newFiles.length - 1].id;
@@ -244,6 +261,8 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
         set({
           files: [],
           activeFileId: null,
+          openTabs: [],
+          activeTabId: null,
         }),
     }),
     {

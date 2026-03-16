@@ -62,7 +62,7 @@ export default function Sidebar() {
         </span>
       </div>
 
-      <div className="flex flex-col py-2 overflow-y-auto overflow-x-hidden custom-scrollbar h-full select-none">
+      <div className="flex flex-col py-2 pb-4 overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 select-none">
         <CollapsibleSection
           title="Nodes"
           isOpen={isNodesOpen}
@@ -89,7 +89,7 @@ export default function Sidebar() {
           isOpen={isConnectionsOpen}
           setIsOpen={setIsConnectionsOpen}
         >
-          <div className="flex flex-col gap-2 px-3">
+          <div className="flex flex-col gap-2 px-3 mb-2">
             {registry.tools.edges.map((tool) => {
               const edgeType = tool.id as UmlRelationType;
               const edgeStyle = edgeConfig.types[edgeType as keyof typeof edgeConfig.types];
@@ -109,15 +109,14 @@ export default function Sidebar() {
             })}
           </div>
 
-          <div className="p-4 border-t border-surface-border bg-surface-secondary/30 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">
+          <div className="px-4 py-4 pb-10 pt-6 border-t border-surface-border bg-surface-secondary/30">
+            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-3">
               {t("sidebar.legend.title")}
             </div>
-            <div className="flex flex-col gap-2">
-              {/* Source Legend */}
+            <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-sm shadow-sm ring-1 ring-blue-500/30"></div>
-                <span className="text-xs text-text-secondary">
+                <div className="w-3 h-3 bg-blue-500 rounded-sm shadow-sm ring-1 ring-blue-500/30 shrink-0"></div>
+                <span className="text-xs text-text-secondary leading-relaxed">
                   <span className="font-semibold text-text-primary">
                     {t("sidebar.legend.blue")}
                   </span>{" "}
@@ -125,10 +124,9 @@ export default function Sidebar() {
                 </span>
               </div>
 
-              {/* Target Legend */}
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-sm shadow-sm ring-1 ring-green-500/30"></div>
-                <span className="text-xs text-text-secondary">
+                <div className="w-3 h-3 bg-green-500 rounded-sm shadow-sm ring-1 ring-green-500/30 shrink-0"></div>
+                <span className="text-xs text-text-secondary leading-relaxed">
                   <span className="font-semibold text-text-primary">
                     {t("sidebar.legend.green")}
                   </span>{" "}
@@ -171,7 +169,7 @@ function CollapsibleSection({
       </button>
 
       <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-96 opacity-100 mb-2" : "max-h-0 opacity-0"}`}
+        className={`overflow-visible transition-all duration-300 ease-in-out ${isOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}
       >
         {children}
       </div>

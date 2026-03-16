@@ -4,13 +4,13 @@ import DiagramCanvas from "./DiagramCanvas";
 import AppMenubar from "../menubar/AppMenubar";
 import ActivityBar, { type ActivityTab } from "./ActivityBar";
 import PrimarySideBar from "./PrimarySideBar";
+import StatusBar from "./StatusBar";
 import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
 
 function EditorLogic() {
-  const [activeTab, setActiveTab] = useState<ActivityTab>("tools");
+  const [activeTab, setActiveTab] = useState<ActivityTab>("structure");
 
-  // Initialize auto-save and auto-restore
   useAutoSave();
   useAutoRestore();
 
@@ -26,6 +26,8 @@ function EditorLogic() {
           <DiagramCanvas />
         </div>
       </div>
+
+      <StatusBar />
     </div>
   );
 }

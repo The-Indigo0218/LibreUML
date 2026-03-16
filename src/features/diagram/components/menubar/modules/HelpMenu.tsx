@@ -9,7 +9,7 @@ import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrig
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useTranslation } from "react-i18next";
 
-export function HelpMenu() {
+export function HelpMenuContent() {
   const { t } = useTranslation();
   
   const openDocs = () => window.open("https://github.com/The-Indigo0218/LibreUML#readme", "_blank");
@@ -21,12 +21,11 @@ export function HelpMenu() {
   };
 
   return (
-    <MenubarTrigger label={t("menubar.help.title")}>
-      
+    <>
       <MenubarItem
         label={t("menubar.help.gettingStarted")}
         icon={<Rocket className="w-4 h-4" />}
-        disabled={true} // 🔒 Incoming
+        disabled={true}
       />
 
       <MenubarItem
@@ -54,7 +53,16 @@ export function HelpMenu() {
         icon={<Info className="w-4 h-4" />}
         onClick={showAbout}
       />
+    </>
+  );
+}
 
+export function HelpMenu() {
+  const { t } = useTranslation();
+
+  return (
+    <MenubarTrigger label={t("menubar.help.title")}>
+      <HelpMenuContent />
     </MenubarTrigger>
   );
 }

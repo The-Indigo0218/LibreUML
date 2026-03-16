@@ -154,6 +154,7 @@ export function FileMenu({ actions }: FileMenuProps) {
         onChange={handleWebImport}
         accept=".json,.luml"
         className="hidden"
+        aria-label="Open file"
         style={{ display: 'none' }}
       />
 
@@ -163,6 +164,7 @@ export function FileMenu({ actions }: FileMenuProps) {
         onChange={handleXmiUpload}
         accept=".xmi,.xml"
         className="hidden"
+        aria-label="Import XMI file"
         style={{ display: 'none' }}
       />
 
@@ -173,7 +175,7 @@ export function FileMenu({ actions }: FileMenuProps) {
           onClick={handleNew}
         />
         <MenubarItem
-          label={t("menubar.file.open") || "Open..."}
+          label={t("common.open_file") || "Open file"}
           icon={<FolderOpen className="w-4 h-4" />}
           shortcut="Ctrl+O"
           onClick={onOpenClick} 

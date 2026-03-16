@@ -96,6 +96,9 @@
   },
   "sidebar": {
     "toolbox": "Caja de Herramientas",
+    "project_structure": "Estructura del Proyecto",
+    "outline": "Esquema",
+    "project_files": "Archivos del Proyecto",
     "explorer": "Explorador",
     "addPackage": "Añadir Nuevo Paquete",
     "packageName": "Nombre del paquete...",
@@ -300,5 +303,64 @@
     "aggregation": "tiene un",
     "dependency": "usa",
     "association": ""
+  },
+  "common": {
+    "open_file": "Abrir archivo"
+  },
+  "tools": {
+    "enum": "Enumeración"
+  },
+  "actions": {
+    "rename": "Renombrar",
+    "delete": "Eliminar",
+    "open": "Abrir",
+    "addToProject": "Añadir al proyecto"
+  },
+  "activityBar": {
+    "projectStructure": "Estructura del Proyecto",
+    "packageExplorer": "Explorador de Paquetes",
+    "modelingTools": "Herramientas de Modelado",
+    "userProfile": "Perfil de Usuario",
+    "cloudSync": "Sincronización en Nube",
+    "githubIntegration": "Integración con GitHub",
+    "bugReport": "Reportar Error"
+  },
+  "statusbar": {
+    "problems": "Problemas",
+    "activeFile": "Archivo activo",
+    "untitled": "Sin título",
+    "validator": "Validador UML",
+    "umlValidator": "Validador UML",
+    "languageMode": "Seleccionar lenguaje destino",
+    "cloudSynced": "Nube sincronizada",
+    "cloudDisconnected": "Nube desconectada"
+  },
+  "welcome": {
+    "subtitle": "Diseña, Genera y Evoluciona tu arquitectura de software.",
+    "recentProjects": "Proyectos Recientes",
+    "startActions": "Acciones de Inicio",
+    "openProject": "Abrir proyecto",
+    "createProject": "Crear nuevo proyecto",
+    "openGithub": "Abrir proyecto de GitHub",
+    "starRepo": "Dar estrella al repositorio",
+    "viewDocs": "Ver documentación",
+    "getStarted": "Comenzar",
+    "footerPrefix": "Para empezar",
+    "footerOpenLink": "abre un proyecto",
+    "footerOr": "o",
+    "footerCreateLink": "crea uno nuevo"
+  },
+  "sleepScreen": {
+    "title": "Ningún archivo abierto",
+    "subtitle": "Abre un archivo o crea un nuevo diagrama para comenzar",
+    "shortcuts": {
+      "newFile": "Nuevo Archivo",
+      "openFile": "Abrir Archivo",
+      "save": "Guardar",
+      "quickOpen": "Apertura Rápida",
+      "spotlight": "Búsqueda Rápida",
+      "export": "Exportar Diagrama"
+    },
+    "quote": "\"Una buena arquitectura hace que el sistema sea fácil de entender, desarrollar, mantener y desplegar. El objetivo es minimizar el costo de vida útil y maximizar la productividad del programador.\" — Robert C. Martin"
   }
 }

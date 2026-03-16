@@ -10,7 +10,7 @@ import { XmiConverterService } from "../../../../../services/xmiConverter.servic
 import { getDiagramRegistry } from "../../../../../core/registry/diagram-registry";
 import { getIconComponent } from "../../../../../core/registry/icon-map";
 
-export function ExportMenu() {
+export function ExportMenuContent() {
   const { t } = useTranslation();
   const openExportModal = useUiStore((s) => s.openExportModal);
   
@@ -23,7 +23,6 @@ export function ExportMenu() {
   const getNodes = useProjectStore((s) => s.getNodes);
   const getEdges = useProjectStore((s) => s.getEdges);
 
-  // Get export actions from registry
   const exportActions = useMemo(() => {
     try {
       const registry = getDiagramRegistry(diagramType);
@@ -42,7 +41,6 @@ export function ExportMenu() {
 
     const exportId = crypto.randomUUID();
 
-    // PHASE 4: Pass domain nodes directly to XmiConverterService
     XmiConverterService.downloadXmi(
       exportId,
       diagramName,
@@ -51,16 +49,13 @@ export function ExportMenu() {
     );
   };
 
-  // Map action IDs to handlers
   const actionHandlers: Record<string, () => void> = {
     'export-image': openExportModal,
     'export-xmi': handleExportXmi,
   };
 
   return (
-    <MenubarTrigger label={t("menubar.export.title") || "Export"}>
-      
-      {/* Dynamic Export Actions from Registry */}
+    <>
       {exportActions.map((action) => {
         const IconComponent = getIconComponent(action.icon);
         const handler = actionHandlers[action.id];
@@ -77,20 +72,28 @@ export function ExportMenu() {
         );
       })}
 
-      {/* Future Features (Placeholder) */}
       <div className="h-px bg-surface-border my-1" />
       
       <MenubarItem
         label={t("menubar.export.pdf") || "Export PDF"}
         icon={<Download className="w-4 h-4" />}
-        disabled={true} // Coming soon
+        disabled={true}
       />
        <MenubarItem
         label={t("menubar.export.github") || "Export to GitHub"}
         icon={<Share2 className="w-4 h-4" />}
-        disabled={true} // Coming soon
+        disabled={true}
       />
+    </>
+  );
+}
 
+export function ExportMenu() {
+  const { t } = useTranslation();
+
+  return (
+    <MenubarTrigger label={t("menubar.export.title") || "Export"}>
+      <ExportMenuContent />
     </MenubarTrigger>
   );
 }

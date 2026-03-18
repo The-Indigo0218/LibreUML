@@ -24,8 +24,9 @@ interface EdgeStyleConfig {
 
 /**
  * Gets the React Flow styling configuration for a domain edge type.
+ * Exported so VFS edge rendering can reuse the same visual definitions.
  */
-function getEdgeStyleConfig(domainEdgeType: string): EdgeStyleConfig {
+export function getEdgeStyleConfig(domainEdgeType: string): EdgeStyleConfig {
   const baseColor = 'var(--edge-base, #64748b)';
   
   const configs: Record<string, EdgeStyleConfig> = {

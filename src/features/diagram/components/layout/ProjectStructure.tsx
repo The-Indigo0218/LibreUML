@@ -1,29 +1,237 @@
 import { useState, useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { FolderTree, FileText, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  FolderTree,
+  FileText,
+  ChevronDown,
+  ChevronRight,
+  PlusSquare,
+  FolderPlus,
+  Folder,
+  FolderOpen,
+  FileCode,
+  Trash2,
+  Edit2,
+  Info,
+  Edit3,
+} from "lucide-react";
+import { useVFSStore } from "../../../../store/vfs.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { FileContextMenu } from "./projectStructure/FileContextMenu";
+import CreateFileModal from "./CreateFileModal";
+import CreateFolderModal from "./CreateFolderModal";
+import ViewDescriptionModal from "./ViewDescriptionModal";
+import type { VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
-interface FileContextMenuState {
+type VFSNode = VFSFolder | VFSFile;
+
+interface ContextMenuState {
   x: number;
   y: number;
-  fileId: string;
-  fileName: string;
-  isOutlineFile: boolean;
+  nodeId: string;
+  nodeName: string;
+  isFolder: boolean;
+}
+
+interface TreeItemProps {
+  node: VFSNode;
+  level: number;
+  expandedFolders: Set<string>;
+  editingNodeId: string | null;
+  editValue: string;
+  onToggleFolder: (id: string) => void;
+  onContextMenu: (e: React.MouseEvent, node: VFSNode) => void;
+  onEditChange: (value: string) => void;
+  onEditCommit: () => void;
+  onEditCancel: () => void;
+  onInlineNewFile: (folderId: string) => void;
+  onInlineNewFolder: (folderId: string) => void;
+  onOpenFile: (fileId: string) => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}
+
+function TreeItem({
+  node,
+  level,
+  expandedFolders,
+  editingNodeId,
+  editValue,
+  onToggleFolder,
+  onContextMenu,
+  onEditChange,
+  onEditCommit,
+  onEditCancel,
+  onInlineNewFile,
+  onInlineNewFolder,
+  onOpenFile,
+  inputRef,
+}: TreeItemProps) {
+  const { project } = useVFSStore();
+  const isExpanded = expandedFolders.has(node.id);
+  const isEditing = editingNodeId === node.id;
+  const paddingLeft = level * 16 + 8;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onEditCommit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onEditCancel();
+    }
+  };
+
+  if (node.type === "FOLDER") {
+    const children = project?.nodes
+      ? Object.values(project.nodes)
+          .filter((n) => n.parentId === node.id)
+          .sort((a, b) => {
+            if (a.type === b.type) return a.name.localeCompare(b.name);
+            return a.type === "FOLDER" ? -1 : 1;
+          })
+      : [];
+
+    return (
+      <div>
+        <div
+          className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover transition-colors cursor-pointer group"
+          style={{ paddingLeft: `${paddingLeft}px` }}
+          onContextMenu={(e) => onContextMenu(e, node)}
+        >
+          {isEditing ? (
+            <>
+              <Folder className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={editValue}
+                onChange={(e) => onEditChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={onEditCommit}
+                className="flex-1 bg-surface-secondary border border-blue-500 rounded px-1 py-0.5 text-xs text-text-primary focus:outline-none"
+              />
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => onToggleFolder(node.id)}
+                className="shrink-0 hover:bg-surface-secondary rounded p-0.5"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-3 h-3 text-text-muted" />
+                ) : (
+                  <ChevronRight className="w-3 h-3 text-text-muted" />
+                )}
+              </button>
+              {isExpanded ? (
+                <FolderOpen className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              ) : (
+                <Folder className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              )}
+              <span className="text-xs text-text-secondary group-hover:text-text-primary truncate flex-1">
+                {node.name}
+              </span>
+              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 ml-auto">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onInlineNewFile(node.id);
+                  }}
+                  className="p-0.5 hover:bg-surface-secondary rounded transition-colors"
+                  title="New File"
+                >
+                  <PlusSquare className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onInlineNewFolder(node.id);
+                  }}
+                  className="p-0.5 hover:bg-surface-secondary rounded transition-colors"
+                  title="New Folder"
+                >
+                  <FolderPlus className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        {isExpanded && (
+          <div className="ml-3 pl-1 border-l border-surface-border/50">
+            {children.map((child) => (
+              <TreeItem
+                key={child.id}
+                node={child}
+                level={level + 1}
+                expandedFolders={expandedFolders}
+                editingNodeId={editingNodeId}
+                editValue={editValue}
+                onToggleFolder={onToggleFolder}
+                onContextMenu={onContextMenu}
+                onEditChange={onEditChange}
+                onEditCommit={onEditCommit}
+                onEditCancel={onEditCancel}
+                onInlineNewFile={onInlineNewFile}
+                onInlineNewFolder={onInlineNewFolder}
+                onOpenFile={onOpenFile}
+                inputRef={inputRef}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const FileIcon = node.extension === ".luml" ? FileCode : FileText;
+
+  return (
+    <div
+      className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover transition-colors cursor-pointer group"
+      style={{ paddingLeft: `${paddingLeft + 20}px` }}
+      onContextMenu={(e) => onContextMenu(e, node)}
+      onDoubleClick={() => onOpenFile(node.id)}
+    >
+      {isEditing ? (
+        <>
+          <FileIcon className="w-3.5 h-3.5 text-text-muted shrink-0" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={editValue}
+            onChange={(e) => onEditChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={onEditCommit}
+            className="flex-1 bg-surface-secondary border border-blue-500 rounded px-1 py-0.5 text-xs text-text-primary focus:outline-none"
+          />
+        </>
+      ) : (
+        <>
+          <FileIcon className="w-3.5 h-3.5 text-text-muted shrink-0" />
+          <span className="text-xs text-text-secondary group-hover:text-text-primary truncate">
+            {node.name}
+          </span>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function ProjectStructure() {
-  const { t } = useTranslation();
-  const files = useWorkspaceStore((s) => s.files);
-  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
-  const setActiveFile = useWorkspaceStore((s) => s.setActiveFile);
-  const removeFile = useWorkspaceStore((s) => s.removeFile);
-  const updateFile = useWorkspaceStore((s) => s.updateFile);
+  const { project, deleteNode, renameNode } = useVFSStore();
+  const { openTab } = useWorkspaceStore();
 
-  const [isOutlineExpanded, setIsOutlineExpanded] = useState(true);
-  const [contextMenu, setContextMenu] = useState<FileContextMenuState | null>(null);
-  const [renamingFileId, setRenamingFileId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [isNewNode, setIsNewNode] = useState(false);
+  const [isCreateFileModalOpen, setIsCreateFileModalOpen] = useState(false);
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+  const [isViewDescriptionModalOpen, setIsViewDescriptionModalOpen] = useState(false);
+  const [editFileNodeId, setEditFileNodeId] = useState<string | undefined>(undefined);
+  const [editFolderNodeId, setEditFolderNodeId] = useState<string | undefined>(undefined);
+  const [viewDescriptionNode, setViewDescriptionNode] = useState<{ name: string; description: string } | null>(null);
+  const [createFileParentId, setCreateFileParentId] = useState<string | null>(null);
+  const [createFolderParentId, setCreateFolderParentId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -35,189 +243,338 @@ export default function ProjectStructure() {
   }, [contextMenu]);
 
   useEffect(() => {
-    if (renamingFileId && inputRef.current) {
+    if (editingNodeId && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
     }
-  }, [renamingFileId]);
+  }, [editingNodeId]);
 
-  const handleFileContextMenu = (e: React.MouseEvent, fileId: string, fileName: string, isOutlineFile: boolean) => {
+  const handleNewFileAtRoot = () => {
+    setCreateFileParentId(null);
+    setEditFileNodeId(undefined);
+    setIsCreateFileModalOpen(true);
+  };
+
+  const handleNewFolderAtRoot = () => {
+    setCreateFolderParentId(null);
+    setEditFolderNodeId(undefined);
+    setIsCreateFolderModalOpen(true);
+  };
+
+  const handleToggleFolder = (folderId: string) => {
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, node: VFSNode) => {
     e.preventDefault();
     e.stopPropagation();
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
-      fileId,
-      fileName,
-      isOutlineFile,
+      nodeId: node.id,
+      nodeName: node.name,
+      isFolder: node.type === "FOLDER",
     });
   };
 
   const handleRename = () => {
     if (!contextMenu) return;
-    setRenamingFileId(contextMenu.fileId);
-    setRenameValue(contextMenu.fileName);
+    setEditingNodeId(contextMenu.nodeId);
+    setEditValue(contextMenu.nodeName);
+    setIsNewNode(false);
+    setContextMenu(null);
+  };
+
+  const handleEditDetails = () => {
+    if (!contextMenu) return;
+    if (contextMenu.isFolder) {
+      setEditFolderNodeId(contextMenu.nodeId);
+      setIsCreateFolderModalOpen(true);
+    } else {
+      setEditFileNodeId(contextMenu.nodeId);
+      setIsCreateFileModalOpen(true);
+    }
+    setContextMenu(null);
+  };
+
+  const handleViewDescription = () => {
+    if (!contextMenu || !project) return;
+    const node = project.nodes[contextMenu.nodeId];
+    if (node) {
+      setViewDescriptionNode({
+        name: node.name,
+        description: node.description || "",
+      });
+      setIsViewDescriptionModalOpen(true);
+    }
     setContextMenu(null);
   };
 
   const handleDelete = () => {
     if (!contextMenu) return;
-    removeFile(contextMenu.fileId);
+    deleteNode(contextMenu.nodeId);
     setContextMenu(null);
   };
 
-  const handleOpen = () => {
+  const handleNewFileInside = () => {
     if (!contextMenu) return;
-    setActiveFile(contextMenu.fileId);
+    setCreateFileParentId(contextMenu.nodeId);
+    setEditFileNodeId(undefined);
+    setIsCreateFileModalOpen(true);
+    setExpandedFolders((prev) => new Set(prev).add(contextMenu.nodeId));
     setContextMenu(null);
   };
 
-  const handleAddToProject = () => {
+  const handleNewFolderInside = () => {
     if (!contextMenu) return;
+    setCreateFolderParentId(contextMenu.nodeId);
+    setEditFolderNodeId(undefined);
+    setIsCreateFolderModalOpen(true);
+    setExpandedFolders((prev) => new Set(prev).add(contextMenu.nodeId));
     setContextMenu(null);
   };
 
-  const commitRename = () => {
-    if (!renamingFileId || !renameValue.trim()) {
-      setRenamingFileId(null);
+  const handleInlineNewFile = (folderId: string) => {
+    setCreateFileParentId(folderId);
+    setEditFileNodeId(undefined);
+    setIsCreateFileModalOpen(true);
+    setExpandedFolders((prev) => new Set(prev).add(folderId));
+  };
+
+  const handleOpenFile = (fileId: string) => {
+    openTab(fileId);
+  };
+
+  const handleInlineNewFolder = (folderId: string) => {
+    setCreateFolderParentId(folderId);
+    setEditFolderNodeId(undefined);
+    setIsCreateFolderModalOpen(true);
+    setExpandedFolders((prev) => new Set(prev).add(folderId));
+  };
+
+  const commitEdit = () => {
+    if (!editValue.trim()) {
+      if (isNewNode && editingNodeId) {
+        deleteNode(editingNodeId);
+      }
+      setEditingNodeId(null);
+      setIsNewNode(false);
       return;
     }
-    
-    updateFile(renamingFileId, { name: renameValue.trim() });
-    setRenamingFileId(null);
-  };
 
-  const cancelRename = () => {
-    setRenamingFileId(null);
-    setRenameValue("");
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      commitRename();
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      cancelRename();
+    if (editingNodeId) {
+      renameNode(editingNodeId, editValue.trim());
     }
+
+    setEditingNodeId(null);
+    setIsNewNode(false);
   };
 
-  const outlineHeight = isOutlineExpanded && files.length > 0 ? "33%" : "auto";
+  const cancelEdit = () => {
+    if (isNewNode && editingNodeId) {
+      deleteNode(editingNodeId);
+    }
+    setEditingNodeId(null);
+    setIsNewNode(false);
+    setEditValue("");
+  };
+
+  if (!project || !project.nodes) {
+    return (
+      <div className="flex flex-col h-full bg-surface-primary">
+        <div className="px-4 py-3 border-b border-surface-border">
+          <div className="flex items-center gap-2">
+            <FolderTree className="w-4 h-4 text-text-muted" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Project Files
+            </h3>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <FolderTree className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
+            <p className="text-sm text-text-muted">No project active</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const rootNodes = Object.values(project.nodes)
+    .filter((n) => n.parentId === null)
+    .sort((a, b) => {
+      if (a.type === b.type) return a.name.localeCompare(b.name);
+      return a.type === "FOLDER" ? -1 : 1;
+    });
 
   return (
     <div className="flex flex-col h-full bg-surface-primary">
-      <div className="px-4 py-3 border-b border-surface-border">
+      <div className="px-4 py-3 border-b border-surface-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FolderTree className="w-4 h-4 text-text-muted" />
           <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-            {t('sidebar.project_structure')}
+            Project Files
           </h3>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleNewFileAtRoot}
+            className="p-1 hover:bg-surface-hover rounded transition-colors"
+            title="New File"
+          >
+            <PlusSquare className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
+          </button>
+          <button
+            onClick={handleNewFolderAtRoot}
+            className="p-1 hover:bg-surface-hover rounded transition-colors"
+            title="New Folder"
+          >
+            <FolderPlus className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          <button
-            onClick={() => {}}
-            className="flex items-center justify-between px-4 py-2 border-b border-surface-border hover:bg-surface-hover transition-colors"
-          >
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-              {t('sidebar.project_files')}
-            </h4>
-            <ChevronDown className="w-3 h-3 text-text-muted" />
-          </button>
-          <div className="flex-1 p-4 flex items-center justify-center overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        {rootNodes.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <FolderTree className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
-              <p className="text-sm text-text-muted">File tree coming soon</p>
+              <p className="text-sm text-text-muted">Empty project</p>
               <p className="text-xs text-text-muted/70 mt-1">
-                Project folder navigation
+                Add files and folders to begin
               </p>
             </div>
           </div>
-        </div>
-
-        <div 
-          className="border-t border-surface-border flex flex-col"
-          style={{ 
-            height: outlineHeight,
-            minHeight: isOutlineExpanded ? "100px" : "auto"
-          }}
-        >
-          <button
-            onClick={() => setIsOutlineExpanded(!isOutlineExpanded)}
-            className="flex items-center justify-between px-4 py-2 border-b border-surface-border hover:bg-surface-hover transition-colors"
-          >
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-              {t('sidebar.outline')}
-            </h4>
-            {isOutlineExpanded ? (
-              <ChevronDown className="w-3 h-3 text-text-muted" />
-            ) : (
-              <ChevronRight className="w-3 h-3 text-text-muted" />
-            )}
-          </button>
-          
-          {isOutlineExpanded && (
-            <div className="flex-1 px-2 py-2 overflow-y-auto custom-scrollbar">
-              {files.length === 0 ? (
-                <div className="px-2 py-4 text-center">
-                  <p className="text-xs text-text-muted">No open files</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-0.5">
-                  {files.map((file) => (
-                    <div
-                      key={file.id}
-                      className={`
-                        flex items-center gap-2 px-2 py-1.5 rounded transition-colors
-                        ${activeFileId === file.id 
-                          ? 'bg-surface-hover text-text-primary' 
-                          : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'
-                        }
-                      `}
-                      style={{ opacity: 0.8 }}
-                    >
-                      {renamingFileId === file.id ? (
-                        <>
-                          <FileText className="w-3.5 h-3.5 shrink-0" />
-                          <input
-                            ref={inputRef}
-                            type="text"
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            onBlur={commitRename}
-                            className="flex-1 bg-surface-secondary border border-blue-500 rounded px-1 py-0.5 text-xs text-text-primary focus:outline-none"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => setActiveFile(file.id)}
-                            onContextMenu={(e) => handleFileContextMenu(e, file.id, file.name, true)}
-                            className="flex items-center gap-2 flex-1 text-left"
-                          >
-                            <FileText className="w-3.5 h-3.5 shrink-0" />
-                            <span className="text-xs truncate">{file.name}</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        ) : (
+          rootNodes.map((node) => (
+            <TreeItem
+              key={node.id}
+              node={node}
+              level={0}
+              expandedFolders={expandedFolders}
+              editingNodeId={editingNodeId}
+              editValue={editValue}
+              onToggleFolder={handleToggleFolder}
+              onContextMenu={handleContextMenu}
+              onEditChange={setEditValue}
+              onEditCommit={commitEdit}
+              onEditCancel={cancelEdit}
+              onInlineNewFile={handleInlineNewFile}
+              onInlineNewFolder={handleInlineNewFolder}
+              onOpenFile={handleOpenFile}
+              inputRef={inputRef}
+            />
+          ))
+        )}
       </div>
 
-      <FileContextMenu
-        contextMenu={contextMenu}
-        onRename={handleRename}
-        onDelete={handleDelete}
-        onOpen={handleOpen}
-        onAddToProject={handleAddToProject}
+      {contextMenu && (
+        <div
+          className="fixed bg-surface-secondary border border-surface-border rounded-md shadow-lg py-1 z-50 min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {!contextMenu.isFolder && (
+            <>
+              <button
+                onClick={() => {
+                  openTab(contextMenu.nodeId);
+                  setContextMenu(null);
+                }}
+                className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
+              >
+                <FileText className="w-3 h-3" />
+                Open File
+              </button>
+              <div className="border-t border-surface-border my-1" />
+            </>
+          )}
+          <button
+            onClick={handleRename}
+            className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
+          >
+            <Edit2 className="w-3 h-3" />
+            Rename
+          </button>
+          <button
+            onClick={handleEditDetails}
+            className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
+          >
+            <Edit3 className="w-3 h-3" />
+            Edit Details
+          </button>
+          <button
+            onClick={handleViewDescription}
+            className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
+          >
+            <Info className="w-3 h-3" />
+            View Description
+          </button>
+          {contextMenu.isFolder && (
+            <>
+              <button
+                onClick={handleNewFileInside}
+                className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
+              >
+                <PlusSquare className="w-3 h-3" />
+                New File inside
+              </button>
+              <button
+                onClick={handleNewFolderInside}
+                className="w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary flex items-center gap-2"
+              >
+                <FolderPlus className="w-3 h-3" />
+                New Folder inside
+              </button>
+              <div className="border-t border-surface-border my-1" />
+            </>
+          )}
+          <button
+            onClick={handleDelete}
+            className="w-full px-3 py-1.5 text-left text-xs text-red-400 hover:bg-surface-hover flex items-center gap-2"
+          >
+            <Trash2 className="w-3 h-3" />
+            Delete
+          </button>
+        </div>
+      )}
+
+      <CreateFileModal
+        isOpen={isCreateFileModalOpen}
+        onClose={() => {
+          setIsCreateFileModalOpen(false);
+          setEditFileNodeId(undefined);
+        }}
+        parentId={createFileParentId}
+        editNodeId={editFileNodeId}
+      />
+
+      <CreateFolderModal
+        isOpen={isCreateFolderModalOpen}
+        onClose={() => {
+          setIsCreateFolderModalOpen(false);
+          setEditFolderNodeId(undefined);
+        }}
+        parentId={createFolderParentId}
+        editNodeId={editFolderNodeId}
+      />
+
+      <ViewDescriptionModal
+        isOpen={isViewDescriptionModalOpen}
+        onClose={() => {
+          setIsViewDescriptionModalOpen(false);
+          setViewDescriptionNode(null);
+        }}
+        nodeName={viewDescriptionNode?.name || ""}
+        description={viewDescriptionNode?.description || ""}
       />
     </div>
   );

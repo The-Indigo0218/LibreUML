@@ -21,6 +21,18 @@ interface UseDiagramMenusProps {
   onClearCanvas: () => void;
   onEditEdgeMultiplicity: (edgeId: string) => void;
   onGenerateMethods?: (nodeId: string) => void;
+  /** VFS-aware delete override. When provided, replaces the legacy ProjectStore deleteNode path. */
+  onDeleteNode?: (nodeId: string) => void;
+  /** VFS-aware edge delete override. When provided, replaces the legacy ProjectStore deleteEdge path. */
+  onDeleteEdge?: (edgeId: string) => void;
+  /** VFS-aware edge reverse override. When provided, replaces the legacy ProjectStore reverseEdge path. */
+  onReverseEdge?: (edgeId: string) => void;
+  /**
+   * VFS-aware edge kind change override.
+   * Receives the ReactFlow edge ID and the legacy type string (e.g. 'INHERITANCE').
+   * The caller is responsible for translating to IRRelation.kind if needed.
+   */
+  onChangeEdgeKind?: (edgeId: string, kind: string) => void;
 }
 
 export const useDiagramMenus = ({
@@ -28,6 +40,10 @@ export const useDiagramMenus = ({
   onClearCanvas,
   onEditEdgeMultiplicity,
   onGenerateMethods,
+  onDeleteNode,
+  onDeleteEdge,
+  onReverseEdge,
+  onChangeEdgeKind,
 }: UseDiagramMenusProps) => {
   const { screenToFlowPosition } = useReactFlow();
   const { t } = useTranslation();
@@ -237,7 +253,7 @@ export const useDiagramMenus = ({
 
         baseOptions.push({
           label: t("contextMenu.node.delete"),
-          onClick: () => deleteNode(nodeId),
+          onClick: () => (onDeleteNode ?? deleteNode)(nodeId),
         });
 
         return baseOptions;
@@ -245,10 +261,53 @@ export const useDiagramMenus = ({
 
       if (menu.type === "edge" && menu.id) {
         const edgeId = menu.id;
+
+        // VFS path: overrides provided — build menu from VFS callbacks directly.
+        if (onDeleteEdge) {
+          const typeOptions = [
+            {
+              label: t("contextMenu.edge.toAssociation"),
+              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "ASSOCIATION"),
+            },
+            {
+              label: t("contextMenu.edge.toInheritance"),
+              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "INHERITANCE"),
+            },
+            {
+              label: t("contextMenu.edge.toImplementation"),
+              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "IMPLEMENTATION"),
+            },
+            {
+              label: t("contextMenu.edge.toDependency"),
+              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "DEPENDENCY"),
+            },
+            {
+              label: t("contextMenu.edge.toAggregation"),
+              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "AGGREGATION"),
+            },
+            {
+              label: t("contextMenu.edge.toComposition"),
+              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "COMPOSITION"),
+            },
+          ];
+
+          return [
+            {
+              label: t("contextMenu.edge.reverse"),
+              onClick: () => (onReverseEdge ?? reverseEdge)(edgeId),
+            },
+            ...typeOptions,
+            {
+              label: t("contextMenu.edge.delete"),
+              onClick: () => onDeleteEdge(edgeId),
+              danger: true,
+            },
+          ];
+        }
+
+        // Legacy path: use ProjectStore.
         const edge = getEdge(edgeId);
-
         const type = edge?.type || "ASSOCIATION";
-
         const isNoteEdge = type === "NOTE_LINK";
 
         if (isNoteEdge) {
@@ -324,9 +383,13 @@ export const useDiagramMenus = ({
       addNodeToDiagram,
       duplicateNode,
       deleteNode,
+      onDeleteNode,
       reverseEdge,
       changeEdgeType,
       deleteEdge,
+      onDeleteEdge,
+      onReverseEdge,
+      onChangeEdgeKind,
       getNode,
       getEdge,
       onClearCanvas,

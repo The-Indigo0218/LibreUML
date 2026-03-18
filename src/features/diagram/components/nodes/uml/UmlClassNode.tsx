@@ -12,11 +12,22 @@ import { handleConfig } from "../../../../../config/theme.config";
  * It has ZERO knowledge of domain models (ClassNode, InterfaceNode, etc.).
  * All rendering is based on the generic sections array.
  */
+/**
+ * Placeholder names that trigger immediate inline editing when a new node is
+ * first rendered. Covers both legacy ("NewClass") and VFS-semantic drops.
+ */
+const AUTO_EDIT_LABELS = new Set([
+  'NewClass',
+  'NewInterface',
+  'NewAbstract',
+  'NewEnum',
+]);
+
 const UmlClassNode = ({ data, selected }: NodeProps<NodeViewModel>) => {
   const updateNode = useProjectStore((s) => s.updateNode);
   const viewModel = data;
-  
-  const [isEditing, setIsEditing] = useState(() => viewModel.label === "NewClass");
+
+  const [isEditing, setIsEditing] = useState(() => AUTO_EDIT_LABELS.has(viewModel.label));
   const [editValue, setEditValue] = useState("");
 
   const startEditing = () => {
@@ -31,17 +42,25 @@ const UmlClassNode = ({ data, selected }: NodeProps<NodeViewModel>) => {
     setIsEditing(false);
 
     const match = editValue.match(/^([^<]+)(<.*>)?$/);
+    const cleanLabel = match ? match[1].trim() : editValue;
+    const cleanGeneric = match?.[2]?.trim();
 
-    if (match) {
-      const cleanLabel = match[1].trim();
-      const cleanGeneric = match[2] ? match[2].trim() : undefined;
+    // VFS semantic nodes supply an `onRename` callback in metadata.
+    // This writes to ModelStore (SemanticModel) instead of ProjectStore,
+    // preserving the strict separation: names → ModelStore, positions → VFSStore.
+    const onRename =
+      typeof viewModel.metadata?.onRename === 'function'
+        ? (viewModel.metadata.onRename as (name: string, generics?: string) => void)
+        : undefined;
 
+    if (onRename) {
+      onRename(cleanLabel, cleanGeneric);
+    } else {
+      // Legacy path: update via ProjectStore (SSOT for non-VFS diagrams).
       updateNode(viewModel.domainId, {
         name: cleanLabel,
         generics: cleanGeneric,
       });
-    } else {
-      updateNode(viewModel.domainId, { name: editValue });
     }
   };
 

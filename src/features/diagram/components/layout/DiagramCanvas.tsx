@@ -26,6 +26,8 @@ import ClassEditorModal from "../modals/ClassEditorModal";
 import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 import SpotlightModal from "../modals/SpotlightModal";
 import MultiplicityModal from "../modals/MultiplicityModal";
+import VfsEdgeActionModal from "../modals/VfsEdgeActionModal";
+import { AutoLayoutLockedWarningModal } from "../modals/AutoLayoutLockedWarningModal";
 import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 
 import { useContextMenu } from "../../hooks/useContextMenu";
@@ -34,6 +36,7 @@ import { useVFSCanvasController } from "../../hooks/useVFSCanvasController";
 import { useDiagramMenus } from "../../hooks/useDiagramMenus";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useEdgeStyling } from "../../hooks/useEdgeStyling";
+import { useVFSEdgeStyling } from "../../hooks/useVFSEdgeStyling";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
 import { useNodeDragging } from "../../hooks/useNodeDragging";
 import { useTranslation } from "react-i18next";
@@ -101,6 +104,7 @@ export default function DiagramCanvas() {
     openClearConfirmation,
     openMethodGenerator,
     openSSoTClassEditor,
+    openVfsEdgeAction,
     closeModals
   } = useUiStore();
 
@@ -125,7 +129,8 @@ export default function DiagramCanvas() {
     : onConnect;
 
   useKeyboardShortcuts();
-  const { displayEdges, setHoveredNodeId, setHoveredEdgeId } = useEdgeStyling();
+  const { displayEdges, setHoveredNodeId: setLegacyHoveredNodeId, setHoveredEdgeId: setLegacyHoveredEdgeId } = useEdgeStyling();
+  const { styledEdges: vfsStyledEdges, setHoveredNodeId: setVFSHoveredNodeId, setHoveredEdgeId: setVFSHoveredEdgeId } = useVFSEdgeStyling(vfsController.edges);
   const { onDragOver, onDrop } = useDiagramDnD();
 
   const clearCanvas = useCallback(() => {
@@ -230,19 +235,27 @@ export default function DiagramCanvas() {
     <div className="w-full h-full bg-canvas-base">
       <ReactFlow
         nodes={nodes as Node[]}
-        edges={(vfsController.isVFSFile ? vfsController.edges : displayEdges) as Edge[]}
+        edges={(vfsController.isVFSFile ? vfsStyledEdges : displayEdges) as Edge[]}
         onNodesChange={effectiveOnNodesChange}
         onEdgesChange={effectiveOnEdgesChange}
         onConnect={effectiveOnConnect}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        onNodeMouseEnter={(_, node) => setHoveredNodeId(node.id)}
-        onNodeMouseLeave={() => setHoveredNodeId(null)}
-        onEdgeMouseEnter={(_, edge) => setHoveredEdgeId(edge.id)}
-        onEdgeMouseLeave={() => setHoveredEdgeId(null)}
+        onNodeMouseEnter={(_, node) => { setLegacyHoveredNodeId(node.id); setVFSHoveredNodeId(node.id); }}
+        onNodeMouseLeave={() => { setLegacyHoveredNodeId(null); setVFSHoveredNodeId(null); }}
+        onEdgeMouseEnter={(_, edge) => { setLegacyHoveredEdgeId(edge.id); setVFSHoveredEdgeId(edge.id); }}
+        onEdgeMouseLeave={() => { setLegacyHoveredEdgeId(null); setVFSHoveredEdgeId(null); }}
         onPaneContextMenu={onPaneContextMenu}
         onNodeContextMenu={onNodeContextMenu}
-        onEdgeContextMenu={onEdgeContextMenu}
+        onEdgeContextMenu={(e, edge) => {
+          if (vfsController.isVFSFile) {
+            e.preventDefault();
+            e.stopPropagation();
+            openVfsEdgeAction(edge.id);
+            return;
+          }
+          onEdgeContextMenu(e, edge);
+        }}
         onPaneClick={closeMenu}
         onDragOver={onDragOver}
         onDrop={onDrop}
@@ -417,6 +430,9 @@ export default function DiagramCanvas() {
         nodeId={editingId}
         onClose={closeModals}
       />
+
+      <VfsEdgeActionModal />
+      <AutoLayoutLockedWarningModal />
 
       <SpotlightModal />
     </div>

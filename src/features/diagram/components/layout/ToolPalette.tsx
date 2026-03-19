@@ -1,19 +1,33 @@
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Wand2 } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useVFSStore } from "../../../../store/vfs.store";
 import type { stereotype, UmlRelationType } from "../../types/diagram.types";
 import { edgeConfig } from "../../../../config/theme.config";
 import { useTranslation } from "react-i18next";
 import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
 import { getIconComponent } from "../../../../core/registry/icon-map";
+import { useAutoLayout } from "../../hooks/useAutoLayout";
+import { isDiagramView } from "../../hooks/useVFSCanvasController";
+import type { VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
 export default function ToolPalette() {
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const getFile = useWorkspaceStore((s) => s.getFile);
   const updateFile = useWorkspaceStore((s) => s.updateFile);
+  const project = useVFSStore((s) => s.project);
+  const { runLayout } = useAutoLayout();
 
   const activeFile = activeFileId ? getFile(activeFileId) : null;
-  const diagramType = activeFile?.diagramType || 'CLASS_DIAGRAM'; 
+  const diagramType = activeFile?.diagramType || 'CLASS_DIAGRAM';
+
+  const isVFSDiagram = useMemo(() => {
+    if (!activeTabId || !project) return false;
+    const node = project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return false;
+    return isDiagramView((node as VFSFile).content);
+  }, [activeTabId, project]);
 
   const registry = useMemo(() => {
     try {
@@ -55,11 +69,20 @@ export default function ToolPalette() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#2d2d2d]">
         <span className="text-xs font-semibold uppercase tracking-wider text-[#cccccc]">
           {t("sidebar.toolbox")}
         </span>
+        {isVFSDiagram && (
+          <button
+            onClick={runLayout}
+            title="Auto Layout (Dagre TB)"
+            className="flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/30 hover:border-indigo-400/60 transition-all active:scale-95"
+          >
+            <Wand2 className="w-3.5 h-3.5" />
+            Layout
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col py-2 pb-4 overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 select-none">

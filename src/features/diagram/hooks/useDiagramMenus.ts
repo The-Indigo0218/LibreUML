@@ -6,6 +6,8 @@ import { useWorkspaceStore } from "../../../store/workspace.store";
 import { useUiStore } from "../../../store/uiStore";
 import { useDiagram } from "../../workspace/hooks/useDiagram";
 import type { DomainEdge } from "../../../core/domain/models/edges";
+import type { DomainNode } from "../../../core/domain/models";
+import type { ClassDiagramMetadata } from "../../../core/domain/workspace/diagram-file.types";
 
 export type ContextMenuType = "pane" | "node" | "edge";
 
@@ -21,19 +23,10 @@ interface UseDiagramMenusProps {
   onClearCanvas: () => void;
   onEditEdgeMultiplicity: (edgeId: string) => void;
   onGenerateMethods?: (nodeId: string) => void;
-  /** VFS-aware view-only removal. Removes the node from this diagram only. */
   onDeleteNode?: (nodeId: string) => void;
-  /** VFS-aware full cascade. Deletes semantic element from model + all diagrams. */
   onDeleteNodeFromModel?: (nodeId: string) => void;
-  /** VFS-aware edge delete override. When provided, replaces the legacy ProjectStore deleteEdge path. */
   onDeleteEdge?: (edgeId: string) => void;
-  /** VFS-aware edge reverse override. When provided, replaces the legacy ProjectStore reverseEdge path. */
   onReverseEdge?: (edgeId: string) => void;
-  /**
-   * VFS-aware edge kind change override.
-   * Receives the ReactFlow edge ID and the legacy type string (e.g. 'INHERITANCE').
-   * The caller is responsible for translating to IRRelation.kind if needed.
-   */
   onChangeEdgeKind?: (edgeId: string, kind: string) => void;
 }
 
@@ -71,16 +64,13 @@ export const useDiagramMenus = ({
     (nodeId: string) => {
       if (!file) return;
 
-      // Get edge IDs BEFORE removing the node (cascade delete will remove edges from ProjectStore)
       const connectedEdgeIds = getEdgeIdsForNode(nodeId);
 
-      // Remove from WorkspaceStore
       removeNodeFromFile(file.id, nodeId);
       connectedEdgeIds.forEach((edgeId) => {
         removeEdgeFromFile(file.id, edgeId);
       });
 
-      // Remove from ProjectStore (cascade delete handles edges automatically)
       removeNode(nodeId);
       markFileDirty(file.id);
     },
@@ -94,28 +84,26 @@ export const useDiagramMenus = ({
       const originalNode = getNode(nodeId);
       if (!originalNode) return;
 
-      // Create a new node with the same type
       const newNode = registry.factories.createNode(originalNode.type);
 
-      // Copy all properties from original node except id, createdAt, updatedAt
+      const baseName = 'name' in originalNode
+        ? (originalNode as { name: string }).name
+        : 'Node';
+
       const duplicatedNode = {
         ...originalNode,
         id: newNode.id,
         createdAt: newNode.createdAt,
         updatedAt: newNode.updatedAt,
-        name: `${(originalNode as any).name}_copy`,
-      } as any;
+        ...('name' in originalNode ? { name: `${baseName}_copy` } : {}),
+      } as DomainNode;
 
-      // Add node to ProjectStore
       addNode(duplicatedNode);
-
-      // Add node to file
       addNodeToFile(file.id, newNode.id);
 
-      // Get original position and offset it
-      const metadata = file.metadata as any;
-      const positionMap = metadata?.positionMap || {};
-      const originalPosition = positionMap[nodeId] || { x: 0, y: 0 };
+      const classMeta = file.metadata as ClassDiagramMetadata | undefined;
+      const positionMap = classMeta?.positionMap ?? {};
+      const originalPosition = positionMap[nodeId] ?? { x: 0, y: 0 };
 
       const newPositionMap = {
         ...positionMap,
@@ -125,12 +113,11 @@ export const useDiagramMenus = ({
         },
       };
 
-      // Update file with new position
       updateFile(file.id, {
         metadata: {
-          ...file.metadata,
+          ...classMeta,
           positionMap: newPositionMap,
-        } as any,
+        } as ClassDiagramMetadata,
       });
 
       markFileDirty(file.id);
@@ -255,7 +242,6 @@ export const useDiagramMenus = ({
         }
 
         if (onDeleteNodeFromModel) {
-          // VFS mode: separate "Remove from Diagram" (view-only) and "Delete from Model" (cascade).
           baseOptions.push({
             label: t("contextMenu.node.removeFromDiagram") || "Remove from Diagram",
             onClick: () => onDeleteNode!(nodeId),
@@ -278,7 +264,6 @@ export const useDiagramMenus = ({
       if (menu.type === "edge" && menu.id) {
         const edgeId = menu.id;
 
-        // VFS path: overrides provided — build menu from VFS callbacks directly.
         if (onDeleteEdge) {
           const typeOptions = [
             {
@@ -321,7 +306,6 @@ export const useDiagramMenus = ({
           ];
         }
 
-        // Legacy path: use ProjectStore.
         const edge = getEdge(edgeId);
         const type = edge?.type || "ASSOCIATION";
         const isNoteEdge = type === "NOTE_LINK";

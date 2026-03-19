@@ -17,7 +17,10 @@ import type {
   NodeViewModel,
   NoteViewModel,
   NodeStyleConfig,
+  NodeSection,
+  NodeSectionItem,
 } from '../../../adapters/react-flow/view-models/node.view-model';
+import type { Visibility } from '../../../core/domain/vfs/vfs.types';
 import type { RelationKind } from '../../../core/domain/vfs/vfs.types';
 
 // ─── Type guard ───────────────────────────────────────────────────────────────
@@ -87,6 +90,75 @@ const VFS_DISPLAY: Record<string, ElementDisplayConfig> = {
   },
 };
 
+// ─── Visibility symbol ────────────────────────────────────────────────────────
+
+function irVisSymbol(v: Visibility | undefined): string {
+  switch (v) {
+    case 'private':   return '-';
+    case 'protected': return '#';
+    case 'package':   return '~';
+    default:          return '+';
+  }
+}
+
+// ─── Section builder ──────────────────────────────────────────────────────────
+
+function buildSections(
+  model: SemanticModel,
+  element: IRClass | IRInterface | IREnum,
+  kind: SemanticKind,
+): NodeSection[] {
+  const sections: NodeSection[] = [];
+
+  if (kind === 'CLASS' || kind === 'ABSTRACT_CLASS') {
+    const cls = element as IRClass;
+    const attrs = cls.attributeIds.map((id) => model.attributes[id]).filter(Boolean);
+    const ops = cls.operationIds.map((id) => model.operations[id]).filter(Boolean);
+
+    sections.push({
+      id: 'attributes',
+      items: attrs.map((a) => ({
+        id: a.id,
+        text: `${irVisSymbol(a.visibility)}${a.name}: ${a.type}`,
+        isStatic: a.isStatic,
+      })),
+    });
+
+    sections.push({
+      id: 'operations',
+      items: ops.map((o) => ({
+        id: o.id,
+        text: `${irVisSymbol(o.visibility)}${o.name}(): ${o.returnType ?? 'void'}`,
+        isStatic: o.isStatic,
+        isAbstract: o.isAbstract,
+      })),
+    });
+  } else if (kind === 'INTERFACE') {
+    const iface = element as IRInterface;
+    const ops = iface.operationIds.map((id) => model.operations[id]).filter(Boolean);
+
+    sections.push({
+      id: 'operations',
+      items: ops.map((o) => ({
+        id: o.id,
+        text: `${irVisSymbol(o.visibility)}${o.name}(): ${o.returnType ?? 'void'}`,
+        isAbstract: o.isAbstract,
+      })),
+    });
+  } else if (kind === 'ENUM') {
+    const enm = element as IREnum;
+    sections.push({
+      id: 'literals',
+      items: enm.literals.map((lit, i) => ({
+        id: `${enm.id}-lit-${i}`,
+        text: lit.name,
+      })),
+    });
+  }
+
+  return sections;
+}
+
 // ─── Semantic resolution ──────────────────────────────────────────────────────
 
 type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE' | 'UNKNOWN';
@@ -123,17 +195,17 @@ function makeReactFlowNode(
   viewNode: ViewNode,
   label: string,
   displayConfig: ElementDisplayConfig,
+  sections: NodeSection[],
   onRename: (name: string, generics?: string) => void,
 ) {
   const viewModel: NodeViewModel = {
     id: viewNode.id,
-    domainId: viewNode.elementId, // stable semantic ID used for updates
+    domainId: viewNode.elementId,
     label,
     stereotype: displayConfig.stereotype,
-    sections: [],
+    sections,
     style: displayConfig.style,
     metadata: {
-      // Callback for UmlClassNode inline rename — writes to ModelStore, not ProjectStore.
       onRename,
     },
   };
@@ -303,10 +375,10 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
       const label = element?.name ?? 'NewClass';
       const displayConfig = VFS_DISPLAY[kind] ?? VFS_DISPLAY.CLASS;
+      const sections = element ? buildSections(model, element, kind) : [];
 
-      // Each node gets a stable closure over its own elementId and kind.
       const onRename = (name: string, generics?: string) => {
-        const ms = useModelStore.getState(); // safe: called from event handler
+        const ms = useModelStore.getState();
         if (!ms.model) return;
         switch (kind) {
           case 'CLASS':
@@ -325,7 +397,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
         }
       };
 
-      return makeReactFlowNode(viewNode, label, displayConfig, onRename);
+      return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename);
     });
   }, [diagramView, model]);
 

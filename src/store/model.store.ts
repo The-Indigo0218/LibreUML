@@ -46,6 +46,9 @@ interface ModelStoreState {
   updateEnum: (id: string, patch: Partial<IREnum>) => void;
   deleteEnum: (id: string) => void;
 
+  // ── Member management ──────────────────────────────────────────────────────
+  setElementMembers: (elementId: string, attributes: IRAttribute[], operations: IROperation[]) => void;
+
   // ── Relation CRUD ──────────────────────────────────────────────────────────
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
@@ -179,6 +182,28 @@ export const useModelStore = create<ModelStoreState>()(
         if (!state.model) return;
         delete state.model.enums[id];
         cascadeDeleteRelations(state.model, id);
+        state.model.updatedAt = Date.now();
+      }),
+
+    // ── Member management ─────────────────────────────────────────────────────
+
+    setElementMembers: (elementId, attributes, operations) =>
+      set((state) => {
+        if (!state.model) return;
+        const cls = state.model.classes[elementId];
+        const iface = state.model.interfaces[elementId];
+        if (cls) {
+          cls.attributeIds.forEach((id) => { delete state.model!.attributes[id]; });
+          cls.operationIds.forEach((id) => { delete state.model!.operations[id]; });
+          attributes.forEach((a) => { state.model!.attributes[a.id] = a; });
+          operations.forEach((o) => { state.model!.operations[o.id] = o; });
+          state.model.classes[elementId].attributeIds = attributes.map((a) => a.id);
+          state.model.classes[elementId].operationIds = operations.map((o) => o.id);
+        } else if (iface) {
+          iface.operationIds.forEach((id) => { delete state.model!.operations[id]; });
+          operations.forEach((o) => { state.model!.operations[o.id] = o; });
+          state.model.interfaces[elementId].operationIds = operations.map((o) => o.id);
+        }
         state.model.updatedAt = Date.now();
       }),
 

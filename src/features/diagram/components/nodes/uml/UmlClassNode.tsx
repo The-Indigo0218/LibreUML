@@ -75,32 +75,32 @@ const UmlClassNode = ({ data, selected }: NodeProps<NodeViewModel>) => {
     <div
       className={`border-2 rounded-sm min-w-[16rem] max-w-lg w-fit overflow-visible group transition-all duration-200 ${currentStyle.containerClass} ${selectionClasses}`}
     >
-      {/* Target Handles (Green) */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top"
-        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.target} opacity-0 group-hover:opacity-100`}
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left"
-        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.target} opacity-0 group-hover:opacity-100`}
-      />
-
       {/* Source Handles (Blue) */}
       <Handle
         type="source"
-        position={Position.Right}
-        id="right"
+        position={Position.Top}
+        id="top"
         className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.source} opacity-0 group-hover:opacity-100`}
       />
       <Handle
         type="source"
+        position={Position.Left}
+        id="left"
+        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.source} opacity-0 group-hover:opacity-100`}
+      />
+
+      {/* Target Handles (Green) */}
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right"
+        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.target} opacity-0 group-hover:opacity-100`}
+      />
+      <Handle
+        type="target"
         position={Position.Bottom}
         id="bottom"
-        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.source} opacity-0 group-hover:opacity-100`}
+        className={`${handleConfig.size} ${handleConfig.base} ${handleConfig.colors.target} opacity-0 group-hover:opacity-100`}
       />
 
       {/* HEADER */}

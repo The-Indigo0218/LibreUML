@@ -1,8 +1,10 @@
 import { useMemo, useCallback, useEffect } from 'react';
+import type { CSSProperties } from 'react';
 import type { NodeChange, EdgeChange, Connection } from 'reactflow';
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import { useVFSStore } from '../../../store/vfs.store';
 import { useModelStore } from '../../../store/model.store';
+import { useToastStore } from '../../../store/toast.store';
 import type {
   DiagramView,
   ViewNode,
@@ -18,10 +20,24 @@ import type {
   NoteViewModel,
   NodeStyleConfig,
   NodeSection,
-  NodeSectionItem,
 } from '../../../adapters/react-flow/view-models/node.view-model';
 import type { Visibility } from '../../../core/domain/vfs/vfs.types';
 import type { RelationKind } from '../../../core/domain/vfs/vfs.types';
+
+// ─── Tool → RelationKind mapping ─────────────────────────────────────────────
+// Mirrors the palette tool IDs (stored uppercase in file metadata) to semantic kinds.
+
+const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
+  ASSOCIATION:    'ASSOCIATION',
+  INHERITANCE:    'GENERALIZATION',
+  IMPLEMENTATION: 'REALIZATION',
+  DEPENDENCY:     'DEPENDENCY',
+  AGGREGATION:    'AGGREGATION',
+  COMPOSITION:    'COMPOSITION',
+  INCLUDE:        'INCLUDE',
+  EXTEND:         'EXTEND',
+  GENERALIZATION: 'GENERALIZATION',
+};
 
 // ─── Type guard ───────────────────────────────────────────────────────────────
 
@@ -249,13 +265,21 @@ export type VFSReactFlowNode =
 
 export interface VFSReactFlowEdge {
   id: string;
-  source: string;  // ReactFlow node ID (ViewNode.id)
-  target: string;  // ReactFlow node ID (ViewNode.id)
-  type: string;    // 'vfsUmlEdge'
+  source: string;
+  target: string;
+  type: string;
+  sourceHandle?: string;
+  targetHandle?: string;
+  style?: CSSProperties;
   data: {
-    domainId: string;    // IRRelation.id
-    kind: RelationKind;  // raw IRRelation.kind — VfsUmlEdge reads this directly
+    domainId: string;
+    kind: RelationKind;
     isHovered: boolean;
+    sourceMultiplicity?: string;
+    targetMultiplicity?: string;
+    sourceRole?: string;
+    targetRole?: string;
+    anchorLocked?: boolean;
   };
 }
 
@@ -307,6 +331,17 @@ export interface VFSCanvasResult {
   reverseEdgeById: (viewEdgeId: string) => void;
   /** Updates a VFS edge's IRRelation.kind (e.g. ASSOCIATION → GENERALIZATION). */
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;
+  /** Updates display properties (multiplicity, roles, anchor) stored on ViewEdge. */
+  updateVFSEdgeProps: (
+    viewEdgeId: string,
+    props: {
+      sourceMultiplicity?: string;
+      targetMultiplicity?: string;
+      sourceRole?: string;
+      targetRole?: string;
+      anchorLocked?: boolean;
+    },
+  ) => void;
 }
 
 /**
@@ -427,11 +462,18 @@ export function useVFSCanvasController(): VFSCanvasResult {
         id: viewEdge.id,
         source: sourceNodeId,
         target: targetNodeId,
-        type: 'vfsUmlEdge',  // Purpose-built VFS renderer — reads data.kind directly
+        type: 'vfsUmlEdge',
+        sourceHandle: viewEdge.anchorLocked ? viewEdge.sourceHandle : undefined,
+        targetHandle: viewEdge.anchorLocked ? viewEdge.targetHandle : undefined,
         data: {
           domainId: relation.id,
-          kind: relation.kind,  // Raw RelationKind — no vocabulary translation needed
+          kind: relation.kind,
           isHovered: false,
+          sourceMultiplicity: viewEdge.sourceMultiplicity,
+          targetMultiplicity: viewEdge.targetMultiplicity,
+          sourceRole: viewEdge.sourceRole,
+          targetRole: viewEdge.targetRole,
+          anchorLocked: viewEdge.anchorLocked,
         },
       });
     }
@@ -565,12 +607,28 @@ export function useVFSCanvasController(): VFSCanvasResult {
       // Skip connections involving notes — they have no IR backing.
       if (!sourceVN.elementId || !targetVN.elementId) return;
 
+      // Block self-inheritance and self-realization — UML forbids these.
+      const wsState = useWorkspaceStore.getState();
+      const activeFileId = wsState.activeFileId;
+      const activeWsFile = activeFileId
+        ? wsState.files?.find((f: { id: string }) => f.id === activeFileId)
+        : null;
+      const rawMode = (activeWsFile?.metadata as Record<string, unknown> | undefined)
+        ?.activeConnectionMode as string | undefined;
+      const kind: RelationKind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
+
+      const SELF_LOOP_FORBIDDEN = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);
+      if (sourceVN.elementId === targetVN.elementId && SELF_LOOP_FORBIDDEN.has(kind)) {
+        useToastStore.getState().show('⚠️ Una clase no puede heredar de sí misma');
+        return;
+      }
+
       const ms = useModelStore.getState();
       if (!ms.model) return;
 
-      // Create semantic relation in ModelStore (default kind: ASSOCIATION).
+      // Create semantic relation in ModelStore with the active tool's kind.
       const relationId = ms.createRelation({
-        kind: 'ASSOCIATION',
+        kind,
         sourceId: sourceVN.elementId,
         targetId: targetVN.elementId,
       });
@@ -580,6 +638,8 @@ export function useVFSCanvasController(): VFSCanvasResult {
         id: crypto.randomUUID(),
         relationId,
         waypoints: [],
+        sourceHandle: connection.sourceHandle ?? undefined,
+        targetHandle: connection.targetHandle ?? undefined,
       };
 
       updateFileContent(activeTabId, {
@@ -732,6 +792,35 @@ export function useVFSCanvasController(): VFSCanvasResult {
     [activeTabId],
   );
 
+  // ── updateVFSEdgeProps: used by EditRelationModal ─────────────────────────
+
+  const updateVFSEdgeProps = useCallback(
+    (
+      viewEdgeId: string,
+      props: {
+        sourceMultiplicity?: string;
+        targetMultiplicity?: string;
+        sourceRole?: string;
+        targetRole?: string;
+        anchorLocked?: boolean;
+      },
+    ) => {
+      if (!activeTabId) return;
+      const currentProject = useVFSStore.getState().project;
+      if (!currentProject) return;
+      const fileNode = currentProject.nodes[activeTabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      if (!isDiagramView((fileNode as VFSFile).content)) return;
+
+      const currentView = (fileNode as VFSFile).content as DiagramView;
+      const updatedEdges = currentView.edges.map((ve) =>
+        ve.id === viewEdgeId ? { ...ve, ...props } : ve,
+      );
+      updateFileContent(activeTabId, { ...currentView, edges: updatedEdges });
+    },
+    [activeTabId, updateFileContent],
+  );
+
   // ── changeEdgeKind: used by context menu "Change type" ────────────────────
 
   const changeEdgeKind = useCallback(
@@ -769,5 +858,6 @@ export function useVFSCanvasController(): VFSCanvasResult {
     deleteEdgeById,
     reverseEdgeById,
     changeEdgeKind,
+    updateVFSEdgeProps,
   };
 }

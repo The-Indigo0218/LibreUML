@@ -5,6 +5,8 @@ export type ActiveModal =
   | "none"
   | "class-editor"
   | "multiplicity-editor"
+  | "vfs-edge-action"
+  | "auto-layout-locked-warning"
   | "clear-confirmation"
   | "export-modal"
   | "engineering-single"
@@ -35,6 +37,8 @@ interface UiStoreState {
   openSSoTElementEditor: (elementId: string) => void;
   openSSoTClassEditor: (elementId: string) => void;
   openGlobalDelete: (elementId: string) => void;
+  openVfsEdgeAction: (edgeId: string) => void;
+  openAutoLayoutLockedWarning: () => void;
   closeModals: () => void;
 }
 
@@ -76,6 +80,12 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openGlobalDelete: (elementId) =>
     set({ activeModal: "global-delete", editingId: elementId }),
+
+  openVfsEdgeAction: (edgeId) =>
+    set({ activeModal: "vfs-edge-action", editingId: edgeId }),
+
+  openAutoLayoutLockedWarning: () =>
+    set({ activeModal: "auto-layout-locked-warning", editingId: null }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
 }));

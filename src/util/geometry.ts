@@ -3,19 +3,19 @@ import type { Node, Edge } from "reactflow";
 import { NODE_WIDTH, NODE_HEIGHT } from "../config/theme.config";
 
 const VALID_SOURCE_HANDLES = [
-  { id: "right", position: Position.Right },
-  { id: "bottom", position: Position.Bottom },
-];
-
-const VALID_TARGET_HANDLES = [
   { id: "top", position: Position.Top },
   { id: "left", position: Position.Left },
 ];
 
+const VALID_TARGET_HANDLES = [
+  { id: "right", position: Position.Right },
+  { id: "bottom", position: Position.Bottom },
+];
+
 export const getSmartEdgeHandles = (sourceNode: Node, targetNode: Node) => {
   let minDistance = Infinity;
-  let bestSourceHandle = "right";
-  let bestTargetHandle = "left";
+  let bestSourceHandle = "top";
+  let bestTargetHandle = "bottom";
 
   VALID_SOURCE_HANDLES.forEach((srcHandle) => {
     VALID_TARGET_HANDLES.forEach((tgtHandle) => {

@@ -7,6 +7,8 @@ import type {
   IRInterface,
   IREnum,
   IRRelation,
+  IRAttribute,
+  IROperation,
 } from '../core/domain/vfs/vfs.types';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
 

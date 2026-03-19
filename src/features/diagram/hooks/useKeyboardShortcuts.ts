@@ -5,6 +5,7 @@ import { useUiStore } from "../../../store/uiStore";
 export const useKeyboardShortcuts = () => {
   const { runLayout } = useAutoLayout();
   const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
+  const openExportModal = useUiStore((s) => s.openExportModal);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -31,9 +32,14 @@ export const useKeyboardShortcuts = () => {
         e.preventDefault();
         openOpenFileModal();
       }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "e") {
+        e.preventDefault();
+        openExportModal();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [runLayout, openOpenFileModal]);
+  }, [runLayout, openOpenFileModal, openExportModal]);
 };

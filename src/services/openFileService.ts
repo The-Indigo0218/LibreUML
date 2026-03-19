@@ -43,6 +43,7 @@ import type {
 import { useModelStore } from '../store/model.store';
 import { useVFSStore } from '../store/vfs.store';
 import { useWorkspaceStore } from '../store/workspace.store';
+import { useToastStore } from '../store/toast.store';
 import { XmiImporterService } from './xmiImporter.service';
 import { parseLumlFile, loadParsedProject } from './projectIO.service';
 
@@ -209,12 +210,15 @@ export async function injectDiagramIntoVFS(
         parameters: o.parameters ?? [],
       }));
 
+    const externalFlag = mode === 'standalone' ? { isExternal: true as const } : {};
+
     const newId = cls.isAbstract
       ? modelStore.createAbstractClass({
           name: cls.name,
           attributeIds: [],
           operationIds: [],
           visibility: cls.visibility,
+          ...externalFlag,
         })
       : modelStore.createClass({
           name: cls.name,
@@ -222,6 +226,7 @@ export async function injectDiagramIntoVFS(
           operationIds: [],
           visibility: cls.visibility,
           isAbstract: false,
+          ...externalFlag,
         });
 
     modelStore.setElementMembers(newId, newAttrs, newOps);
@@ -239,10 +244,12 @@ export async function injectDiagramIntoVFS(
         parameters: o.parameters ?? [],
       }));
 
+    const externalFlag = mode === 'standalone' ? { isExternal: true as const } : {};
     const newId = modelStore.createInterface({
       name: iface.name,
       operationIds: [],
       visibility: iface.visibility,
+      ...externalFlag,
     });
     modelStore.setElementMembers(newId, [], newOps);
     idMap.set(oldId, newId);
@@ -250,15 +257,18 @@ export async function injectDiagramIntoVFS(
 
   // Enums
   for (const [oldId, enm] of Object.entries(partialModel.enums)) {
+    const externalFlag = mode === 'standalone' ? { isExternal: true as const } : {};
     const newId = modelStore.createEnum({
       name: enm.name,
       literals: [...(enm.literals ?? [])],
       visibility: enm.visibility,
+      ...externalFlag,
     });
     idMap.set(oldId, newId);
   }
 
   // Relations (after all elements so source/target IDs can be remapped)
+  const relExternalFlag = mode === 'standalone' ? { isExternal: true as const } : {};
   for (const [oldRelId, rel] of Object.entries(partialModel.relations)) {
     const newSourceId = idMap.get(rel.sourceId);
     const newTargetId = idMap.get(rel.targetId);
@@ -270,6 +280,7 @@ export async function injectDiagramIntoVFS(
       targetId: newTargetId,
       name: rel.name,
       stereotypes: rel.stereotypes,
+      ...relExternalFlag,
       ...(rel.sourceEnd || rel.targetEnd
         ? {
             sourceEnd: rel.sourceEnd
@@ -319,6 +330,10 @@ export async function injectDiagramIntoVFS(
   });
 
   useWorkspaceStore.getState().openTab(fileId);
+
+  if (mode === 'standalone') {
+    useToastStore.getState().show(`"${name}" opened as standalone`);
+  }
 }
 
 // ─── XMI injection ────────────────────────────────────────────────────────────
@@ -347,6 +362,7 @@ export async function injectXmiIntoVFS(
 
   // ── Map XMI nodes → IR elements ────────────────────────────────────────────
   const idMap = new Map<string, string>();
+  const externalFlag = mode === 'standalone' ? { isExternal: true as const } : {};
 
   for (const node of nodes) {
     const { label, attributes, methods, stereotype } = node.data;
@@ -377,6 +393,7 @@ export async function injectXmiIntoVFS(
         name: label,
         operationIds: [],
         visibility: 'public',
+        ...externalFlag,
       });
       modelStore.setElementMembers(elementId, [], irOps);
     } else if (stereotype === 'enum') {
@@ -384,6 +401,7 @@ export async function injectXmiIntoVFS(
         name: label,
         literals: attributes.map((a) => ({ name: a.name })),
         visibility: 'public',
+        ...externalFlag,
       });
     } else if (stereotype === 'abstract') {
       elementId = modelStore.createAbstractClass({
@@ -391,6 +409,7 @@ export async function injectXmiIntoVFS(
         attributeIds: [],
         operationIds: [],
         visibility: 'public',
+        ...externalFlag,
       });
       modelStore.setElementMembers(elementId, irAttrs, irOps);
     } else {
@@ -399,6 +418,7 @@ export async function injectXmiIntoVFS(
         attributeIds: [],
         operationIds: [],
         visibility: 'public',
+        ...externalFlag,
       });
       modelStore.setElementMembers(elementId, irAttrs, irOps);
     }
@@ -420,6 +440,7 @@ export async function injectXmiIntoVFS(
       kind,
       sourceId,
       targetId,
+      ...externalFlag,
       ...(hasMultiplicity
         ? {
             sourceEnd: {
@@ -475,4 +496,8 @@ export async function injectXmiIntoVFS(
   });
 
   useWorkspaceStore.getState().openTab(fileId);
+
+  if (mode === 'standalone') {
+    useToastStore.getState().show(`"${fileName}" imported as standalone`);
+  }
 }

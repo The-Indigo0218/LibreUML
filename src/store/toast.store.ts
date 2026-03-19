@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const AUTO_DISMISS_MS = 3500;
+const AUTO_DISMISS_MS = 3000;
 
 interface Toast {
   id: string;

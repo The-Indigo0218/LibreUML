@@ -15,6 +15,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useVFSStore } from "../../../../store/vfs.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useToastStore } from "../../../../store/toast.store";
 import type { DiagramType, VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
 interface DiagramTypeConfig {
@@ -135,6 +136,7 @@ export default function CreateFileModal({
         false,
       );
       openTab(newFileId);
+      useToastStore.getState().show(`"${fileName.trim()}" created`);
     }
 
     setFileName("");

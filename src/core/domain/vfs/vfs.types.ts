@@ -165,12 +165,14 @@ export interface IRClass extends IRElement {
   operationIds: string[];
   isFinal?: boolean;
   isActive?: boolean;
+  isExternal?: boolean;
 }
 
 export interface IRInterface extends IRElement {
   kind: 'INTERFACE';
   packageId?: string;
   operationIds: string[];
+  isExternal?: boolean;
 }
 
 export interface IREnumLiteral {
@@ -182,6 +184,7 @@ export interface IREnum extends IRElement {
   kind: 'ENUM';
   packageId?: string;
   literals: IREnumLiteral[];
+  isExternal?: boolean;
 }
 
 export interface IRDataType extends IRElement {
@@ -261,6 +264,7 @@ export interface IRRelation {
   targetEnd?: IRAssociationEnd;
   stereotypes?: string[];
   taggedValues?: TaggedValue[];
+  isExternal?: boolean;
 }
 
 export interface SemanticModel {

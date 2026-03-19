@@ -47,6 +47,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
       shortcuts: [
         { keys: [modKey, 'O'], descriptionKey: 'keyboardShortcuts.shortcuts.openFile' },
         { keys: [modKey, 'S'], descriptionKey: 'keyboardShortcuts.shortcuts.save' },
+        { keys: [modKey, 'E'], descriptionKey: 'keyboardShortcuts.shortcuts.export' },
         { keys: [modKey, 'K'], descriptionKey: 'keyboardShortcuts.shortcuts.spotlight' },
         { keys: [modKey, 'Z'], descriptionKey: 'keyboardShortcuts.shortcuts.undo' },
         { keys: [modKey, 'Y'], descriptionKey: 'keyboardShortcuts.shortcuts.redo' },

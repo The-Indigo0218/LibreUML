@@ -13,54 +13,18 @@ import {
   Edit2,
   Info,
   Edit3,
-  List,
+  CheckCheck,
+  PanelLeftClose,
 } from "lucide-react";
 import { useVFSStore } from "../../../../store/vfs.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useModelStore } from "../../../../store/model.store";
+import { useLayoutStore } from "../../../../store/layout.store";
 import CreateFileModal from "./CreateFileModal";
 import CreateFolderModal from "./CreateFolderModal";
 import ViewDescriptionModal from "./ViewDescriptionModal";
 import type { VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
 type VFSNode = VFSFolder | VFSFile;
-
-// ─── Type badge (VS Code–style inline symbol kind indicator) ─────────────────
-
-function ElementBadge({
-  kind,
-  isAbstract,
-}: {
-  kind: "CLASS" | "INTERFACE" | "ENUM";
-  isAbstract?: boolean;
-}) {
-  if (kind === "CLASS" && isAbstract) {
-    return (
-      <span className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold bg-indigo-400/10 text-indigo-400 shrink-0">
-        A
-      </span>
-    );
-  }
-  if (kind === "CLASS") {
-    return (
-      <span className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold bg-blue-400/10 text-blue-400 shrink-0">
-        C
-      </span>
-    );
-  }
-  if (kind === "INTERFACE") {
-    return (
-      <span className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold bg-violet-400/10 text-violet-400 shrink-0">
-        I
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold bg-amber-400/10 text-amber-400 shrink-0">
-      E
-    </span>
-  );
-}
 
 // ─── Context menu state ───────────────────────────────────────────────────────
 
@@ -272,7 +236,7 @@ function TreeItem({
 export default function ProjectStructure() {
   const { project, deleteNode, renameNode } = useVFSStore();
   const { openTab } = useWorkspaceStore();
-  const model = useModelStore((s) => s.model);
+  const { toggleLeftPanel } = useLayoutStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -287,20 +251,8 @@ export default function ProjectStructure() {
   const [viewDescriptionNode, setViewDescriptionNode] = useState<{ name: string; description: string } | null>(null);
   const [createFileParentId, setCreateFileParentId] = useState<string | null>(null);
   const [createFolderParentId, setCreateFolderParentId] = useState<string | null>(null);
-  const [isOutlineExpanded, setIsOutlineExpanded] = useState(true);
+  const [isLocalFilesExpanded, setIsLocalFilesExpanded] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // ── Outline data (derived from SemanticModel) ──────────────────────────────
-  const classes = model
-    ? Object.values(model.classes).sort((a, b) => a.name.localeCompare(b.name))
-    : [];
-  const interfaces = model
-    ? Object.values(model.interfaces).sort((a, b) => a.name.localeCompare(b.name))
-    : [];
-  const enums = model
-    ? Object.values(model.enums).sort((a, b) => a.name.localeCompare(b.name))
-    : [];
-  const outlineCount = classes.length + interfaces.length + enums.length;
 
   useEffect(() => {
     const handleClickOutside = () => setContextMenu(null);
@@ -460,13 +412,23 @@ export default function ProjectStructure() {
   if (!project || !project.nodes) {
     return (
       <div className="flex flex-col h-full bg-surface-primary overflow-hidden">
-        <div className="px-4 py-3 border-b border-surface-border shrink-0">
+        <div
+          className="px-4 py-3 border-b border-surface-border shrink-0 flex items-center justify-between select-none cursor-default group"
+          onDoubleClick={toggleLeftPanel}
+        >
           <div className="flex items-center gap-2">
             <FolderTree className="w-4 h-4 text-text-muted" />
             <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
               Project Files
             </h3>
           </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleLeftPanel(); }}
+            className="p-1 hover:bg-surface-hover rounded transition-colors"
+            title="Close Panel"
+          >
+            <PanelLeftClose className="w-3.5 h-3.5 text-text-muted" />
+          </button>
         </div>
         <div className="flex-1 flex items-center justify-center min-h-0">
           <div className="text-center">
@@ -495,7 +457,10 @@ export default function ProjectStructure() {
       {/* ── File Tree ────────────────────────────────────────────────────── */}
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Header */}
-        <div className="px-4 py-3 border-b border-surface-border flex items-center justify-between shrink-0">
+        <div
+          className="px-4 py-3 border-b border-surface-border flex items-center justify-between shrink-0 select-none cursor-default group"
+          onDoubleClick={toggleLeftPanel}
+        >
           <div className="flex items-center gap-2">
             <FolderTree className="w-4 h-4 text-text-muted" />
             <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
@@ -504,18 +469,25 @@ export default function ProjectStructure() {
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={handleNewFileAtRoot}
+              onClick={(e) => { e.stopPropagation(); handleNewFileAtRoot(); }}
               className="p-1 hover:bg-surface-hover rounded transition-colors"
               title="New File"
             >
               <PlusSquare className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
             </button>
             <button
-              onClick={handleNewFolderAtRoot}
+              onClick={(e) => { e.stopPropagation(); handleNewFolderAtRoot(); }}
               className="p-1 hover:bg-surface-hover rounded transition-colors"
               title="New Folder"
             >
               <FolderPlus className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleLeftPanel(); }}
+              className="p-1 hover:bg-surface-hover rounded transition-colors"
+              title="Close Panel"
+            >
+              <PanelLeftClose className="w-3.5 h-3.5 text-text-muted" />
             </button>
           </div>
         </div>
@@ -556,110 +528,30 @@ export default function ProjectStructure() {
         </div>
       </div>
 
-      {/* ── Outline Panel ────────────────────────────────────────────────── */}
+      {/* ── Unsynced Changes Panel ───────────────────────────────────────── */}
       <div className="flex flex-col shrink-0 border-t border-surface-border">
-        {/* Outline header — always visible, click to collapse/expand */}
         <button
           className="flex items-center justify-between px-4 py-2 w-full hover:bg-surface-hover transition-colors group"
-          onClick={() => setIsOutlineExpanded((v) => !v)}
+          onClick={() => setIsLocalFilesExpanded((v) => !v)}
         >
           <div className="flex items-center gap-2">
-            <List className="w-3.5 h-3.5 text-text-muted" />
+            <CheckCheck className="w-3.5 h-3.5 text-text-muted" />
             <span className="text-xs font-semibold uppercase tracking-wider text-text-muted group-hover:text-text-primary transition-colors">
-              Outline
+              Unsynced Changes
             </span>
-            {outlineCount > 0 && (
-              <span className="text-[10px] text-text-muted/60 tabular-nums">
-                ({outlineCount})
-              </span>
-            )}
           </div>
-          {isOutlineExpanded ? (
+          {isLocalFilesExpanded ? (
             <ChevronDown className="w-3 h-3 text-text-muted" />
           ) : (
             <ChevronRight className="w-3 h-3 text-text-muted" />
           )}
         </button>
 
-        {/* Outline body */}
-        {isOutlineExpanded && (
-          <div className="overflow-y-auto custom-scrollbar max-h-52 pb-1">
-            {outlineCount === 0 ? (
-              <p className="px-4 py-3 text-xs text-text-muted/60 italic">
-                No elements in model
-              </p>
-            ) : (
-              <>
-                {/* Classes */}
-                {classes.length > 0 && (
-                  <div>
-                    <div className="px-4 pt-2 pb-0.5 text-[10px] font-medium text-text-muted/50 uppercase tracking-wider">
-                      Classes
-                    </div>
-                    {classes.map((cls) => (
-                      <div
-                        key={cls.id}
-                        className="flex items-center gap-2 px-4 py-1 hover:bg-surface-hover transition-colors"
-                        title={cls.isAbstract ? `${cls.name} (abstract)` : cls.name}
-                      >
-                        <ElementBadge kind="CLASS" isAbstract={cls.isAbstract} />
-                        <span
-                          className={`text-xs truncate ${
-                            cls.isAbstract
-                              ? "italic text-text-muted"
-                              : "text-text-secondary"
-                          }`}
-                        >
-                          {cls.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Interfaces */}
-                {interfaces.length > 0 && (
-                  <div>
-                    <div className="px-4 pt-2 pb-0.5 text-[10px] font-medium text-text-muted/50 uppercase tracking-wider">
-                      Interfaces
-                    </div>
-                    {interfaces.map((iface) => (
-                      <div
-                        key={iface.id}
-                        className="flex items-center gap-2 px-4 py-1 hover:bg-surface-hover transition-colors"
-                        title={iface.name}
-                      >
-                        <ElementBadge kind="INTERFACE" />
-                        <span className="text-xs text-text-secondary truncate">
-                          {iface.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Enums */}
-                {enums.length > 0 && (
-                  <div>
-                    <div className="px-4 pt-2 pb-0.5 text-[10px] font-medium text-text-muted/50 uppercase tracking-wider">
-                      Enums
-                    </div>
-                    {enums.map((enm) => (
-                      <div
-                        key={enm.id}
-                        className="flex items-center gap-2 px-4 py-1 hover:bg-surface-hover transition-colors"
-                        title={enm.name}
-                      >
-                        <ElementBadge kind="ENUM" />
-                        <span className="text-xs text-text-secondary truncate">
-                          {enm.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
+        {isLocalFilesExpanded && (
+          <div className="px-4 py-3">
+            <p className="text-xs text-text-muted/50 italic">
+              All files are synced.
+            </p>
           </div>
         )}
       </div>

@@ -10,6 +10,17 @@ import { useModelStore } from "../../../store/model.store";
 import { isDiagramView } from "./useVFSCanvasController";
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from "../../../core/domain/vfs/vfs.types";
 
+// ─── Drag type constants ──────────────────────────────────────────────────────
+
+/** Payload set by the tool palette — creates a NEW semantic element on drop. */
+export const DRAG_TYPE_NEW = "application/reactflow" as const;
+
+/**
+ * Payload set by the Model Explorer SSOT sidebar — the semantic element already
+ * exists. The drop handler must ONLY create a ViewNode; it must NOT touch ModelStore.
+ */
+export const DRAG_TYPE_EXISTING = "application/reactflow-existing-node" as const;
+
 // ─── VFS name helper ──────────────────────────────────────────────────────────
 
 /**
@@ -17,7 +28,7 @@ import type { DiagramView, ViewNode, VFSFile, SemanticModel } from "../../../cor
  * Mirrors the logic of getNextDefaultName but works with plain string arrays
  * so it can operate on SemanticModel collections without depending on DomainNode types.
  */
-function getNextVFSName(existingNames: string[], prefix: string): string {
+export function getNextVFSName(existingNames: string[], prefix: string): string {
   const pattern = new RegExp(`^${prefix}\\s+(\\d+)$`);
   let max = 0;
   for (const name of existingNames) {
@@ -153,13 +164,42 @@ export const useDiagramDnD = () => {
     (event: React.DragEvent) => {
       event.preventDefault();
 
-      const stereotype = event.dataTransfer.getData(
-        "application/reactflow",
-      ) as stereotype;
+      const position = getCenteredPosition(event.clientX, event.clientY);
+
+      // ===================================================================
+      // EXISTING ELEMENT DROP (Model Explorer SSOT sidebar)
+      // The semantic element already lives in ModelStore. Only create a
+      // ViewNode — do NOT touch ModelStore.
+      // ===================================================================
+      const existingElementId = event.dataTransfer.getData(DRAG_TYPE_EXISTING);
+      if (existingElementId) {
+        if (!activeTabId) return;
+
+        const freshProject = useVFSStore.getState().project;
+        if (!freshProject) return;
+        const freshFileNode = freshProject.nodes[activeTabId];
+        if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+        const freshContent = (freshFileNode as VFSFile).content;
+        if (!isDiagramView(freshContent)) return;
+        const freshView = freshContent as DiagramView;
+
+        const viewNode: ViewNode = {
+          id: crypto.randomUUID(),
+          elementId: existingElementId,
+          x: position.x,
+          y: position.y,
+        };
+
+        updateFileContent(activeTabId, {
+          ...freshView,
+          nodes: [...freshView.nodes, viewNode],
+        });
+        return;
+      }
+
+      const stereotype = event.dataTransfer.getData(DRAG_TYPE_NEW) as stereotype;
 
       if (!stereotype) return;
-
-      const position = getCenteredPosition(event.clientX, event.clientY);
 
       // ===================================================================
       // VFS SEMANTIC DROP

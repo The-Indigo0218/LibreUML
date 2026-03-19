@@ -362,5 +362,205 @@
       "export": "Exportar Diagrama"
     },
     "quote": "\"Una buena arquitectura hace que el sistema sea fácil de entender, desarrollar, mantener y desplegar. El objetivo es minimizar el costo de vida útil y maximizar la productividad del programador.\" — Robert C. Martin"
+  },
+  "terminal": {
+    "tabs": {
+      "terminal": "Terminal",
+      "problems": "Problemas"
+    },
+    "placeholder": "escribe un comando…",
+    "noProblems": "No se detectaron problemas."
+  },
+  "windowControls": {
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "close": "Cerrar"
+  },
+  "primarySidebar": {
+    "userProfile": "Perfil de usuario próximamente",
+    "cloudSync": "Sincronización en nube próximamente",
+    "githubIntegration": "Integración con GitHub próximamente",
+    "bugReport": "Reporte de errores próximamente"
+  },
+  "packageExplorer": {
+    "title": "Paquetes",
+    "newPackage": "Nuevo Paquete",
+    "noPackages": "No hay paquetes o clases todavía",
+    "addClasses": "Añade clases a tu diagrama",
+    "expandAll": "Expandir Todo",
+    "collapseAll": "Contraer Todo",
+    "packageNameExists": "El nombre del paquete ya existe en este nivel",
+    "emptyPackage": "vacío",
+    "noPackage": "(Sin Paquete)"
+  },
+  "projectStructure": {
+    "title": "Archivos del Proyecto",
+    "newFile": "Nuevo Archivo",
+    "newFolder": "Nueva Carpeta",
+    "closePanel": "Cerrar Panel",
+    "emptyProject": "Proyecto vacío",
+    "addFilesAndFolders": "Añade archivos y carpetas para comenzar",
+    "noProjectActive": "No hay proyecto activo",
+    "unsyncedChanges": "Cambios sin Sincronizar",
+    "allFilesSynced": "Todos los archivos están sincronizados.",
+    "openFile": "Abrir Archivo",
+    "rename": "Renombrar",
+    "editDetails": "Editar Detalles",
+    "viewDescription": "Ver Descripción",
+    "newFileInside": "Nuevo Archivo dentro",
+    "newFolderInside": "Nueva Carpeta dentro",
+    "delete": "Eliminar"
+  },
+  "createProjectModal": {
+    "title": "Crear Nuevo Proyecto",
+    "projectName": "Nombre del Proyecto",
+    "projectNameRequired": "El nombre del proyecto es obligatorio",
+    "projectNamePlaceholder": "Mi Proyecto UML",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional del proyecto",
+    "cancel": "Cancelar",
+    "createProject": "Crear Proyecto"
+  },
+  "createFileModal": {
+    "title": "Crear Nuevo Archivo",
+    "editTitle": "Editar Archivo",
+    "fileName": "Nombre del Archivo",
+    "fileNameRequired": "El nombre del archivo es obligatorio",
+    "fileNamePlaceholder": "MiDiagrama",
+    "diagramType": "Tipo de Diagrama",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional del archivo",
+    "cancel": "Cancelar",
+    "createFile": "Crear Archivo",
+    "saveChanges": "Guardar Cambios",
+    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación"
+  },
+  "createFolderModal": {
+    "title": "Crear Nueva Carpeta",
+    "editTitle": "Editar Carpeta",
+    "folderName": "Nombre de la Carpeta",
+    "folderNameRequired": "El nombre de la carpeta es obligatorio",
+    "folderNamePlaceholder": "Mi Carpeta",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional de la carpeta",
+    "cancel": "Cancelar",
+    "createFolder": "Crear Carpeta",
+    "saveChanges": "Guardar Cambios",
+    "folderNameExists": "Ya existe una carpeta con este nombre en esta ubicación"
+  },
+  "viewDescriptionModal": {
+    "description": "Descripción",
+    "noDescription": "No se proporcionó descripción",
+    "close": "Cerrar"
+  },
+  "closeProjectModal": {
+    "title": "Cerrar Proyecto",
+    "message": "Los cambios no guardados se perderán. ¿Estás seguro de que quieres cerrar el proyecto?",
+    "dontShowAgain": "No mostrar esto de nuevo",
+    "cancel": "Cancelar",
+    "closeProject": "Cerrar Proyecto"
+  },
+  "nameConflictModal": {
+    "title": "Conflicto de Nombre",
+    "message": "Has cambiado el nombre del diagrama a \"{diagramName}\", pero estás editando el archivo \"{currentFileName}.luml\".",
+    "question": "¿Qué te gustaría hacer?",
+    "saveAsNew": "Guardar como \"{diagramName}.luml\"",
+    "newFile": "Nuevo Archivo",
+    "overwrite": "Sobrescribir \"{currentFileName}.luml\"",
+    "keepFile": "Mantener Archivo",
+    "cancel": "Cancelar"
+  },
+  "ssotElementEditor": {
+    "title": "Editar",
+    "name": "Nombre",
+    "visibility": "Visibilidad",
+    "abstractClass": "Clase abstracta",
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  },
+  "vfsEdgeAction": {
+    "title": "Editar Relación",
+    "relationType": "Tipo de Relación",
+    "origin": "Origen",
+    "destination": "Destino",
+    "changeDirection": "Cambiar Dirección",
+    "reversed": "Revertido ✓",
+    "multiplicityAndRoles": "Multiplicidad y Roles",
+    "role": "Rol (ej: empleado)",
+    "multiplicity": "Multiplicidad",
+    "lockAnchors": "Bloquear puntos de conexión",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  },
+  "globalDeleteModal": {
+    "title": "Eliminar del Proyecto",
+    "message": "Esto eliminará permanentemente \"{name}\" ({type}) de todo el proyecto.",
+    "allDiagrams": "Se eliminará de TODOS los diagramas, junto con cualquier asociación, generalización u otra relación que lo conecte.",
+    "cannotUndo": "Esta acción no se puede deshacer.",
+    "cancel": "Cancelar",
+    "deleteFromProject": "Eliminar del Proyecto"
+  },
+  "autoLayoutWarning": {
+    "title": "Diseño Automático Bloqueado",
+    "message": "Algunos bordes tienen anclajes bloqueados. El diseño automático omitirá estas conexiones para preservar tu posicionamiento manual.",
+    "tip": "Para desbloquear: clic derecho en un borde → desmarcar \"Bloquear puntos de conexión\"",
+    "dontShowAgain": "No mostrar esto de nuevo",
+    "continue": "Continuar"
+  },
+  "openFileModal": {
+    "title": "Abrir Archivo",
+    "supportedFormats": "Formatos soportados: .luml (LibreUML) y .xmi",
+    "question": "¿Cómo te gustaría abrir este archivo?",
+    "addToProject": "Añadir al Proyecto",
+    "addToProjectDesc": "Anidar dentro del espacio de trabajo del proyecto actual",
+    "openStandalone": "Abrir Independiente",
+    "openStandaloneDesc": "Abrir como un archivo externo separado",
+    "lumlNote": "Las exportaciones de proyecto .luml reemplazan el espacio de trabajo. Las exportaciones de diagrama .luml siguen el modo que seleccionaste arriba.",
+    "cancel": "Cancelar",
+    "opening": "Abriendo…"
+  },
+  "mobileGuard": {
+    "title": "Solo Desktop",
+    "message": "LibreUML es una herramienta de ingeniería que requiere precisión. Por favor, abre esta aplicación en una computadora para diseñar tus diagramas.",
+    "footer": "Resolución actual no soportada"
+  },
+  "rightSidebar": {
+    "title": "Explorador de Modelo",
+    "closePanel": "Cerrar Panel",
+    "noModel": "Abre un diagrama .luml y arrastra elementos para poblar el modelo.",
+    "classes": "Clases",
+    "abstractClasses": "Clases Abstractas",
+    "interfaces": "Interfaces",
+    "enums": "Enumeraciones",
+    "newClass": "Nueva Clase",
+    "newAbstractClass": "Nueva Clase Abstracta",
+    "newInterface": "Nueva Interfaz",
+    "newEnum": "Nueva Enumeración",
+    "edit": "Editar...",
+    "deleteFromProject": "Eliminar del Proyecto",
+    "none": "— ninguno —"
+  },
+  "toolPalette": {
+    "title": "Caja de Herramientas",
+    "autoLayout": "Diseño",
+    "nodes": "Nodos",
+    "connections": "Conexiones",
+    "legend": "Lógica de Conexión"
+  },
+  "canvas": {
+    "loading": "Cargando diagrama..."
+  },
+  "validation": {
+    "duplicateElement": "Elemento duplicado",
+    "permissionDenied": "Permiso denegado",
+    "invalidName": "Nombre inválido",
+    "classNameExists": "El nombre de clase ya existe en este paquete",
+    "attributeNameExists": "El nombre del atributo ya existe en esta clase",
+    "methodSignatureExists": "La firma del método ya existe en esta clase"
   }
 }

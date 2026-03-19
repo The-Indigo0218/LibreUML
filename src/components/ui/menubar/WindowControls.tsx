@@ -1,6 +1,9 @@
 import { Minus, Square, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function WindowControls() {
+  const { t } = useTranslation();
+  
   if (!window.electronAPI?.isElectron()) return null;
 
   return (
@@ -9,7 +12,7 @@ export default function WindowControls() {
       <button
         onClick={() => window.electronAPI?.minimize()}
         className="h-10 w-12 flex items-center justify-center text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors"
-        title="Minimize"
+        title={t("windowControls.minimize")}
         tabIndex={-1}
       >
         <Minus className="w-4 h-4" />
@@ -19,7 +22,7 @@ export default function WindowControls() {
       <button
         onClick={() => window.electronAPI?.toggleMaximize()}
         className="h-10 w-12 flex items-center justify-center text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors"
-        title="Maximizar"
+        title={t("windowControls.maximize")}
         tabIndex={-1}
       >
         <Square className="w-3.5 h-3.5" />
@@ -29,7 +32,7 @@ export default function WindowControls() {
       <button
         onClick={() => window.electronAPI?.close()}
         className="h-10 w-12 flex items-center justify-center text-text-secondary hover:bg-red-500 hover:text-white transition-colors"
-        title="Cerrar"
+        title={t("windowControls.close")}
         tabIndex={-1}
       >
         <X className="w-4 h-4" />

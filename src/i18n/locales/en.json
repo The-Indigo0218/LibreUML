@@ -362,5 +362,205 @@
       "export": "Export Diagram"
     },
     "quote": "\"Good architecture makes the system easy to understand, easy to develop, easy to maintain, and easy to deploy. The goal is to minimize lifetime cost and maximize programmer productivity.\" — Robert C. Martin"
+  },
+  "terminal": {
+    "tabs": {
+      "terminal": "Terminal",
+      "problems": "Problems"
+    },
+    "placeholder": "type a command…",
+    "noProblems": "No problems detected."
+  },
+  "windowControls": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "close": "Close"
+  },
+  "primarySidebar": {
+    "userProfile": "User profile coming soon",
+    "cloudSync": "Cloud sync coming soon",
+    "githubIntegration": "GitHub integration coming soon",
+    "bugReport": "Bug report coming soon"
+  },
+  "packageExplorer": {
+    "title": "Packages",
+    "newPackage": "New Package",
+    "noPackages": "No packages or classes yet",
+    "addClasses": "Add classes to your diagram",
+    "expandAll": "Expand All",
+    "collapseAll": "Collapse All",
+    "packageNameExists": "Package name already exists at this level",
+    "emptyPackage": "empty",
+    "noPackage": "(No Package)"
+  },
+  "projectStructure": {
+    "title": "Project Files",
+    "newFile": "New File",
+    "newFolder": "New Folder",
+    "closePanel": "Close Panel",
+    "emptyProject": "Empty project",
+    "addFilesAndFolders": "Add files and folders to begin",
+    "noProjectActive": "No project active",
+    "unsyncedChanges": "Unsynced Changes",
+    "allFilesSynced": "All files are synced.",
+    "openFile": "Open File",
+    "rename": "Rename",
+    "editDetails": "Edit Details",
+    "viewDescription": "View Description",
+    "newFileInside": "New File inside",
+    "newFolderInside": "New Folder inside",
+    "delete": "Delete"
+  },
+  "createProjectModal": {
+    "title": "Create New Project",
+    "projectName": "Project Name",
+    "projectNameRequired": "Project Name is required",
+    "projectNamePlaceholder": "My UML Project",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional project description",
+    "cancel": "Cancel",
+    "createProject": "Create Project"
+  },
+  "createFileModal": {
+    "title": "Create New File",
+    "editTitle": "Edit File",
+    "fileName": "File Name",
+    "fileNameRequired": "File Name is required",
+    "fileNamePlaceholder": "MyDiagram",
+    "diagramType": "Diagram Type",
+    "location": "Location",
+    "locationRequired": "Location is required",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional file description",
+    "cancel": "Cancel",
+    "createFile": "Create File",
+    "saveChanges": "Save Changes",
+    "fileNameExists": "A file with this name already exists in this location"
+  },
+  "createFolderModal": {
+    "title": "Create New Folder",
+    "editTitle": "Edit Folder",
+    "folderName": "Folder Name",
+    "folderNameRequired": "Folder Name is required",
+    "folderNamePlaceholder": "My Folder",
+    "location": "Location",
+    "locationRequired": "Location is required",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional folder description",
+    "cancel": "Cancel",
+    "createFolder": "Create Folder",
+    "saveChanges": "Save Changes",
+    "folderNameExists": "A folder with this name already exists in this location"
+  },
+  "viewDescriptionModal": {
+    "description": "Description",
+    "noDescription": "No description provided",
+    "close": "Close"
+  },
+  "closeProjectModal": {
+    "title": "Close Project",
+    "message": "Unsaved changes will be lost. Are you sure you want to close the project?",
+    "dontShowAgain": "Don't show this again",
+    "cancel": "Cancel",
+    "closeProject": "Close Project"
+  },
+  "nameConflictModal": {
+    "title": "Name Conflict",
+    "message": "You changed the diagram name to \"{diagramName}\", but you are editing the file \"{currentFileName}.luml\".",
+    "question": "What would you like to do?",
+    "saveAsNew": "Save as \"{diagramName}.luml\"",
+    "newFile": "New File",
+    "overwrite": "Overwrite \"{currentFileName}.luml\"",
+    "keepFile": "Keep File",
+    "cancel": "Cancel"
+  },
+  "ssotElementEditor": {
+    "title": "Edit",
+    "name": "Name",
+    "visibility": "Visibility",
+    "abstractClass": "Abstract class",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "vfsEdgeAction": {
+    "title": "Edit Relation",
+    "relationType": "Relation Type",
+    "origin": "Origin",
+    "destination": "Destination",
+    "changeDirection": "Change Direction",
+    "reversed": "Reversed ✓",
+    "multiplicityAndRoles": "Multiplicity & Roles",
+    "role": "Role (e.g: employee)",
+    "multiplicity": "Multiplicity",
+    "lockAnchors": "Lock connection points",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "globalDeleteModal": {
+    "title": "Delete from Project",
+    "message": "This will permanently delete \"{name}\" ({type}) from the entire project.",
+    "allDiagrams": "It will be removed from ALL diagrams, along with any associations, generalizations, or other relations that connect to it.",
+    "cannotUndo": "This action cannot be undone.",
+    "cancel": "Cancel",
+    "deleteFromProject": "Delete from Project"
+  },
+  "autoLayoutWarning": {
+    "title": "Auto Layout Locked",
+    "message": "Some edges have locked anchors. Auto-layout will skip these connections to preserve your manual positioning.",
+    "tip": "To unlock: right-click an edge → uncheck \"Lock connection points\"",
+    "dontShowAgain": "Don't show this again",
+    "continue": "Continue"
+  },
+  "openFileModal": {
+    "title": "Open File",
+    "supportedFormats": "Supported formats: .luml (LibreUML) and .xmi",
+    "question": "How would you like to open this file?",
+    "addToProject": "Add to Project",
+    "addToProjectDesc": "Nest inside the current project workspace",
+    "openStandalone": "Open Standalone",
+    "openStandaloneDesc": "Open as a separate external file",
+    "lumlNote": ".luml project exports replace the workspace. .luml diagram exports follow the mode you selected above.",
+    "cancel": "Cancel",
+    "opening": "Opening…"
+  },
+  "mobileGuard": {
+    "title": "Desktop Only",
+    "message": "LibreUML is an engineering tool that requires precision. Please open this app on a computer to design your diagrams.",
+    "footer": "Current resolution not supported"
+  },
+  "rightSidebar": {
+    "title": "Model Explorer",
+    "closePanel": "Close Panel",
+    "noModel": "Open a .luml diagram and drop elements to populate the model.",
+    "classes": "Classes",
+    "abstractClasses": "Abstract Classes",
+    "interfaces": "Interfaces",
+    "enums": "Enums",
+    "newClass": "New Class",
+    "newAbstractClass": "New Abstract Class",
+    "newInterface": "New Interface",
+    "newEnum": "New Enum",
+    "edit": "Edit...",
+    "deleteFromProject": "Delete from Project",
+    "none": "— none —"
+  },
+  "toolPalette": {
+    "title": "Toolbox",
+    "autoLayout": "Layout",
+    "nodes": "Nodes",
+    "connections": "Connections",
+    "legend": "Connection Logic"
+  },
+  "canvas": {
+    "loading": "Loading diagram..."
+  },
+  "validation": {
+    "duplicateElement": "Duplicate element",
+    "permissionDenied": "Permission denied",
+    "invalidName": "Invalid name",
+    "classNameExists": "Class name already exists in this package",
+    "attributeNameExists": "Attribute name already exists in this class",
+    "methodSignatureExists": "Method signature already exists in this class"
   }
 }

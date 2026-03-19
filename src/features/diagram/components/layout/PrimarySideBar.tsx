@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ActivityTab } from "./ActivityBar";
 import ProjectStructure from "./ProjectStructure";
 import PackageExplorer from "./PackageExplorer";
@@ -8,6 +9,8 @@ interface PrimarySideBarProps {
 }
 
 export default function PrimarySideBar({ activeTab }: PrimarySideBarProps) {
+  const { t } = useTranslation();
+  
   if (!activeTab) return null;
 
   return (
@@ -15,10 +18,10 @@ export default function PrimarySideBar({ activeTab }: PrimarySideBarProps) {
       {activeTab === "structure" && <ProjectStructure />}
       {activeTab === "packages" && <PackageExplorer />}
       {activeTab === "tools" && <ToolPalette />}
-      {activeTab === "profile" && <div className="flex-1 p-4 text-text-secondary">User profile coming soon</div>}
-      {activeTab === "cloud" && <div className="flex-1 p-4 text-text-secondary">Cloud sync coming soon</div>}
-      {activeTab === "github" && <div className="flex-1 p-4 text-text-secondary">GitHub integration coming soon</div>}
-      {activeTab === "bug" && <div className="flex-1 p-4 text-text-secondary">Bug report coming soon</div>}
+      {activeTab === "profile" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.userProfile")}</div>}
+      {activeTab === "cloud" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.cloudSync")}</div>}
+      {activeTab === "github" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.githubIntegration")}</div>}
+      {activeTab === "bug" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.bugReport")}</div>}
     </div>
   );
 }

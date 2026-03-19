@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Terminal, PanelBottomClose, ChevronRight, XCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useLayoutStore } from '../../../../store/layout.store';
 import { useTerminal } from '../../../../features/terminal/useTerminal';
 import { useAutoLayout } from '../../hooks/useAutoLayout';
@@ -36,6 +37,7 @@ function TerminalLine({ line }: { line: OutputLine }) {
 }
 
 export default function BottomPanel() {
+  const { t } = useTranslation();
   const { toggleBottomPanel, bottomPanelTab, setBottomPanelTab } = useLayoutStore();
   const { runLayout } = useAutoLayout();
   const { output, input, setInput, handleKeyDown, inputRef } = useTerminal({
@@ -65,7 +67,7 @@ export default function BottomPanel() {
             }`}
           >
             <Terminal className="w-3.5 h-3.5" />
-            Terminal
+            {t("terminal.tabs.terminal")}
           </button>
 
           <button
@@ -77,7 +79,7 @@ export default function BottomPanel() {
             }`}
           >
             <XCircle className="w-3.5 h-3.5" />
-            Problems
+            {t("terminal.tabs.problems")}
             {errorCount > 0 && (
               <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400">
                 {errorCount}
@@ -89,7 +91,7 @@ export default function BottomPanel() {
         <button
           onClick={toggleBottomPanel}
           className="p-1 rounded transition-colors hover:bg-[#1e2738] mr-1"
-          title="Close Panel"
+          title={t("projectStructure.closePanel")}
         >
           <PanelBottomClose className="w-3.5 h-3.5 text-[#64748b]" />
         </button>
@@ -120,7 +122,7 @@ export default function BottomPanel() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               className="flex-1 bg-transparent text-[#e2e8f0] font-mono text-xs outline-none caret-[#4ade80] placeholder-[#2d3f5c]"
-              placeholder="type a command…"
+              placeholder={t("terminal.placeholder")}
               spellCheck={false}
               autoComplete="off"
               autoCorrect="off"
@@ -135,7 +137,7 @@ export default function BottomPanel() {
         <div className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2">
           {errors.length === 0 ? (
             <div className="flex items-center justify-center h-full">
-              <span className="text-xs text-[#3d4f6b]">No problems detected.</span>
+              <span className="text-xs text-[#3d4f6b]">{t("terminal.noProblems")}</span>
             </div>
           ) : (
             <ul className="space-y-0.5">

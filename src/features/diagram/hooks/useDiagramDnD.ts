@@ -165,7 +165,7 @@ export const useDiagramDnD = () => {
       // VFS SEMANTIC DROP
       // Active when the current tab is a .luml VFS file with a DiagramView.
       // ===================================================================
-      if (isVFSFile && vfsContext && activeTabId) {
+      if (isVFSFile && activeTabId) {
         const dropConfig = VFS_DROP_CONFIG[stereotype];
 
         if (!dropConfig) {
@@ -173,11 +173,21 @@ export const useDiagramDnD = () => {
           return;
         }
 
+        // Fresh read on every drop — avoids stale-closure overwrite on rapid drops.
+        // If vfsContext.view were used here, rapid drops would each read the same
+        // snapshot and overwrite each other; getState() always returns the latest.
+        const freshProject = useVFSStore.getState().project;
+        if (!freshProject) return;
+        const freshFileNode = freshProject.nodes[activeTabId];
+        if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+        const freshContent = (freshFileNode as VFSFile).content;
+        if (!isDiagramView(freshContent)) return;
+        const freshView = freshContent as DiagramView;
+
         // a) Ensure SemanticModel is initialized (may be null on first drop).
         const modelState = useModelStore.getState();
         if (!modelState.model) {
-          const domainModelId = project?.domainModelId ?? crypto.randomUUID();
-          modelState.initModel(domainModelId);
+          modelState.initModel(freshProject.domainModelId ?? crypto.randomUUID());
         }
 
         // b) Compute auto-incremented name, then create the semantic IR element.
@@ -195,8 +205,8 @@ export const useDiagramDnD = () => {
 
         // d) Persist the updated DiagramView to VFSStore.
         const updatedView: DiagramView = {
-          ...vfsContext.view,
-          nodes: [...vfsContext.view.nodes, viewNode],
+          ...freshView,
+          nodes: [...freshView.nodes, viewNode],
         };
         updateFileContent(activeTabId, updatedView);
         return;
@@ -222,9 +232,7 @@ export const useDiagramDnD = () => {
       getCenteredPosition,
       legacyNodes,
       isVFSFile,
-      vfsContext,
       activeTabId,
-      project,
       updateFileContent,
     ],
   );

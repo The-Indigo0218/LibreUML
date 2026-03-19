@@ -2,29 +2,37 @@ import { XCircle, AlertTriangle, Shield, Globe, Cloud, CloudOff } from "lucide-r
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/vfs.store";
+import { useModelValidation } from "../../hooks/useModelValidation";
+import { useLayoutStore } from "../../../../store/layout.store";
 
 export default function StatusBar() {
   const { t } = useTranslation();
   const { activeTabId } = useWorkspaceStore();
   const { project } = useVFSStore();
-  
+  const { openProblemsTab } = useLayoutStore();
+
   const activeNode = activeTabId && project?.nodes[activeTabId];
   const activeFile = activeNode && activeNode.type === "FILE" ? activeNode : null;
-  
+
   const fileName = activeFile?.name || t('statusbar.untitled');
   const diagramType = activeFile?.diagramType || "UNSPECIFIED";
-  const errorCount = 0;
-  const warningCount = 0;
+  const { errorCount, errors, warningCount } = useModelValidation();
   const isCloudConnected = false;
 
   return (
     <footer className="h-8 w-full bg-surface-primary border-t border-surface-border flex justify-between items-center px-4 py-1 select-none shrink-0">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
+          <button
+            onClick={openProblemsTab}
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+            title={errors.length > 0 ? errors.join('\n') : 'No problems'}
+          >
             <XCircle className="w-3.5 h-3.5 text-red-400" />
-            <span className="text-xs font-medium text-text-primary">{errorCount}</span>
-          </div>
+            <span className={`text-xs font-medium ${errorCount > 0 ? 'text-red-400' : 'text-text-primary'}`}>
+              {errorCount}
+            </span>
+          </button>
           <span className="text-xs font-medium text-text-muted">/</span>
           <div className="flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 text-yellow-400" />

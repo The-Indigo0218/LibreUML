@@ -28,6 +28,13 @@ interface UseDiagramMenusProps {
   onDeleteEdge?: (edgeId: string) => void;
   onReverseEdge?: (edgeId: string) => void;
   onChangeEdgeKind?: (edgeId: string, kind: string) => void;
+  onAddToProject?: (nodeId: string) => void;
+  /** For VFS canvases: returns the semantic kind ('CLASS', 'INTERFACE', etc.) of a node by its ReactFlow ID. */
+  getVFSNodeKind?: (nodeId: string) => string | undefined;
+  /** For VFS canvases: returns true if the node's IR element has isExternal: true. */
+  getIsNodeExternal?: (nodeId: string) => boolean;
+  /** For VFS canvases: resolves a ReactFlow ViewNode.id to its semantic elementId. */
+  getElementId?: (nodeId: string) => string | undefined;
 }
 
 export const useDiagramMenus = ({
@@ -40,6 +47,10 @@ export const useDiagramMenus = ({
   onDeleteEdge,
   onReverseEdge,
   onChangeEdgeKind,
+  onAddToProject,
+  getVFSNodeKind,
+  getIsNodeExternal,
+  getElementId,
 }: UseDiagramMenusProps) => {
   const { screenToFlowPosition } = useReactFlow();
   const { t } = useTranslation();
@@ -214,9 +225,16 @@ export const useDiagramMenus = ({
       if (menu.type === "node" && menu.id) {
         const nodeId = menu.id;
         const node = getNode(nodeId);
-        const isClassType = node?.type === "CLASS" || node?.type === "INTERFACE" || node?.type === "ABSTRACT_CLASS";
+        // For VFS canvases, getNode returns undefined; fall back to the VFS kind resolver.
+        const vfsKind = getVFSNodeKind?.(nodeId);
+        const effectiveType = node?.type ?? vfsKind;
+        const isClassType =
+          effectiveType === "CLASS" ||
+          effectiveType === "INTERFACE" ||
+          effectiveType === "ABSTRACT_CLASS";
+        const isNodeExternal = getIsNodeExternal?.(nodeId) ?? false;
 
-        const baseOptions: { label: string; onClick: () => void; danger?: boolean }[] = [
+        const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [
           {
             label: t("contextMenu.node.duplicate"),
             onClick: () => duplicateNode(nodeId),
@@ -228,17 +246,28 @@ export const useDiagramMenus = ({
         ];
 
         if (isClassType) {
+          const resolvedId = getElementId?.(nodeId) ?? nodeId;
           baseOptions.push({
             label: t("contextMenu.node.generateCode"),
-            onClick: () => openSingleGenerator(nodeId),
+            icon: "code",
+            onClick: () => openSingleGenerator(resolvedId),
           });
 
           if (onGenerateMethods) {
             baseOptions.push({
               label: t("contextMenu.node.generateMethods"),
-              onClick: () => onGenerateMethods(nodeId),
+              icon: "wand",
+              onClick: () => onGenerateMethods(resolvedId),
             });
           }
+        }
+
+        if (onAddToProject && isNodeExternal) {
+          baseOptions.push({
+            label: t("contextMenu.node.addToProject") || "Add to Project",
+            icon: "plus",
+            onClick: () => onAddToProject(nodeId),
+          });
         }
 
         if (onDeleteNodeFromModel) {
@@ -247,7 +276,9 @@ export const useDiagramMenus = ({
             onClick: () => onDeleteNode!(nodeId),
           });
           baseOptions.push({
-            label: t("contextMenu.node.deleteFromModel") || "Delete from Model",
+            label: isNodeExternal
+              ? "Remove from Canvas"
+              : t("contextMenu.node.deleteFromModel") || "Delete from Model",
             onClick: () => onDeleteNodeFromModel(nodeId),
             danger: true,
           });
@@ -255,6 +286,7 @@ export const useDiagramMenus = ({
           baseOptions.push({
             label: t("contextMenu.node.delete"),
             onClick: () => (onDeleteNode ?? deleteNode)(nodeId),
+            danger: true,
           });
         }
 
@@ -399,6 +431,10 @@ export const useDiagramMenus = ({
       screenToFlowPosition,
       openSingleGenerator,
       onGenerateMethods,
+      onAddToProject,
+      getVFSNodeKind,
+      getIsNodeExternal,
+      getElementId,
       t,
     ]
   );

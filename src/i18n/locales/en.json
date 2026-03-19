@@ -65,9 +65,10 @@
     },
     "export": {
       "title": "Export",
-      "image": "Image (PNG/SVG)...",
+      "diagram": "Export Diagram...",
       "pdf": "Export PDF (Soon)",
-      "github": "Publish to GitHub"
+      "cloud": "Publish to Cloud (Soon)",
+      "github": "Publish to GitHub (Soon)"
     },
     "code": {
       "title": "Code",
@@ -140,7 +141,8 @@
       "edit": "Edit Properties",
       "delete": "Delete",
       "generateCode": "Generate Code...",
-      "generateMethods": "Generate Methods..."
+      "generateMethods": "Generate Getters & Setters...",
+      "addToProject": "Add to Project"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",
@@ -611,6 +613,7 @@
     "shortcuts": {
       "openFile": "Open File",
       "save": "Save",
+      "export": "Export Diagram",
       "spotlight": "Spotlight Search",
       "undo": "Undo",
       "redo": "Redo",
@@ -628,5 +631,10 @@
     "actions": {
       "close": "Got it!"
     }
+  },
+  "singleClassGenerator": {
+    "title": "Generate Class Code",
+    "selectClass": "Select Class",
+    "copyCode": "Copy Code"
   }
 }

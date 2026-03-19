@@ -626,11 +626,14 @@ export function useVFSCanvasController(): VFSCanvasResult {
       const ms = useModelStore.getState();
       if (!ms.model) return;
 
+      const isExternalFile = !!(fileNode as VFSFile).isExternal;
+
       // Create semantic relation in ModelStore with the active tool's kind.
       const relationId = ms.createRelation({
         kind,
         sourceId: sourceVN.elementId,
         targetId: targetVN.elementId,
+        ...(isExternalFile ? { isExternal: true } : {}),
       });
 
       // Create visual ViewEdge linked to the new relation.
@@ -708,9 +711,17 @@ export function useVFSCanvasController(): VFSCanvasResult {
       // Cascade delete from ModelStore (removes IRRelation entries too).
       const ms = useModelStore.getState();
       if (ms.model) {
-        if (ms.model.classes[elementId])    ms.deleteClass(elementId);
+        const elementName =
+          ms.model.classes[elementId]?.name ??
+          ms.model.interfaces[elementId]?.name ??
+          ms.model.enums[elementId]?.name ??
+          'Element';
+
+        if (ms.model.classes[elementId])         ms.deleteClass(elementId);
         else if (ms.model.interfaces[elementId]) ms.deleteInterface(elementId);
         else if (ms.model.enums[elementId])      ms.deleteEnum(elementId);
+
+        useToastStore.getState().show(`"${elementName}" deleted from model`);
       }
 
       // Sweep ALL diagram files: remove the ViewNode and prune orphaned ViewEdges.

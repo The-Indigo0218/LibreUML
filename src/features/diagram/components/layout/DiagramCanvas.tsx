@@ -14,6 +14,8 @@ import { useProjectStore } from "../../../../store/project.store";
 import { useSettingsStore } from "../../../../store/settingsStore";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/vfs.store";
+import { useModelStore } from "../../../../store/model.store";
+import { useToastStore } from "../../../../store/toast.store";
 import { useDiagram } from "../../../workspace/hooks/useDiagram";
 import { canvasConfig, miniMapColors } from "../../../../config/theme.config";
 import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
@@ -211,6 +213,58 @@ export default function DiagramCanvas() {
             (legacyType as RelationKind);
           vfsController.changeEdgeKind(edgeId, kind);
         }
+      : undefined,
+    onAddToProject: vfsController.isVFSFile
+      ? (nodeId) => {
+          const viewNode = vfsController.diagramView?.nodes.find(
+            (vn) => vn.id === nodeId,
+          );
+          if (!viewNode?.elementId) return;
+          const ms = useModelStore.getState();
+          const elementName =
+            ms.model?.classes[viewNode.elementId]?.name ??
+            ms.model?.interfaces[viewNode.elementId]?.name ??
+            ms.model?.enums[viewNode.elementId]?.name ??
+            'Element';
+          ms.integrateExternalElement(viewNode.elementId);
+          useToastStore.getState().show(`"${elementName}" added to project model`);
+        }
+      : undefined,
+    getVFSNodeKind: vfsController.isVFSFile
+      ? (nodeId: string) => {
+          const viewNode = vfsController.diagramView?.nodes.find(
+            (vn) => vn.id === nodeId,
+          );
+          if (!viewNode) return undefined;
+          if (!viewNode.elementId) return 'NOTE';
+          const ms = useModelStore.getState();
+          if (!ms.model) return undefined;
+          const cls = ms.model.classes[viewNode.elementId];
+          if (cls) return cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS';
+          if (ms.model.interfaces[viewNode.elementId]) return 'INTERFACE';
+          if (ms.model.enums[viewNode.elementId]) return 'ENUM';
+          return 'NOTE';
+        }
+      : undefined,
+    getIsNodeExternal: vfsController.isVFSFile
+      ? (nodeId: string) => {
+          const viewNode = vfsController.diagramView?.nodes.find(
+            (vn) => vn.id === nodeId,
+          );
+          if (!viewNode?.elementId) return false;
+          const ms = useModelStore.getState();
+          if (!ms.model) return false;
+          return !!(
+            ms.model.classes[viewNode.elementId]?.isExternal ||
+            ms.model.interfaces[viewNode.elementId]?.isExternal ||
+            ms.model.enums[viewNode.elementId]?.isExternal
+          );
+        }
+      : undefined,
+    getElementId: vfsController.isVFSFile
+      ? (nodeId: string) =>
+          vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId)
+            ?.elementId
       : undefined,
   });
 

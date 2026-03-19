@@ -30,9 +30,13 @@ export function useModelValidation(): ModelValidationResult {
       elementSeen.set(key, (elementSeen.get(key) ?? 0) + 1);
     };
 
-    for (const cls of Object.values(model.classes)) trackElement(cls.name, cls.packageId);
-    for (const iface of Object.values(model.interfaces)) trackElement(iface.name, iface.packageId);
-    for (const enm of Object.values(model.enums)) trackElement(enm.name, enm.packageId);
+    const internalClasses = Object.values(model.classes).filter((c) => !c.isExternal);
+    const internalInterfaces = Object.values(model.interfaces).filter((i) => !i.isExternal);
+    const internalEnums = Object.values(model.enums).filter((e) => !e.isExternal);
+
+    for (const cls of internalClasses) trackElement(cls.name, cls.packageId);
+    for (const iface of internalInterfaces) trackElement(iface.name, iface.packageId);
+    for (const enm of internalEnums) trackElement(enm.name, enm.packageId);
 
     for (const [key, count] of elementSeen) {
       if (count > 1) {
@@ -78,11 +82,11 @@ export function useModelValidation(): ModelValidationResult {
       }
     };
 
-    for (const cls of Object.values(model.classes)) {
+    for (const cls of internalClasses) {
       checkDuplicateAttributes(cls.name, cls.attributeIds);
       checkDuplicateOperations(cls.name, cls.operationIds);
     }
-    for (const iface of Object.values(model.interfaces)) {
+    for (const iface of internalInterfaces) {
       checkDuplicateOperations(iface.name, iface.operationIds);
     }
 

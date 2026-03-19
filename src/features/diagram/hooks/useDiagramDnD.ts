@@ -61,7 +61,7 @@ const stereotypeToNodeType: Record<stereotype, string> = {
  *                          the new semantic element's stable ID.
  */
 const VFS_DROP_CONFIG: Partial<
-  Record<stereotype, { getNextName: (model: SemanticModel) => string; create: (name: string) => string }>
+  Record<stereotype, { getNextName: (model: SemanticModel) => string; create: (name: string, isExternal?: boolean) => string }>
 > = {
   class: {
     getNextName: (model) =>
@@ -69,14 +69,14 @@ const VFS_DROP_CONFIG: Partial<
         Object.values(model.classes).filter((c) => !c.isAbstract).map((c) => c.name),
         'Class',
       ),
-    create: (name) =>
-      useModelStore.getState().createClass({ name, attributeIds: [], operationIds: [] }),
+    create: (name, isExternal) =>
+      useModelStore.getState().createClass({ name, attributeIds: [], operationIds: [], ...(isExternal ? { isExternal: true } : {}) }),
   },
   interface: {
     getNextName: (model) =>
       getNextVFSName(Object.values(model.interfaces).map((i) => i.name), 'Interface'),
-    create: (name) =>
-      useModelStore.getState().createInterface({ name, operationIds: [] }),
+    create: (name, isExternal) =>
+      useModelStore.getState().createInterface({ name, operationIds: [], ...(isExternal ? { isExternal: true } : {}) }),
   },
   abstract: {
     getNextName: (model) =>
@@ -84,14 +84,14 @@ const VFS_DROP_CONFIG: Partial<
         Object.values(model.classes).filter((c) => !!c.isAbstract).map((c) => c.name),
         'Abstract',
       ),
-    create: (name) =>
-      useModelStore.getState().createAbstractClass({ name, attributeIds: [], operationIds: [] }),
+    create: (name, isExternal) =>
+      useModelStore.getState().createAbstractClass({ name, attributeIds: [], operationIds: [], ...(isExternal ? { isExternal: true } : {}) }),
   },
   enum: {
     getNextName: (model) =>
       getNextVFSName(Object.values(model.enums).map((e) => e.name), 'Enum'),
-    create: (name) =>
-      useModelStore.getState().createEnum({ name, literals: [] }),
+    create: (name, isExternal) =>
+      useModelStore.getState().createEnum({ name, literals: [], ...(isExternal ? { isExternal: true } : {}) }),
   },
   // Notes are visual-only — no IR element, no auto-increment needed.
   note: {
@@ -233,7 +233,8 @@ export const useDiagramDnD = () => {
         // b) Compute auto-incremented name, then create the semantic IR element.
         const currentModel = useModelStore.getState().model!;
         const elementName = dropConfig.getNextName(currentModel);
-        const semanticId = dropConfig.create(elementName);
+        const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
+        const semanticId = dropConfig.create(elementName, isExternalFile || undefined);
 
         // c) Create the visual ViewNode linked to the semantic element.
         const viewNode: ViewNode = {

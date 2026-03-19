@@ -7,11 +7,13 @@ import {
   Pencil,
   Trash2,
   Plus,
+  EyeOff,
 } from "lucide-react";
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useModelStore } from "../../../../store/model.store";
 import { useVFSStore } from "../../../../store/vfs.store";
 import { useUiStore } from "../../../../store/uiStore";
+import { useToastStore } from "../../../../store/toast.store";
 import { DRAG_TYPE_EXISTING, getNextVFSName } from "../../hooks/useDiagramDnD";
 import type {
   IRClass,
@@ -276,13 +278,17 @@ export default function RightSidebar() {
     model ? ids.map((id) => model.operations[id]).filter(Boolean) : [];
 
   const classes: IRClass[] = model
-    ? Object.values(model.classes).filter((c) => !c.isAbstract)
+    ? Object.values(model.classes).filter((c) => !c.isAbstract && !c.isExternal)
     : [];
   const abstractClasses: IRClass[] = model
-    ? Object.values(model.classes).filter((c) => !!c.isAbstract)
+    ? Object.values(model.classes).filter((c) => !!c.isAbstract && !c.isExternal)
     : [];
-  const interfaces: IRInterface[] = model ? Object.values(model.interfaces) : [];
-  const enums: IREnum[] = model ? Object.values(model.enums) : [];
+  const interfaces: IRInterface[] = model
+    ? Object.values(model.interfaces).filter((i) => !i.isExternal)
+    : [];
+  const enums: IREnum[] = model
+    ? Object.values(model.enums).filter((e) => !e.isExternal)
+    : [];
 
   return (
     <div className="w-64 h-full border-l border-surface-border bg-surface-primary flex flex-col">
@@ -404,6 +410,25 @@ export default function RightSidebar() {
           >
             <Pencil className="w-3.5 h-3.5 text-slate-400" />
             Edit...
+          </button>
+
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-amber-400 hover:bg-amber-950/30 transition-colors"
+            onClick={() => {
+              const m = useModelStore.getState().model;
+              if (!m) { dismissCtxMenu(); return; }
+              const elementName =
+                m.classes[ctxMenu.id]?.name ??
+                m.interfaces[ctxMenu.id]?.name ??
+                m.enums[ctxMenu.id]?.name ??
+                'Element';
+              useModelStore.getState().untrackElement(ctxMenu.id);
+              useToastStore.getState().show(`"${elementName}" untracked from project`);
+              dismissCtxMenu();
+            }}
+          >
+            <EyeOff className="w-3.5 h-3.5" />
+            Untrack from Project
           </button>
 
           <div className="border-t border-[#2d3f5c] my-1" />

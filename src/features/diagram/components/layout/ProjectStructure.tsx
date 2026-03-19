@@ -13,16 +13,18 @@ import {
   Edit2,
   Info,
   Edit3,
-  CheckCheck,
   PanelLeftClose,
+  ExternalLink,
 } from "lucide-react";
 import { useVFSStore } from "../../../../store/vfs.store";
+import { useModelStore } from "../../../../store/model.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useLayoutStore } from "../../../../store/layout.store";
+import { useToastStore } from "../../../../store/toast.store";
 import CreateFileModal from "./CreateFileModal";
 import CreateFolderModal from "./CreateFolderModal";
 import ViewDescriptionModal from "./ViewDescriptionModal";
-import type { VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
+import type { VFSFolder, VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
 
 type VFSNode = VFSFolder | VFSFile;
 
@@ -34,6 +36,7 @@ interface ContextMenuState {
   nodeId: string;
   nodeName: string;
   isFolder: boolean;
+  isExternal?: boolean;
 }
 
 // ─── TreeItem ─────────────────────────────────────────────────────────────────
@@ -234,7 +237,7 @@ function TreeItem({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ProjectStructure() {
-  const { project, deleteNode, renameNode } = useVFSStore();
+  const { project, deleteNode, renameNode, updateNode: updateVFSNode } = useVFSStore();
   const { openTab } = useWorkspaceStore();
   const { toggleLeftPanel } = useLayoutStore();
 
@@ -251,7 +254,7 @@ export default function ProjectStructure() {
   const [viewDescriptionNode, setViewDescriptionNode] = useState<{ name: string; description: string } | null>(null);
   const [createFileParentId, setCreateFileParentId] = useState<string | null>(null);
   const [createFolderParentId, setCreateFolderParentId] = useState<string | null>(null);
-  const [isLocalFilesExpanded, setIsLocalFilesExpanded] = useState(true);
+  const [isStandaloneExpanded, setIsStandaloneExpanded] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -302,6 +305,7 @@ export default function ProjectStructure() {
       nodeId: node.id,
       nodeName: node.name,
       isFolder: node.type === "FOLDER",
+      isExternal: node.type === "FILE" && (node as VFSFile).isExternal === true,
     });
   };
 
@@ -340,7 +344,30 @@ export default function ProjectStructure() {
 
   const handleDelete = () => {
     if (!contextMenu) return;
+    const deletedNode = project?.nodes[contextMenu.nodeId];
     deleteNode(contextMenu.nodeId);
+    setContextMenu(null);
+    if (deletedNode) {
+      useToastStore.getState().show(`"${deletedNode.name}" deleted`);
+    }
+  };
+
+  const handleAddFileToProject = () => {
+    if (!contextMenu || !project) return;
+    const file = project.nodes[contextMenu.nodeId] as VFSFile;
+    if (!file || file.type !== "FILE") return;
+
+    updateVFSNode(contextMenu.nodeId, { parentId: null, isExternal: false } as Partial<VFSFile>);
+
+    const diagramView = file.content as DiagramView | null;
+    if (diagramView?.nodes) {
+      const ms = useModelStore.getState();
+      diagramView.nodes.forEach((vn) => {
+        if (vn.elementId) ms.integrateExternalElement(vn.elementId);
+      });
+    }
+
+    useToastStore.getState().show(`"${file.name}" and all its classes added to project`);
     setContextMenu(null);
   };
 
@@ -440,16 +467,22 @@ export default function ProjectStructure() {
     );
   }
 
-  const rootNodes = Object.values(project.nodes)
-    .filter(
-      (n) =>
-        n.parentId === null &&
-        !(n.type === "FILE" && (n as VFSFile).extension === ".model"),
-    )
+  const allRootNodes = Object.values(project.nodes).filter(
+    (n) =>
+      n.parentId === null &&
+      !(n.type === "FILE" && (n as VFSFile).extension === ".model"),
+  );
+
+  const projectNodes = allRootNodes
+    .filter((n) => !(n.type === "FILE" && (n as VFSFile).isExternal === true))
     .sort((a, b) => {
       if (a.type === b.type) return a.name.localeCompare(b.name);
       return a.type === "FOLDER" ? -1 : 1;
     });
+
+  const standaloneNodes = allRootNodes
+    .filter((n) => n.type === "FILE" && (n as VFSFile).isExternal === true)
+    .sort((a, b) => a.name.localeCompare(b.name)) as VFSFile[];
 
   return (
     <div className="flex flex-col h-full bg-surface-primary overflow-hidden">
@@ -494,7 +527,7 @@ export default function ProjectStructure() {
 
         {/* Tree body */}
         <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
-          {rootNodes.length === 0 ? (
+          {projectNodes.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <FolderTree className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
@@ -505,7 +538,7 @@ export default function ProjectStructure() {
               </div>
             </div>
           ) : (
-            rootNodes.map((node) => (
+            projectNodes.map((node) => (
               <TreeItem
                 key={node.id}
                 node={node}
@@ -528,39 +561,58 @@ export default function ProjectStructure() {
         </div>
       </div>
 
-      {/* ── Unsynced Changes Panel ───────────────────────────────────────── */}
-      <div className="flex flex-col shrink-0 border-t border-surface-border">
-        <button
-          className="flex items-center justify-between px-4 py-2 w-full hover:bg-surface-hover transition-colors group"
-          onClick={() => setIsLocalFilesExpanded((v) => !v)}
-        >
-          <div className="flex items-center gap-2">
-            <CheckCheck className="w-3.5 h-3.5 text-text-muted" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-text-muted group-hover:text-text-primary transition-colors">
-              Unsynced Changes
-            </span>
-          </div>
-          {isLocalFilesExpanded ? (
-            <ChevronDown className="w-3 h-3 text-text-muted" />
-          ) : (
-            <ChevronRight className="w-3 h-3 text-text-muted" />
-          )}
-        </button>
+      {/* ── Standalone Files ──────────────────────────────────────────────── */}
+      {standaloneNodes.length > 0 && (
+        <div className="flex flex-col shrink-0 border-t border-surface-border">
+          <button
+            className="flex items-center justify-between px-4 py-2 w-full hover:bg-surface-hover transition-colors group"
+            onClick={() => setIsStandaloneExpanded((v) => !v)}
+          >
+            <div className="flex items-center gap-2">
+              <ExternalLink className="w-3.5 h-3.5 text-amber-500/70" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-text-muted group-hover:text-text-primary transition-colors">
+                Standalone Files
+              </span>
+              <span className="text-[10px] font-mono text-text-muted/40 tabular-nums">
+                {standaloneNodes.length}
+              </span>
+            </div>
+            {isStandaloneExpanded ? (
+              <ChevronDown className="w-3 h-3 text-text-muted" />
+            ) : (
+              <ChevronRight className="w-3 h-3 text-text-muted" />
+            )}
+          </button>
 
-        {isLocalFilesExpanded && (
-          <div className="px-4 py-3">
-            <p className="text-xs text-text-muted/50 italic">
-              All files are synced.
-            </p>
-          </div>
-        )}
-      </div>
+          {isStandaloneExpanded && (
+            <div className="pb-1">
+              {standaloneNodes.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover transition-colors cursor-pointer group"
+                  style={{ paddingLeft: "28px" }}
+                  onContextMenu={(e) => handleContextMenu(e, file)}
+                  onDoubleClick={() => handleOpenFile(file.id)}
+                >
+                  <LayoutTemplate className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="text-xs text-text-secondary group-hover:text-text-primary truncate flex-1">
+                    {file.name}
+                  </span>
+                  <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-px leading-none">
+                    ext
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Context menu ─────────────────────────────────────────────────── */}
       {contextMenu && (
         <div
           className="fixed bg-surface-secondary border border-surface-border rounded-md shadow-lg py-1 z-50 min-w-[160px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          style={{ left: contextMenu.x, top: Math.min(contextMenu.y, window.innerHeight - 260) }}
           onClick={(e) => e.stopPropagation()}
         >
           {!contextMenu.isFolder && (
@@ -575,6 +627,15 @@ export default function ProjectStructure() {
                 <FileText className="w-3 h-3" />
                 Open File
               </button>
+              {contextMenu.isExternal && (
+                <button
+                  onClick={handleAddFileToProject}
+                  className="w-full px-3 py-1.5 text-left text-xs text-emerald-400 hover:bg-surface-hover flex items-center gap-2"
+                >
+                  <FolderPlus className="w-3 h-3" />
+                  Add File to Project
+                </button>
+              )}
               <div className="border-t border-surface-border my-1" />
             </>
           )}

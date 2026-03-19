@@ -55,6 +55,13 @@ interface ModelStoreState {
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
+
+  // ── External integration ───────────────────────────────────────────────────
+  integrateExternalElement: (elementId: string) => void;
+  /** Sets isExternal: true on an element so it is hidden from the ModelExplorer. */
+  untrackElement: (elementId: string) => void;
+  /** Clears the entire model (used when a project is closed). */
+  resetModel: () => void;
 }
 
 export const useModelStore = create<ModelStoreState>()(
@@ -233,6 +240,52 @@ export const useModelStore = create<ModelStoreState>()(
         if (!state.model) return;
         delete state.model.relations[id];
         state.model.updatedAt = Date.now();
+      }),
+
+    integrateExternalElement: (elementId) =>
+      set((state) => {
+        if (!state.model) return;
+        const cls = state.model.classes[elementId];
+        const iface = state.model.interfaces[elementId];
+        const enm = state.model.enums[elementId];
+        if (cls) {
+          state.model.classes[elementId].isExternal = undefined;
+        } else if (iface) {
+          state.model.interfaces[elementId].isExternal = undefined;
+        } else if (enm) {
+          state.model.enums[elementId].isExternal = undefined;
+        } else {
+          return;
+        }
+        for (const rel of Object.values(state.model.relations)) {
+          if (rel.sourceId === elementId || rel.targetId === elementId) {
+            state.model.relations[rel.id].isExternal = undefined;
+          }
+        }
+        state.model.updatedAt = Date.now();
+      }),
+
+    untrackElement: (elementId) =>
+      set((state) => {
+        if (!state.model) return;
+        const cls = state.model.classes[elementId];
+        const iface = state.model.interfaces[elementId];
+        const enm = state.model.enums[elementId];
+        if (cls) {
+          state.model.classes[elementId].isExternal = true;
+        } else if (iface) {
+          state.model.interfaces[elementId].isExternal = true;
+        } else if (enm) {
+          state.model.enums[elementId].isExternal = true;
+        } else {
+          return;
+        }
+        state.model.updatedAt = Date.now();
+      }),
+
+    resetModel: () =>
+      set((state) => {
+        state.model = null;
       }),
   })),
   {

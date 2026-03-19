@@ -125,6 +125,11 @@ export function ClassItem({
           ) : (
             <span className="text-sm text-text-primary group-hover:text-uml-class-border truncate flex-1">
               {classNode.data.label}
+              {classNode.data.package && (
+                <span className="text-xs text-text-muted font-normal ml-1">
+                  ({classNode.data.package})
+                </span>
+              )}
             </span>
           )}
           {classNode.data.isMain && (

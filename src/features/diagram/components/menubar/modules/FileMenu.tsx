@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   FilePlus,
   FolderOpen,
@@ -7,9 +7,8 @@ import {
   XCircle,
   FileOutput,
   RotateCcw,
-  FileCode2,
   Download,
-  Upload,
+  FileDown,
   FolderX,
   SlidersHorizontal,
 } from "lucide-react";
@@ -18,14 +17,13 @@ import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrig
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useDiagramActions } from "../../../hooks/useDiagramActions";
 import { useWorkspaceStore } from "../../../../../store/workspace.store";
-import { useProjectStore } from "../../../../../store/project.store";
-import { XmiImporterService } from "../../../../../services/xmiImporter.service";
 import {
   downloadProject,
-  importProject,
-  ProjectImportError,
+  exportDiagram,
 } from "../../../../../services/projectIO.service";
 import { useVFSStore } from "../../../../../store/vfs.store";
+import { useUiStore } from "../../../../../store/uiStore";
+import type { VFSFile } from "../../../../../core/domain/vfs/vfs.types";
 import CloseProjectModal, {
   isCloseProjectWarningSuppressed,
 } from "../../modals/CloseProjectModal";
@@ -38,168 +36,52 @@ interface FileMenuProps {
 export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
   const { t } = useTranslation();
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const xmiInputRef = useRef<HTMLInputElement>(null);
-  const lumlProjectInputRef = useRef<HTMLInputElement>(null);
-
   const activeProject = useVFSStore((s) => s.project);
   const closeProject = useVFSStore((s) => s.closeProject);
   const closeAllFiles = useWorkspaceStore((s) => s.closeAllFiles);
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
   const [isCloseProjectModalOpen, setIsCloseProjectModalOpen] = useState(false);
-  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
-  const getFile = useWorkspaceStore((s) => s.getFile);
-  const addNodeToFile = useWorkspaceStore((s) => s.addNodeToFile);
-  const addEdgeToFile = useWorkspaceStore((s) => s.addEdgeToFile);
-  const updateFile = useWorkspaceStore((s) => s.updateFile);
 
-  const addNode = useProjectStore((s) => s.addNode);
-  const addEdge = useProjectStore((s) => s.addEdge);
-
-  const { 
-    handleNew, 
-    handleOpen, 
-    handleWebImport,
-    handleSave, 
-    handleSaveAs, 
-    handleCloseFile, 
-    handleExit, 
+  const {
+    handleNew,
+    handleSave,
+    handleSaveAs,
+    handleCloseFile,
+    handleExit,
     hasFilePath,
     handleDiscardChangesAction,
-    isDirty
+    isDirty,
   } = actions;
 
-  const onOpenClick = () => {
-    handleOpen(() => {
-      fileInputRef.current?.click();
-    });
-  };
+  // ── Determine export capability ───────────────────────────────────────────
+  const activeNode =
+    activeTabId && activeProject ? activeProject.nodes[activeTabId] : null;
+  const canExportDiagram =
+    !!activeProject &&
+    !!activeNode &&
+    activeNode.type === 'FILE' &&
+    (activeNode as VFSFile).extension !== '.model';
 
-  const handleXmiUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const fileName = file.name.replace(/\.[^/.]+$/, "");
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const xmlContent = e.target?.result as string;
-        
-        const importedData = XmiImporterService.import(xmlContent);
-        
-        if (!activeFileId) {
-          alert("Please open or create a diagram file first.");
-          return;
-        }
-
-        const file = getFile(activeFileId);
-        if (!file) return;
-
-        const newPositionMap: Record<string, { x: number; y: number }> = {
-          ...(file.metadata as any)?.positionMap || {}
-        };
-
-        importedData.nodes.forEach(node => {
-          const stereotype = node.data.stereotype || "class";
-          
-          const domainType = stereotype.toUpperCase() === 'ABSTRACT' 
-            ? 'ABSTRACT_CLASS' 
-            : stereotype.toUpperCase();
-          
-          const domainNode = {
-            id: node.id,
-            type: domainType,
-            name: node.data.label,
-            package: node.data.package || "default",
-            attributes: node.data.attributes || [],
-            methods: node.data.methods || [],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          } as any;
-          
-          addNode(domainNode);
-          addNodeToFile(activeFileId, node.id);
-          
-          if ('position' in node && node.position) {
-            newPositionMap[node.id] = node.position;
-          }
-        });
-
-        // Process Edges
-        importedData.edges.forEach(edge => {
-          const edgeType = edge.type || edge.data?.type || "association";
-          
-          const domainEdge = {
-            id: edge.id,
-            sourceNodeId: edge.source,
-            targetNodeId: edge.target,
-            type: edgeType.toUpperCase(),
-            sourceMultiplicity: edge.data?.sourceMultiplicity,
-            targetMultiplicity: edge.data?.targetMultiplicity,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          } as any;
-
-          addEdge(domainEdge);
-          addEdgeToFile(activeFileId, edge.id);
-        });
-
-        updateFile(activeFileId, {
-          name: fileName,
-          metadata: {
-            ...file.metadata,
-            positionMap: newPositionMap
-          } as any
-        });
-        
-        if (xmiInputRef.current) xmiInputRef.current.value = '';
-      } catch (error) {
-        console.error("Error importando XMI:", error);
-        alert(t("messages.error.importXmi") || "Error importing XMI file. Ensure it complies with the OMG UML 2.x standard.");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // ── VFS project I/O ─────────────────────────────────────────────────────────
+  // ── VFS project export ────────────────────────────────────────────────────
 
   const handleSaveProject = async () => {
     try {
       await downloadProject();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to export project.');
+      alert(err instanceof Error ? err.message : "Failed to export project.");
     }
   };
 
-  const handleOpenProjectFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (activeProject) {
-      const confirmed = window.confirm(
-        `Opening a new project will overwrite your current workspace.\n\n` +
-        `Any unsaved changes will be lost.\n\nDo you want to continue?`
-      );
-      if (!confirmed) {
-        event.target.value = '';
-        return;
-      }
-    }
-
+  const handleExportDiagram = async () => {
+    if (!activeTabId) return;
     try {
-      const project = await importProject(file);
-      alert(`Project "${project.projectName}" loaded successfully.`);
+      await exportDiagram(activeTabId);
     } catch (err) {
-      if (err instanceof ProjectImportError) {
-        alert(`Import failed:\n\n${err.message}`);
-      } else {
-        alert('Import failed: an unexpected error occurred. Check the console for details.');
-        console.error('[LibreUML] Project import error:', err);
-      }
+      alert(
+        err instanceof Error ? err.message : "Failed to export diagram.",
+      );
     }
-
-    // Reset so the same file can be re-opened immediately
-    event.target.value = '';
   };
 
   const handleCloseProject = () => {
@@ -217,54 +99,18 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
 
   return (
     <>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleWebImport}
-        accept=".json,.luml"
-        className="hidden"
-        aria-label="Open file"
-        style={{ display: 'none' }}
-      />
-
-      <input
-        type="file"
-        ref={xmiInputRef}
-        onChange={handleXmiUpload}
-        accept=".xmi,.xml"
-        className="hidden"
-        aria-label="Import XMI file"
-        style={{ display: 'none' }}
-      />
-
-      {/* Hidden input for VFS project import */}
-      <input
-        type="file"
-        ref={lumlProjectInputRef}
-        onChange={handleOpenProjectFile}
-        accept=".luml"
-        className="hidden"
-        aria-label="Open LibreUML project"
-        style={{ display: 'none' }}
-      />
-
       <MenubarTrigger label={t("menubar.file.title") || "File"}>
         <MenubarItem
           label={t("menubar.file.new") || "New Diagram"}
           icon={<FilePlus className="w-4 h-4" />}
           onClick={handleNew}
         />
-        <MenubarItem
-          label={t("common.open_file") || "Open file"}
-          icon={<FolderOpen className="w-4 h-4" />}
-          shortcut="Ctrl+O"
-          onClick={onOpenClick}
-        />
 
         <MenubarItem
-          label={t("menubar.file.importXmi") || "Import XMI..."}
-          icon={<FileCode2 className="w-4 h-4 text-blue-400" />}
-          onClick={() => xmiInputRef.current?.click()}
+          label="Open File..."
+          icon={<FolderOpen className="w-4 h-4" />}
+          shortcut="Ctrl+O"
+          onClick={openOpenFileModal}
         />
 
         <div className="h-px bg-surface-border my-1" />
@@ -277,10 +123,12 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
           onClick={handleSaveProject}
           disabled={!activeProject}
         />
+
         <MenubarItem
-          label="Open Project (.luml)"
-          icon={<Upload className="w-4 h-4 text-emerald-400" />}
-          onClick={() => lumlProjectInputRef.current?.click()}
+          label="Export Diagram (.luml)"
+          icon={<FileDown className="w-4 h-4 text-blue-400" />}
+          onClick={handleExportDiagram}
+          disabled={!canExportDiagram}
         />
 
         {activeProject && onOpenProjectProperties && (

@@ -3,6 +3,7 @@ import { create } from "zustand";
 // Define the types for active modals in the UI
 export type ActiveModal =
   | "none"
+  | "open-file"
   | "class-editor"
   | "multiplicity-editor"
   | "vfs-edge-action"
@@ -37,6 +38,7 @@ interface UiStoreState {
   openSSoTElementEditor: (elementId: string) => void;
   openSSoTClassEditor: (elementId: string) => void;
   openGlobalDelete: (elementId: string) => void;
+  openOpenFileModal: () => void;
   openVfsEdgeAction: (edgeId: string) => void;
   openAutoLayoutLockedWarning: () => void;
   closeModals: () => void;
@@ -80,6 +82,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openGlobalDelete: (elementId) =>
     set({ activeModal: "global-delete", editingId: elementId }),
+
+  openOpenFileModal: () =>
+    set({ activeModal: "open-file", editingId: null }),
 
   openVfsEdgeAction: (edgeId) =>
     set({ activeModal: "vfs-edge-action", editingId: edgeId }),

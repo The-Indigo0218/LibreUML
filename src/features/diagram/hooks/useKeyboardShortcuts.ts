@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useAutoLayout } from "./useAutoLayout";
+import { useUiStore } from "../../../store/uiStore";
 
 export const useKeyboardShortcuts = () => {
   const { runLayout } = useAutoLayout();
+  const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -24,9 +26,14 @@ export const useKeyboardShortcuts = () => {
         e.preventDefault();
         runLayout();
       }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "o") {
+        e.preventDefault();
+        openOpenFileModal();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [runLayout]);
+  }, [runLayout, openOpenFileModal]);
 };

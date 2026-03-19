@@ -2,14 +2,19 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
 
+export type BottomPanelTab = 'terminal' | 'problems';
+
 interface LayoutStoreState {
   isLeftPanelOpen: boolean;
   isRightPanelOpen: boolean;
   isBottomPanelOpen: boolean;
+  bottomPanelTab: BottomPanelTab;
 
   toggleLeftPanel: () => void;
   toggleRightPanel: () => void;
   toggleBottomPanel: () => void;
+  setBottomPanelTab: (tab: BottomPanelTab) => void;
+  openProblemsTab: () => void;
 }
 
 export const useLayoutStore = create<LayoutStoreState>()(
@@ -18,6 +23,7 @@ export const useLayoutStore = create<LayoutStoreState>()(
       isLeftPanelOpen: true,
       isRightPanelOpen: true,
       isBottomPanelOpen: false,
+      bottomPanelTab: 'terminal',
 
       toggleLeftPanel: () =>
         set((s) => ({ isLeftPanelOpen: !s.isLeftPanelOpen })),
@@ -27,6 +33,11 @@ export const useLayoutStore = create<LayoutStoreState>()(
 
       toggleBottomPanel: () =>
         set((s) => ({ isBottomPanelOpen: !s.isBottomPanelOpen })),
+
+      setBottomPanelTab: (tab) => set({ bottomPanelTab: tab }),
+
+      openProblemsTab: () =>
+        set({ isBottomPanelOpen: true, bottomPanelTab: 'problems' }),
     }),
     {
       name: 'libreuml-layout',
@@ -34,6 +45,7 @@ export const useLayoutStore = create<LayoutStoreState>()(
         isLeftPanelOpen: state.isLeftPanelOpen,
         isRightPanelOpen: state.isRightPanelOpen,
         isBottomPanelOpen: state.isBottomPanelOpen,
+        bottomPanelTab: state.bottomPanelTab,
       }),
       storage: {
         getItem: (name) => {

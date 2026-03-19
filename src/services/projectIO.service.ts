@@ -246,7 +246,7 @@ async function parseProjectPayload(
   zip: JSZip,
   raw: Record<string, unknown>,
 ): Promise<LumlParseResult & { exportType: 'project' }> {
-  const manifest = raw as LumlProjectManifest;
+  const manifest = raw as unknown as LumlProjectManifest;
 
   // Validate required project fields
   if (typeof manifest.projectName !== 'string' || !manifest.projectName.trim()) {

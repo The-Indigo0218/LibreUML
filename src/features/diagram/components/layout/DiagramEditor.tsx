@@ -78,7 +78,7 @@ function EditorLogic() {
           {/* ── Bottom terminal (slides in/out) ─────────────────────── */}
           <div
             className={`overflow-hidden transition-all duration-200 ease-in-out shrink-0 ${
-              isBottomPanelOpen ? "h-48" : "h-0"
+              isBottomPanelOpen ? "h-72" : "h-0"
             }`}
           >
             <BottomTerminal />

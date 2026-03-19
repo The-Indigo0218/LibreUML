@@ -1,9 +1,40 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import {
+  X,
+  Layers,
+  Users,
+  ArrowRightLeft,
+  Activity,
+  GitBranch,
+  Puzzle,
+  Server,
+  Package,
+  Database,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useVFSStore } from "../../../../store/vfs.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import type { DiagramType, VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
+
+interface DiagramTypeConfig {
+  type: DiagramType;
+  label: string;
+  icon: LucideIcon;
+  enabled: boolean;
+}
+
+const DIAGRAM_TYPE_CONFIG: DiagramTypeConfig[] = [
+  { type: "CLASS_DIAGRAM",         label: "Class",      icon: Layers,          enabled: true  },
+  { type: "USE_CASE_DIAGRAM",      label: "Use Case",   icon: Users,           enabled: false },
+  { type: "SEQUENCE_DIAGRAM",      label: "Sequence",   icon: ArrowRightLeft,  enabled: false },
+  { type: "ACTIVITY_DIAGRAM",      label: "Activity",   icon: Activity,        enabled: false },
+  { type: "STATE_MACHINE_DIAGRAM", label: "State",      icon: GitBranch,       enabled: false },
+  { type: "COMPONENT_DIAGRAM",     label: "Component",  icon: Puzzle,          enabled: false },
+  { type: "DEPLOYMENT_DIAGRAM",    label: "Deployment", icon: Server,          enabled: false },
+  { type: "PACKAGE_DIAGRAM",       label: "Package",    icon: Package,         enabled: false },
+  { type: "OBJECT_DIAGRAM",        label: "Object",     icon: Database,        enabled: false },
+];
 
 interface CreateFileModalProps {
   isOpen: boolean;
@@ -13,19 +44,21 @@ interface CreateFileModalProps {
   initialParentId?: string | null;
 }
 
-export default function CreateFileModal({ 
-  isOpen, 
-  onClose, 
-  parentId, 
+export default function CreateFileModal({
+  isOpen,
+  onClose,
+  parentId,
   editNodeId,
-  initialParentId 
+  initialParentId,
 }: CreateFileModalProps) {
   const [fileName, setFileName] = useState("");
   const [diagramType, setDiagramType] = useState<DiagramType>("CLASS_DIAGRAM");
   const [description, setDescription] = useState("");
-  const [selectedParentId, setSelectedParentId] = useState<string | null>(initialParentId ?? parentId ?? null);
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(
+    initialParentId ?? parentId ?? null,
+  );
   const [validationError, setValidationError] = useState("");
-  
+
   const { project, createFile, updateNode } = useVFSStore();
   const { openTab } = useWorkspaceStore();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,11 +94,13 @@ export default function CreateFileModal({
     const fullFileName = `${fileName.trim()}.luml`;
 
     const siblings = Object.values(project.nodes).filter(
-      (node) => node.parentId === targetParentId && node.id !== editNodeId
+      (node) => node.parentId === targetParentId && node.id !== editNodeId,
     );
 
     const conflict = siblings.find(
-      (sibling) => sibling.type === "FILE" && `${sibling.name}${sibling.extension}` === fullFileName
+      (sibling) =>
+        sibling.type === "FILE" &&
+        `${sibling.name}${sibling.extension}` === fullFileName,
     );
 
     if (conflict) {
@@ -92,10 +127,16 @@ export default function CreateFileModal({
         diagramType,
       });
     } else {
-      const newFileId = createFile(targetParentId, fileName.trim(), diagramType, ".luml", false);
+      const newFileId = createFile(
+        targetParentId,
+        fileName.trim(),
+        diagramType,
+        ".luml",
+        false,
+      );
       openTab(newFileId);
     }
-    
+
     setFileName("");
     setDiagramType("CLASS_DIAGRAM");
     setDescription("");
@@ -111,19 +152,10 @@ export default function CreateFileModal({
 
   if (!isOpen) return null;
 
-  const diagramTypes: DiagramType[] = [
-    "CLASS_DIAGRAM",
-    "USE_CASE_DIAGRAM",
-    "SEQUENCE_DIAGRAM",
-    "ACTIVITY_DIAGRAM",
-    "STATE_MACHINE_DIAGRAM",
-    "COMPONENT_DIAGRAM",
-    "DEPLOYMENT_DIAGRAM",
-    "PACKAGE_DIAGRAM",
-    "OBJECT_DIAGRAM",
-  ];
-
-  const getFullPath = (nodeId: string, nodes: Record<string, VFSFolder | VFSFile>): string => {
+  const getFullPath = (
+    nodeId: string,
+    nodes: Record<string, VFSFolder | VFSFile>,
+  ): string => {
     const path: string[] = [];
     let currentId: string | null = nodeId;
 
@@ -171,8 +203,12 @@ export default function CreateFileModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* ── File Name ────────────────────────────────────────────── */}
           <div>
-            <label htmlFor="fileName" className="block text-sm font-medium text-[#cbd5e1] mb-2">
+            <label
+              htmlFor="fileName"
+              className="block text-sm font-medium text-[#cbd5e1] mb-2"
+            >
               File Name <span className="text-red-400">*</span>
             </label>
             <div className="flex items-center gap-2">
@@ -199,15 +235,21 @@ export default function CreateFileModal({
             )}
           </div>
 
+          {/* ── Location ─────────────────────────────────────────────── */}
           <div>
-            <label htmlFor="location" className="block text-sm font-medium text-[#cbd5e1] mb-2">
+            <label
+              htmlFor="location"
+              className="block text-sm font-medium text-[#cbd5e1] mb-2"
+            >
               Location <span className="text-red-400">*</span>
             </label>
             <select
               id="location"
               value={selectedParentId || "root"}
               onChange={(e) => {
-                setSelectedParentId(e.target.value === "root" ? null : e.target.value);
+                setSelectedParentId(
+                  e.target.value === "root" ? null : e.target.value,
+                );
                 setValidationError("");
               }}
               className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7C83FF]"
@@ -221,26 +263,50 @@ export default function CreateFileModal({
             </select>
           </div>
 
+          {/* ── Diagram Type ─────────────────────────────────────────── */}
           <div>
-            <label htmlFor="diagramType" className="block text-sm font-medium text-[#cbd5e1] mb-2">
+            <label className="block text-sm font-medium text-[#cbd5e1] mb-2">
               Diagram Type <span className="text-red-400">*</span>
             </label>
-            <select
-              id="diagramType"
-              value={diagramType}
-              onChange={(e) => setDiagramType(e.target.value as DiagramType)}
-              className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7C83FF]"
-            >
-              {diagramTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type.replace(/_/g, " ")}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-3 gap-2">
+              {DIAGRAM_TYPE_CONFIG.map(({ type, label, icon: Icon, enabled }) => {
+                const isSelected = diagramType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    disabled={!enabled}
+                    onClick={() => setDiagramType(type)}
+                    className={[
+                      "relative flex flex-col items-center gap-1.5 px-2 py-3 rounded-lg border transition-all text-center select-none",
+                      enabled
+                        ? isSelected
+                          ? "border-[#7C83FF] bg-[#7C83FF]/10 text-[#e2e8f0] cursor-pointer"
+                          : "border-[#2a3358] bg-[#0f1419] text-[#94a3b8] hover:border-[#3d4a6e] hover:text-[#cbd5e1] cursor-pointer"
+                        : "border-[#1a2235] bg-[#0c1018] text-[#2a3a52] cursor-not-allowed",
+                    ].join(" ")}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="text-[10px] font-medium leading-tight">
+                      {label}
+                    </span>
+                    {!enabled && (
+                      <span className="absolute -top-1.5 -right-1.5 text-[8px] font-bold uppercase tracking-wide text-amber-500/80 bg-[#1a1400] border border-amber-500/25 rounded-sm px-1 py-px leading-none">
+                        Soon
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
+          {/* ── Description ──────────────────────────────────────────── */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-[#cbd5e1] mb-2">
+            <label
+              htmlFor="description"
+              className="block text-sm font-medium text-[#cbd5e1] mb-2"
+            >
               Description
             </label>
             <textarea
@@ -253,6 +319,7 @@ export default function CreateFileModal({
             />
           </div>
 
+          {/* ── Actions ──────────────────────────────────────────────── */}
           <div className="flex items-center justify-end gap-3 pt-4">
             <button
               type="button"

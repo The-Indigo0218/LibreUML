@@ -2,31 +2,12 @@ import { useState } from 'react';
 import { BaseEdge, getSmoothStepPath, Position, EdgeLabelRenderer, useStore } from 'reactflow';
 import type { EdgeProps } from 'reactflow';
 import { getEdgeParams } from '../../../../util/geometry';
-
-// ─── UML 2.5 colour palette (CSS custom properties fall back to hex) ──────────
-
-const KIND_COLOR: Record<string, string> = {
-  ASSOCIATION:    'var(--edge-base, #64748b)',
-  GENERALIZATION: 'var(--edge-inheritance, #10b981)',
-  REALIZATION:    'var(--edge-implementation, #3b82f6)',
-  AGGREGATION:    'var(--edge-aggregation, #8b5cf6)',
-  COMPOSITION:    'var(--edge-composition, #ec4899)',
-  DEPENDENCY:     'var(--edge-dependency, #f59e0b)',
-  USAGE:          'var(--edge-dependency, #f59e0b)',
-  INCLUDE:        'var(--edge-include, #06b6d4)',
-  EXTEND:         'var(--edge-extend, #f97316)',
-};
+import { useUiStore } from '../../../../store/uiStore';
 
 const DASHED_KINDS = new Set([
   'REALIZATION', 'DEPENDENCY', 'USAGE', 'INCLUDE', 'EXTEND',
 ]);
 
-/**
- * How many pixels the edge path must stop short of the target point so the
- * marker sits flush without the line peeking through the arrowhead fill.
- * GENERALIZATION/REALIZATION: hollow triangle, depth = 16 px
- * AGGREGATION/COMPOSITION:    diamond,         depth = 24 px
- */
 const MARKER_RETRACT: Record<string, number> = {
   GENERALIZATION: 16,
   REALIZATION:    16,
@@ -34,22 +15,36 @@ const MARKER_RETRACT: Record<string, number> = {
   COMPOSITION:    24,
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const KIND_LABEL: Partial<Record<string, string>> = {
+  GENERALIZATION: 'es un',
+  REALIZATION:    'implements',
+  COMPOSITION:    'se compone de',
+  AGGREGATION:    'tiene un',
+};
 
-/**
- * VfsUmlEdge — purpose-built UML 2.5 edge renderer for VFS (.luml) diagrams.
- *
- * Unlike CustomUmlEdge (which dispatches on a translated `data.type` string),
- * this component reads `data.kind` directly from the raw IRRelation.kind value
- * stored in ModelStore.  No vocabulary translation layer is needed.
- *
- * Features:
- *  - Proper UML 2.5 SVG markers (hollow triangle, open/filled diamond, open arrow)
- *  - Orthogonal step-routing with rounded corners (borderRadius: 16)
- *  - Border-accurate connection points via getEdgeParams
- *  - Invisible thick hit-area for easy click/hover detection
- *  - Local hover state with kind tooltip
- */
+const LABEL_CLASS =
+  'nodrag nopan text-[11px] font-mono font-medium text-slate-500 dark:text-slate-300 bg-canvas-base px-1 rounded select-none transition-colors';
+
+function getLabelStyle(
+  x: number,
+  y: number,
+  pos: Position,
+  offset: number,
+): React.CSSProperties {
+  switch (pos) {
+    case Position.Top:
+      return { position: 'absolute', transform: `translate(5px, -100%) translate(${x}px, ${y - offset}px)` };
+    case Position.Bottom:
+      return { position: 'absolute', transform: `translate(5px, 0%) translate(${x}px, ${y + offset}px)` };
+    case Position.Left:
+      return { position: 'absolute', transform: `translate(-100%, -100%) translate(${x - offset}px, ${y - 3}px)` };
+    case Position.Right:
+      return { position: 'absolute', transform: `translate(0%, -100%) translate(${x + offset}px, ${y - 3}px)` };
+    default:
+      return { position: 'absolute', transform: `translate(${x}px, ${y}px)` };
+  }
+}
+
 export default function VfsUmlEdge({
   id,
   source,
@@ -60,19 +55,32 @@ export default function VfsUmlEdge({
   targetY,
   sourcePosition = Position.Right,
   targetPosition = Position.Left,
+  style,
   data,
 }: EdgeProps) {
-  const [hovered, setHovered] = useState(false);
+  const [localHovered, setLocalHovered] = useState(false);
 
   const sourceNode = useStore((s) => s.nodeInternals.get(source));
   const targetNode = useStore((s) => s.nodeInternals.get(target));
 
-  // Prefer border-accurate connection points from getEdgeParams when both
-  // nodes are mounted; fall back to ReactFlow's computed props.
   let sx = sourceX, sy = sourceY, tx = targetX, ty = targetY;
   let sp = sourcePosition, tp = targetPosition;
 
-  if (sourceNode && targetNode) {
+  const anchorLocked: boolean = (data?.anchorLocked as boolean | undefined) ?? false;
+  const isSelfLoop = source === target;
+
+  if (isSelfLoop && sourceNode) {
+    const px = sourceNode.positionAbsolute?.x ?? 0;
+    const py = sourceNode.positionAbsolute?.y ?? 0;
+    const nw = sourceNode.width ?? 150;
+    const nh = sourceNode.height ?? 80;
+    sx = px + nw;
+    sy = py + nh / 3;
+    sp = Position.Right;
+    tx = px + (nw * 2) / 3;
+    ty = py;
+    tp = Position.Top;
+  } else if (!anchorLocked && sourceNode && targetNode) {
     const params = getEdgeParams(sourceNode, targetNode);
     sx = params.sx; sy = params.sy;
     tx = params.tx; ty = params.ty;
@@ -82,24 +90,16 @@ export default function VfsUmlEdge({
   if (isNaN(sx) || isNaN(sy) || isNaN(tx) || isNaN(ty)) return null;
 
   const kind: string = (data?.kind as string) || 'ASSOCIATION';
-  const stroke = KIND_COLOR[kind] ?? KIND_COLOR.ASSOCIATION;
+
+  const isHighlighted: boolean = (data?.isHovered as boolean | undefined) ?? localHovered;
+  const showTooltip = localHovered || isHighlighted;
+
+  const stroke: string = (style?.stroke as string | undefined) ?? 'var(--edge-base, #64748b)';
+  const edgeOpacity: number = (style?.opacity as number | undefined) ?? 1;
+  const strokeWidth: number = isHighlighted ? 3 : 2;
+  const canvasBase = 'var(--canvas-base, #0b0f1a)';
   const dashed = DASHED_KINDS.has(kind);
-  const canvasBase = 'var(--canvas-base, #ffffff)';
 
-  // Marker rotation: the SVG markers are drawn pointing RIGHT (+x direction).
-  // Rotate them so they point toward the target.
-  const getMarkerRotation = () => {
-    switch (tp) {
-      case Position.Top:    return 90;
-      case Position.Left:   return 0;
-      case Position.Bottom: return -90;
-      case Position.Right:  return 180;
-      default:              return 0;
-    }
-  };
-  const rotation = getMarkerRotation();
-
-  // Retract the path endpoint so the edge line doesn't overdraw the marker fill.
   const retract = MARKER_RETRACT[kind] ?? 0;
   let atx = tx, aty = ty;
   if (retract > 0) {
@@ -112,133 +112,126 @@ export default function VfsUmlEdge({
   }
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX: sx,
-    sourceY: sy,
-    sourcePosition: sp,
-    targetX: atx,
-    targetY: aty,
-    targetPosition: tp,
-    borderRadius: 16,
+    sourceX: sx, sourceY: sy, sourcePosition: sp,
+    targetX: atx, targetY: aty, targetPosition: tp,
+    borderRadius: 20,
   });
 
-  // ── UML 2.5 marker SVG ────────────────────────────────────────────────────
-  //
-  // All markers are defined in local SVG coordinates centred at (tx, ty),
-  // pointing RIGHT (toward +x). The enclosing <g> is rotated so they point
-  // toward the actual target.
-  //
-  // Hollow triangle (GENERALIZATION / REALIZATION):
-  //   Tip at (0,0), base at (-16, ±8).  Filled with canvas background.
-  //
-  // Open diamond (AGGREGATION):
-  //   Rightmost point at (0,0), leftmost at (-24,0), top/bottom at (-12, ±6).
-  //   Filled with canvas background (open).
-  //
-  // Filled diamond (COMPOSITION):
-  //   Same shape as aggregation but filled with stroke colour (solid).
-  //
-  // Open arrow (DEPENDENCY / USAGE / INCLUDE / EXTEND / ASSOCIATION):
-  //   Two lines from (0,0) back to (-14, ±7) — no fill.
+  const getMarkerRotation = (): number => {
+    switch (tp) {
+      case Position.Top:    return 90;
+      case Position.Left:   return 0;
+      case Position.Bottom: return -90;
+      case Position.Right:  return 180;
+      default:              return 0;
+    }
+  };
+  const rotation = getMarkerRotation();
 
   const renderMarker = () => {
+    const t = `translate(${tx}, ${ty}) rotate(${rotation})`;
     switch (kind) {
       case 'GENERALIZATION':
       case 'REALIZATION':
         return (
-          <g transform={`translate(${tx}, ${ty}) rotate(${rotation})`}>
-            <path
-              d="M -16,-8 L -16,8 L 0,0 Z"
-              fill={canvasBase}
-              stroke={stroke}
-              strokeWidth={2}
-              strokeLinejoin="round"
-            />
+          <g transform={t} style={{ opacity: edgeOpacity }}>
+            <path d="M -16,-8 L -16,8 L 0,0 Z" fill={canvasBase} stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
           </g>
         );
-
       case 'AGGREGATION':
         return (
-          <g transform={`translate(${tx}, ${ty}) rotate(${rotation})`}>
-            <path
-              d="M 0,0 L -12,6 L -24,0 L -12,-6 Z"
-              fill={canvasBase}
-              stroke={stroke}
-              strokeWidth={2}
-              strokeLinejoin="round"
-            />
+          <g transform={t} style={{ opacity: edgeOpacity }}>
+            <path d="M 0,0 L -12,6 L -24,0 L -12,-6 Z" fill={canvasBase} stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
           </g>
         );
-
       case 'COMPOSITION':
         return (
-          <g transform={`translate(${tx}, ${ty}) rotate(${rotation})`}>
-            <path
-              d="M 0,0 L -12,6 L -24,0 L -12,-6 Z"
-              fill={stroke}
-              stroke={stroke}
-              strokeWidth={2}
-              strokeLinejoin="round"
-            />
+          <g transform={t} style={{ opacity: edgeOpacity }}>
+            <path d="M 0,0 L -12,6 L -24,0 L -12,-6 Z" fill={stroke} stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
           </g>
         );
-
-      // Everything else (ASSOCIATION, DEPENDENCY, USAGE, INCLUDE, EXTEND, …)
-      // gets an open arrowhead.
       default:
         return (
-          <g transform={`translate(${tx}, ${ty}) rotate(${rotation})`}>
-            <path
-              d="M -14,-7 L 0,0 L -14,7"
-              fill="none"
-              stroke={stroke}
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+          <g transform={t} style={{ opacity: edgeOpacity }}>
+            <path d="M -14,-7 L 0,0 L -14,7" fill="none" stroke={stroke} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
           </g>
         );
     }
   };
 
-  const lineStyle = {
+  const lineStyle: React.CSSProperties = {
     stroke,
-    strokeWidth: hovered ? 3 : 2,
+    strokeWidth,
     strokeDasharray: dashed ? '6,4' : undefined,
-    transition: 'stroke-width 0.15s',
+    opacity: edgeOpacity,
+    transition: 'stroke 0.2s ease, stroke-width 0.15s ease, opacity 0.2s ease',
   };
+
+  const defaultLabel = KIND_LABEL[kind];
+  const hasBigMarker = ['GENERALIZATION', 'REALIZATION', 'AGGREGATION', 'COMPOSITION'].includes(kind);
+
+  const sourceMultiplicity = data?.sourceMultiplicity as string | undefined;
+  const targetMultiplicity = data?.targetMultiplicity as string | undefined;
+  const sourceRole = data?.sourceRole as string | undefined;
+  const targetRole = data?.targetRole as string | undefined;
 
   return (
     <>
-      {/*
-       * Invisible thick overlay for reliable hover/click detection.
-       * ReactFlow edge selection is handled at the wrapper level, but hover
-       * tooltips need a wider hit-area than the 2 px stroke.
-       */}
+      <BaseEdge id={id} path={edgePath} style={lineStyle} />
+
+      {renderMarker()}
+
       <path
         d={edgePath}
         fill="none"
         stroke="transparent"
         strokeWidth={16}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseEnter={() => setLocalHovered(true)}
+        onMouseLeave={() => setLocalHovered(false)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          useUiStore.getState().openVfsEdgeAction(id);
+        }}
         style={{ cursor: 'pointer' }}
       />
 
-      <BaseEdge id={id} path={edgePath} style={lineStyle} />
-
-      {renderMarker()}
-
       <EdgeLabelRenderer>
-        {hovered && (
+        <div
+          style={{
+            position: 'absolute',
+            transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 5}px)`,
+            pointerEvents: 'none',
+            zIndex: 1000,
+            opacity: edgeOpacity,
+          }}
+          className="nodrag nopan flex flex-col items-center gap-1"
+        >
+          {showTooltip && (
+            <div className="bg-surface-primary text-text-primary border border-surface-border text-[10px] font-bold px-2 py-0.5 rounded shadow-lg select-none animate-in fade-in zoom-in duration-150 mb-1">
+              {kind.charAt(0) + kind.slice(1).toLowerCase()}
+            </div>
+          )}
+          {defaultLabel && (
+            <div className={LABEL_CLASS}>{defaultLabel}</div>
+          )}
+        </div>
+
+        {(sourceMultiplicity || sourceRole) && (
           <div
-            style={{
-              position: 'absolute',
-              transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 6}px)`,
-              pointerEvents: 'none',
-            }}
-            className="bg-surface-primary text-primary border border-primary/30 text-[10px] font-bold px-2 py-0.5 rounded shadow-lg select-none animate-in fade-in zoom-in duration-150"
+            style={{ ...getLabelStyle(sx, sy, sp, 10), pointerEvents: 'none', zIndex: 10, opacity: edgeOpacity, display: 'flex', flexDirection: 'column', gap: '1px' }}
           >
-            {kind.charAt(0) + kind.slice(1).toLowerCase()}
+            {sourceRole && <span className={LABEL_CLASS}>{sourceRole}</span>}
+            {sourceMultiplicity && <span className={LABEL_CLASS}>{sourceMultiplicity}</span>}
+          </div>
+        )}
+
+        {(targetMultiplicity || targetRole) && (
+          <div
+            style={{ ...getLabelStyle(tx, ty, tp, hasBigMarker ? 28 : 12), pointerEvents: 'none', zIndex: 10, opacity: edgeOpacity, display: 'flex', flexDirection: 'column', gap: '1px' }}
+          >
+            {targetRole && <span className={LABEL_CLASS}>{targetRole}</span>}
+            {targetMultiplicity && <span className={LABEL_CLASS}>{targetMultiplicity}</span>}
           </div>
         )}
       </EdgeLabelRenderer>

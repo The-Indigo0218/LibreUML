@@ -5,6 +5,7 @@ export type ActiveModal =
   | "none"
   | "class-editor"
   | "multiplicity-editor"
+  | "vfs-edge-action"
   | "clear-confirmation"
   | "export-modal"
   | "engineering-single"
@@ -35,6 +36,7 @@ interface UiStoreState {
   openSSoTElementEditor: (elementId: string) => void;
   openSSoTClassEditor: (elementId: string) => void;
   openGlobalDelete: (elementId: string) => void;
+  openVfsEdgeAction: (edgeId: string) => void;
   closeModals: () => void;
 }
 
@@ -76,6 +78,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openGlobalDelete: (elementId) =>
     set({ activeModal: "global-delete", editingId: elementId }),
+
+  openVfsEdgeAction: (edgeId) =>
+    set({ activeModal: "vfs-edge-action", editingId: edgeId }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
 }));

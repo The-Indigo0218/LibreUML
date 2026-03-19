@@ -89,6 +89,7 @@
     "help": {
       "title": "Ayuda",
       "gettingStarted": "Primeros Pasos",
+      "keyboardShortcuts": "Atajos de Teclado",
       "documentation": "Documentación",
       "reportIssue": "Reportar Error",
       "roadmap": "Hoja de Ruta",
@@ -596,6 +597,36 @@
       "cancel": "Cancelar",
       "export": "Exportar Código",
       "exportDisabled": "Selecciona al menos una clase para exportar"
+    }
+  },
+  "keyboardShortcuts": {
+    "title": "Atajos de Teclado",
+    "subtitle": "Domina LibreUML con estos atajos",
+    "footerNote": "Presiona ESC para cerrar este diálogo en cualquier momento",
+    "categories": {
+      "general": "General",
+      "canvas": "Lienzo",
+      "terminal": "Terminal"
+    },
+    "shortcuts": {
+      "openFile": "Abrir Archivo",
+      "save": "Guardar",
+      "spotlight": "Búsqueda Rápida",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "magicLayout": "Diseño Automático Mágico",
+      "generateCode": "Generar Código",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "fitView": "Ajustar Vista",
+      "delete": "Eliminar Seleccionado",
+      "commandHistoryUp": "Comando Anterior",
+      "commandHistoryDown": "Comando Siguiente",
+      "autocomplete": "Autocompletar",
+      "clearInput": "Limpiar Entrada"
+    },
+    "actions": {
+      "close": "¡Entendido!"
     }
   }
 }

@@ -27,6 +27,7 @@ import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 import SpotlightModal from "../modals/SpotlightModal";
 import MultiplicityModal from "../modals/MultiplicityModal";
 import VfsEdgeActionModal from "../modals/VfsEdgeActionModal";
+import { AutoLayoutLockedWarningModal } from "../modals/AutoLayoutLockedWarningModal";
 import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 
 import { useContextMenu } from "../../hooks/useContextMenu";
@@ -431,6 +432,7 @@ export default function DiagramCanvas() {
       />
 
       <VfsEdgeActionModal />
+      <AutoLayoutLockedWarningModal />
 
       <SpotlightModal />
     </div>

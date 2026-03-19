@@ -53,6 +53,13 @@ export interface ViewEdge {
   id: string;
   relationId: string;
   waypoints: Array<{ x: number; y: number }>;
+  sourceHandle?: string;
+  targetHandle?: string;
+  sourceMultiplicity?: string;
+  targetMultiplicity?: string;
+  sourceRole?: string;
+  targetRole?: string;
+  anchorLocked?: boolean;
 }
 
 export interface DiagramView {

@@ -53,8 +53,8 @@ export default function VfsUmlEdge({
   sourceY,
   targetX,
   targetY,
-  sourcePosition = Position.Right,
-  targetPosition = Position.Left,
+  sourcePosition = Position.Top,
+  targetPosition = Position.Bottom,
   style,
   data,
 }: EdgeProps) {
@@ -104,10 +104,10 @@ export default function VfsUmlEdge({
   let atx = tx, aty = ty;
   if (retract > 0) {
     switch (tp) {
-      case Position.Top:    aty = ty + retract; break;
-      case Position.Bottom: aty = ty - retract; break;
-      case Position.Left:   atx = tx + retract; break;
-      case Position.Right:  atx = tx - retract; break;
+      case Position.Top:    aty = ty - retract; break;
+      case Position.Bottom: aty = ty + retract; break;
+      case Position.Left:   atx = tx - retract; break;
+      case Position.Right:  atx = tx + retract; break;
     }
   }
 

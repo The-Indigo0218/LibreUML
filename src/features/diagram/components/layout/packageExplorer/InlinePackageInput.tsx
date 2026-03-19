@@ -80,7 +80,7 @@ export function InlinePackageInput({
         }`}
       />
       {hasError && (
-        <p className="text-xs text-red-500 mt-1">{t("packageExplorer.packageNameExists")}</p>
+        <p className="text-xs text-red-500 mt-1">A package with this name already exists.</p>
       )}
     </div>
   );

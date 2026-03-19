@@ -16,6 +16,7 @@ import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrig
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useSpotlightStore } from "../../../hooks/useSpotlight";
 import { useSettingsStore } from "../../../../../store/settingsStore";
+import { useAutoLayout } from "../../../hooks/useAutoLayout";
 
 export function ViewMenuContent() {
   const { t } = useTranslation();
@@ -31,7 +32,7 @@ export function ViewMenuContent() {
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
   const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
 
-  const applyAutoLayout = (direction: string) => console.warn("TODO: SSOT - applyAutoLayout not implemented", direction);
+  const { runLayout } = useAutoLayout();
 
   const toggleSpotlight = useSpotlightStore((s) => s.toggle);
 
@@ -114,7 +115,7 @@ export function ViewMenuContent() {
         label={t("menubar.view.magicLayout") || "Magic Layout"}
         icon={<Wand2 className="w-4 h-4 text-purple-400" />}
         shortcut="Ctrl + L"
-        onClick={() => applyAutoLayout("TB")}
+        onClick={runLayout}
       />
     </>
   );

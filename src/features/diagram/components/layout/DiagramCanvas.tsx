@@ -46,6 +46,7 @@ import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
 import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
 import ImportCodeModal from "../modals/ImportCodeModal";
 import CodeExportConfigModal from "../modals/CodeExportConfigModal";
+import KeyboardShortcutsModal from "../modals/KeyboardShortcutsModal";
 
 export default function DiagramCanvas() {
   const { t } = useTranslation();
@@ -438,6 +439,10 @@ export default function DiagramCanvas() {
       <OpenFileModal />
       <CodeExportConfigModal 
         isOpen={activeModal === 'code-export-config'}
+        onClose={closeModals}
+      />
+      <KeyboardShortcutsModal 
+        isOpen={activeModal === 'keyboard-shortcuts'}
         onClose={closeModals}
       />
 

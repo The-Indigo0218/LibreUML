@@ -3,14 +3,17 @@ import {
   Bug, 
   Map, 
   Info, 
-  Rocket 
+  Rocket,
+  Keyboard
 } from "lucide-react";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useTranslation } from "react-i18next";
+import { useUiStore } from "../../../../../store/uiStore";
 
 export function HelpMenuContent() {
   const { t } = useTranslation();
+  const openKeyboardShortcuts = useUiStore((s) => s.openKeyboardShortcuts);
   
   const openDocs = () => window.open("https://github.com/The-Indigo0218/LibreUML#readme", "_blank");
   const reportIssue = () => window.open("https://github.com/The-Indigo0218/LibreUML/issues", "_blank");
@@ -27,6 +30,14 @@ export function HelpMenuContent() {
         icon={<Rocket className="w-4 h-4" />}
         disabled={true}
       />
+
+      <MenubarItem
+        label={t("menubar.help.keyboardShortcuts")}
+        icon={<Keyboard className="w-4 h-4" />}
+        onClick={openKeyboardShortcuts}
+      />
+
+      <div className="h-px bg-surface-border my-1" />
 
       <MenubarItem
         label={t("menubar.help.documentation")}

@@ -1,4 +1,4 @@
-import { Pencil, FileOutput, Settings, GraduationCap, HelpCircle, SlidersHorizontal } from "lucide-react";
+import { Pencil, FileOutput, Settings, GraduationCap, HelpCircle, SlidersHorizontal, PanelLeft, PanelBottom, PanelRight } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/vfs.store";
 import WindowControls from "../../../../components/ui/menubar/WindowControls";
@@ -20,6 +20,7 @@ import { CodeMenu } from "./modules/CodeMenu";
 import { EduMenu, EduMenuContent } from "./modules/EduMenu";
 import { HelpMenu, HelpMenuContent } from "./modules/HelpMenu";
 import { useTranslation } from "react-i18next";
+import { useLayoutStore } from "../../../../store/layout.store";
 
 export default function AppMenubar() {
   const { t } = useTranslation();
@@ -41,6 +42,15 @@ export default function AppMenubar() {
 
   const actions = useDiagramActions();
   const { modalState } = actions;
+
+  const {
+    isLeftPanelOpen,
+    isRightPanelOpen,
+    isBottomPanelOpen,
+    toggleLeftPanel,
+    toggleRightPanel,
+    toggleBottomPanel,
+  } = useLayoutStore();
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -167,6 +177,42 @@ export default function AppMenubar() {
         </div>
 
         <div className="flex items-center no-drag shrink-0">
+          {/* Panel toggle buttons */}
+          <div className="flex items-center gap-0.5 px-2 border-r border-surface-border mr-0.5">
+            <button
+              onClick={toggleLeftPanel}
+              title={isLeftPanelOpen ? "Hide Left Panel" : "Show Left Panel"}
+              className={`p-1.5 rounded transition-colors ${
+                isLeftPanelOpen
+                  ? "text-blue-400 bg-white/10"
+                  : "text-text-muted hover:text-text-primary hover:bg-white/5"
+              }`}
+            >
+              <PanelLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={toggleBottomPanel}
+              title={isBottomPanelOpen ? "Hide Bottom Panel" : "Show Bottom Panel"}
+              className={`p-1.5 rounded transition-colors ${
+                isBottomPanelOpen
+                  ? "text-blue-400 bg-white/10"
+                  : "text-text-muted hover:text-text-primary hover:bg-white/5"
+              }`}
+            >
+              <PanelBottom className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={toggleRightPanel}
+              title={isRightPanelOpen ? "Hide Right Panel" : "Show Right Panel"}
+              className={`p-1.5 rounded transition-colors ${
+                isRightPanelOpen
+                  ? "text-blue-400 bg-white/10"
+                  : "text-text-muted hover:text-text-primary hover:bg-white/5"
+              }`}
+            >
+              <PanelRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
           <WindowControls />
         </div>
       </header>

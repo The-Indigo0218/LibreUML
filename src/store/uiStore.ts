@@ -12,6 +12,9 @@ export type ActiveModal =
   | "engineering-reverse"
   | "import-code"
   | "method-generator"
+  | "ssot-element-editor"
+  | "ssot-class-editor"
+  | "global-delete"
   | null;
 
 interface UiStoreState {
@@ -29,6 +32,9 @@ interface UiStoreState {
   openReverseEngineering: () => void;
   openImportCode: () => void;
   openMethodGenerator: (nodeId: string) => void;
+  openSSoTElementEditor: (elementId: string) => void;
+  openSSoTClassEditor: (elementId: string) => void;
+  openGlobalDelete: (elementId: string) => void;
   closeModals: () => void;
 }
 
@@ -61,6 +67,15 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openMethodGenerator: (nodeId) =>
     set({ activeModal: "method-generator", editingId: nodeId }),
+
+  openSSoTElementEditor: (elementId) =>
+    set({ activeModal: "ssot-element-editor", editingId: elementId }),
+
+  openSSoTClassEditor: (elementId) =>
+    set({ activeModal: "ssot-class-editor", editingId: elementId }),
+
+  openGlobalDelete: (elementId) =>
+    set({ activeModal: "global-delete", editingId: elementId }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
 }));

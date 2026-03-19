@@ -1,4 +1,4 @@
-import { Play } from "lucide-react";
+import { Play, FileCode2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMemo } from "react";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
@@ -14,6 +14,7 @@ export function CodeMenu() {
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator); 
   const openProjectGenerator = useUiStore((s) => s.openProjectGenerator); 
   const openImportModal = useUiStore((s) => s.openImportCode);
+  const openCodeExportConfig = useUiStore((s) => s.openCodeExportConfig);
 
   // Get active file and diagram type
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
@@ -42,6 +43,7 @@ export function CodeMenu() {
     'generate-class': openSingleGenerator,
     'generate-project': openProjectGenerator,
     'import-java': openImportModal,
+    'export-config': openCodeExportConfig,
   };
 
   return (
@@ -67,6 +69,14 @@ export function CodeMenu() {
           </div>
         );
       })}
+
+      {/* Export Configuration */}
+      <div className="h-px bg-surface-border my-1" />
+      <MenubarItem
+        label={t("menubar.code.exportConfig")} 
+        icon={<FileCode2 className="w-4 h-4" />}
+        onClick={openCodeExportConfig}
+      />
 
       {/* Future Stuff */}
       <div className="h-px bg-surface-border my-1" />

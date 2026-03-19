@@ -74,6 +74,7 @@
       "generateClass": "Generar Código de Clase...",
       "generateProject": "Generar Proyecto (.zip)...",
       "importJava": "Importar Código Java...",
+      "exportConfig": "Exportar Código Fuente...",
       "livePreview": "Vista Previa en Vivo"
     },
     "edu": {
@@ -562,5 +563,39 @@
     "classNameExists": "El nombre de clase ya existe en este paquete",
     "attributeNameExists": "El nombre del atributo ya existe en esta clase",
     "methodSignatureExists": "La firma del método ya existe en esta clase"
+  },
+  "codeExportModal": {
+    "title": "Exportar Código Fuente",
+    "subtitle": "Configurar ajustes de generación de código",
+    "targetLanguage": "Lenguaje Destino",
+    "comingSoon": "Próximamente",
+    "classSelector": {
+      "title": "Seleccionar Clases para Exportar",
+      "selectAll": "Seleccionar Todo",
+      "deselectAll": "Deseleccionar Todo",
+      "noClasses": "No hay clases disponibles en el diagrama actual",
+      "selectedCount": "{{count}} clase(s) seleccionada(s)"
+    },
+    "options": {
+      "title": "Opciones de Generación",
+      "generateGettersSetters": "Generar Getters y Setters",
+      "generateGettersSettersDesc": "Crear automáticamente métodos de acceso para todos los atributos",
+      "generateEmptyConstructors": "Generar Constructores Vacíos",
+      "generateEmptyConstructorsDesc": "Crear constructores predeterminados sin argumentos",
+      "includePackageDeclaration": "Incluir Declaración de Paquete",
+      "includePackageDeclarationDesc": "Agregar declaración de paquete al inicio de cada archivo",
+      "generateDocStubs": "Generar Plantillas de Documentación",
+      "generateDocStubsDesc": "Agregar plantillas de comentarios Javadoc/XML doc"
+    },
+    "compatibility": {
+      "warning": "La generación de código solo es compatible con Diagramas de Clases",
+      "currentDiagram": "Tipo de diagrama actual: {{type}}",
+      "switchToClassDiagram": "Por favor abre o crea un Diagrama de Clases para usar esta función"
+    },
+    "actions": {
+      "cancel": "Cancelar",
+      "export": "Exportar Código",
+      "exportDisabled": "Selecciona al menos una clase para exportar"
+    }
   }
 }

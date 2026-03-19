@@ -4,6 +4,8 @@ import { useCallback } from 'react';
 import { useVFSStore } from '../../../store/vfs.store';
 import { useModelStore } from '../../../store/model.store';
 import { useWorkspaceStore } from '../../../store/workspace.store';
+import { useUiStore } from '../../../store/uiStore';
+import { useToastStore } from '../../../store/toast.store';
 import { isDiagramView } from './useVFSCanvasController';
 import type { VFSFile, RelationKind } from '../../../core/domain/vfs/vfs.types';
 
@@ -15,12 +17,15 @@ const MARGIN = 40;
 
 const REVERSED_KINDS = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);
 
+export const LOCKED_WARNING_KEY = 'libreuml.autoLayout.skipLockedWarning';
+
 export function useAutoLayout() {
   const { fitView, getNodes } = useReactFlow();
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
+  const openAutoLayoutLockedWarning = useUiStore((s) => s.openAutoLayoutLockedWarning);
 
-  const runLayout = useCallback(() => {
+  const executeLayout = useCallback(() => {
     const project = useVFSStore.getState().project;
     if (!activeTabId || !project) return;
 
@@ -101,5 +106,30 @@ export function useAutoLayout() {
     });
   }, [activeTabId, updateFileContent, fitView, getNodes]);
 
-  return { runLayout };
+  const runLayout = useCallback(() => {
+    const project = useVFSStore.getState().project;
+    if (!activeTabId || !project) return;
+
+    const fileNode = project.nodes[activeTabId];
+    if (!fileNode || fileNode.type !== 'FILE') return;
+
+    const content = (fileNode as VFSFile).content;
+    if (!isDiagramView(content)) return;
+
+    const hasLockedEdges = content.edges.some((e) => e.anchorLocked);
+
+    if (hasLockedEdges) {
+      const skipWarning = localStorage.getItem(LOCKED_WARNING_KEY) === 'true';
+      if (skipWarning) {
+        executeLayout();
+        useToastStore.getState().show('Auto Layout applied (Locked edges were ignored)');
+      } else {
+        openAutoLayoutLockedWarning();
+      }
+    } else {
+      executeLayout();
+    }
+  }, [activeTabId, executeLayout, openAutoLayoutLockedWarning]);
+
+  return { runLayout, executeLayout };
 }

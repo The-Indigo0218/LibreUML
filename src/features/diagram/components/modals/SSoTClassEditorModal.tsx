@@ -18,6 +18,7 @@ import type {
   IRInterface,
   IREnum,
 } from "../../../../core/domain/vfs/vfs.types";
+import { autoConnectByAttributeType } from "../../utils/autoConnect";
 
 type ResolvedElement =
   | { kind: "CLASS"; data: IRClass }
@@ -51,39 +52,17 @@ function umlVisToIr(v: UmlVisibility): Visibility {
 
 function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData {
   if (element.kind === "CLASS") {
-    const attributes: UmlAttribute[] = element.data.attributeIds
-      .map((id) => {
-        const a = model.attributes[id];
-        if (!a) return null;
-        return {
-          id: a.id,
-          name: a.name,
-          type: a.type,
-          visibility: irVisToUml(a.visibility),
-          isArray:
-            a.multiplicity === "*" || a.multiplicity === "0..*" || false,
-        } satisfies UmlAttribute;
-      })
-      .filter((a): a is UmlAttribute => a !== null);
+    const attributes: UmlAttribute[] = element.data.attributeIds.flatMap((id) => {
+      const a = model.attributes[id];
+      if (!a) return [];
+      return [{ id: a.id, name: a.name, type: a.type, visibility: irVisToUml(a.visibility), isArray: a.multiplicity === "*" || a.multiplicity === "0..*" }];
+    });
 
-    const methods: UmlMethod[] = element.data.operationIds
-      .map((id) => {
-        const o = model.operations[id];
-        if (!o) return null;
-        return {
-          id: o.id,
-          name: o.name,
-          returnType: o.returnType ?? "void",
-          isReturnArray: false,
-          visibility: irVisToUml(o.visibility),
-          parameters: o.parameters.map((p) => ({
-            name: p.name,
-            type: p.type,
-          })),
-          isConstructor: false,
-        } satisfies UmlMethod;
-      })
-      .filter((o): o is UmlMethod => o !== null);
+    const methods: UmlMethod[] = element.data.operationIds.flatMap((id) => {
+      const o = model.operations[id];
+      if (!o) return [];
+      return [{ id: o.id, name: o.name, returnType: o.returnType ?? "void", visibility: irVisToUml(o.visibility), parameters: o.parameters.map((p) => ({ name: p.name, type: p.type })) }];
+    });
 
     return {
       label: element.data.name,
@@ -94,24 +73,11 @@ function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData
   }
 
   if (element.kind === "INTERFACE") {
-    const methods: UmlMethod[] = element.data.operationIds
-      .map((id) => {
-        const o = model.operations[id];
-        if (!o) return null;
-        return {
-          id: o.id,
-          name: o.name,
-          returnType: o.returnType ?? "void",
-          isReturnArray: false,
-          visibility: irVisToUml(o.visibility),
-          parameters: o.parameters.map((p) => ({
-            name: p.name,
-            type: p.type,
-          })),
-          isConstructor: false,
-        } satisfies UmlMethod;
-      })
-      .filter((o): o is UmlMethod => o !== null);
+    const methods: UmlMethod[] = element.data.operationIds.flatMap((id) => {
+      const o = model.operations[id];
+      if (!o) return [];
+      return [{ id: o.id, name: o.name, returnType: o.returnType ?? "void", visibility: irVisToUml(o.visibility), parameters: o.parameters.map((p) => ({ name: p.name, type: p.type })) }];
+    });
 
     return {
       label: element.data.name,
@@ -194,6 +160,7 @@ export default function SSoTClassEditorModal() {
       updateClass(editingId, { name: newData.label });
       const { attributes, operations } = toIrMembers(newData);
       setElementMembers(editingId, attributes, operations);
+      autoConnectByAttributeType(editingId, attributes);
     } else if (element.kind === "INTERFACE") {
       updateInterface(editingId, { name: newData.label });
       const { operations } = toIrMembers(newData);

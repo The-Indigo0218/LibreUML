@@ -19,6 +19,7 @@ export type ActiveModal =
   | "ssot-class-editor"
   | "global-delete"
   | "code-export-config"
+  | "keyboard-shortcuts"
   | null;
 
 interface UiStoreState {
@@ -43,6 +44,7 @@ interface UiStoreState {
   openVfsEdgeAction: (edgeId: string) => void;
   openAutoLayoutLockedWarning: () => void;
   openCodeExportConfig: () => void;
+  openKeyboardShortcuts: () => void;
   closeModals: () => void;
 }
 
@@ -96,6 +98,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openCodeExportConfig: () =>
     set({ activeModal: "code-export-config", editingId: null }),
+
+  openKeyboardShortcuts: () =>
+    set({ activeModal: "keyboard-shortcuts", editingId: null }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
 }));

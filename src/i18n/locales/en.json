@@ -75,6 +75,7 @@
       "generateProject": "Generate Project (.zip)...",
       "downloadProject": "Download Project",
       "importJava": "Import Java Code...",
+      "exportConfig": "Export Source Code...",
       "livePreview": "Live Code Preview"
     },
     "edu": {
@@ -562,5 +563,39 @@
     "classNameExists": "Class name already exists in this package",
     "attributeNameExists": "Attribute name already exists in this class",
     "methodSignatureExists": "Method signature already exists in this class"
+  },
+  "codeExportModal": {
+    "title": "Export Source Code",
+    "subtitle": "Configure code generation settings",
+    "targetLanguage": "Target Language",
+    "comingSoon": "Coming Soon",
+    "classSelector": {
+      "title": "Select Classes to Export",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "noClasses": "No classes available in the current diagram",
+      "selectedCount": "{{count}} class(es) selected"
+    },
+    "options": {
+      "title": "Generation Options",
+      "generateGettersSetters": "Generate Getters & Setters",
+      "generateGettersSettersDesc": "Automatically create accessor methods for all attributes",
+      "generateEmptyConstructors": "Generate Empty Constructors",
+      "generateEmptyConstructorsDesc": "Create default no-argument constructors",
+      "includePackageDeclaration": "Include Package Declaration",
+      "includePackageDeclarationDesc": "Add package statement at the top of each file",
+      "generateDocStubs": "Generate Documentation Stubs",
+      "generateDocStubsDesc": "Add Javadoc/XML doc comment templates"
+    },
+    "compatibility": {
+      "warning": "Code generation is only supported for Class Diagrams",
+      "currentDiagram": "Current diagram type: {{type}}",
+      "switchToClassDiagram": "Please open or create a Class Diagram to use this feature"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "export": "Export Code",
+      "exportDisabled": "Select at least one class to export"
+    }
   }
 }

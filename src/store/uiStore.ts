@@ -18,6 +18,7 @@ export type ActiveModal =
   | "ssot-element-editor"
   | "ssot-class-editor"
   | "global-delete"
+  | "code-export-config"
   | null;
 
 interface UiStoreState {
@@ -41,6 +42,7 @@ interface UiStoreState {
   openOpenFileModal: () => void;
   openVfsEdgeAction: (edgeId: string) => void;
   openAutoLayoutLockedWarning: () => void;
+  openCodeExportConfig: () => void;
   closeModals: () => void;
 }
 
@@ -91,6 +93,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openAutoLayoutLockedWarning: () =>
     set({ activeModal: "auto-layout-locked-warning", editingId: null }),
+
+  openCodeExportConfig: () =>
+    set({ activeModal: "code-export-config", editingId: null }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
 }));

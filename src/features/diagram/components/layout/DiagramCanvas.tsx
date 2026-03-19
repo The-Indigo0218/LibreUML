@@ -45,6 +45,7 @@ import ExportModal from "../modals/ExportModal";
 import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
 import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
 import ImportCodeModal from "../modals/ImportCodeModal";
+import CodeExportConfigModal from "../modals/CodeExportConfigModal";
 
 export default function DiagramCanvas() {
   const { t } = useTranslation();
@@ -435,6 +436,10 @@ export default function DiagramCanvas() {
       <VfsEdgeActionModal />
       <AutoLayoutLockedWarningModal />
       <OpenFileModal />
+      <CodeExportConfigModal 
+        isOpen={activeModal === 'code-export-config'}
+        onClose={closeModals}
+      />
 
       <SpotlightModal />
     </div>

@@ -8,20 +8,61 @@ import {
   FolderPlus,
   Folder,
   FolderOpen,
-  FileCode,
+  LayoutTemplate,
   Trash2,
   Edit2,
   Info,
   Edit3,
+  List,
 } from "lucide-react";
 import { useVFSStore } from "../../../../store/vfs.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useModelStore } from "../../../../store/model.store";
 import CreateFileModal from "./CreateFileModal";
 import CreateFolderModal from "./CreateFolderModal";
 import ViewDescriptionModal from "./ViewDescriptionModal";
 import type { VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
 type VFSNode = VFSFolder | VFSFile;
+
+// ─── Type badge (VS Code–style inline symbol kind indicator) ─────────────────
+
+function ElementBadge({
+  kind,
+  isAbstract,
+}: {
+  kind: "CLASS" | "INTERFACE" | "ENUM";
+  isAbstract?: boolean;
+}) {
+  if (kind === "CLASS" && isAbstract) {
+    return (
+      <span className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold bg-indigo-400/10 text-indigo-400 shrink-0">
+        A
+      </span>
+    );
+  }
+  if (kind === "CLASS") {
+    return (
+      <span className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold bg-blue-400/10 text-blue-400 shrink-0">
+        C
+      </span>
+    );
+  }
+  if (kind === "INTERFACE") {
+    return (
+      <span className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold bg-violet-400/10 text-violet-400 shrink-0">
+        I
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold bg-amber-400/10 text-amber-400 shrink-0">
+      E
+    </span>
+  );
+}
+
+// ─── Context menu state ───────────────────────────────────────────────────────
 
 interface ContextMenuState {
   x: number;
@@ -30,6 +71,8 @@ interface ContextMenuState {
   nodeName: string;
   isFolder: boolean;
 }
+
+// ─── TreeItem ─────────────────────────────────────────────────────────────────
 
 interface TreeItemProps {
   node: VFSNode;
@@ -82,7 +125,11 @@ function TreeItem({
   if (node.type === "FOLDER") {
     const children = project?.nodes
       ? Object.values(project.nodes)
-          .filter((n) => n.parentId === node.id)
+          .filter(
+            (n) =>
+              n.parentId === node.id &&
+              !(n.type === "FILE" && (n as VFSFile).extension === ".model"),
+          )
           .sort((a, b) => {
             if (a.type === b.type) return a.name.localeCompare(b.name);
             return a.type === "FOLDER" ? -1 : 1;
@@ -181,7 +228,12 @@ function TreeItem({
     );
   }
 
-  const FileIcon = node.extension === ".luml" ? FileCode : FileText;
+  // ── File row ──────────────────────────────────────────────────────────────
+  const isLuml = (node as VFSFile).extension === ".luml";
+  const FileIcon = isLuml ? LayoutTemplate : FileText;
+  const fileIconCls = isLuml
+    ? "w-3.5 h-3.5 text-purple-400 shrink-0"
+    : "w-3.5 h-3.5 text-text-muted shrink-0";
 
   return (
     <div
@@ -192,7 +244,7 @@ function TreeItem({
     >
       {isEditing ? (
         <>
-          <FileIcon className="w-3.5 h-3.5 text-text-muted shrink-0" />
+          <FileIcon className={fileIconCls} />
           <input
             ref={inputRef}
             type="text"
@@ -205,7 +257,7 @@ function TreeItem({
         </>
       ) : (
         <>
-          <FileIcon className="w-3.5 h-3.5 text-text-muted shrink-0" />
+          <FileIcon className={fileIconCls} />
           <span className="text-xs text-text-secondary group-hover:text-text-primary truncate">
             {node.name}
           </span>
@@ -215,9 +267,12 @@ function TreeItem({
   );
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function ProjectStructure() {
   const { project, deleteNode, renameNode } = useVFSStore();
   const { openTab } = useWorkspaceStore();
+  const model = useModelStore((s) => s.model);
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -232,7 +287,20 @@ export default function ProjectStructure() {
   const [viewDescriptionNode, setViewDescriptionNode] = useState<{ name: string; description: string } | null>(null);
   const [createFileParentId, setCreateFileParentId] = useState<string | null>(null);
   const [createFolderParentId, setCreateFolderParentId] = useState<string | null>(null);
+  const [isOutlineExpanded, setIsOutlineExpanded] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── Outline data (derived from SemanticModel) ──────────────────────────────
+  const classes = model
+    ? Object.values(model.classes).sort((a, b) => a.name.localeCompare(b.name))
+    : [];
+  const interfaces = model
+    ? Object.values(model.interfaces).sort((a, b) => a.name.localeCompare(b.name))
+    : [];
+  const enums = model
+    ? Object.values(model.enums).sort((a, b) => a.name.localeCompare(b.name))
+    : [];
+  const outlineCount = classes.length + interfaces.length + enums.length;
 
   useEffect(() => {
     const handleClickOutside = () => setContextMenu(null);
@@ -387,10 +455,12 @@ export default function ProjectStructure() {
     setEditValue("");
   };
 
+  // ── No project state ───────────────────────────────────────────────────────
+
   if (!project || !project.nodes) {
     return (
-      <div className="flex flex-col h-full bg-surface-primary">
-        <div className="px-4 py-3 border-b border-surface-border">
+      <div className="flex flex-col h-full bg-surface-primary overflow-hidden">
+        <div className="px-4 py-3 border-b border-surface-border shrink-0">
           <div className="flex items-center gap-2">
             <FolderTree className="w-4 h-4 text-text-muted" />
             <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
@@ -398,7 +468,7 @@ export default function ProjectStructure() {
             </h3>
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center min-h-0">
           <div className="text-center">
             <FolderTree className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
             <p className="text-sm text-text-muted">No project active</p>
@@ -409,73 +479,192 @@ export default function ProjectStructure() {
   }
 
   const rootNodes = Object.values(project.nodes)
-    .filter((n) => n.parentId === null)
+    .filter(
+      (n) =>
+        n.parentId === null &&
+        !(n.type === "FILE" && (n as VFSFile).extension === ".model"),
+    )
     .sort((a, b) => {
       if (a.type === b.type) return a.name.localeCompare(b.name);
       return a.type === "FOLDER" ? -1 : 1;
     });
 
   return (
-    <div className="flex flex-col h-full bg-surface-primary">
-      <div className="px-4 py-3 border-b border-surface-border flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FolderTree className="w-4 h-4 text-text-muted" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-            Project Files
-          </h3>
+    <div className="flex flex-col h-full bg-surface-primary overflow-hidden">
+
+      {/* ── File Tree ────────────────────────────────────────────────────── */}
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-surface-border flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <FolderTree className="w-4 h-4 text-text-muted" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+              Project Files
+            </h3>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleNewFileAtRoot}
+              className="p-1 hover:bg-surface-hover rounded transition-colors"
+              title="New File"
+            >
+              <PlusSquare className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
+            </button>
+            <button
+              onClick={handleNewFolderAtRoot}
+              className="p-1 hover:bg-surface-hover rounded transition-colors"
+              title="New Folder"
+            >
+              <FolderPlus className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleNewFileAtRoot}
-            className="p-1 hover:bg-surface-hover rounded transition-colors"
-            title="New File"
-          >
-            <PlusSquare className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
-          </button>
-          <button
-            onClick={handleNewFolderAtRoot}
-            className="p-1 hover:bg-surface-hover rounded transition-colors"
-            title="New Folder"
-          >
-            <FolderPlus className="w-3.5 h-3.5 text-text-muted hover:text-text-primary" />
-          </button>
+
+        {/* Tree body */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+          {rootNodes.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <FolderTree className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
+                <p className="text-sm text-text-muted">Empty project</p>
+                <p className="text-xs text-text-muted/70 mt-1">
+                  Add files and folders to begin
+                </p>
+              </div>
+            </div>
+          ) : (
+            rootNodes.map((node) => (
+              <TreeItem
+                key={node.id}
+                node={node}
+                level={0}
+                expandedFolders={expandedFolders}
+                editingNodeId={editingNodeId}
+                editValue={editValue}
+                onToggleFolder={handleToggleFolder}
+                onContextMenu={handleContextMenu}
+                onEditChange={setEditValue}
+                onEditCommit={commitEdit}
+                onEditCancel={cancelEdit}
+                onInlineNewFile={handleInlineNewFile}
+                onInlineNewFolder={handleInlineNewFolder}
+                onOpenFile={handleOpenFile}
+                inputRef={inputRef}
+              />
+            ))
+          )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {rootNodes.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <FolderTree className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
-              <p className="text-sm text-text-muted">Empty project</p>
-              <p className="text-xs text-text-muted/70 mt-1">
-                Add files and folders to begin
-              </p>
-            </div>
+      {/* ── Outline Panel ────────────────────────────────────────────────── */}
+      <div className="flex flex-col shrink-0 border-t border-surface-border">
+        {/* Outline header — always visible, click to collapse/expand */}
+        <button
+          className="flex items-center justify-between px-4 py-2 w-full hover:bg-surface-hover transition-colors group"
+          onClick={() => setIsOutlineExpanded((v) => !v)}
+        >
+          <div className="flex items-center gap-2">
+            <List className="w-3.5 h-3.5 text-text-muted" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-text-muted group-hover:text-text-primary transition-colors">
+              Outline
+            </span>
+            {outlineCount > 0 && (
+              <span className="text-[10px] text-text-muted/60 tabular-nums">
+                ({outlineCount})
+              </span>
+            )}
           </div>
-        ) : (
-          rootNodes.map((node) => (
-            <TreeItem
-              key={node.id}
-              node={node}
-              level={0}
-              expandedFolders={expandedFolders}
-              editingNodeId={editingNodeId}
-              editValue={editValue}
-              onToggleFolder={handleToggleFolder}
-              onContextMenu={handleContextMenu}
-              onEditChange={setEditValue}
-              onEditCommit={commitEdit}
-              onEditCancel={cancelEdit}
-              onInlineNewFile={handleInlineNewFile}
-              onInlineNewFolder={handleInlineNewFolder}
-              onOpenFile={handleOpenFile}
-              inputRef={inputRef}
-            />
-          ))
+          {isOutlineExpanded ? (
+            <ChevronDown className="w-3 h-3 text-text-muted" />
+          ) : (
+            <ChevronRight className="w-3 h-3 text-text-muted" />
+          )}
+        </button>
+
+        {/* Outline body */}
+        {isOutlineExpanded && (
+          <div className="overflow-y-auto custom-scrollbar max-h-52 pb-1">
+            {outlineCount === 0 ? (
+              <p className="px-4 py-3 text-xs text-text-muted/60 italic">
+                No elements in model
+              </p>
+            ) : (
+              <>
+                {/* Classes */}
+                {classes.length > 0 && (
+                  <div>
+                    <div className="px-4 pt-2 pb-0.5 text-[10px] font-medium text-text-muted/50 uppercase tracking-wider">
+                      Classes
+                    </div>
+                    {classes.map((cls) => (
+                      <div
+                        key={cls.id}
+                        className="flex items-center gap-2 px-4 py-1 hover:bg-surface-hover transition-colors"
+                        title={cls.isAbstract ? `${cls.name} (abstract)` : cls.name}
+                      >
+                        <ElementBadge kind="CLASS" isAbstract={cls.isAbstract} />
+                        <span
+                          className={`text-xs truncate ${
+                            cls.isAbstract
+                              ? "italic text-text-muted"
+                              : "text-text-secondary"
+                          }`}
+                        >
+                          {cls.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Interfaces */}
+                {interfaces.length > 0 && (
+                  <div>
+                    <div className="px-4 pt-2 pb-0.5 text-[10px] font-medium text-text-muted/50 uppercase tracking-wider">
+                      Interfaces
+                    </div>
+                    {interfaces.map((iface) => (
+                      <div
+                        key={iface.id}
+                        className="flex items-center gap-2 px-4 py-1 hover:bg-surface-hover transition-colors"
+                        title={iface.name}
+                      >
+                        <ElementBadge kind="INTERFACE" />
+                        <span className="text-xs text-text-secondary truncate">
+                          {iface.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Enums */}
+                {enums.length > 0 && (
+                  <div>
+                    <div className="px-4 pt-2 pb-0.5 text-[10px] font-medium text-text-muted/50 uppercase tracking-wider">
+                      Enums
+                    </div>
+                    {enums.map((enm) => (
+                      <div
+                        key={enm.id}
+                        className="flex items-center gap-2 px-4 py-1 hover:bg-surface-hover transition-colors"
+                        title={enm.name}
+                      >
+                        <ElementBadge kind="ENUM" />
+                        <span className="text-xs text-text-secondary truncate">
+                          {enm.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
       </div>
 
+      {/* ── Context menu ─────────────────────────────────────────────────── */}
       {contextMenu && (
         <div
           className="fixed bg-surface-secondary border border-surface-border rounded-md shadow-lg py-1 z-50 min-w-[160px]"

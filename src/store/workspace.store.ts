@@ -280,12 +280,6 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           storageAdapter.removeItem(name);
         },
       },
-      onRehydrateStorage: () => (state) => {
-        if (state && state.files.length === 0) {
-          const defaultFile = state.createNewFile('CLASS_DIAGRAM', 'Untitled Diagram');
-          state.addFile(defaultFile);
-        }
-      },
     }
   )
 );

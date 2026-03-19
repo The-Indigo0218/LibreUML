@@ -1,19 +1,24 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { FolderOpen, Plus, Github, Star, BookOpen, Play, Clock, Sun, Moon, Globe, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../../../store/settingsStore";
 import { useThemeSystem } from "../../../hooks/useThemeSystem";
 import CreateProjectModal from "../../diagram/components/layout/CreateProjectModal";
+import { importProject, ProjectImportError } from "../../../services/projectIO.service";
+import { useVFSStore } from "../../../store/vfs.store";
 
 interface WelcomeScreenProps {
   onOpenProject?: () => void;
 }
 
-export default function WelcomeScreen({ onOpenProject }: WelcomeScreenProps) {
+export default function WelcomeScreen({ onOpenProject: _onOpenProject }: WelcomeScreenProps) {
   const { t } = useTranslation();
   const { theme, setTheme, setLanguage, language } = useSettingsStore();
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const lumlInputRef = useRef<HTMLInputElement>(null);
+  const activeProject = useVFSStore((s) => s.project);
 
   useThemeSystem();
 
@@ -27,7 +32,33 @@ export default function WelcomeScreen({ onOpenProject }: WelcomeScreenProps) {
   };
 
   const handleOpenProject = () => {
-    onOpenProject?.();
+    if (activeProject) {
+      const confirmed = window.confirm(
+        `Opening a new project will overwrite your current workspace.\n\n` +
+        `Any unsaved changes will be lost.\n\nDo you want to continue?`
+      );
+      if (!confirmed) return;
+    }
+    lumlInputRef.current?.click();
+  };
+
+  const handleLumlFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const project = await importProject(file);
+      alert(`Project "${project.projectName}" loaded successfully.`);
+    } catch (err) {
+      if (err instanceof ProjectImportError) {
+        alert(`Import failed:\n\n${err.message}`);
+      } else {
+        alert('Import failed: an unexpected error occurred. Check the console for details.');
+        console.error('[LibreUML] Project import error:', err);
+      }
+    }
+
+    event.target.value = '';
   };
 
   const handleCreateProject = () => {
@@ -63,6 +94,14 @@ export default function WelcomeScreen({ onOpenProject }: WelcomeScreenProps) {
 
   return (
     <div className="h-screen w-screen bg-surface-primary flex flex-col">
+      <input
+        type="file"
+        ref={lumlInputRef}
+        onChange={handleLumlFileSelected}
+        accept=".luml"
+        style={{ display: 'none' }}
+        aria-label="Open LibreUML project"
+      />
       <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
         <button
           onClick={toggleTheme}

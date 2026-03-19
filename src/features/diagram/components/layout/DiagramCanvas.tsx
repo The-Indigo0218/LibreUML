@@ -143,40 +143,6 @@ export default function DiagramCanvas() {
     ? vfsController.onConnect
     : onConnect;
 
-  // Bug 2 fix: VFS-aware node deletion for context menu.
-  // Keyboard Delete/Backspace already works via onNodesChange 'remove' type.
-  // Context menu deleteNode uses ProjectStore (which has no VFS entries), so we override it.
-  const deleteVFSNode = useCallback(
-    (nodeId: string) => {
-      if (!vfsController.diagramView || !vfsController.activeTabId) return;
-      const view = vfsController.diagramView;
-      const viewNode = view.nodes.find((vn) => vn.id === nodeId);
-      if (!viewNode) return;
-
-      if (viewNode.elementId) {
-        const ms = useModelStore.getState();
-        if (ms.model) {
-          if (ms.model.classes[viewNode.elementId]) ms.deleteClass(viewNode.elementId);
-          else if (ms.model.interfaces[viewNode.elementId]) ms.deleteInterface(viewNode.elementId);
-          else if (ms.model.enums[viewNode.elementId]) ms.deleteEnum(viewNode.elementId);
-        }
-      }
-
-      // Re-read model after cascade deletion to prune orphaned ViewEdges.
-      const modelAfterDelete = useModelStore.getState().model;
-      const remainingRelationIds = modelAfterDelete
-        ? new Set(Object.keys(modelAfterDelete.relations))
-        : new Set<string>();
-
-      useVFSStore.getState().updateFileContent(vfsController.activeTabId, {
-        ...view,
-        nodes: view.nodes.filter((vn) => vn.id !== nodeId),
-        edges: view.edges.filter((ve) => remainingRelationIds.has(ve.relationId)),
-      });
-    },
-    [vfsController],
-  );
-
   // Functional Hooks
   useKeyboardShortcuts();
   const { displayEdges, setHoveredNodeId, setHoveredEdgeId } = useEdgeStyling();
@@ -246,8 +212,9 @@ export default function DiagramCanvas() {
     onClearCanvas: () => openClearConfirmation(),
     onEditEdgeMultiplicity: (id) => openMultiplicityEditor(id),
     onGenerateMethods: (id) => openMethodGenerator(id),
-    onDeleteNode: vfsController.isVFSFile ? deleteVFSNode : undefined,
-    onDeleteEdge:      vfsController.isVFSFile ? vfsController.deleteEdgeById  : undefined,
+    onDeleteNode:          vfsController.isVFSFile ? vfsController.removeNodeFromDiagram  : undefined,
+    onDeleteNodeFromModel: vfsController.isVFSFile ? vfsController.deleteElementFromModel : undefined,
+    onDeleteEdge:          vfsController.isVFSFile ? vfsController.deleteEdgeById         : undefined,
     onReverseEdge:     vfsController.isVFSFile ? vfsController.reverseEdgeById : undefined,
     onChangeEdgeKind:  vfsController.isVFSFile
       ? (edgeId, legacyType) => {

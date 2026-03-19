@@ -90,6 +90,7 @@
     "help": {
       "title": "Help",
       "gettingStarted": "Getting Started",
+      "keyboardShortcuts": "Keyboard Shortcuts",
       "documentation": "Documentation",
       "reportIssue": "Report Issue",
       "roadmap": "Roadmap",
@@ -596,6 +597,36 @@
       "cancel": "Cancel",
       "export": "Export Code",
       "exportDisabled": "Select at least one class to export"
+    }
+  },
+  "keyboardShortcuts": {
+    "title": "Keyboard Shortcuts",
+    "subtitle": "Master LibreUML with these shortcuts",
+    "footerNote": "Press ESC to close this dialog at any time",
+    "categories": {
+      "general": "General",
+      "canvas": "Canvas",
+      "terminal": "Terminal"
+    },
+    "shortcuts": {
+      "openFile": "Open File",
+      "save": "Save",
+      "spotlight": "Spotlight Search",
+      "undo": "Undo",
+      "redo": "Redo",
+      "magicLayout": "Magic Auto-Layout",
+      "generateCode": "Generate Code",
+      "zoomIn": "Zoom In",
+      "zoomOut": "Zoom Out",
+      "fitView": "Fit View",
+      "delete": "Delete Selected",
+      "commandHistoryUp": "Previous Command",
+      "commandHistoryDown": "Next Command",
+      "autocomplete": "Autocomplete",
+      "clearInput": "Clear Input"
+    },
+    "actions": {
+      "close": "Got it!"
     }
   }
 }

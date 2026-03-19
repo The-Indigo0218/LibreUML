@@ -29,7 +29,6 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
     const projectId = crypto.randomUUID();
     const modelFileId = crypto.randomUUID();
     const diagramsFolderId = crypto.randomUUID();
-    const mainDiagramId = crypto.randomUUID();
 
     const modelFile: VFSFile = {
       id: modelFileId,
@@ -53,33 +52,18 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
       updatedAt: now,
     };
 
-    const mainDiagram: VFSFile = {
-      id: mainDiagramId,
-      name: "Main Diagram",
-      type: "FILE",
-      parentId: diagramsFolderId,
-      diagramType: "CLASS_DIAGRAM",
-      extension: ".luml",
-      isExternal: false,
-      content: {
-        diagramId: mainDiagramId,
-        nodes: [],
-        edges: [],
-      },
-      createdAt: now,
-      updatedAt: now,
-    };
-
     const project: LibreUMLProject = {
       id: projectId,
       projectName: projectName.trim(),
       description: description.trim() || undefined,
       version: "1.0.0",
+      author: "",
+      targetLanguage: "UML Classic",
+      basePackage: "com.example.model",
       domainModelId: modelFileId,
       nodes: {
         [modelFileId]: modelFile,
         [diagramsFolderId]: diagramsFolder,
-        [mainDiagramId]: mainDiagram,
       },
       createdAt: now,
       updatedAt: now,

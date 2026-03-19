@@ -1,13 +1,17 @@
-import { useRef } from "react";
-import { 
-  FilePlus, 
-  FolderOpen, 
-  Save, 
-  LogOut, 
-  XCircle, 
-  FileOutput, 
+import { useRef, useState } from "react";
+import {
+  FilePlus,
+  FolderOpen,
+  Save,
+  LogOut,
+  XCircle,
+  FileOutput,
   RotateCcw,
-  FileCode2 
+  FileCode2,
+  Download,
+  Upload,
+  FolderX,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
@@ -16,17 +20,32 @@ import { useDiagramActions } from "../../../hooks/useDiagramActions";
 import { useWorkspaceStore } from "../../../../../store/workspace.store";
 import { useProjectStore } from "../../../../../store/project.store";
 import { XmiImporterService } from "../../../../../services/xmiImporter.service";
+import {
+  downloadProject,
+  importProject,
+  ProjectImportError,
+} from "../../../../../services/projectIO.service";
+import { useVFSStore } from "../../../../../store/vfs.store";
+import CloseProjectModal, {
+  isCloseProjectWarningSuppressed,
+} from "../../modals/CloseProjectModal";
 
 interface FileMenuProps {
   actions: ReturnType<typeof useDiagramActions>;
+  onOpenProjectProperties?: () => void;
 }
 
-export function FileMenu({ actions }: FileMenuProps) {
+export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
   const { t } = useTranslation();
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const xmiInputRef = useRef<HTMLInputElement>(null);
+  const lumlProjectInputRef = useRef<HTMLInputElement>(null);
 
+  const activeProject = useVFSStore((s) => s.project);
+  const closeProject = useVFSStore((s) => s.closeProject);
+  const closeAllFiles = useWorkspaceStore((s) => s.closeAllFiles);
+  const [isCloseProjectModalOpen, setIsCloseProjectModalOpen] = useState(false);
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const getFile = useWorkspaceStore((s) => s.getFile);
   const addNodeToFile = useWorkspaceStore((s) => s.addNodeToFile);
@@ -142,6 +161,56 @@ export function FileMenu({ actions }: FileMenuProps) {
     reader.readAsText(file);
   };
 
+  // ── VFS project I/O ─────────────────────────────────────────────────────────
+
+  const handleSaveProject = async () => {
+    try {
+      await downloadProject();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to export project.');
+    }
+  };
+
+  const handleOpenProjectFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (activeProject) {
+      const confirmed = window.confirm(
+        `Opening a new project will overwrite your current workspace.\n\n` +
+        `Any unsaved changes will be lost.\n\nDo you want to continue?`
+      );
+      if (!confirmed) {
+        event.target.value = '';
+        return;
+      }
+    }
+
+    try {
+      const project = await importProject(file);
+      alert(`Project "${project.projectName}" loaded successfully.`);
+    } catch (err) {
+      if (err instanceof ProjectImportError) {
+        alert(`Import failed:\n\n${err.message}`);
+      } else {
+        alert('Import failed: an unexpected error occurred. Check the console for details.');
+        console.error('[LibreUML] Project import error:', err);
+      }
+    }
+
+    // Reset so the same file can be re-opened immediately
+    event.target.value = '';
+  };
+
+  const handleCloseProject = () => {
+    if (isCloseProjectWarningSuppressed()) {
+      closeProject();
+      closeAllFiles();
+    } else {
+      setIsCloseProjectModalOpen(true);
+    }
+  };
+
   const isElectron = !!window.electronAPI?.isElectron();
   const isSaveDisabled = isElectron ? !hasFilePath : false;
   const isSaveAsDisabled = !isElectron;
@@ -168,6 +237,17 @@ export function FileMenu({ actions }: FileMenuProps) {
         style={{ display: 'none' }}
       />
 
+      {/* Hidden input for VFS project import */}
+      <input
+        type="file"
+        ref={lumlProjectInputRef}
+        onChange={handleOpenProjectFile}
+        accept=".luml"
+        className="hidden"
+        aria-label="Open LibreUML project"
+        style={{ display: 'none' }}
+      />
+
       <MenubarTrigger label={t("menubar.file.title") || "File"}>
         <MenubarItem
           label={t("menubar.file.new") || "New Diagram"}
@@ -178,46 +258,78 @@ export function FileMenu({ actions }: FileMenuProps) {
           label={t("common.open_file") || "Open file"}
           icon={<FolderOpen className="w-4 h-4" />}
           shortcut="Ctrl+O"
-          onClick={onOpenClick} 
+          onClick={onOpenClick}
         />
-        
+
         <MenubarItem
           label={t("menubar.file.importXmi") || "Import XMI..."}
           icon={<FileCode2 className="w-4 h-4 text-blue-400" />}
           onClick={() => xmiInputRef.current?.click()}
         />
-        
+
         <div className="h-px bg-surface-border my-1" />
-        
+
+        {/* ── VFS Project I/O ─────────────────────────────────────────── */}
+        <MenubarItem
+          label="Save Project (.luml)"
+          icon={<Download className="w-4 h-4 text-emerald-400" />}
+          shortcut="Ctrl+Shift+E"
+          onClick={handleSaveProject}
+          disabled={!activeProject}
+        />
+        <MenubarItem
+          label="Open Project (.luml)"
+          icon={<Upload className="w-4 h-4 text-emerald-400" />}
+          onClick={() => lumlProjectInputRef.current?.click()}
+        />
+
+        {activeProject && onOpenProjectProperties && (
+          <MenubarItem
+            label="Project Properties..."
+            icon={<SlidersHorizontal className="w-4 h-4 text-blue-400" />}
+            onClick={onOpenProjectProperties}
+          />
+        )}
+
+        <div className="h-px bg-surface-border my-1" />
+
         <MenubarItem
           label={t("menubar.file.save") || "Save"}
           icon={<Save className="w-4 h-4" />}
           shortcut="Ctrl+S"
           onClick={handleSave}
-          disabled={isSaveDisabled} 
+          disabled={isSaveDisabled}
         />
         <MenubarItem
           label={t("menubar.file.saveAs") || "Save As..."}
           icon={<FileOutput className="w-4 h-4" />}
           shortcut="Ctrl+Shift+S"
           onClick={handleSaveAs}
-          disabled={isSaveAsDisabled} 
+          disabled={isSaveAsDisabled}
         />
 
         <MenubarItem
           label={t("menubar.file.discard") || "Discard Changes"}
           icon={<RotateCcw className="w-4 h-4" />}
-          onClick={handleDiscardChangesAction} 
+          onClick={handleDiscardChangesAction}
           disabled={!hasFilePath || !isDirty}
         />
 
         <div className="h-px bg-surface-border my-1" />
 
-        <MenubarItem
-          label={t("menubar.file.close") || "Close Editor"}
-          icon={<XCircle className="w-4 h-4" />}
-          onClick={handleCloseFile}
-        />
+        {activeProject ? (
+          <MenubarItem
+            label="Close Project"
+            icon={<FolderX className="w-4 h-4" />}
+            onClick={handleCloseProject}
+          />
+        ) : (
+          <MenubarItem
+            label={t("menubar.file.close") || "Close Editor"}
+            icon={<XCircle className="w-4 h-4" />}
+            onClick={handleCloseFile}
+          />
+        )}
         <MenubarItem
           label={t("menubar.file.exit") || "Exit"}
           icon={<LogOut className="w-4 h-4" />}
@@ -225,6 +337,15 @@ export function FileMenu({ actions }: FileMenuProps) {
           danger
         />
       </MenubarTrigger>
+
+      <CloseProjectModal
+        isOpen={isCloseProjectModalOpen}
+        onClose={() => setIsCloseProjectModalOpen(false)}
+        onConfirm={() => {
+          closeProject();
+          closeAllFiles();
+        }}
+      />
     </>
   );
 }

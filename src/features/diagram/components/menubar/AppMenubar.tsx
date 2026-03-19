@@ -1,10 +1,12 @@
-import { Pencil, FileOutput, Settings, GraduationCap, HelpCircle } from "lucide-react";
+import { Pencil, FileOutput, Settings, GraduationCap, HelpCircle, SlidersHorizontal } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useVFSStore } from "../../../../store/vfs.store";
 import WindowControls from "../../../../components/ui/menubar/WindowControls";
 import { useDiagramActions } from "../../hooks/useDiagramActions";
 import { useState, useRef, useEffect } from "react";
 
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
+import ProjectPropertiesModal from "../modals/ProjectPropertiesModal";
 import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 import { MenubarTrigger } from "../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarSubMenu } from "../../../../components/ui/menubar/MenubarSubMenu";
@@ -23,13 +25,18 @@ export default function AppMenubar() {
   const { t } = useTranslation();
   const getActiveFile = useWorkspaceStore((s) => s.getActiveFile);
   const updateFile = useWorkspaceStore((s) => s.updateFile);
-  
+  const vfsProjectName = useVFSStore((s) => s.project?.projectName ?? null);
+  const renameProject = useVFSStore((s) => s.renameProject);
+
   const activeFile = getActiveFile();
-  const fileName = activeFile?.name || "ProjectName";
-  const displayName = fileName.replace(/\.luml$/i, '') || "ProjectName";
+  const isVFSProject = vfsProjectName !== null;
+  const displayName = isVFSProject
+    ? vfsProjectName
+    : (activeFile?.name?.replace(/\.luml$/i, "") || "LibreUML");
   const isDirty = activeFile?.isDirty || false;
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const actions = useDiagramActions();
@@ -55,7 +62,9 @@ export default function AppMenubar() {
   };
 
   const handleNameChange = (newName: string) => {
-    if (activeFile) {
+    if (isVFSProject) {
+      if (newName.trim()) renameProject(newName);
+    } else if (activeFile) {
       updateFile(activeFile.id, { name: newName });
     }
   };
@@ -78,7 +87,7 @@ export default function AppMenubar() {
           </div>
 
           <div className="flex items-center h-full no-drag shrink-0">
-            <FileMenu actions={actions} />
+            <FileMenu actions={actions} onOpenProjectProperties={() => setIsPropertiesOpen(true)} />
             <EditMenu />
             <ViewMenu />
             <CodeMenu />
@@ -139,6 +148,16 @@ export default function AppMenubar() {
             </div>
           )}
 
+          {isVFSProject && (
+            <button
+              onClick={() => setIsPropertiesOpen(true)}
+              className="p-0.5 rounded hover:bg-white/10 text-[#64748b] hover:text-[#94a3b8] transition-colors"
+              title="Project Properties"
+            >
+              <SlidersHorizontal className="w-3 h-3" />
+            </button>
+          )}
+
           {isDirty && (
             <div
               className="w-1.5 h-1.5 rounded-full bg-amber-400"
@@ -166,6 +185,11 @@ export default function AppMenubar() {
         message={modalState.confirmation.message}
         onConfirm={modalState.confirmation.onConfirm}
         onCancel={modalState.confirmation.onCancel}
+      />
+
+      <ProjectPropertiesModal
+        isOpen={isPropertiesOpen}
+        onClose={() => setIsPropertiesOpen(false)}
       />
     </>
   );

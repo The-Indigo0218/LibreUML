@@ -78,6 +78,8 @@ export interface LibreUMLProject {
   description?: string;
   author?: string;
   version: string;
+  targetLanguage?: string;
+  basePackage?: string;
   domainModelId: string;
   modelIds?: string[];
   nodes: Record<string, VFSFolder | VFSFile>;

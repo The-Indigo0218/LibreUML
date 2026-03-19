@@ -21,8 +21,10 @@ interface UseDiagramMenusProps {
   onClearCanvas: () => void;
   onEditEdgeMultiplicity: (edgeId: string) => void;
   onGenerateMethods?: (nodeId: string) => void;
-  /** VFS-aware delete override. When provided, replaces the legacy ProjectStore deleteNode path. */
+  /** VFS-aware view-only removal. Removes the node from this diagram only. */
   onDeleteNode?: (nodeId: string) => void;
+  /** VFS-aware full cascade. Deletes semantic element from model + all diagrams. */
+  onDeleteNodeFromModel?: (nodeId: string) => void;
   /** VFS-aware edge delete override. When provided, replaces the legacy ProjectStore deleteEdge path. */
   onDeleteEdge?: (edgeId: string) => void;
   /** VFS-aware edge reverse override. When provided, replaces the legacy ProjectStore reverseEdge path. */
@@ -41,6 +43,7 @@ export const useDiagramMenus = ({
   onEditEdgeMultiplicity,
   onGenerateMethods,
   onDeleteNode,
+  onDeleteNodeFromModel,
   onDeleteEdge,
   onReverseEdge,
   onChangeEdgeKind,
@@ -180,7 +183,7 @@ export const useDiagramMenus = ({
   );
 
   const getMenuOptions = useCallback(
-    (menu: ContextMenuState | null) => {
+    (menu: ContextMenuState | null): { label: string; onClick: () => void; danger?: boolean }[] => {
       if (!menu) return [];
 
       if (menu.type === "pane") {
@@ -226,7 +229,7 @@ export const useDiagramMenus = ({
         const node = getNode(nodeId);
         const isClassType = node?.type === "CLASS" || node?.type === "INTERFACE" || node?.type === "ABSTRACT_CLASS";
 
-        const baseOptions = [
+        const baseOptions: { label: string; onClick: () => void; danger?: boolean }[] = [
           {
             label: t("contextMenu.node.duplicate"),
             onClick: () => duplicateNode(nodeId),
@@ -251,10 +254,23 @@ export const useDiagramMenus = ({
           }
         }
 
-        baseOptions.push({
-          label: t("contextMenu.node.delete"),
-          onClick: () => (onDeleteNode ?? deleteNode)(nodeId),
-        });
+        if (onDeleteNodeFromModel) {
+          // VFS mode: separate "Remove from Diagram" (view-only) and "Delete from Model" (cascade).
+          baseOptions.push({
+            label: t("contextMenu.node.removeFromDiagram") || "Remove from Diagram",
+            onClick: () => onDeleteNode!(nodeId),
+          });
+          baseOptions.push({
+            label: t("contextMenu.node.deleteFromModel") || "Delete from Model",
+            onClick: () => onDeleteNodeFromModel(nodeId),
+            danger: true,
+          });
+        } else {
+          baseOptions.push({
+            label: t("contextMenu.node.delete"),
+            onClick: () => (onDeleteNode ?? deleteNode)(nodeId),
+          });
+        }
 
         return baseOptions;
       }
@@ -384,6 +400,7 @@ export const useDiagramMenus = ({
       duplicateNode,
       deleteNode,
       onDeleteNode,
+      onDeleteNodeFromModel,
       reverseEdge,
       changeEdgeType,
       deleteEdge,

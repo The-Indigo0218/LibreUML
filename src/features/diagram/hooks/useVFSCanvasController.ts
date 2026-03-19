@@ -205,8 +205,8 @@ export interface VFSCanvasResult {
   /**
    * onNodesChange handler wired to the VFS layer.
    * POSITION: persists x,y → DiagramView.ViewNode.
-   * REMOVE: removes ViewNode + deletes semantic element (cascade-deletes relations)
-   *         + prunes orphaned ViewEdges.
+   * REMOVE: view-only — removes ViewNode + prunes dangling ViewEdges from this
+   *         diagram only. Semantic element stays in ModelStore.
    */
   onNodesChange: (changes: NodeChange[]) => void;
   /**
@@ -219,6 +219,16 @@ export interface VFSCanvasResult {
    * Default relation kind is ASSOCIATION.
    */
   onConnect: (connection: Connection) => void;
+  /**
+   * View-only removal: removes ViewNode + prunes dangling ViewEdges from THIS
+   * diagram only. Semantic element stays in ModelStore (appears in other diagrams).
+   */
+  removeNodeFromDiagram: (viewNodeId: string) => void;
+  /**
+   * Full cascade: deletes semantic element from ModelStore + sweeps ViewNodes from
+   * ALL diagrams where the element appears. Use for "Delete from Model".
+   */
+  deleteElementFromModel: (viewNodeId: string) => void;
   /** Deletes a VFS edge by ViewEdge.id (removes IRRelation + ViewEdge). */
   deleteEdgeById: (viewEdgeId: string) => void;
   /** Reverses a VFS edge by swapping IRRelation.sourceId ↔ targetId. */
@@ -271,12 +281,12 @@ export function useVFSCanvasController(): VFSCanvasResult {
   // Case (b) also acts as cross-project contamination protection now that ModelStore
   // is persisted: if the user switches projects the old model is never used.
   useEffect(() => {
-    if (!vfsFile || !project) return;
+    if (!project?.domainModelId) return;
     const ms = useModelStore.getState();
     if (!ms.model || ms.model.id !== project.domainModelId) {
       ms.initModel(project.domainModelId);
     }
-  }, [vfsFile, project]);
+  }, [project?.domainModelId]);
 
   // Map ViewNodes → ReactFlow nodes.
   // Each node's onRename closure captures elementId and kind for targeted ModelStore updates.
@@ -384,31 +394,26 @@ export function useVFSCanvasController(): VFSCanvasResult {
           );
           dirty = true;
         } else if (change.type === 'remove') {
-          // Find the ViewNode to get its semantic elementId before removing.
+          // Find the ViewNode before removing it.
           const removedVN = currentView.nodes.find((vn) => vn.id === change.id);
           if (removedVN) {
-            // Remove from VFS view.
+            // View-only removal: delete the ViewNode from this diagram only.
+            // The semantic element stays in ModelStore — it can still appear in other diagrams.
             updatedViewNodes = updatedViewNodes.filter((vn) => vn.id !== change.id);
 
-            // Delete semantic element (notes have empty elementId — skip ModelStore).
+            // Prune ViewEdges whose relation involves the removed element.
+            // (No ModelStore cascade — use "Delete from Model" for that.)
             if (removedVN.elementId) {
               const ms = useModelStore.getState();
               if (ms.model) {
-                if (ms.model.classes[removedVN.elementId]) {
-                  ms.deleteClass(removedVN.elementId);
-                } else if (ms.model.interfaces[removedVN.elementId]) {
-                  ms.deleteInterface(removedVN.elementId);
-                } else if (ms.model.enums[removedVN.elementId]) {
-                  ms.deleteEnum(removedVN.elementId);
-                }
-                // cascadeDeleteRelations ran inside deleteClass/Interface/Enum.
-                // Prune ViewEdges whose relationId is no longer in the model.
-                const modelAfterDelete = useModelStore.getState().model;
-                if (modelAfterDelete) {
-                  updatedViewEdges = updatedViewEdges.filter(
-                    (ve) => !!modelAfterDelete.relations[ve.relationId],
+                updatedViewEdges = updatedViewEdges.filter((ve) => {
+                  const relation = ms.model!.relations[ve.relationId];
+                  if (!relation) return false;
+                  return (
+                    relation.sourceId !== removedVN.elementId &&
+                    relation.targetId !== removedVN.elementId
                   );
-                }
+                });
               }
             }
             dirty = true;
@@ -513,6 +518,93 @@ export function useVFSCanvasController(): VFSCanvasResult {
     [activeTabId, updateFileContent],
   );
 
+  // ── removeNodeFromDiagram: view-only removal (context menu "Remove from Diagram") ──
+
+  const removeNodeFromDiagram = useCallback(
+    (viewNodeId: string) => {
+      if (!activeTabId) return;
+      const currentProject = useVFSStore.getState().project;
+      if (!currentProject) return;
+      const fileNode = currentProject.nodes[activeTabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      if (!isDiagramView((fileNode as VFSFile).content)) return;
+
+      const currentView = (fileNode as VFSFile).content as DiagramView;
+      const removedVN = currentView.nodes.find((vn) => vn.id === viewNodeId);
+      if (!removedVN) return;
+
+      const updatedNodes = currentView.nodes.filter((vn) => vn.id !== viewNodeId);
+
+      // Prune ViewEdges involving this element — no ModelStore cascade.
+      let updatedEdges = currentView.edges;
+      if (removedVN.elementId) {
+        const ms = useModelStore.getState();
+        if (ms.model) {
+          updatedEdges = currentView.edges.filter((ve) => {
+            const relation = ms.model!.relations[ve.relationId];
+            if (!relation) return false;
+            return (
+              relation.sourceId !== removedVN.elementId &&
+              relation.targetId !== removedVN.elementId
+            );
+          });
+        }
+      }
+
+      updateFileContent(activeTabId, { ...currentView, nodes: updatedNodes, edges: updatedEdges });
+    },
+    [activeTabId, updateFileContent],
+  );
+
+  // ── deleteElementFromModel: cascade delete + sweep all diagrams ─────────────
+
+  const deleteElementFromModel = useCallback(
+    (viewNodeId: string) => {
+      if (!activeTabId) return;
+      const currentProject = useVFSStore.getState().project;
+      if (!currentProject) return;
+      const fileNode = currentProject.nodes[activeTabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      if (!isDiagramView((fileNode as VFSFile).content)) return;
+
+      const currentView = (fileNode as VFSFile).content as DiagramView;
+      const removedVN = currentView.nodes.find((vn) => vn.id === viewNodeId);
+      if (!removedVN?.elementId) return;
+
+      const elementId = removedVN.elementId;
+
+      // Cascade delete from ModelStore (removes IRRelation entries too).
+      const ms = useModelStore.getState();
+      if (ms.model) {
+        if (ms.model.classes[elementId])    ms.deleteClass(elementId);
+        else if (ms.model.interfaces[elementId]) ms.deleteInterface(elementId);
+        else if (ms.model.enums[elementId])      ms.deleteEnum(elementId);
+      }
+
+      // Sweep ALL diagram files: remove the ViewNode and prune orphaned ViewEdges.
+      const modelAfterDelete = useModelStore.getState().model;
+      const projectAfterDelete = useVFSStore.getState().project;
+      if (!projectAfterDelete) return;
+
+      for (const [nodeId, node] of Object.entries(projectAfterDelete.nodes)) {
+        if (node.type !== 'FILE') continue;
+        const content = (node as VFSFile).content;
+        if (!isDiagramView(content)) continue;
+
+        const view = content as DiagramView;
+        const hasElement = view.nodes.some((vn) => vn.elementId === elementId);
+        if (!hasElement) continue;
+
+        const updatedNodes = view.nodes.filter((vn) => vn.elementId !== elementId);
+        const updatedEdges = view.edges.filter(
+          (ve) => modelAfterDelete && !!modelAfterDelete.relations[ve.relationId],
+        );
+        useVFSStore.getState().updateFileContent(nodeId, { ...view, nodes: updatedNodes, edges: updatedEdges });
+      }
+    },
+    [activeTabId, updateFileContent],
+  );
+
   // ── deleteEdgeById: used by context menu "Delete" ─────────────────────────
 
   const deleteEdgeById = useCallback(
@@ -600,6 +692,8 @@ export function useVFSCanvasController(): VFSCanvasResult {
     onNodesChange,
     onEdgesChange,
     onConnect,
+    removeNodeFromDiagram,
+    deleteElementFromModel,
     deleteEdgeById,
     reverseEdgeById,
     changeEdgeKind,

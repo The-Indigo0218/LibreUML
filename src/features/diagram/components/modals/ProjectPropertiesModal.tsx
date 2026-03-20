@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Settings } from "lucide-react";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 
 const TARGET_LANGUAGES = [
   "UML Classic",

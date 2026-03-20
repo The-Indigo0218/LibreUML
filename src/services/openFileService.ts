@@ -41,7 +41,7 @@ import type {
   VFSFolder,
 } from '../core/domain/vfs/vfs.types';
 import { useModelStore } from '../store/model.store';
-import { useVFSStore } from '../store/vfs.store';
+import { useVFSStore } from '../store/project-vfs.store';
 import { useWorkspaceStore } from '../store/workspace.store';
 import { useToastStore } from '../store/toast.store';
 import { XmiImporterService } from './xmiImporter.service';

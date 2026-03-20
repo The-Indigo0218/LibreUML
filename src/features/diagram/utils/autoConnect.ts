@@ -1,6 +1,6 @@
 import type { IRAttribute, ViewEdge, RelationKind, VFSFile, VFSFolder } from '../../../core/domain/vfs/vfs.types';
 import { useModelStore } from '../../../store/model.store';
-import { useVFSStore } from '../../../store/vfs.store';
+import { useVFSStore } from '../../../store/project-vfs.store';
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import { isDiagramView } from '../hooks/useVFSCanvasController';
 import { parseAttributeType } from './typeParser';

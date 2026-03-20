@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useReactFlow } from "reactflow";
 import { useSettingsStore } from "../../../../store/settingsStore";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
 import { ExportService } from "../../../../services/export.service";
 import {

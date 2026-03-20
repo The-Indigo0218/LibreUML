@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ReactFlowProvider } from "reactflow";
 import DiagramCanvas from "./DiagramCanvas";
 import AppMenubar from "../menubar/AppMenubar";
@@ -14,12 +14,14 @@ import SSoTElementEditorModal from "../modals/SSoTElementEditorModal";
 import SSoTClassEditorModal from "../modals/SSoTClassEditorModal";
 import GlobalDeleteModal from "../modals/GlobalDeleteModal";
 import ToastContainer from "../../../../components/shared/ToastContainer";
+import { OpenFileModal } from "../modals/OpenFileModal";
 import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useLayoutStore } from "../../../../store/layout.store";
+import { injectXmiIntoVFS } from "../../../../services/openFileService";
 
 function EditorLogic() {
   const [activeTab, setActiveTab] = useState<ActivityTab>("structure");
@@ -30,6 +32,40 @@ function EditorLogic() {
   useAutoSave();
   useAutoRestore();
   useThemeSystem();
+
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes('Files')) {
+        e.preventDefault();
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      const xmiFile = files.find((f) => /\.(xmi|xmin)$/i.test(f.name));
+      if (!xmiFile) return;
+      e.preventDefault();
+      if (!useVFSStore.getState().project) return;
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        try {
+          const content = ev.target?.result as string;
+          const baseName = xmiFile.name.replace(/\.[^/.]+$/, '');
+          await injectXmiIntoVFS(content, baseName, 'project');
+        } catch (err) {
+          console.error('[LibreUML] XMI drop import failed:', err);
+        }
+      };
+      reader.readAsText(xmiFile);
+    };
+
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('drop', handleDrop);
+    return () => {
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, []);
 
   if (!project) {
     return (
@@ -49,7 +85,7 @@ function EditorLogic() {
         {/* ── Left panel (slides in/out) ─────────────────────────────── */}
         <div
           className={`h-full overflow-hidden transition-all duration-200 ease-in-out shrink-0 min-w-0 ${
-            isLeftPanelOpen ? "w-64" : "w-0"
+            isLeftPanelOpen && activeTab ? "w-64" : "w-0"
           }`}
         >
           <PrimarySideBar activeTab={activeTab} />
@@ -89,6 +125,7 @@ function EditorLogic() {
       <StatusBar />
 
       {/* ── VFS-native modals (portal-rendered, outside layout tree) ──── */}
+      <OpenFileModal />
       <SSoTElementEditorModal />
       <SSoTClassEditorModal />
       <GlobalDeleteModal />

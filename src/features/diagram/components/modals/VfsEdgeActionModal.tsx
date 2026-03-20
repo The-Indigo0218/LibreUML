@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ArrowLeftRight, Trash2, Check, Lock } from 'lucide-react';
 import { useUiStore } from '../../../../store/uiStore';
-import { useVFSStore } from '../../../../store/vfs.store';
+import { useVFSStore } from '../../../../store/project-vfs.store';
 import { useModelStore } from '../../../../store/model.store';
 import { useWorkspaceStore } from '../../../../store/workspace.store';
 import { isDiagramView } from '../../hooks/useVFSCanvasController';

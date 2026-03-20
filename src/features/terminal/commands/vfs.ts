@@ -1,6 +1,6 @@
 import { commandRegistry, COMING_SOON } from '../registry';
 import type { CommandContext } from '../registry';
-import { useVFSStore } from '../../../store/vfs.store';
+import { useVFSStore } from '../../../store/project-vfs.store';
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import type { VFSFolder, VFSFile } from '../../../core/domain/vfs/vfs.types';
 

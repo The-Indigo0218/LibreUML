@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 
 export default function TabBar() {
   const { openTabs, activeTabId, setActiveTab, closeTab } = useWorkspaceStore();

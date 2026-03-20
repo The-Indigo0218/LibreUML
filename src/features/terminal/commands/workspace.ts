@@ -1,5 +1,5 @@
 import { commandRegistry, COMING_SOON } from '../registry';
-import { useVFSStore } from '../../../store/vfs.store';
+import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
 import type { VFSFolder, VFSFile } from '../../../core/domain/vfs/vfs.types';
 

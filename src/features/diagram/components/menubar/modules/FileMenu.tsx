@@ -21,7 +21,7 @@ import {
   downloadProject,
   exportDiagram,
 } from "../../../../../services/projectIO.service";
-import { useVFSStore } from "../../../../../store/vfs.store";
+import { useVFSStore } from "../../../../../store/project-vfs.store";
 import { useUiStore } from "../../../../../store/uiStore";
 import type { VFSFile } from "../../../../../core/domain/vfs/vfs.types";
 import CloseProjectModal, {

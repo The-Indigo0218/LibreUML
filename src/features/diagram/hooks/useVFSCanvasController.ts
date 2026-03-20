@@ -2,7 +2,7 @@ import { useMemo, useCallback, useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import type { NodeChange, EdgeChange, Connection } from 'reactflow';
 import { useWorkspaceStore } from '../../../store/workspace.store';
-import { useVFSStore } from '../../../store/vfs.store';
+import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
 import { useToastStore } from '../../../store/toast.store';
 import type {

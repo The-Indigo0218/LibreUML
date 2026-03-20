@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useModelStore } from "../../../../store/model.store";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useUiStore } from "../../../../store/uiStore";
 import { useToastStore } from "../../../../store/toast.store";
 import { DRAG_TYPE_EXISTING, getNextVFSName } from "../../hooks/useDiagramDnD";

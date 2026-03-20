@@ -16,7 +16,7 @@ import {
   PanelLeftClose,
   ExternalLink,
 } from "lucide-react";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useLayoutStore } from "../../../../store/layout.store";

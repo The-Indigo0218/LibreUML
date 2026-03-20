@@ -1,6 +1,6 @@
 import { Pencil, FileOutput, Settings, GraduationCap, HelpCircle, SlidersHorizontal, PanelLeft, PanelBottom, PanelRight } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 import WindowControls from "../../../../components/ui/menubar/WindowControls";
 import { useDiagramActions } from "../../hooks/useDiagramActions";
 import { useState, useRef, useEffect } from "react";

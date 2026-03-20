@@ -5,7 +5,7 @@ import { useSettingsStore } from "../../../store/settingsStore";
 import { useThemeSystem } from "../../../hooks/useThemeSystem";
 import CreateProjectModal from "../../diagram/components/layout/CreateProjectModal";
 import { importProject, ProjectImportError } from "../../../services/projectIO.service";
-import { useVFSStore } from "../../../store/vfs.store";
+import { useVFSStore } from "../../../store/project-vfs.store";
 import type { LibreUMLProject } from "../../../core/domain/vfs/vfs.types";
 
 interface WelcomeScreenProps {

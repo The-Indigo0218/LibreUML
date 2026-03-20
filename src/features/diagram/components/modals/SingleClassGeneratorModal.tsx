@@ -281,7 +281,7 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
       onClick={onClose}
     >
       <div
-        className="bg-surface-primary border border-surface-border rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
+        className="bg-surface-primary border border-surface-border rounded-xl shadow-2xl w-full max-w-6xl max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ──────────────────────────────────────────────────── */}
@@ -308,10 +308,10 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
         </div>
 
         {/* ── Content ────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-hidden flex">
+        <div className="flex-1 overflow-hidden flex min-h-0">
 
           {/* Left Panel: Configuration */}
-          <div className="w-80 border-r border-surface-border overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          <div className="w-80 border-r border-surface-border overflow-y-auto p-6 space-y-6 custom-scrollbar flex-shrink-0">
 
             {/* Language Selector */}
             <div>
@@ -421,15 +421,15 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
           </div>
 
           {/* Right Panel: Code Preview */}
-          <div className="flex-1 flex flex-col bg-[#1e1e1e]">
-            <div className="px-4 py-2 border-b border-surface-border bg-[#252526] flex items-center gap-2">
+          <div className="flex-1 flex flex-col bg-[#1e1e1e] min-w-0 overflow-hidden">
+            <div className="px-4 py-2 border-b border-surface-border bg-[#252526] flex items-center gap-2 flex-shrink-0">
               <FileCode className="w-4 h-4 text-text-muted" />
               <span className="text-xs text-text-muted font-mono">
                 {selectedClassName}.java
               </span>
             </div>
-            <div className="flex-1 overflow-auto custom-scrollbar">
-              <pre className="p-6 text-sm font-mono text-gray-300 leading-relaxed">
+            <div className="flex-1 overflow-auto custom-scrollbar min-h-0">
+              <pre className="p-6 text-sm font-mono text-gray-300 leading-relaxed whitespace-pre overflow-x-auto min-w-full w-max">
                 {generatedCode}
               </pre>
             </div>

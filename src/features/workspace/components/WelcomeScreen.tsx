@@ -6,6 +6,7 @@ import { useThemeSystem } from "../../../hooks/useThemeSystem";
 import CreateProjectModal from "../../diagram/components/layout/CreateProjectModal";
 import { importProject, ProjectImportError } from "../../../services/projectIO.service";
 import { useVFSStore } from "../../../store/vfs.store";
+import type { LibreUMLProject } from "../../../core/domain/vfs/vfs.types";
 
 interface WelcomeScreenProps {
   onOpenProject?: () => void;
@@ -18,7 +19,7 @@ export default function WelcomeScreen({ onOpenProject: _onOpenProject }: Welcome
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const lumlInputRef = useRef<HTMLInputElement>(null);
-  const activeProject = useVFSStore((s) => s.project);
+  const activeProject = useVFSStore((s: { project: LibreUMLProject | null }) => s.project);
 
   useThemeSystem();
 

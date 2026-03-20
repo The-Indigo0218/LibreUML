@@ -144,8 +144,9 @@ function ensureContext(mode: OpenMode, name: string): void {
 /** Finds the "diagrams" folder ID in the current project, or null if absent. */
 function findDiagramsFolderId(): string | null {
   const project = useVFSStore.getState().project!;
+  const nodes = project.nodes as Record<string, VFSFile | VFSFolder>;
   return (
-    Object.values(project.nodes).find(
+    Object.values(nodes).find(
       (n) => n.type === 'FOLDER' && n.name === 'diagrams',
     )?.id ?? null
   );

@@ -1,6 +1,9 @@
 import { commandRegistry, COMING_SOON } from '../registry';
 import { useVFSStore } from '../../../store/vfs.store';
 import { useModelStore } from '../../../store/model.store';
+import type { VFSFolder, VFSFile } from '../../../core/domain/vfs/vfs.types';
+
+type VFSNodes = Record<string, VFSFolder | VFSFile>;
 
 commandRegistry.register({
   name: 'project',
@@ -18,10 +21,10 @@ commandRegistry.register({
         return;
       }
 
-      const files = Object.values(project.nodes).filter(
+      const files = Object.values(project.nodes as VFSNodes).filter(
         (n) => n.type === 'FILE',
       );
-      const folders = Object.values(project.nodes).filter(
+      const folders = Object.values(project.nodes as VFSNodes).filter(
         (n) => n.type === 'FOLDER',
       );
       const classCount = model ? Object.keys(model.classes).length : 0;
@@ -96,7 +99,7 @@ commandRegistry.register({
     const model = useModelStore.getState().model;
 
     const diagrams = project
-      ? Object.values(project.nodes).filter((n) => n.type === 'FILE').length
+      ? Object.values(project.nodes as VFSNodes).filter((n) => n.type === 'FILE').length
       : 0;
     const classCount = model ? Object.keys(model.classes).length : 0;
     const ifaceCount = model ? Object.keys(model.interfaces).length : 0;

@@ -1,20 +1,19 @@
-import { useState, useEffect, useMemo } from "react";
-import { X, Code2, ChevronDown, FileCode } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { X, Code2, ChevronDown, FileCode, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProjectStore } from "../../../../store/project.store";
 import { useModelStore } from "../../../../store/model.store";
 import { useUiStore } from "../../../../store/uiStore";
 import { useCodeGenerationStore, LANGUAGE_OPTIONS, type TargetLanguage } from "../../../../store/codeGeneration.store";
 import { JavaGeneratorService } from "../../../../services/javaGenerator.service";
-import type { DomainNode } from "../../../../core/domain/models";
-import type { DomainEdge } from "../../../../core/domain/models/edges";
+import { JavaIRGeneratorService } from "../../../../services/javaIRGenerator.service";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// ─── Toggle Option Component ──────────────────────────────────────────────────
+// ─── Toggle Option ────────────────────────────────────────────────────────────
 
 interface ToggleOptionProps {
   label: string;
@@ -49,83 +48,6 @@ function ToggleOption({ label, description, checked, onChange }: ToggleOptionPro
   );
 }
 
-// ─── IR → DomainNode adapter ─────────────────────────────────────────────────
-
-function irVisToSymbol(vis?: string): '+' | '-' | '#' | '~' {
-  if (vis === 'private') return '-';
-  if (vis === 'protected') return '#';
-  if (vis === 'package') return '~';
-  return '+';
-}
-
-type SemanticModel = NonNullable<ReturnType<typeof useModelStore.getState>['model']>;
-
-function irToDomainNode(elementId: string, model: SemanticModel): DomainNode | null {
-  const cls = model.classes[elementId];
-  if (cls) {
-    const attributes = cls.attributeIds
-      .map((id) => {
-        const attr = model.attributes[id];
-        if (!attr) return null;
-        return { id: attr.id, name: attr.name, type: attr.type || 'String', visibility: irVisToSymbol(attr.visibility), isArray: false, isStatic: attr.isStatic ?? false };
-      })
-      .filter(Boolean);
-    const methods = cls.operationIds
-      .map((id) => {
-        const op = model.operations[id];
-        if (!op) return null;
-        return { id: op.id, name: op.name, returnType: op.returnType || 'void', visibility: irVisToSymbol(op.visibility), isStatic: op.isStatic ?? false, parameters: op.parameters.map((p) => ({ name: p.name, type: p.type })) };
-      })
-      .filter(Boolean);
-    return { id: elementId, type: cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS', name: cls.name, attributes, methods } as unknown as DomainNode;
-  }
-
-  const iface = model.interfaces[elementId];
-  if (iface) {
-    const methods = iface.operationIds
-      .map((id) => {
-        const op = model.operations[id];
-        if (!op) return null;
-        return { id: op.id, name: op.name, returnType: op.returnType || 'void', visibility: irVisToSymbol(op.visibility), isStatic: op.isStatic ?? false, parameters: op.parameters.map((p) => ({ name: p.name, type: p.type })) };
-      })
-      .filter(Boolean);
-    return { id: elementId, type: 'INTERFACE', name: iface.name, attributes: [], methods } as unknown as DomainNode;
-  }
-
-  const enm = model.enums[elementId];
-  if (enm) {
-    return { id: elementId, type: 'ENUM', name: enm.name, attributes: [], methods: [] } as unknown as DomainNode;
-  }
-
-  return null;
-}
-
-function buildAllIRNodes(model: SemanticModel): DomainNode[] {
-  const nodes: DomainNode[] = [];
-  for (const id of Object.keys(model.classes)) {
-    const n = irToDomainNode(id, model);
-    if (n) nodes.push(n);
-  }
-  for (const id of Object.keys(model.interfaces)) {
-    const n = irToDomainNode(id, model);
-    if (n) nodes.push(n);
-  }
-  return nodes;
-}
-
-function buildIREdges(model: SemanticModel): DomainEdge[] {
-  const kindMap: Record<string, string> = {
-    GENERALIZATION: 'INHERITANCE',
-    REALIZATION: 'IMPLEMENTATION',
-  };
-  return Object.values(model.relations).map((rel) => ({
-    id: rel.id,
-    type: kindMap[rel.kind] ?? rel.kind,
-    sourceNodeId: rel.sourceId,
-    targetNodeId: rel.targetId,
-  })) as unknown as DomainEdge[];
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
@@ -147,9 +69,9 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
     setGenerateDocStubs,
   } = useCodeGenerationStore();
 
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState("");
+  const [generatedCode, setGeneratedCode] = useState('');
 
   // ── Combined class list (ProjectStore + ModelStore, deduplicated) ─────────
 
@@ -192,8 +114,8 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
 
   useEffect(() => {
     if (!isOpen) {
-      setGeneratedCode("");
-      setSelectedClassId("");
+      setGeneratedCode('');
+      setSelectedClassId('');
       return;
     }
 
@@ -218,45 +140,8 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
       if (firstIface) { setSelectedClassId(firstIface.id); return; }
     }
 
-    setSelectedClassId("");
+    setSelectedClassId('');
   }, [isOpen, editingId, nodes]);
-
-  // ── Generate code when class or config changes ───────────────────────────
-
-  useEffect(() => {
-    if (!selectedClassId) {
-      setGeneratedCode("// " + t('modals.codePreview.noClassSelected', "No class selected"));
-      return;
-    }
-
-    // Try ProjectStore first
-    const projNode = nodes.find((n) => n.id === selectedClassId);
-    if (projNode && (projNode.type === 'CLASS' || projNode.type === 'INTERFACE' || projNode.type === 'ABSTRACT_CLASS' || projNode.type === 'ENUM')) {
-      if (config.targetLanguage === 'java') {
-        setGeneratedCode(JavaGeneratorService.generate(projNode, nodes, edges));
-      } else {
-        setGeneratedCode("// Coming soon...");
-      }
-      return;
-    }
-
-    // Try ModelStore
-    if (model) {
-      const fakeNode = irToDomainNode(selectedClassId, model);
-      if (fakeNode) {
-        if (config.targetLanguage === 'java') {
-          const allIRNodes = buildAllIRNodes(model);
-          const irEdges = buildIREdges(model);
-          setGeneratedCode(JavaGeneratorService.generate(fakeNode, allIRNodes, irEdges));
-        } else {
-          setGeneratedCode("// Coming soon...");
-        }
-        return;
-      }
-    }
-
-    setGeneratedCode("// " + t('modals.codePreview.invalidNode', "Selected node is not a valid Class/Interface"));
-  }, [selectedClassId, nodes, edges, config, model, t]);
 
   // ── Close dropdown when clicking outside ─────────────────────────────────
 
@@ -268,9 +153,48 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
     }
   }, [showLanguageDropdown]);
 
+  // ── On-demand generation ──────────────────────────────────────────────────
+
+  const handleGenerate = useCallback(() => {
+    if (!selectedClassId) {
+      setGeneratedCode('// ' + t('modals.codePreview.noClassSelected', 'No class selected'));
+      return;
+    }
+
+    if (config.targetLanguage !== 'java') {
+      setGeneratedCode('// Coming soon...');
+      return;
+    }
+
+    if (model) {
+      const isIRElement =
+        model.classes[selectedClassId] ||
+        model.interfaces[selectedClassId] ||
+        model.enums[selectedClassId];
+
+      if (isIRElement) {
+        setGeneratedCode(JavaIRGeneratorService.generate(selectedClassId, config, model));
+        return;
+      }
+    }
+
+    const projNode = nodes.find((n) => n.id === selectedClassId);
+    if (
+      projNode &&
+      (projNode.type === 'CLASS' ||
+        projNode.type === 'INTERFACE' ||
+        projNode.type === 'ABSTRACT_CLASS' ||
+        projNode.type === 'ENUM')
+    ) {
+      setGeneratedCode(JavaGeneratorService.generate(projNode, nodes, edges));
+      return;
+    }
+
+    setGeneratedCode('// ' + t('modals.codePreview.invalidNode', 'Selected node is not a valid Class/Interface'));
+  }, [selectedClassId, config, model, nodes, edges, t]);
+
   const selectedEntry = allClasses.find((e) => e.id === selectedClassId);
   const selectedClassName = selectedEntry?.name ?? 'Unknown';
-
   const selectedLanguage = LANGUAGE_OPTIONS.find((opt) => opt.value === config.targetLanguage);
 
   if (!isOpen) return null;
@@ -429,9 +353,18 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
               </span>
             </div>
             <div className="flex-1 overflow-auto custom-scrollbar min-h-0">
-              <pre className="p-6 text-sm font-mono text-gray-300 leading-relaxed whitespace-pre overflow-x-auto min-w-full w-max">
-                {generatedCode}
-              </pre>
+              {generatedCode ? (
+                <pre className="p-6 text-sm font-mono text-gray-300 leading-relaxed whitespace-pre overflow-x-auto min-w-full w-max">
+                  {generatedCode}
+                </pre>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-text-muted">
+                  <RefreshCw className="w-8 h-8 opacity-30" />
+                  <p className="text-sm">
+                    {t('singleClassGenerator.generatePrompt', 'Select a class and click "Generate / Refresh Preview"')}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -445,10 +378,19 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
             {t('codeExportModal.actions.cancel')}
           </button>
           <button
+            onClick={handleGenerate}
+            disabled={!selectedClassId}
+            className="px-6 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            {t('singleClassGenerator.generateRefresh', 'Generate / Refresh Preview')}
+          </button>
+          <button
             onClick={async () => {
-              await navigator.clipboard.writeText(generatedCode);
+              if (generatedCode) await navigator.clipboard.writeText(generatedCode);
             }}
-            className="px-6 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+            disabled={!generatedCode}
+            className="px-6 py-2 text-sm font-medium bg-surface-secondary hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed text-text-primary border border-surface-border rounded-lg transition-colors flex items-center gap-2"
           >
             <Code2 className="w-4 h-4" />
             {t('singleClassGenerator.copyCode')}

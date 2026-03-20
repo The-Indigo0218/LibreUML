@@ -4,6 +4,7 @@ import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/vfs.store";
 import { useModelValidation } from "../../hooks/useModelValidation";
 import { useLayoutStore } from "../../../../store/layout.store";
+import { useCodeGenerationStore, LANGUAGE_OPTIONS } from "../../../../store/codeGeneration.store";
 
 export default function StatusBar() {
   const { t } = useTranslation();
@@ -18,6 +19,9 @@ export default function StatusBar() {
   const diagramType = activeFile?.diagramType || "UNSPECIFIED";
   const { errorCount, errors, warningCount } = useModelValidation();
   const isCloudConnected = false;
+
+  const targetLanguage = useCodeGenerationStore((s) => s.config.targetLanguage);
+  const languageLabel = LANGUAGE_OPTIONS.find((o) => o.value === targetLanguage)?.label ?? 'Java';
 
   return (
     <footer className="h-8 w-full bg-surface-primary border-t border-surface-border flex justify-between items-center px-4 py-1 select-none shrink-0">
@@ -64,7 +68,7 @@ export default function StatusBar() {
           title={t('statusbar.languageMode')}
         >
           <Globe className="w-3.5 h-3.5" />
-          <span className="text-xs font-medium">Java</span>
+          <span className="text-xs font-medium">{languageLabel}</span>
         </button>
 
         <div className="h-4 w-px bg-surface-border" />

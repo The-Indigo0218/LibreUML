@@ -1,4 +1,4 @@
-import type { IRAttribute, ViewEdge, RelationKind } from '../../../core/domain/vfs/vfs.types';
+import type { IRAttribute, ViewEdge, RelationKind, VFSFile, VFSFolder } from '../../../core/domain/vfs/vfs.types';
 import { useModelStore } from '../../../store/model.store';
 import { useVFSStore } from '../../../store/vfs.store';
 import { useWorkspaceStore } from '../../../store/workspace.store';
@@ -56,7 +56,7 @@ export function autoConnectByAttributeType(
     const project = useVFSStore.getState().project;
     if (!project) continue;
 
-    const fileNode = project.nodes[activeTabId];
+    const fileNode = (project.nodes as Record<string, VFSFile | VFSFolder>)[activeTabId];
     if (!fileNode || fileNode.type !== 'FILE') continue;
 
     const fileContent = fileNode.content;

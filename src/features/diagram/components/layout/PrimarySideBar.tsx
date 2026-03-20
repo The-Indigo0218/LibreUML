@@ -21,7 +21,6 @@ export default function PrimarySideBar({ activeTab }: PrimarySideBarProps) {
       {activeTab === "profile" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.userProfile")}</div>}
       {activeTab === "cloud" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.cloudSync")}</div>}
       {activeTab === "github" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.githubIntegration")}</div>}
-      {activeTab === "bug" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.bugReport")}</div>}
     </div>
   );
 }

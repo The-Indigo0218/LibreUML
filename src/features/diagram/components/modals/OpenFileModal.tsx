@@ -49,7 +49,7 @@ export function OpenFileModal() {
       if (ext === 'luml') {
         await openLumlFile(file, mode);
         closeModals();
-      } else if (ext === 'xmi' || ext === 'xml') {
+      } else if (ext === 'xmi' || ext === 'xml' || ext === 'xmin') {
         await new Promise<void>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = async (ev) => {
@@ -68,7 +68,7 @@ export function OpenFileModal() {
         closeModals();
       } else {
         setError(
-          `Unsupported file type ".${ext}". Supported formats: .luml, .xmi`,
+          `Unsupported file type ".${ext}". Supported formats: .luml, .xmi, .xmin`,
         );
       }
     } catch (err) {
@@ -194,7 +194,7 @@ export function OpenFileModal() {
           type="file"
           ref={fileInputRef}
           onChange={handleFileSelected}
-          accept=".luml,.xmi,.xml"
+          accept=".luml,.xmi,.xml,.xmin"
           className="hidden"
           aria-hidden="true"
         />

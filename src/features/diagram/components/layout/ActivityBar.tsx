@@ -1,7 +1,7 @@
 import { FolderTree, Package, Wrench, UserCircle, Cloud, Github, Bug } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-export type ActivityTab = "structure" | "packages" | "tools" | "profile" | "cloud" | "github" | "bug" | null;
+export type ActivityTab = "structure" | "packages" | "tools" | "profile" | "cloud" | "github" | null;
 
 interface ActivityBarProps {
   activeTab: ActivityTab;
@@ -59,12 +59,15 @@ export default function ActivityBar({ activeTab, onTabChange }: ActivityBarProps
         onClick={() => handleTabClick("github")}
       />
 
-      <ActivityBarIcon
-        icon={<Bug className="w-5 h-5" />}
-        label={t('activityBar.bugReport')}
-        isActive={activeTab === "bug"}
-        onClick={() => handleTabClick("bug")}
-      />
+      <a
+        href="https://forms.gle/GBTnWcmEMV1EryMZ8"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Report Bug"
+        className="mt-auto w-10 h-10 flex items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover transition-all duration-200"
+      >
+        <Bug className="w-5 h-5" />
+      </a>
     </aside>
   );
 }

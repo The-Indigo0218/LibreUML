@@ -144,7 +144,7 @@ function buildSections(
       id: 'operations',
       items: ops.map((o) => ({
         id: o.id,
-        text: `${irVisSymbol(o.visibility)}${o.name}(): ${o.returnType ?? 'void'}`,
+        text: `${irVisSymbol(o.visibility)}${o.name}(${o.parameters.map((p) => `${p.name}: ${p.type}`).join(', ')}): ${o.returnType ?? 'void'}`,
         isStatic: o.isStatic,
         isAbstract: o.isAbstract,
       })),
@@ -157,7 +157,7 @@ function buildSections(
       id: 'operations',
       items: ops.map((o) => ({
         id: o.id,
-        text: `${irVisSymbol(o.visibility)}${o.name}(): ${o.returnType ?? 'void'}`,
+        text: `${irVisSymbol(o.visibility)}${o.name}(${o.parameters.map((p) => `${p.name}: ${p.type}`).join(', ')}): ${o.returnType ?? 'void'}`,
         isAbstract: o.isAbstract,
       })),
     });
@@ -213,12 +213,14 @@ function makeReactFlowNode(
   displayConfig: ElementDisplayConfig,
   sections: NodeSection[],
   onRename: (name: string, generics?: string) => void,
+  badge?: string,
 ) {
   const viewModel: NodeViewModel = {
     id: viewNode.id,
     domainId: viewNode.elementId,
     label,
     stereotype: displayConfig.stereotype,
+    badge: badge || undefined,
     sections,
     style: displayConfig.style,
     metadata: {
@@ -411,6 +413,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
       const label = element?.name ?? 'NewClass';
       const displayConfig = VFS_DISPLAY[kind] ?? VFS_DISPLAY.CLASS;
       const sections = element ? buildSections(model, element, kind) : [];
+      const badge = (element as IRClass | IRInterface | IREnum | null)?.packageName ?? undefined;
 
       const onRename = (name: string, generics?: string) => {
         const ms = useModelStore.getState();
@@ -432,7 +435,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
         }
       };
 
-      return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename);
+      return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename, badge);
     });
   }, [diagramView, model]);
 

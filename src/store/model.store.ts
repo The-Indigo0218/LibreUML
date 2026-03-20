@@ -62,6 +62,11 @@ interface ModelStoreState {
   untrackElement: (elementId: string) => void;
   /** Clears the entire model (used when a project is closed). */
   resetModel: () => void;
+
+  // ── Package management ─────────────────────────────────────────────────────
+  addPackageName: (name: string) => void;
+  removePackageName: (name: string) => void;
+  setElementPackage: (elementId: string, packageName: string | undefined) => void;
 }
 
 export const useModelStore = create<ModelStoreState>()(
@@ -93,6 +98,7 @@ export const useModelStore = create<ModelStoreState>()(
           nodes: {},
           artifacts: {},
           relations: {},
+          packageNames: [],
           createdAt: now,
           updatedAt: now,
         };
@@ -286,6 +292,39 @@ export const useModelStore = create<ModelStoreState>()(
     resetModel: () =>
       set((state) => {
         state.model = null;
+      }),
+
+    addPackageName: (name) =>
+      set((state) => {
+        if (!state.model) return;
+        if (!state.model.packageNames) state.model.packageNames = [];
+        if (!state.model.packageNames.includes(name)) {
+          state.model.packageNames.push(name);
+          state.model.updatedAt = Date.now();
+        }
+      }),
+
+    removePackageName: (name) =>
+      set((state) => {
+        if (!state.model || !state.model.packageNames) return;
+        state.model.packageNames = state.model.packageNames.filter((n) => n !== name);
+        state.model.updatedAt = Date.now();
+      }),
+
+    setElementPackage: (elementId, packageName) =>
+      set((state) => {
+        if (!state.model) return;
+        const cls = state.model.classes[elementId];
+        const iface = state.model.interfaces[elementId];
+        const enm = state.model.enums[elementId];
+        if (cls) {
+          state.model.classes[elementId].packageName = packageName;
+        } else if (iface) {
+          state.model.interfaces[elementId].packageName = packageName;
+        } else if (enm) {
+          state.model.enums[elementId].packageName = packageName;
+        } else return;
+        state.model.updatedAt = Date.now();
       }),
   })),
   {

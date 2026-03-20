@@ -66,6 +66,7 @@ function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData
 
     return {
       label: element.data.name,
+      package: element.data.packageName ?? "",
       attributes,
       methods,
       stereotype: element.data.isAbstract ? "abstract" : "class",
@@ -81,6 +82,7 @@ function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData
 
     return {
       label: element.data.name,
+      package: element.data.packageName ?? "",
       attributes: [],
       methods,
       stereotype: "interface",
@@ -89,6 +91,7 @@ function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData
 
   return {
     label: element.data.name,
+    package: element.data.packageName ?? "",
     attributes: [],
     methods: [],
     stereotype: "enum",
@@ -127,6 +130,7 @@ export default function SSoTClassEditorModal() {
   const updateInterface = useModelStore((s) => s.updateInterface);
   const updateEnum = useModelStore((s) => s.updateEnum);
   const setElementMembers = useModelStore((s) => s.setElementMembers);
+  const setElementPackage = useModelStore((s) => s.setElementPackage);
   const showToast = useToastStore((s) => s.show);
 
   const isOpen = activeModal === "ssot-class-editor" && !!editingId;
@@ -148,7 +152,7 @@ export default function SSoTClassEditorModal() {
       ...Object.values(model.interfaces).map((i) => i.name),
       ...Object.values(model.enums).map((e) => e.name),
     ];
-    return { elementNames: names, availableTypeNames: names };
+    return { elementNames: names, availableTypeNames: names, packageNames: model.packageNames ?? [] };
   }, [model]);
 
   if (!isOpen || !umlData || !editingId || !element) return null;
@@ -169,6 +173,7 @@ export default function SSoTClassEditorModal() {
       updateEnum(editingId, { name: newData.label });
     }
 
+    setElementPackage(editingId, newData.package || undefined);
     showToast(`"${newData.label}" saved.`);
     closeModals();
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Network,
   PanelRightClose,
@@ -8,6 +8,10 @@ import {
   Trash2,
   Plus,
   EyeOff,
+  Folder,
+  FolderOpen,
+  FolderPlus,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useModelStore } from "../../../../store/model.store";
@@ -23,11 +27,21 @@ import type {
   IROperation,
 } from "../../../../core/domain/vfs/vfs.types";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 interface CtxMenuState {
   id: string;
   x: number;
   y: number;
 }
+
+interface PkgPickerState {
+  id: string;
+  x: number;
+  y: number;
+}
+
+// ─── Badge ────────────────────────────────────────────────────────────────────
 
 function Badge({ label, className }: { label: string; className: string }) {
   return (
@@ -38,6 +52,8 @@ function Badge({ label, className }: { label: string; className: string }) {
     </span>
   );
 }
+
+// ─── MemberRow ────────────────────────────────────────────────────────────────
 
 function MemberRow({
   label,
@@ -55,6 +71,8 @@ function MemberRow({
     </div>
   );
 }
+
+// ─── ElementRow ───────────────────────────────────────────────────────────────
 
 interface ElementRowProps {
   id: string;
@@ -103,10 +121,7 @@ function ElementRow({
           draggable={false}
           onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
           className="shrink-0 p-0.5 rounded hover:bg-white/5"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (hasMembers) setExpanded((v) => !v);
-          }}
+          onClick={(e) => { e.stopPropagation(); if (hasMembers) setExpanded((v) => !v); }}
         >
           {hasMembers ? (
             expanded ? (
@@ -146,15 +161,17 @@ function ElementRow({
   );
 }
 
-interface SectionProps {
-  title: string;
+// ─── PackageFolder ────────────────────────────────────────────────────────────
+
+interface PackageFolderProps {
+  name: string;
   count: number;
-  children?: React.ReactNode;
+  isDefault?: boolean;
   onCreate?: () => void;
-  createTitle?: string;
+  children: React.ReactNode;
 }
 
-function Section({ title, count, children, onCreate, createTitle }: SectionProps) {
+function PackageFolder({ name, count, isDefault = false, onCreate, children }: PackageFolderProps) {
   const [open, setOpen] = useState(true);
 
   return (
@@ -162,15 +179,19 @@ function Section({ title, count, children, onCreate, createTitle }: SectionProps
       <div className="flex items-center">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 px-2 py-1 hover:bg-surface-hover select-none flex-1 min-w-0"
+          className="flex items-center gap-1.5 px-2 py-1 hover:bg-surface-hover select-none flex-1 min-w-0"
         >
           {open ? (
-            <ChevronDown className="w-3 h-3 text-text-muted/60 shrink-0" />
+            <FolderOpen className="w-3.5 h-3.5 text-blue-400/60 shrink-0" />
           ) : (
-            <ChevronRight className="w-3 h-3 text-text-muted/60 shrink-0" />
+            <Folder className="w-3.5 h-3.5 text-blue-400/60 shrink-0" />
           )}
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted flex-1 text-left truncate">
-            {title}
+          <span
+            className={`text-[11px] font-semibold flex-1 text-left truncate ${
+              isDefault ? "text-text-muted/40 italic" : "text-text-muted"
+            }`}
+          >
+            {name}
           </span>
           <span className="text-[10px] text-text-muted/40 font-mono tabular-nums mr-1">
             {count}
@@ -181,7 +202,7 @@ function Section({ title, count, children, onCreate, createTitle }: SectionProps
           <button
             onClick={(e) => { e.stopPropagation(); onCreate(); }}
             className="px-1.5 py-1 hover:bg-surface-hover rounded transition-colors mr-1"
-            title={createTitle ?? `New ${title.replace(/s$/, "")}`}
+            title="New Class"
           >
             <Plus className="w-3 h-3 text-text-muted hover:text-text-primary" />
           </button>
@@ -189,18 +210,20 @@ function Section({ title, count, children, onCreate, createTitle }: SectionProps
       </div>
 
       {open && (
-        <div>
+        <div className="ml-3 pl-1 border-l border-surface-border/30">
           {children}
           {count === 0 && (
-            <p className="text-[10px] text-text-muted/30 italic px-8 py-0.5">
-              — none —
-            </p>
+            <p className="text-[10px] text-text-muted/30 italic px-4 py-0.5">— none —</p>
           )}
         </div>
       )}
     </div>
   );
 }
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+type ElementKind = "class" | "abstract" | "interface" | "enum";
 
 export default function RightSidebar() {
   const { toggleRightPanel } = useLayoutStore();
@@ -209,24 +232,31 @@ export default function RightSidebar() {
   const createClass = useModelStore((s) => s.createClass);
   const createInterface = useModelStore((s) => s.createInterface);
   const createEnum = useModelStore((s) => s.createEnum);
+  const addPackageName = useModelStore((s) => s.addPackageName);
+  const setElementPackage = useModelStore((s) => s.setElementPackage);
   const project = useVFSStore((s) => s.project);
   const openSSoTClassEditor = useUiStore((s) => s.openSSoTClassEditor);
   const openGlobalDelete = useUiStore((s) => s.openGlobalDelete);
 
   const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
+  const [pkgPicker, setPkgPicker] = useState<PkgPickerState | null>(null);
 
   const dismissCtxMenu = useCallback(() => setCtxMenu(null), []);
+  const dismissPkgPicker = useCallback(() => setPkgPicker(null), []);
 
   useEffect(() => {
-    if (!ctxMenu) return;
-    window.addEventListener("mousedown", dismissCtxMenu);
-    return () => window.removeEventListener("mousedown", dismissCtxMenu);
-  }, [ctxMenu, dismissCtxMenu]);
+    if (!ctxMenu && !pkgPicker) return;
+    const handler = () => { dismissCtxMenu(); dismissPkgPicker(); };
+    window.addEventListener("mousedown", handler);
+    return () => window.removeEventListener("mousedown", handler);
+  }, [ctxMenu, pkgPicker, dismissCtxMenu, dismissPkgPicker]);
 
   const handleShowContextMenu = useCallback(
     (id: string, x: number, y: number) => setCtxMenu({ id, x, y }),
     [],
   );
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
   const ensureModel = useCallback(() => {
     if (!useModelStore.getState().model) {
@@ -234,36 +264,99 @@ export default function RightSidebar() {
     }
   }, [initModel, project]);
 
+  const resolveAttrs = (ids: string[]): IRAttribute[] =>
+    model ? ids.map((id) => model.attributes[id]).filter(Boolean) : [];
+
+  const resolveOps = (ids: string[]): IROperation[] =>
+    model ? ids.map((id) => model.operations[id]).filter(Boolean) : [];
+
+  // ── Package groups ─────────────────────────────────────────────────────────
+
+  const packageNames: string[] = useMemo(() => model?.packageNames ?? [], [model]);
+
+  const DEFAULT_PKG = "__default__";
+
+  interface PkgGroup {
+    classes: IRClass[];
+    abstractClasses: IRClass[];
+    interfaces: IRInterface[];
+    enums: IREnum[];
+  }
+
+  const packageGroups = useMemo((): Map<string, PkgGroup> => {
+    const empty = (): PkgGroup => ({ classes: [], abstractClasses: [], interfaces: [], enums: [] });
+    const groups = new Map<string, PkgGroup>();
+
+    groups.set(DEFAULT_PKG, empty());
+    packageNames.forEach((n) => groups.set(n, empty()));
+
+    if (!model) return groups;
+
+    Object.values(model.classes)
+      .filter((c) => !c.isExternal)
+      .forEach((cls) => {
+        const key = cls.packageName?.trim() || DEFAULT_PKG;
+        if (!groups.has(key)) groups.set(key, empty());
+        const g = groups.get(key)!;
+        if (cls.isAbstract) g.abstractClasses.push(cls);
+        else g.classes.push(cls);
+      });
+
+    Object.values(model.interfaces)
+      .filter((i) => !i.isExternal)
+      .forEach((iface) => {
+        const key = iface.packageName?.trim() || DEFAULT_PKG;
+        if (!groups.has(key)) groups.set(key, empty());
+        groups.get(key)!.interfaces.push(iface);
+      });
+
+    Object.values(model.enums)
+      .filter((e) => !e.isExternal)
+      .forEach((enm) => {
+        const key = enm.packageName?.trim() || DEFAULT_PKG;
+        if (!groups.has(key)) groups.set(key, empty());
+        groups.get(key)!.enums.push(enm);
+      });
+
+    return groups;
+  }, [model, packageNames]);
+
+  const groupCount = (g: PkgGroup) =>
+    g.classes.length + g.abstractClasses.length + g.interfaces.length + g.enums.length;
+
+  // ── Element creation ───────────────────────────────────────────────────────
+
   const handleCreate = useCallback(
-    (kind: "class" | "abstract" | "interface" | "enum") => {
+    (kind: ElementKind, targetPkg?: string) => {
       ensureModel();
       const m = useModelStore.getState().model!;
       let id: string;
+      const pkgProp = targetPkg ? { packageName: targetPkg } : {};
 
       if (kind === "class") {
         const name = getNextVFSName(
           Object.values(m.classes).filter((c) => !c.isAbstract).map((c) => c.name),
           "Class",
         );
-        id = createClass({ name, attributeIds: [], operationIds: [] });
+        id = createClass({ name, attributeIds: [], operationIds: [], ...pkgProp });
       } else if (kind === "abstract") {
         const name = getNextVFSName(
           Object.values(m.classes).filter((c) => !!c.isAbstract).map((c) => c.name),
           "Abstract",
         );
-        id = createClass({ name, isAbstract: true, attributeIds: [], operationIds: [] });
+        id = createClass({ name, isAbstract: true, attributeIds: [], operationIds: [], ...pkgProp });
       } else if (kind === "interface") {
         const name = getNextVFSName(
           Object.values(m.interfaces).map((i) => i.name),
           "Interface",
         );
-        id = createInterface({ name, operationIds: [] });
+        id = createInterface({ name, operationIds: [], ...pkgProp });
       } else {
         const name = getNextVFSName(
           Object.values(m.enums).map((e) => e.name),
           "Enum",
         );
-        id = createEnum({ name, literals: [] });
+        id = createEnum({ name, literals: [], ...pkgProp });
       }
 
       openSSoTClassEditor(id);
@@ -271,27 +364,89 @@ export default function RightSidebar() {
     [ensureModel, createClass, createInterface, createEnum, openSSoTClassEditor],
   );
 
-  const resolveAttrs = (ids: string[]): IRAttribute[] =>
-    model ? ids.map((id) => model.attributes[id]).filter(Boolean) : [];
+  // ── New package ────────────────────────────────────────────────────────────
 
-  const resolveOps = (ids: string[]): IROperation[] =>
-    model ? ids.map((id) => model.operations[id]).filter(Boolean) : [];
+  const handleNewPackage = useCallback(() => {
+    const raw = window.prompt("Package name (e.g. com.example.models):");
+    if (!raw?.trim()) return;
+    const name = raw.trim();
+    if ((model?.packageNames ?? []).includes(name)) {
+      useToastStore.getState().show(`Package "${name}" already exists`);
+      return;
+    }
+    ensureModel();
+    addPackageName(name);
+    useToastStore.getState().show(`Package "${name}" created`);
+  }, [model, ensureModel, addPackageName]);
 
-  const classes: IRClass[] = model
-    ? Object.values(model.classes).filter((c) => !c.isAbstract && !c.isExternal)
-    : [];
-  const abstractClasses: IRClass[] = model
-    ? Object.values(model.classes).filter((c) => !!c.isAbstract && !c.isExternal)
-    : [];
-  const interfaces: IRInterface[] = model
-    ? Object.values(model.interfaces).filter((i) => !i.isExternal)
-    : [];
-  const enums: IREnum[] = model
-    ? Object.values(model.enums).filter((e) => !e.isExternal)
-    : [];
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const renderGroup = (key: string, group: PkgGroup) => {
+    const total = groupCount(group);
+    const isDefault = key === DEFAULT_PKG;
+    const label = isDefault ? "default" : key;
+    const targetPkg = isDefault ? undefined : key;
+
+    return (
+      <PackageFolder
+        key={key}
+        name={label}
+        count={total}
+        isDefault={isDefault}
+        onCreate={() => handleCreate("class", targetPkg)}
+      >
+        {group.classes.map((cls) => (
+          <ElementRow
+            key={cls.id}
+            id={cls.id}
+            name={cls.name}
+            badge="C"
+            badgeClass="bg-blue-500/20 text-blue-400"
+            attributes={resolveAttrs(cls.attributeIds)}
+            operations={resolveOps(cls.operationIds)}
+            onShowContextMenu={handleShowContextMenu}
+          />
+        ))}
+        {group.abstractClasses.map((cls) => (
+          <ElementRow
+            key={cls.id}
+            id={cls.id}
+            name={cls.name}
+            badge="A"
+            badgeClass="bg-purple-500/20 text-purple-400"
+            attributes={resolveAttrs(cls.attributeIds)}
+            operations={resolveOps(cls.operationIds)}
+            onShowContextMenu={handleShowContextMenu}
+          />
+        ))}
+        {group.interfaces.map((iface) => (
+          <ElementRow
+            key={iface.id}
+            id={iface.id}
+            name={iface.name}
+            badge="I"
+            badgeClass="bg-emerald-500/20 text-emerald-400"
+            operations={resolveOps(iface.operationIds)}
+            onShowContextMenu={handleShowContextMenu}
+          />
+        ))}
+        {group.enums.map((en) => (
+          <ElementRow
+            key={en.id}
+            id={en.id}
+            name={en.name}
+            badge="E"
+            badgeClass="bg-amber-500/20 text-amber-400"
+            onShowContextMenu={handleShowContextMenu}
+          />
+        ))}
+      </PackageFolder>
+    );
+  };
 
   return (
     <div className="w-64 h-full border-l border-surface-border bg-surface-primary flex flex-col">
+      {/* Header */}
       <div
         className="px-4 py-3 border-b border-surface-border shrink-0 flex items-center justify-between select-none cursor-default group"
         onDoubleClick={toggleRightPanel}
@@ -302,15 +457,25 @@ export default function RightSidebar() {
             Model Explorer
           </h3>
         </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); toggleRightPanel(); }}
-          className="p-1 hover:bg-surface-hover rounded transition-colors opacity-0 group-hover:opacity-100"
-          title="Close Panel"
-        >
-          <PanelRightClose className="w-3.5 h-3.5 text-text-muted" />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); handleNewPackage(); }}
+            className="p-1 hover:bg-surface-hover rounded transition-colors opacity-0 group-hover:opacity-100"
+            title="New Package"
+          >
+            <FolderPlus className="w-3.5 h-3.5 text-text-muted" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleRightPanel(); }}
+            className="p-1 hover:bg-surface-hover rounded transition-colors opacity-0 group-hover:opacity-100"
+            title="Close Panel"
+          >
+            <PanelRightClose className="w-3.5 h-3.5 text-text-muted" />
+          </button>
+        </div>
       </div>
 
+      {/* Body */}
       {!model && !project ? (
         <div className="flex-1 flex items-center justify-center p-4">
           <p className="text-xs text-text-muted/40 text-center leading-relaxed">
@@ -319,89 +484,17 @@ export default function RightSidebar() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto py-1">
-          <Section
-            title="Classes"
-            count={classes.length}
-            onCreate={() => handleCreate("class")}
-            createTitle="New Class"
-          >
-            {classes.map((cls) => (
-              <ElementRow
-                key={cls.id}
-                id={cls.id}
-                name={cls.name}
-                badge="C"
-                badgeClass="bg-blue-500/20 text-blue-400"
-                attributes={resolveAttrs(cls.attributeIds)}
-                operations={resolveOps(cls.operationIds)}
-                onShowContextMenu={handleShowContextMenu}
-              />
-            ))}
-          </Section>
-
-          <Section
-            title="Abstract Classes"
-            count={abstractClasses.length}
-            onCreate={() => handleCreate("abstract")}
-            createTitle="New Abstract Class"
-          >
-            {abstractClasses.map((cls) => (
-              <ElementRow
-                key={cls.id}
-                id={cls.id}
-                name={cls.name}
-                badge="A"
-                badgeClass="bg-purple-500/20 text-purple-400"
-                attributes={resolveAttrs(cls.attributeIds)}
-                operations={resolveOps(cls.operationIds)}
-                onShowContextMenu={handleShowContextMenu}
-              />
-            ))}
-          </Section>
-
-          <Section
-            title="Interfaces"
-            count={interfaces.length}
-            onCreate={() => handleCreate("interface")}
-            createTitle="New Interface"
-          >
-            {interfaces.map((iface) => (
-              <ElementRow
-                key={iface.id}
-                id={iface.id}
-                name={iface.name}
-                badge="I"
-                badgeClass="bg-emerald-500/20 text-emerald-400"
-                operations={resolveOps(iface.operationIds)}
-                onShowContextMenu={handleShowContextMenu}
-              />
-            ))}
-          </Section>
-
-          <Section
-            title="Enums"
-            count={enums.length}
-            onCreate={() => handleCreate("enum")}
-            createTitle="New Enum"
-          >
-            {enums.map((en) => (
-              <ElementRow
-                key={en.id}
-                id={en.id}
-                name={en.name}
-                badge="E"
-                badgeClass="bg-amber-500/20 text-amber-400"
-                onShowContextMenu={handleShowContextMenu}
-              />
-            ))}
-          </Section>
+          {Array.from(packageGroups.entries()).map(([key, group]) =>
+            renderGroup(key, group),
+          )}
         </div>
       )}
 
+      {/* Context menu */}
       {ctxMenu && (
         <div
           className="fixed z-[9000] bg-[#1a2235] border border-[#2d3f5c] rounded-lg shadow-2xl py-1 min-w-[180px]"
-          style={{ top: ctxMenu.y, left: ctxMenu.x }}
+          style={{ top: Math.min(ctxMenu.y, window.innerHeight - 200), left: ctxMenu.x }}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <button
@@ -410,6 +503,17 @@ export default function RightSidebar() {
           >
             <Pencil className="w-3.5 h-3.5 text-slate-400" />
             Edit...
+          </button>
+
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 transition-colors"
+            onClick={() => {
+              setPkgPicker({ id: ctxMenu.id, x: ctxMenu.x + 182, y: ctxMenu.y });
+              dismissCtxMenu();
+            }}
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" />
+            Move to Package...
           </button>
 
           <button
@@ -440,6 +544,39 @@ export default function RightSidebar() {
             <Trash2 className="w-3.5 h-3.5" />
             Delete from Project
           </button>
+        </div>
+      )}
+
+      {/* Package picker */}
+      {pkgPicker && (
+        <div
+          className="fixed z-[9001] bg-[#1a2235] border border-[#2d3f5c] rounded-lg shadow-2xl py-1 min-w-[200px]"
+          style={{
+            top: Math.min(pkgPicker.y, window.innerHeight - 200),
+            left: Math.min(pkgPicker.x, window.innerWidth - 210),
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-3 pt-1 pb-0.5">
+            Move to package
+          </p>
+          <button
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 hover:bg-white/5 transition-colors italic"
+            onClick={() => { setElementPackage(pkgPicker.id, undefined); dismissPkgPicker(); }}
+          >
+            <Folder className="w-3.5 h-3.5 text-slate-500" />
+            (default)
+          </button>
+          {(model?.packageNames ?? []).map((pkgName) => (
+            <button
+              key={pkgName}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 transition-colors"
+              onClick={() => { setElementPackage(pkgPicker.id, pkgName); dismissPkgPicker(); }}
+            >
+              <Folder className="w-3.5 h-3.5 text-blue-400/60" />
+              {pkgName}
+            </button>
+          ))}
         </div>
       )}
     </div>

@@ -161,6 +161,7 @@ export interface IROperation extends IRElement {
 export interface IRClass extends IRElement {
   kind: 'CLASS';
   packageId?: string;
+  packageName?: string;
   attributeIds: string[];
   operationIds: string[];
   isFinal?: boolean;
@@ -171,6 +172,7 @@ export interface IRClass extends IRElement {
 export interface IRInterface extends IRElement {
   kind: 'INTERFACE';
   packageId?: string;
+  packageName?: string;
   operationIds: string[];
   isExternal?: boolean;
 }
@@ -183,6 +185,7 @@ export interface IREnumLiteral {
 export interface IREnum extends IRElement {
   kind: 'ENUM';
   packageId?: string;
+  packageName?: string;
   literals: IREnumLiteral[];
   isExternal?: boolean;
 }
@@ -288,4 +291,5 @@ export interface SemanticModel {
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;
+  packageNames?: string[];
 }

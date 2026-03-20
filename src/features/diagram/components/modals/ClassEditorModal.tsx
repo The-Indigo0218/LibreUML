@@ -22,6 +22,7 @@ import { useUiStore } from "../../../../store/uiStore";
 interface SSoTContext {
   elementNames: string[];
   availableTypeNames: string[];
+  packageNames?: string[];
 }
 
 interface ClassEditorModalProps {
@@ -75,7 +76,7 @@ export default function ClassEditorModal({
   const getFile = useWorkspaceStore((s) => s.getFile);
 
   const packages = useMemo(() => {
-    if (ssotContext) return [];
+    if (ssotContext) return (ssotContext.packageNames ?? []).map((name, i) => ({ id: String(i), name }));
     if (!activeFileId) return [];
     const file = getFile(activeFileId);
     if (!file) return [];

@@ -12,7 +12,6 @@ interface MethodGeneratorModalProps {
   onClose: () => void;
 }
 
-// Helper types matching the domain model attribute/method shapes
 interface DomainAttribute {
   id: string;
   name: string;

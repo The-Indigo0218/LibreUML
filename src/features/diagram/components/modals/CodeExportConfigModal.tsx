@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Code2, ChevronDown, AlertTriangle, CheckSquare, Square } from 'lucide-react';
+import { X, Code2, ChevronDown, AlertTriangle, CheckSquare, Square, XCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import JSZip from 'jszip';
 import { useCodeGenerationStore, LANGUAGE_OPTIONS, type TargetLanguage } from '../../../../store/codeGeneration.store';
 import { useModelStore } from '../../../../store/model.store';
 import { useWorkspaceStore } from '../../../../store/workspace.store';
 import { useVFSStore } from '../../../../store/vfs.store';
+import { useModelValidation } from '../../hooks/useModelValidation';
+import { useToastStore } from '../../../../store/toast.store';
+import { JavaIRGeneratorService } from '../../../../services/javaIRGenerator.service';
 import type { VFSFile } from '../../../../core/domain/vfs/vfs.types';
 
 interface CodeExportConfigModalProps {
@@ -37,7 +41,9 @@ function useCurrentDiagramType(): { isClassDiagram: boolean; diagramType: string
 export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportConfigModalProps) {
   const { t } = useTranslation();
   const model = useModelStore((s) => s.model);
-  
+  const showToast = useToastStore((s) => s.show);
+  const { errorCount, errors } = useModelValidation();
+
   const {
     config,
     selectedClassIds,
@@ -53,32 +59,39 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
 
   const { isClassDiagram, diagramType } = useCurrentDiagramType();
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
-  // ── Extract all classes from the semantic model ──────────────────────────
+  // ── Extract non-external classes from the semantic model ─────────────────
 
   const availableClasses = useMemo(() => {
     if (!model) return [];
-    
-    const classes = Object.values(model.classes).map((cls) => ({
-      id: cls.id,
-      name: cls.name,
-      isAbstract: cls.isAbstract || false,
-      type: 'CLASS' as const,
-    }));
 
-    const interfaces = Object.values(model.interfaces).map((iface) => ({
-      id: iface.id,
-      name: iface.name,
-      isAbstract: false,
-      type: 'INTERFACE' as const,
-    }));
+    const classes = Object.values(model.classes)
+      .filter((cls) => !cls.isExternal)
+      .map((cls) => ({
+        id: cls.id,
+        name: cls.name,
+        isAbstract: cls.isAbstract || false,
+        type: 'CLASS' as const,
+      }));
 
-    const enums = Object.values(model.enums).map((en) => ({
-      id: en.id,
-      name: en.name,
-      isAbstract: false,
-      type: 'ENUM' as const,
-    }));
+    const interfaces = Object.values(model.interfaces)
+      .filter((iface) => !iface.isExternal)
+      .map((iface) => ({
+        id: iface.id,
+        name: iface.name,
+        isAbstract: false,
+        type: 'INTERFACE' as const,
+      }));
+
+    const enums = Object.values(model.enums)
+      .filter((en) => !en.isExternal)
+      .map((en) => ({
+        id: en.id,
+        name: en.name,
+        isAbstract: false,
+        type: 'ENUM' as const,
+      }));
 
     return [...classes, ...interfaces, ...enums];
   }, [model]);
@@ -105,6 +118,13 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
 
   if (!isOpen) return null;
 
+  // ── Derived state ─────────────────────────────────────────────────────────
+
+  const hasValidationErrors = errorCount > 0;
+  const selectedLanguage = LANGUAGE_OPTIONS.find((opt) => opt.value === config.targetLanguage);
+  const allSelected = selectedClassIds.size === allClassIds.length && allClassIds.length > 0;
+  const canExport = isClassDiagram && selectedClassIds.size > 0 && !hasValidationErrors && !isExporting;
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleSelectAll = () => {
@@ -115,32 +135,47 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
     }
   };
 
-  const handleExport = () => {
-    const selectedClasses = availableClasses.filter((c) => selectedClassIds.has(c.id));
-    
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log('📦 CODE EXPORT CONFIGURATION');
-    console.log('═══════════════════════════════════════════════════════════');
-    console.log('Target Language:', config.targetLanguage.toUpperCase());
-    console.log('───────────────────────────────────────────────────────────');
-    console.log('Options:');
-    console.log('  • Generate Getters/Setters:', config.generateGettersSetters);
-    console.log('  • Generate Empty Constructors:', config.generateEmptyConstructors);
-    console.log('  • Include Package Declaration:', config.includePackageDeclaration);
-    console.log('  • Generate Doc Stubs:', config.generateDocStubs);
-    console.log('───────────────────────────────────────────────────────────');
-    console.log(`Selected Classes (${selectedClasses.length}):`);
-    selectedClasses.forEach((cls, idx) => {
-      console.log(`  ${idx + 1}. ${cls.name} (${cls.type}${cls.isAbstract ? ', ABSTRACT' : ''})`);
-    });
-    console.log('═══════════════════════════════════════════════════════════');
-    
-    onClose();
-  };
+  const handleExport = async () => {
+    if (!model || !canExport) return;
 
-  const selectedLanguage = LANGUAGE_OPTIONS.find((opt) => opt.value === config.targetLanguage);
-  const allSelected = selectedClassIds.size === allClassIds.length && allClassIds.length > 0;
-  const canExport = isClassDiagram && selectedClassIds.size > 0;
+    setIsExporting(true);
+
+    try {
+      const zip = new JSZip();
+
+      const elementsToExport = [
+        ...Object.values(model.classes).filter((c) => !c.isExternal && selectedClassIds.has(c.id)),
+        ...Object.values(model.interfaces).filter((i) => !i.isExternal && selectedClassIds.has(i.id)),
+        ...Object.values(model.enums).filter((e) => !e.isExternal && selectedClassIds.has(e.id)),
+      ];
+
+      for (const element of elementsToExport) {
+        const code = JavaIRGeneratorService.generate(element.id, config, model);
+        const fileName = `${element.name}.java`;
+
+        if (config.includePackageDeclaration && element.packageName) {
+          const folderPath = element.packageName.replace(/\./g, '/');
+          zip.file(`${folderPath}/${fileName}`, code);
+        } else {
+          zip.file(fileName, code);
+        }
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'LibreUML_Project.zip';
+      anchor.click();
+      URL.revokeObjectURL(url);
+
+      showToast(t('codeExportModal.exportSuccess', 'Project exported successfully!'));
+      onClose();
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -194,9 +229,28 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
           </div>
         )}
 
+        {/* ── Validation Error Banner ────────────────────────────────── */}
+        {hasValidationErrors && isClassDiagram && (
+          <div className="mx-6 mt-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-400 mb-1">
+                {t('codeExportModal.validationError.title', 'Cannot export: Please resolve diagram errors first.')}
+              </p>
+              <ul className="space-y-0.5">
+                {errors.map((err, i) => (
+                  <li key={i} className="text-xs text-text-muted">
+                    &bull; {err}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {/* ── Content ────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
+
           {/* Language Selector */}
           <div>
             <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
@@ -333,8 +387,7 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
               {t('codeExportModal.options.title')}
             </label>
             <div className="space-y-3">
-              
-              {/* Getters & Setters */}
+
               <ToggleOption
                 label={t('codeExportModal.options.generateGettersSetters')}
                 description={t('codeExportModal.options.generateGettersSettersDesc')}
@@ -343,7 +396,6 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
                 disabled={!isClassDiagram}
               />
 
-              {/* Empty Constructors */}
               <ToggleOption
                 label={t('codeExportModal.options.generateEmptyConstructors')}
                 description={t('codeExportModal.options.generateEmptyConstructorsDesc')}
@@ -352,7 +404,6 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
                 disabled={!isClassDiagram}
               />
 
-              {/* Package Declaration */}
               <ToggleOption
                 label={t('codeExportModal.options.includePackageDeclaration')}
                 description={t('codeExportModal.options.includePackageDeclarationDesc')}
@@ -361,7 +412,6 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
                 disabled={!isClassDiagram}
               />
 
-              {/* Doc Stubs */}
               <ToggleOption
                 label={t('codeExportModal.options.generateDocStubs')}
                 description={t('codeExportModal.options.generateDocStubsDesc')}
@@ -385,11 +435,23 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
           <button
             onClick={handleExport}
             disabled={!canExport}
-            title={!canExport ? t('codeExportModal.actions.exportDisabled') : undefined}
+            title={
+              hasValidationErrors
+                ? t('codeExportModal.validationError.title', 'Cannot export: Please resolve diagram errors first.')
+                : !canExport
+                ? t('codeExportModal.actions.exportDisabled')
+                : undefined
+            }
             className="px-6 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            <Code2 className="w-4 h-4" />
-            {t('codeExportModal.actions.export')}
+            {isExporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Code2 className="w-4 h-4" />
+            )}
+            {isExporting
+              ? t('codeExportModal.actions.exporting', 'Exporting...')
+              : t('codeExportModal.actions.export')}
           </button>
         </div>
       </div>

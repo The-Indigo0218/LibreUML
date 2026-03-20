@@ -5,7 +5,7 @@ import { checkCollision } from "../../../util/geometry";
 import { NODE_WIDTH, NODE_HEIGHT } from "../../../config/theme.config";
 import type { stereotype } from "../types/diagram.types";
 import { useWorkspaceStore } from "../../../store/workspace.store";
-import { useVFSStore } from "../../../store/vfs.store";
+import { useVFSStore } from "../../../store/project-vfs.store";
 import { useModelStore } from "../../../store/model.store";
 import { isDiagramView } from "./useVFSCanvasController";
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from "../../../core/domain/vfs/vfs.types";

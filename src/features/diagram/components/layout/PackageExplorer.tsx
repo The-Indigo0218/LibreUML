@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, ChevronDown, Folder, FolderOpen, Package, FolderPlus } from "lucide-react";
 import { useSettingsStore } from "../../../../store/settingsStore";
@@ -592,7 +592,7 @@ export default function PackageExplorer() {
               </button>
               <button
                 className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-hover"
-                onClick={(e) => {
+                onClick={() => {
                   setPkgPicker({ elementId: contextMenu.id, x: contextMenu.x, y: contextMenu.y });
                   setContextMenu(null);
                 }}

@@ -39,7 +39,7 @@
  */
 
 import JSZip from 'jszip';
-import { useVFSStore } from '../store/vfs.store';
+import { useVFSStore } from '../store/project-vfs.store';
 import { useModelStore } from '../store/model.store';
 import { useWorkspaceStore } from '../store/workspace.store';
 import type {
@@ -393,7 +393,7 @@ export async function downloadProject(): Promise<void> {
 
   // project.json — strip DiagramView content from FILE nodes
   const nodesStripped: Record<string, VFSFolder | VFSFile> = {};
-  for (const [id, node] of Object.entries(project.nodes)) {
+  for (const [id, node] of Object.entries(project.nodes as Record<string, VFSFolder | VFSFile>)) {
     nodesStripped[id] =
       node.type === 'FILE' ? { ...(node as VFSFile), content: null } : node;
   }
@@ -411,7 +411,7 @@ export async function downloadProject(): Promise<void> {
 
   // diagrams/{fileId}.json — DiagramView per diagram file
   const diagramsFolder = zip.folder('diagrams')!;
-  for (const node of Object.values(project.nodes)) {
+  for (const node of Object.values(project.nodes as Record<string, VFSFolder | VFSFile>)) {
     if (node.type === 'FILE' && (node as VFSFile).extension !== '.model') {
       const f = node as VFSFile;
       diagramsFolder.file(

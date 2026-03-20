@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 import type { VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
 interface CreateFolderModalProps {

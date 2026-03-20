@@ -1,7 +1,7 @@
 import { XCircle, AlertTriangle, Shield, Globe, Cloud, CloudOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelValidation } from "../../hooks/useModelValidation";
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useCodeGenerationStore, LANGUAGE_OPTIONS } from "../../../../store/codeGeneration.store";

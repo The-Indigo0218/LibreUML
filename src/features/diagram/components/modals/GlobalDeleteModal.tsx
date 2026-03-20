@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import { TriangleAlert, X } from "lucide-react";
 import { useUiStore } from "../../../../store/uiStore";
 import { useModelStore } from "../../../../store/model.store";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useToastStore } from "../../../../store/toast.store";
 import type {
   IRClass,

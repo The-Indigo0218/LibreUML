@@ -1,8 +1,10 @@
 import { commandRegistry, COMING_SOON } from '../registry';
 import type { CommandContext } from '../registry';
-import { useVFSStore } from '../../../store/vfs.store';
+import { useVFSStore } from '../../../store/project-vfs.store';
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import type { VFSFolder, VFSFile } from '../../../core/domain/vfs/vfs.types';
+
+type VFSNodes = Record<string, VFSFolder | VFSFile>;
 
 function printTree(
   nodes: Record<string, VFSFolder | VFSFile>,
@@ -44,7 +46,7 @@ commandRegistry.register({
       return;
     }
 
-    const total = Object.values(project.nodes).filter(
+    const total = Object.values(project.nodes as VFSNodes).filter(
       (n) => n.type === 'FILE',
     ).length;
 
@@ -72,8 +74,8 @@ commandRegistry.register({
     }
 
     const query = args[0].toLowerCase();
-    const files = Object.values(project.nodes).filter(
-      (n) => n.type === 'FILE',
+    const files = Object.values(project.nodes as VFSNodes).filter(
+      (n): n is VFSFile => n.type === 'FILE',
     );
 
     const match =

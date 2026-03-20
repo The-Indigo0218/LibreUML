@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import { useCodeGenerationStore, LANGUAGE_OPTIONS, type TargetLanguage } from '../../../../store/codeGeneration.store';
 import { useModelStore } from '../../../../store/model.store';
 import { useWorkspaceStore } from '../../../../store/workspace.store';
-import { useVFSStore } from '../../../../store/vfs.store';
+import { useVFSStore } from '../../../../store/project-vfs.store';
 import { useModelValidation } from '../../hooks/useModelValidation';
 import { useToastStore } from '../../../../store/toast.store';
 import { JavaIRGeneratorService } from '../../../../services/javaIRGenerator.service';

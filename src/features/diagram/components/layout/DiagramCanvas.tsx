@@ -13,7 +13,7 @@ import { useUiStore } from "../../../../store/uiStore";
 import { useProjectStore } from "../../../../store/project.store";
 import { useSettingsStore } from "../../../../store/settingsStore";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useVFSStore } from "../../../../store/vfs.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
 import { useToastStore } from "../../../../store/toast.store";
 import { useDiagram } from "../../../workspace/hooks/useDiagram";

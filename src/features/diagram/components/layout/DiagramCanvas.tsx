@@ -30,7 +30,6 @@ import SpotlightModal from "../modals/SpotlightModal";
 import MultiplicityModal from "../modals/MultiplicityModal";
 import VfsEdgeActionModal from "../modals/VfsEdgeActionModal";
 import { AutoLayoutLockedWarningModal } from "../modals/AutoLayoutLockedWarningModal";
-import { OpenFileModal } from "../modals/OpenFileModal";
 import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 
 import { useContextMenu } from "../../hooks/useContextMenu";
@@ -55,6 +54,7 @@ export default function DiagramCanvas() {
 
   const {
     nodes: legacyNodes,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     edges: _edges,
     onNodesChange,
     onEdgesChange,
@@ -490,8 +490,7 @@ export default function DiagramCanvas() {
 
       <VfsEdgeActionModal />
       <AutoLayoutLockedWarningModal />
-      <OpenFileModal />
-      <CodeExportConfigModal 
+      <CodeExportConfigModal
         isOpen={activeModal === 'code-export-config'}
         onClose={closeModals}
       />

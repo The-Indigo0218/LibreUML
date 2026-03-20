@@ -6,7 +6,6 @@ import type {
 import { JavaParserService } from "./javaParser.service";
 import { edgeConfig } from "../config/theme.config";
 import { MarkerType } from "reactflow";
-import { useDiagramStore } from "../store/diagramStore";
 
 interface ReverseEngineeringResult {
   nodes: UmlClassNode[];
@@ -141,25 +140,14 @@ export class ReverseEngineeringService {
   // --- Helpers ---
 
   /**
-   * Registers a package in the global Zustand store if it doesn't already exist.
-   * This ensures the package appears in the package explorer.
+   * TODO: SSOT Migration - Package Registration
+   * 
+   * Package management needs to be reimplemented in SSOT architecture.
+   * For now, this is a no-op to prevent build errors.
    */
   private static registerPackage(packageName: string): void {
-    try {
-      const store = useDiagramStore.getState();
-      const existingPackages = store.packages || [];
-      
-      // Check if package already exists
-      const packageExists = existingPackages.some(
-        (pkg) => pkg.name === packageName
-      );
-
-      if (!packageExists) {
-        store.addPackage(packageName);
-      }
-    } catch (error) {
-      console.warn(`Failed to register package "${packageName}":`, error);
-    }
+    // TODO: Implement package registration in WorkspaceStore metadata
+    console.warn("[ReverseEngineering] TODO: SSOT package registration not implemented", packageName);
   }
 
   private static handleRelation(

@@ -1,15 +1,10 @@
 import { toPng, toSvg } from "html-to-image";
 import {
-  getRectOfNodes,
-  getTransformForBounds,
+  getNodesBounds,
+  getViewportForBounds,
   type Node,
   type ReactFlowJsonObject,
 } from "reactflow";
-import type {
-  DiagramState,
-  UmlClassNode,
-  UmlEdge,
-} from "../features/diagram/types/diagram.types";
 
 export interface ExportImageOptions {
   fileName: string;
@@ -19,6 +14,7 @@ export interface ExportImageOptions {
   backgroundColor: string;
 }
 
+// PHASE 4: Export service works with generic React Flow objects, not UI types
 export const ExportService = {
   // --- JSON (NATIVO) ---
   downloadJson: (
@@ -39,11 +35,12 @@ export const ExportService = {
       return semanticNode;
     });
 
-    const exportData: DiagramState = {
+    // PHASE 4: Use generic structure instead of casting to UI types
+    const exportData = {
       id,
       name,
-      nodes: cleanNodes as unknown as UmlClassNode[],
-      edges: cleanEdges as unknown as UmlEdge[],
+      nodes: cleanNodes,
+      edges: cleanEdges,
       viewport: flowObject.viewport,
     };
 
@@ -63,11 +60,11 @@ export const ExportService = {
     nodes: Node[],
     options: ExportImageOptions,
   ): Promise<void> => {
-    const nodesBounds = getRectOfNodes(nodes);
+    const nodesBounds = getNodesBounds(nodes);
 
     if (nodesBounds.width === 0 || nodesBounds.height === 0) return;
 
-    const transform = getTransformForBounds(
+    const viewport = getViewportForBounds(
       nodesBounds,
       nodesBounds.width,
       nodesBounds.height,
@@ -86,7 +83,7 @@ export const ExportService = {
       style: {
         width: `${nodesBounds.width}px`,
         height: `${nodesBounds.height}px`,
-        transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
+        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
         ...backgroundStyle,
       },
       backgroundColor:

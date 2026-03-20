@@ -1,235 +1,330 @@
 import { useCallback } from "react";
-import { useReactFlow } from "reactflow";
-import { useDiagramStore } from "../../../../store/diagramStore";
-import type { 
-  DiagramState, 
-  UmlClassNode, 
-  UmlEdge, 
-  UmlClassData,
-  UmlEdgeData 
-} from "../../../diagram/types/diagram.types";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useProjectStore } from "../../../../store/project.store";
+import { useSettingsStore } from "../../../../store/settingsStore";
+import type { DiagramType } from "../../../../core/domain/workspace/diagram-file.types";
 
+/**
+ *  SSOT Implementation
+ * 
+ * Manages diagram file operations using WorkspaceStore + ProjectStore:
+ * - Create new diagrams
+ * - Open/Save diagrams (Electron integration)
+ * - Import from web (file upload)
+ * - Revert to saved state
+ */
 export const useFileLifecycle = () => {
-  const { toObject, fitView } = useReactFlow();
-  const storeApi = useDiagramStore.getState;
-  const loadDiagram = useDiagramStore((s) => s.loadDiagram);
-  const resetDiagram = useDiagramStore((s) => s.resetDiagram);
-  const setFilePath = useDiagramStore((s) => s.setFilePath);
+  const createNewFile = useWorkspaceStore((s) => s.createNewFile);
+  const addFile = useWorkspaceStore((s) => s.addFile);
+  const getActiveFile = useWorkspaceStore((s) => s.getActiveFile);
+  const updateFile = useWorkspaceStore((s) => s.updateFile);
+  const markFileClean = useWorkspaceStore((s) => s.markFileClean);
+  const setLastFilePath = useSettingsStore((s) => s.setLastFilePath);
 
-  // --- HELPERS ---
-  const fitViewAfterLoad = useCallback(() => {
-    setTimeout(() => fitView({ duration: 800 }), 100);
-  }, [fitView]);
+  const getNodes = useProjectStore((s) => s.getNodes);
+  const getEdges = useProjectStore((s) => s.getEdges);
+  const addNodes = useProjectStore((s) => s.addNodes);
+  const addEdges = useProjectStore((s) => s.addEdges);
 
-  // --- INTERNAL LOADER ---
-  const loadFromFileContent = useCallback((content: string, filePath?: string) => {
-    try {
-      const data = JSON.parse(content) as DiagramState;
-
-      // Validación básica de integridad
-      if (!data.nodes || !Array.isArray(data.nodes)) {
-        throw new Error("Formato inválido: falta array de nodos");
-      }
-
-      // Asegurar viewport por defecto si no existe
-      const safeData: DiagramState = {
-        ...data,
-        viewport: data.viewport || { x: 0, y: 0, zoom: 1 }
-      };
-
-      loadDiagram(safeData);
-      
-      if (filePath) {
-        setFilePath(filePath);
-      }
-      
-      fitViewAfterLoad();
-
-    } catch (error) {
-      console.error("Error parsing diagram file:", error);
-      alert("Error al abrir el archivo. El formato es inválido o está corrupto.");
-    }
-  }, [loadDiagram, setFilePath, fitViewAfterLoad]);
-
-
-  // --- ACTIONS ---
-
-  const createNewDiagram = useCallback(() => {
-    resetDiagram();
-  }, [resetDiagram]);
+  const createNewDiagram = useCallback(
+    (diagramType: DiagramType = "CLASS_DIAGRAM", name?: string) => {
+      const newFile = createNewFile(diagramType, name);
+      addFile(newFile);
+      return newFile;
+    },
+    [createNewFile, addFile]
+  );
 
   const openDiagramFromDisk = useCallback(async () => {
-    if (!window.electronAPI?.isElectron()) return;
+    if (!window.electronAPI?.isElectron()) {
+      console.warn("Open from disk is only available in Electron");
+      return;
+    }
 
     try {
       const result = await window.electronAPI.openFile();
-      
-      if (!result.canceled && result.content) {
-        loadFromFileContent(result.content, result.filePath);
+
+      if (result.canceled || !result.content) {
+        return;
       }
+
+      const data = JSON.parse(result.content);
+
+      // Create new file in workspace
+      const newFile = createNewFile(
+        data.diagramType || "CLASS_DIAGRAM",
+        data.name || "Untitled"
+      );
+
+      // Populate ProjectStore with nodes and edges
+      if (data.nodes && Array.isArray(data.nodes)) {
+        addNodes(data.nodes);
+      }
+
+      if (data.edges && Array.isArray(data.edges)) {
+        addEdges(data.edges);
+      }
+
+      // Update file with loaded data
+      updateFile(newFile.id, {
+        name: data.name || newFile.name,
+        nodeIds: data.nodes?.map((n: any) => n.id) || [],
+        edgeIds: data.edges?.map((e: any) => e.id) || [],
+        viewport: data.viewport || newFile.viewport,
+        metadata: {
+          ...newFile.metadata,
+          filePath: result.filePath,
+          positionMap: data.positionMap || {},
+        } as any,
+        isDirty: false,
+      });
+
+      // Add file to workspace
+      addFile(newFile);
+      if (result.filePath) {
+        setLastFilePath(result.filePath);
+      }
+
+      console.log(`[FileLifecycle] Opened diagram from: ${result.filePath}`);
     } catch (error) {
-      console.error("IPC Error opening file:", error);
+      console.error("[FileLifecycle] Error opening diagram:", error);
+      throw error;
     }
-  }, [loadFromFileContent]);
+  }, [createNewFile, addNodes, addEdges, updateFile, addFile, setLastFilePath]);
 
-  const importFromWeb = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const importFromWeb = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      loadFromFileContent(content);
-    };
-    reader.readAsText(file);
-    event.target.value = "";
-  }, [loadFromFileContent]);
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
 
-  const saveDiagram = useCallback(async () => {
-    const state = storeApi();
-    const flowObject = toObject(); 
-    
-   const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
-      id: node.id,
-      type: node.type === 'umlNote' ? 'umlNote' : 'umlClass', 
-      position: node.position,
-      data: node.data as UmlClassData,
-      selected: node.selected,
-      width: node.width || undefined,   
-      height: node.height || undefined
-    }));
-
-    const cleanEdges: UmlEdge[] = flowObject.edges.map(edge => {
-
-        const edgeData = edge.data as Partial<UmlEdgeData>;
-        
-        return {
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          sourceHandle: edge.sourceHandle,
-          targetHandle: edge.targetHandle,
-          type: edge.type,
-          animated: edge.animated,
-          markerEnd: edge.markerEnd,
-          style: edge.style,
-          data: {
-            type: edgeData.type || 'association',
-            sourceMultiplicity: edgeData.sourceMultiplicity,
-            targetMultiplicity: edgeData.targetMultiplicity, 
-          }
-        };
-    });
-
-    const dataToSave: DiagramState = {
-      id: state.diagramId,
-      name: state.diagramName,
-      nodes: cleanNodes,
-      edges: cleanEdges,
-      activeConnectionMode: state.activeConnectionMode, 
-      viewport: flowObject.viewport
-    };
-    
-    const content = JSON.stringify(dataToSave, null, 2);
-    document.body.style.cursor = "wait";
-
-    try {
-      if (window.electronAPI?.isElectron()) {
-        const result = await window.electronAPI.saveFile(
-          content, 
-          state.currentFilePath, 
-          state.diagramName
+        // Create new file in workspace
+        const newFile = createNewFile(
+          data.diagramType || "CLASS_DIAGRAM",
+          data.name || file.name.replace(".luml", "")
         );
 
-        if (!result.canceled && result.filePath) {
-          setFilePath(result.filePath);
-          storeApi().setDirty(false);
-          return true;
+        // Populate ProjectStore
+        if (data.nodes && Array.isArray(data.nodes)) {
+          addNodes(data.nodes);
         }
-        return false;
-      } else {
-        const blob = new Blob([content], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `${state.diagramName}.luml`;
-        link.click();
-        URL.revokeObjectURL(url);
-        storeApi().setDirty(false);
-        return true;
+
+        if (data.edges && Array.isArray(data.edges)) {
+          addEdges(data.edges);
+        }
+
+        // Update file with loaded data
+        updateFile(newFile.id, {
+          name: data.name || newFile.name,
+          nodeIds: data.nodes?.map((n: any) => n.id) || [],
+          edgeIds: data.edges?.map((e: any) => e.id) || [],
+          viewport: data.viewport || newFile.viewport,
+          metadata: {
+            ...newFile.metadata,
+            positionMap: data.positionMap || {},
+          } as any,
+          isDirty: false,
+        });
+
+        // Add file to workspace
+        addFile(newFile);
+
+        console.log(`[FileLifecycle] Imported diagram from web: ${file.name}`);
+      } catch (error) {
+        console.error("[FileLifecycle] Error importing diagram:", error);
+        throw error;
       }
-    } finally {
-      document.body.style.cursor = "default";
+    },
+    [createNewFile, addNodes, addEdges, updateFile, addFile]
+  );
+
+  const saveDiagram = useCallback(async () => {
+    const file = getActiveFile();
+    if (!file) {
+      console.warn("[FileLifecycle] No active file to save");
+      return false;
     }
-  }, [storeApi, toObject, setFilePath]);
+
+    if (!window.electronAPI?.isElectron()) {
+      console.warn("Save is only available in Electron");
+      return false;
+    }
+
+    try {
+      const metadata = file.metadata as any;
+      const filePath = metadata?.filePath;
+
+      // Get domain data from ProjectStore
+      const nodes = getNodes(file.nodeIds);
+      const edges = getEdges(file.edgeIds);
+
+      const saveData = {
+        id: file.id,
+        name: file.name,
+        diagramType: file.diagramType,
+        nodes,
+        edges,
+        viewport: file.viewport,
+        positionMap: metadata?.positionMap || {},
+      };
+
+      const content = JSON.stringify(saveData, null, 2);
+
+      const result = await window.electronAPI.saveFile(
+        content,
+        filePath,
+        file.name,
+        ['luml']
+      );
+
+      if (result.canceled) {
+        return false;
+      }
+
+      // Update file metadata with path
+      if (result.filePath) {
+        updateFile(file.id, {
+          metadata: {
+            ...metadata,
+            filePath: result.filePath,
+          } as any,
+        });
+        setLastFilePath(result.filePath);
+      }
+
+      markFileClean(file.id);
+      console.log(`[FileLifecycle] Saved diagram to: ${result.filePath}`);
+      return true;
+    } catch (error) {
+      console.error("[FileLifecycle] Error saving diagram:", error);
+      return false;
+    }
+  }, [getActiveFile, getNodes, getEdges, updateFile, markFileClean, setLastFilePath]);
 
   const saveDiagramAs = useCallback(async () => {
-    const state = storeApi();
-    const flowObject = toObject(); 
-
-   const cleanNodes: UmlClassNode[] = flowObject.nodes.map((node) => ({
-      id: node.id,
-      type: node.type === 'umlNote' ? 'umlNote' : 'umlClass',
-      position: node.position,
-      data: node.data as UmlClassData,
-      width: node.width || undefined,
-      height: node.height || undefined,
-      selected: node.selected
-    }));
-
-    const cleanEdges: UmlEdge[] = flowObject.edges.map(edge => {
-        const edgeData = edge.data as Partial<UmlEdgeData>;
-        return {
-          id: edge.id,
-          source: edge.source,
-          target: edge.target,
-          sourceHandle: edge.sourceHandle,
-          targetHandle: edge.targetHandle,
-          type: edge.type,
-          animated: edge.animated,
-          markerEnd: edge.markerEnd,
-          style: edge.style,
-          data: {
-            type: edgeData.type || 'association',
-            sourceMultiplicity: edgeData.sourceMultiplicity,
-            targetMultiplicity: edgeData.targetMultiplicity,
-          }
-        };
-    });
-
-    const dataToSave: DiagramState = {
-      id: state.diagramId,
-      name: state.diagramName,
-      nodes: cleanNodes,
-      edges: cleanEdges,
-      activeConnectionMode: state.activeConnectionMode,
-      viewport: flowObject.viewport
-    };
-    
-    const content = JSON.stringify(dataToSave, null, 2);
-
-    if (window.electronAPI?.isElectron()) {
-      const result = await window.electronAPI.saveFile(content, undefined, state.diagramName);
-
-      if (!result.canceled && result.filePath) {
-        setFilePath(result.filePath);
-        storeApi().setDirty(false);
-      }
+    const file = getActiveFile();
+    if (!file) {
+      console.warn("[FileLifecycle] No active file to save");
+      return;
     }
-  }, [storeApi, toObject, setFilePath]);
+
+    if (!window.electronAPI?.isElectron()) {
+      console.warn("Save As is only available in Electron");
+      return;
+    }
+
+    try {
+      const metadata = file.metadata as any;
+
+      // Get domain data from ProjectStore
+      const nodes = getNodes(file.nodeIds);
+      const edges = getEdges(file.edgeIds);
+
+      const saveData = {
+        id: file.id,
+        name: file.name,
+        diagramType: file.diagramType,
+        nodes,
+        edges,
+        viewport: file.viewport,
+        positionMap: metadata?.positionMap || {},
+      };
+
+      const content = JSON.stringify(saveData, null, 2);
+
+      // Force save dialog by not passing filePath
+      const result = await window.electronAPI.saveFile(
+        content,
+        undefined,
+        file.name,
+        ['luml']
+      );
+
+      if (result.canceled) {
+        return;
+      }
+
+      // Update file metadata with new path
+      if (result.filePath) {
+        updateFile(file.id, {
+          metadata: {
+            ...metadata,
+            filePath: result.filePath,
+          } as any,
+        });
+        setLastFilePath(result.filePath);
+      }
+
+      markFileClean(file.id);
+      console.log(`[FileLifecycle] Saved diagram as: ${result.filePath}`);
+    } catch (error) {
+      console.error("[FileLifecycle] Error saving diagram as:", error);
+      throw error;
+    }
+  }, [getActiveFile, getNodes, getEdges, updateFile, markFileClean, setLastFilePath]);
 
   const revertDiagram = useCallback(async () => {
-    const currentPath = storeApi().currentFilePath;
-    if (currentPath && window.electronAPI?.isElectron()) {
-      const result = await window.electronAPI.readFile(currentPath);
-      if (result.success && result.content) {
-        loadFromFileContent(result.content, currentPath);
-        storeApi().setDirty(false);
-      } else {
-        alert("Error reloading file: " + result.error);
-      }
+    const file = getActiveFile();
+    if (!file) {
+      console.warn("[FileLifecycle] No active file to revert");
+      return;
     }
-  }, [storeApi, loadFromFileContent]);
+
+    const metadata = file.metadata as any;
+    const filePath = metadata?.filePath;
+
+    if (!filePath) {
+      console.warn("[FileLifecycle] Cannot revert: file has no saved path");
+      return;
+    }
+
+    if (!window.electronAPI?.isElectron()) {
+      console.warn("Revert is only available in Electron");
+      return;
+    }
+
+    try {
+      // Reload file from disk
+      const result = await window.electronAPI.readFile(filePath);
+
+      if (!result.success || !result.content) {
+        console.error("[FileLifecycle] Failed to reload file");
+        return;
+      }
+
+      const data = JSON.parse(result.content);
+
+      // Update ProjectStore with reloaded data
+      if (data.nodes && Array.isArray(data.nodes)) {
+        addNodes(data.nodes);
+      }
+
+      if (data.edges && Array.isArray(data.edges)) {
+        addEdges(data.edges);
+      }
+
+      // Update file with reloaded data
+      updateFile(file.id, {
+        name: data.name || file.name,
+        nodeIds: data.nodes?.map((n: any) => n.id) || [],
+        edgeIds: data.edges?.map((e: any) => e.id) || [],
+        viewport: data.viewport || file.viewport,
+        metadata: {
+          ...metadata,
+          positionMap: data.positionMap || {},
+        } as any,
+        isDirty: false,
+      });
+
+      console.log(`[FileLifecycle] Reverted diagram from: ${filePath}`);
+    } catch (error) {
+      console.error("[FileLifecycle] Error reverting diagram:", error);
+      throw error;
+    }
+  }, [getActiveFile, addNodes, addEdges, updateFile]);
 
   return {
     createNewDiagram,

@@ -1,24 +1,26 @@
+import { useTranslation } from "react-i18next";
 import type { ActivityTab } from "./ActivityBar";
+import ProjectStructure from "./ProjectStructure";
 import PackageExplorer from "./PackageExplorer";
-import Sidebar from "./Sidebar";
-import { useSettingsStore } from "../../../../store/settingsStore";
+import ToolPalette from "./ToolPalette";
 
 interface PrimarySideBarProps {
   activeTab: ActivityTab;
 }
 
 export default function PrimarySideBar({ activeTab }: PrimarySideBarProps) {
-  const theme = useSettingsStore((state) => state.theme);
-  const isDark = theme === "dark";
-
+  const { t } = useTranslation();
+  
   if (!activeTab) return null;
 
   return (
-    <div className={`w-64 border-r flex flex-col z-10 shadow-xl ${
-      isDark ? 'bg-[#0b0f1a] border-[#2d2d2d]' : 'bg-[#f3f3f3] border-[#e0e0e0]'
-    }`}>
-      {activeTab === "explorer" && <PackageExplorer />}
-      {activeTab === "tools" && <Sidebar />}
+    <div className="w-full h-full border-r border-surface-border bg-surface-primary flex flex-col overflow-hidden">
+      {activeTab === "structure" && <ProjectStructure />}
+      {activeTab === "packages" && <PackageExplorer />}
+      {activeTab === "tools" && <ToolPalette />}
+      {activeTab === "profile" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.userProfile")}</div>}
+      {activeTab === "cloud" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.cloudSync")}</div>}
+      {activeTab === "github" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.githubIntegration")}</div>}
     </div>
   );
 }

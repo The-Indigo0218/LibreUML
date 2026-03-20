@@ -3,8 +3,11 @@ import { create } from "zustand";
 // Define the types for active modals in the UI
 export type ActiveModal =
   | "none"
+  | "open-file"
   | "class-editor"
   | "multiplicity-editor"
+  | "vfs-edge-action"
+  | "auto-layout-locked-warning"
   | "clear-confirmation"
   | "export-modal"
   | "engineering-single"
@@ -12,6 +15,11 @@ export type ActiveModal =
   | "engineering-reverse"
   | "import-code"
   | "method-generator"
+  | "ssot-element-editor"
+  | "ssot-class-editor"
+  | "global-delete"
+  | "code-export-config"
+  | "keyboard-shortcuts"
   | null;
 
 interface UiStoreState {
@@ -29,6 +37,14 @@ interface UiStoreState {
   openReverseEngineering: () => void;
   openImportCode: () => void;
   openMethodGenerator: (nodeId: string) => void;
+  openSSoTElementEditor: (elementId: string) => void;
+  openSSoTClassEditor: (elementId: string) => void;
+  openGlobalDelete: (elementId: string) => void;
+  openOpenFileModal: () => void;
+  openVfsEdgeAction: (edgeId: string) => void;
+  openAutoLayoutLockedWarning: () => void;
+  openCodeExportConfig: () => void;
+  openKeyboardShortcuts: () => void;
   closeModals: () => void;
 }
 
@@ -61,6 +77,30 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openMethodGenerator: (nodeId) =>
     set({ activeModal: "method-generator", editingId: nodeId }),
+
+  openSSoTElementEditor: (elementId) =>
+    set({ activeModal: "ssot-element-editor", editingId: elementId }),
+
+  openSSoTClassEditor: (elementId) =>
+    set({ activeModal: "ssot-class-editor", editingId: elementId }),
+
+  openGlobalDelete: (elementId) =>
+    set({ activeModal: "global-delete", editingId: elementId }),
+
+  openOpenFileModal: () =>
+    set({ activeModal: "open-file", editingId: null }),
+
+  openVfsEdgeAction: (edgeId) =>
+    set({ activeModal: "vfs-edge-action", editingId: edgeId }),
+
+  openAutoLayoutLockedWarning: () =>
+    set({ activeModal: "auto-layout-locked-warning", editingId: null }),
+
+  openCodeExportConfig: () =>
+    set({ activeModal: "code-export-config", editingId: null }),
+
+  openKeyboardShortcuts: () =>
+    set({ activeModal: "keyboard-shortcuts", editingId: null }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
 }));

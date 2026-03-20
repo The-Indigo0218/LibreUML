@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import i18n from "../i18n/config";
+import { storageAdapter } from "../adapters/storage/storage.adapter";
 
 interface SettingsState {
   // --- preferences ---
@@ -9,6 +10,12 @@ interface SettingsState {
   theme: "light" | "dark" | "system"; 
   language: string;
   suppressSvgWarning: boolean;
+  
+  // --- canvas settings ---
+  showMiniMap: boolean;
+  showGrid: boolean;
+  snapToGrid: boolean;
+  showAllEdges: boolean;
   
   // --- inside state  ---
   lastFilePath?: string; 
@@ -20,6 +27,10 @@ interface SettingsState {
   setLanguage: (lang: string) => void;
   setLastFilePath: (path: string | undefined) => void;
   setSuppressSvgWarning: (suppress: boolean) => void;
+  toggleMiniMap: () => void;
+  toggleGrid: () => void;
+  toggleSnapToGrid: () => void;
+  toggleShowAllEdges: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -31,6 +42,12 @@ export const useSettingsStore = create<SettingsState>()(
       language: "en",
       suppressSvgWarning: false,
       lastFilePath: undefined,
+      
+      // Canvas settings defaults
+      showMiniMap: false,
+      showGrid: true,
+      snapToGrid: true,
+      showAllEdges: false,
 
       toggleAutoSave: () => set((s) => ({ autoSave: !s.autoSave })),
       
@@ -46,17 +63,29 @@ export const useSettingsStore = create<SettingsState>()(
       setSuppressSvgWarning: (suppress) => set({ suppressSvgWarning: suppress }),
 
       setLastFilePath: (path) => set({ lastFilePath: path }),
+      
+      toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
+      
+      toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
+      
+      toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
+      
+      toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
     }),
     {
       name: "libreuml-settings",
-      partialize: (state) => ({
-        autoSave: state.autoSave,
-        restoreSession: state.restoreSession,
-        theme: state.theme,
-        language: state.language,
-        lastFilePath: state.lastFilePath,
-        suppressSvgWarning: state.suppressSvgWarning,
-      }),
+      storage: {
+        getItem: (name) => {
+          const value = storageAdapter.getItem(name);
+          return value ? JSON.parse(value) : null;
+        },
+        setItem: (name, value) => {
+          storageAdapter.setItem(name, JSON.stringify(value));
+        },
+        removeItem: (name) => {
+          storageAdapter.removeItem(name);
+        },
+      },
     }
   )
 );

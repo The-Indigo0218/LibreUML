@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProjectZipperService } from '../project-zipper.service';
-import type { UmlClassNode } from '../../features/diagram/types/diagram.types';
+import type { DomainNode } from '../../core/domain/models/nodes';
+import type { ClassNode } from '../../core/domain/models/nodes/class-diagram.types';
 
 const mockFile = vi.fn();
 const mockFolder = vi.fn(() => ({ file: mockFile }));
@@ -22,18 +23,16 @@ global.URL.revokeObjectURL = vi.fn();
 describe('ProjectZipperService', () => {
   
   // Dummy Data
-  const mockNodes: UmlClassNode[] = [
+  const mockNodes: DomainNode[] = [
     {
       id: '1',
-      type: 'umlClass',
-      position: { x: 0, y: 0 },
-      data: {
-        label: 'User',
-        stereotype: 'class',
-        attributes: [],
-        methods: []
-      }
-    }
+      type: 'CLASS',
+      name: 'User',
+      attributes: [],
+      methods: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as ClassNode
   ];
 
   beforeEach(() => {

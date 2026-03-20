@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
 import { ClassItem } from "./ClassItem";
 import { InlinePackageInput } from "./InlinePackageInput";
-import { useDiagramStore } from "../../../../../store/diagramStore";
 import type { PackageItemProps } from "./types";
 
 export function PackageItem({
@@ -15,6 +14,7 @@ export function PackageItem({
   onToggle,
   onClassToggle,
   onClassClick,
+  onEditClass,
   onPackageContextMenu,
   onClassContextMenu,
   onRenameClass,
@@ -23,7 +23,9 @@ export function PackageItem({
   onAddChildPackage,
   onCancelAddChild,
 }: PackageItemProps) {
-  const packages = useDiagramStore((s) => s.packages);
+  // TODO: SSOT Migration - Package validation needs WorkspaceStore integration
+  const packages: Array<{ id: string; name: string }> = [];
+  
   const isExpanded = expandedPaths.has(node.fullPath);
   const hasChildren = node.children.size > 0;
   const hasClasses = node.classes.length > 0;
@@ -187,6 +189,7 @@ export function PackageItem({
               isRenaming={renamingId === classNode.id}
               onToggle={onClassToggle}
               onClassClick={onClassClick}
+              onEditClass={onEditClass}
               onContextMenu={onClassContextMenu}
               onRename={onRenameClass}
               onCancelRename={onCancelRename}
@@ -207,6 +210,7 @@ export function PackageItem({
                 onToggle={onToggle}
                 onClassToggle={onClassToggle}
                 onClassClick={onClassClick}
+                onEditClass={onEditClass}
                 onPackageContextMenu={onPackageContextMenu}
                 onClassContextMenu={onClassContextMenu}
                 onRenameClass={onRenameClass}

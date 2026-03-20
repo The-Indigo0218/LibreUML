@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { X, Check, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useDiagramStore } from "../../../../store/diagramStore";
-import type { UmlClassNode, UmlMethod, UmlAttribute } from "../../types/diagram.types";
+import { useProjectStore } from "../../../../store/project.store";
+import { useModelStore } from "../../../../store/model.store";
+import type { DomainNode } from "../../../../core/domain/models/nodes";
+import type { IROperation } from "../../../../core/domain/vfs/vfs.types";
 
 interface MethodGeneratorModalProps {
   isOpen: boolean;
@@ -10,21 +12,109 @@ interface MethodGeneratorModalProps {
   onClose: () => void;
 }
 
+interface DomainAttribute {
+  id: string;
+  name: string;
+  type: string;
+  visibility: string;
+  isArray?: boolean;
+  isStatic?: boolean;
+}
+
+interface DomainMethod {
+  id: string;
+  name: string;
+  returnType: string;
+  visibility: string;
+  isReturnArray?: boolean;
+  isStatic?: boolean;
+  isConstructor?: boolean;
+  parameters: { name: string; type: string; isArray?: boolean }[];
+}
+
+// ─── IR ↔ domain adapters ─────────────────────────────────────────────────────
+
+function irVisToSymbol(vis?: string): string {
+  if (vis === 'private') return '-';
+  if (vis === 'protected') return '#';
+  if (vis === 'package') return '~';
+  return '+';
+}
+
+function domainMethodToIROperation(m: DomainMethod): IROperation {
+  const visMap: Record<string, 'public' | 'private' | 'protected' | 'package'> = {
+    '+': 'public', '-': 'private', '#': 'protected', '~': 'package',
+  };
+  return {
+    id: m.id,
+    name: m.name,
+    kind: 'OPERATION',
+    visibility: visMap[m.visibility] ?? 'public',
+    returnType: m.returnType || 'void',
+    isStatic: m.isStatic ?? false,
+    isConstructor: m.isConstructor,
+    parameters: (m.parameters ?? []).map((p) => ({ name: p.name, type: p.type })),
+  } as IROperation;
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: MethodGeneratorModalProps) {
   const { t } = useTranslation();
-  const nodes = useDiagramStore((s) => s.nodes);
-  const updateNodeData = useDiagramStore((s) => s.updateNodeData);
+  const getNode = useProjectStore((s) => s.getNode);
+  const updateNode = useProjectStore((s) => s.updateNode);
+  const model = useModelStore((s) => s.model);
 
-  const classNode = useMemo(() => {
-    return nodes.find((n) => n.id === nodeId) as UmlClassNode | undefined;
-  }, [nodes, nodeId]);
+  // ── Resolve the class — ProjectStore first, then ModelStore ─────────────
+  const projectClassNode = useMemo(() => {
+    if (!nodeId) return undefined;
+    return getNode(nodeId);
+  }, [nodeId, getNode]);
+
+  const irClass = useMemo(() => {
+    if (!nodeId || !model || projectClassNode) return null;
+    return model.classes[nodeId] ?? null;
+  }, [nodeId, model, projectClassNode]);
+
+  const attributes = useMemo((): DomainAttribute[] => {
+    if (projectClassNode) {
+      const typed = projectClassNode as DomainNode & { attributes: DomainAttribute[] };
+      return typed.attributes || [];
+    }
+    if (irClass && model) {
+      return irClass.attributeIds
+        .map((id) => {
+          const attr = model.attributes[id];
+          if (!attr) return null;
+          return {
+            id: attr.id,
+            name: attr.name,
+            type: attr.type || 'String',
+            visibility: irVisToSymbol(attr.visibility),
+            isArray: false,
+            isStatic: attr.isStatic ?? false,
+          } as DomainAttribute;
+        })
+        .filter(Boolean) as DomainAttribute[];
+    }
+    return [];
+  }, [projectClassNode, irClass, model]);
+
+  const existingMethods = useMemo((): DomainMethod[] => {
+    if (projectClassNode) {
+      const typed = projectClassNode as DomainNode & { methods: DomainMethod[] };
+      return typed.methods || [];
+    }
+    return [];
+  }, [projectClassNode]);
+
+  const className: string = (projectClassNode as any)?.name ?? irClass?.name ?? '';
 
   const [selectedAttributes, setSelectedAttributes] = useState<Set<string>>(new Set());
 
-  if (!isOpen || !classNode) return null;
-
-  const attributes = classNode.data.attributes;
-  const existingMethods = classNode.data.methods;
+  if (!isOpen) return null;
+  if (!projectClassNode && !irClass) return null;
+  if (projectClassNode && projectClassNode.type !== 'CLASS' && projectClassNode.type !== 'ABSTRACT_CLASS') return null;
 
   const toggleAttribute = (attrId: string) => {
     setSelectedAttributes((prev) => {
@@ -46,102 +136,82 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
     }
   };
 
-  const capitalizeFirst = (str: string) => {
-    return str.charAt(0).toUpperCase() + str.slice(1);
-  };
+  const capitalizeFirst = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
 
-  const generateGetter = (attr: UmlAttribute): UmlMethod => {
-    return {
-      id: crypto.randomUUID(),
-      name: `get${capitalizeFirst(attr.name)}`,
-      returnType: attr.type,
-      isReturnArray: attr.isArray,
-      visibility: "+",
-      isStatic: false,
-      parameters: [],
-    };
-  };
+  const generateGetter = (attr: DomainAttribute): DomainMethod => ({
+    id: crypto.randomUUID(),
+    name: `get${capitalizeFirst(attr.name)}`,
+    returnType: attr.type,
+    isReturnArray: attr.isArray,
+    visibility: "+",
+    isStatic: false,
+    parameters: [],
+  });
 
-  const generateSetter = (attr: UmlAttribute): UmlMethod => {
-    return {
-      id: crypto.randomUUID(),
-      name: `set${capitalizeFirst(attr.name)}`,
-      returnType: "void",
-      isReturnArray: false,
-      visibility: "+",
-      isStatic: false,
-      parameters: [
-        {
-          name: attr.name,
-          type: attr.type,
-          isArray: attr.isArray,
-        },
-      ],
-    };
-  };
+  const generateSetter = (attr: DomainAttribute): DomainMethod => ({
+    id: crypto.randomUUID(),
+    name: `set${capitalizeFirst(attr.name)}`,
+    returnType: "void",
+    isReturnArray: false,
+    visibility: "+",
+    isStatic: false,
+    parameters: [{ name: attr.name, type: attr.type, isArray: attr.isArray }],
+  });
 
-  const generateConstructor = (selectedAttrs: UmlAttribute[]): UmlMethod => {
-    return {
-      id: crypto.randomUUID(),
-      name: classNode.data.label,
-      returnType: "",
-      isReturnArray: false,
-      visibility: "+",
-      isStatic: false,
-      isConstructor: true,
-      parameters: selectedAttrs.map((attr) => ({
-        name: attr.name,
-        type: attr.type,
-        isArray: attr.isArray,
-      })),
-    };
+  const generateConstructor = (selectedAttrs: DomainAttribute[]): DomainMethod => ({
+    id: crypto.randomUUID(),
+    name: className,
+    returnType: "",
+    isReturnArray: false,
+    visibility: "+",
+    isStatic: false,
+    isConstructor: true,
+    parameters: selectedAttrs.map((attr) => ({ name: attr.name, type: attr.type, isArray: attr.isArray })),
+  });
+
+  // Write-back: ProjectStore or ModelStore
+  const commitMethods = (newMethods: DomainMethod[]) => {
+    if (projectClassNode) {
+      updateNode(projectClassNode.id, { methods: [...existingMethods, ...newMethods] } as any);
+    } else if (irClass && nodeId && model) {
+      const existingOps = irClass.operationIds
+        .map((id) => model.operations[id])
+        .filter(Boolean) as IROperation[];
+      const newOps = newMethods.map(domainMethodToIROperation);
+      const existingAttrs = irClass.attributeIds
+        .map((id) => model.attributes[id])
+        .filter(Boolean);
+      useModelStore.getState().setElementMembers(nodeId, existingAttrs as any, [...existingOps, ...newOps]);
+    }
   };
 
   const handleGenerateGettersSetters = () => {
     const selectedAttrs = attributes.filter((a) => selectedAttributes.has(a.id));
-    const newMethods: UmlMethod[] = [];
-
+    const newMethods: DomainMethod[] = [];
     selectedAttrs.forEach((attr) => {
       newMethods.push(generateGetter(attr));
       newMethods.push(generateSetter(attr));
     });
-
-    updateNodeData(classNode.id, {
-      methods: [...existingMethods, ...newMethods],
-    });
-
+    commitMethods(newMethods);
     setSelectedAttributes(new Set());
     onClose();
   };
 
   const handleGenerateConstructor = () => {
     const selectedAttrs = attributes.filter((a) => selectedAttributes.has(a.id));
-    const constructor = generateConstructor(selectedAttrs);
-
-    updateNodeData(classNode.id, {
-      methods: [...existingMethods, constructor],
-    });
-
+    commitMethods([generateConstructor(selectedAttrs)]);
     setSelectedAttributes(new Set());
     onClose();
   };
 
   const handleGenerateAll = () => {
     const selectedAttrs = attributes.filter((a) => selectedAttributes.has(a.id));
-    const newMethods: UmlMethod[] = [];
-
-    const constructor = generateConstructor(selectedAttrs);
-    newMethods.push(constructor);
-
+    const newMethods: DomainMethod[] = [generateConstructor(selectedAttrs)];
     selectedAttrs.forEach((attr) => {
       newMethods.push(generateGetter(attr));
       newMethods.push(generateSetter(attr));
     });
-
-    updateNodeData(classNode.id, {
-      methods: [...existingMethods, ...newMethods],
-    });
-
+    commitMethods(newMethods);
     setSelectedAttributes(new Set());
     onClose();
   };
@@ -158,7 +228,7 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
                 {t("modals.methodGenerator.title")}
               </h2>
               <p className="text-sm text-text-muted">
-                {classNode.data.label}
+                {className}
               </p>
             </div>
           </div>

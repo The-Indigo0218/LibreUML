@@ -200,7 +200,7 @@ export class XmiImporterService {
 
     classLikeElements.forEach((el, index) => {
       const id         = el.getAttribute("xmi:id") || crypto.randomUUID();
-      const name       = el.getAttribute("name") || "Unnamed";
+      const name       = el.getAttribute("name")?.trim() || id;
       const xmiType    = el.getAttribute("xmi:type");
       const isAbstract = el.getAttribute("isAbstract") === "true";
 

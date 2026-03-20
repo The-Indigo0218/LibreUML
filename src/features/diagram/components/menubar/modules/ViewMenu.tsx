@@ -14,34 +14,30 @@ import { useReactFlow } from "reactflow";
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
-import { useDiagramStore } from "../../../../../store/diagramStore";
 import { useSpotlightStore } from "../../../hooks/useSpotlight";
+import { useSettingsStore } from "../../../../../store/settingsStore";
+import { useAutoLayout } from "../../../hooks/useAutoLayout";
 
-export function ViewMenu() {
+export function ViewMenuContent() {
   const { t } = useTranslation();
   
-  // React Flow Controls
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
-  // Custom Stores
-  const showMiniMap = useDiagramStore((s) => s.showMiniMap);
-  const toggleMiniMap = useDiagramStore((s) => s.toggleMiniMap);
-  const showAllEdges = useDiagramStore((s) => s.showAllEdges);
-  const toggleShowAllEdges = useDiagramStore((s) => s.toggleShowAllEdges);
-  const applyAutoLayout = useDiagramStore((s) => s.applyAutoLayout);
-  
-  // Grid & Snap 
-  const showGrid = useDiagramStore((s) => s.showGrid);
-  const toggleGrid = useDiagramStore((s) => s.toggleGrid);
-  const snapToGrid = useDiagramStore((s) => s.snapToGrid);
-  const toggleSnapToGrid = useDiagramStore((s) => s.toggleSnapToGrid);
+  const showMiniMap = useSettingsStore((s) => s.showMiniMap);
+  const toggleMiniMap = useSettingsStore((s) => s.toggleMiniMap);
+  const showGrid = useSettingsStore((s) => s.showGrid);
+  const toggleGrid = useSettingsStore((s) => s.toggleGrid);
+  const snapToGrid = useSettingsStore((s) => s.snapToGrid);
+  const toggleSnapToGrid = useSettingsStore((s) => s.toggleSnapToGrid);
+  const showAllEdges = useSettingsStore((s) => s.showAllEdges);
+  const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
+
+  const { runLayout } = useAutoLayout();
 
   const toggleSpotlight = useSpotlightStore((s) => s.toggle);
 
   return (
-    <MenubarTrigger label={t("menubar.view.title") || "View"}>
-      
-      {/* --- ZOOM CONTROLS --- */}
+    <>
       <MenubarItem
         label={t("menubar.view.zoomIn") || "Zoom In"}
         icon={<ZoomIn className="w-4 h-4" />}
@@ -63,7 +59,6 @@ export function ViewMenu() {
 
       <div className="h-px bg-surface-border my-1" />
 
-      {/* --- VISUAL AIDS --- */}
       <MenubarItem
         label={t("menubar.view.minimap") || "Show Minimap"}
         icon={
@@ -109,7 +104,6 @@ export function ViewMenu() {
 
       <div className="h-px bg-surface-border my-1" />
 
-      {/* --- TOOLS --- */}
       <MenubarItem
         label={t("menubar.view.spotlight") || "Spotlight Search"}
         icon={<Search className="w-4 h-4" />}
@@ -121,9 +115,18 @@ export function ViewMenu() {
         label={t("menubar.view.magicLayout") || "Magic Layout"}
         icon={<Wand2 className="w-4 h-4 text-purple-400" />}
         shortcut="Ctrl + L"
-        onClick={() => applyAutoLayout("TB")}
+        onClick={runLayout}
       />
+    </>
+  );
+}
 
+export function ViewMenu() {
+  const { t } = useTranslation();
+
+  return (
+    <MenubarTrigger label={t("menubar.view.title") || "View"}>
+      <ViewMenuContent />
     </MenubarTrigger>
   );
 }

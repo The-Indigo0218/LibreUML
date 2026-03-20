@@ -1,16 +1,16 @@
 import type {
-  UmlAttribute,
-  UmlMethod,
-  visibility,
-} from "../features/diagram/types/diagram.types";
+  ClassAttribute,
+  ClassMethod,
+} from "../core/domain/models/nodes/class-diagram.types";
+import type { Visibility } from "../core/domain/models/nodes/base.types";
 
 export interface ParsedClass {
   name: string;
   stereotype: "class" | "abstract" | "interface" | "enum";
   parentClass: string | null;
   interfaces: string[];
-  attributes: UmlAttribute[];
-  methods: UmlMethod[];
+  attributes: ClassAttribute[];
+  methods: ClassMethod[];
   isMain?: boolean;
   generics?: string;
   package?: string;
@@ -109,8 +109,8 @@ export class JavaParserService {
     return code.substring(firstBrace + 1, lastBrace);
   }
 
-  private static parseAttributes(body: string): UmlAttribute[] {
-    const attributes: UmlAttribute[] = [];
+  private static parseAttributes(body: string): ClassAttribute[] {
+    const attributes: ClassAttribute[] = [];
     const attrRegex =
       /(private|protected|public)\s+(\w+(?:<.+>)?(?:\[\])?)\s+(\w+)\s*;/g;
 
@@ -131,8 +131,8 @@ export class JavaParserService {
   /**
    * Parses methods updated to handle 'static' modifier
    */
-  private static parseMethods(body: string): UmlMethod[] {
-    const methods: UmlMethod[] = [];
+  private static parseMethods(body: string): ClassMethod[] {
+    const methods: ClassMethod[] = [];
     const methodRegex =
       /(private|protected|public)\s+(?:static\s+)?(?:final\s+)?(\w+(?:<.+>)?(?:\[\])?)\s+(\w+)\s*\(([^)]*)\)(?:\s*\{|;)/g;
 
@@ -164,7 +164,7 @@ export class JavaParserService {
     return methods;
   }
 
-  private static mapVisibility(javaVis: string): visibility {
+  private static mapVisibility(javaVis: string): Visibility {
     switch (javaVis) {
       case "public":
         return "+";

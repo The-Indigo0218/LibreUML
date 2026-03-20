@@ -1,26 +1,29 @@
 import { useCallback } from "react";
 import { useReactFlow } from "reactflow";
-import { useDiagramStore } from "../../../../store/diagramStore";
 
+/**
+ * TODO: SSOT Migration - Editor Controls
+ * 
+ * This hook used useDiagramStore.temporal for undo/redo.
+ * SSOT-compatible undo/redo needs to be implemented using a history system
+ * that tracks changes to ProjectStore and WorkspaceStore.
+ * 
+ * For now, returning stub functions to prevent build errors.
+ */
 export const useEditorControls = () => {
   const { fitView } = useReactFlow();
-  const temporalApi = useDiagramStore.temporal.getState;
 
-  // --- VIEW ACTIONS ---
-  
   const handleFitView = useCallback(() => {
     fitView({ duration: 800 });
   }, [fitView]);
 
-  // --- HISTORY ACTIONS ---
-
   const undo = useCallback(() => {
-    temporalApi().undo();
-  }, [temporalApi]);
+    console.warn("TODO: SSOT - Undo not implemented. Need history system for ProjectStore/WorkspaceStore");
+  }, []);
 
   const redo = useCallback(() => {
-    temporalApi().redo();
-  }, [temporalApi]);
+    console.warn("TODO: SSOT - Redo not implemented. Need history system for ProjectStore/WorkspaceStore");
+  }, []);
 
   return {
     handleFitView,

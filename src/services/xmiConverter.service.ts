@@ -1,9 +1,10 @@
+import type { DomainNode } from "../core/domain/models/nodes";
+import type { DomainEdge } from "../core/domain/models/edges";
 import type {
-  UmlClassNode,
-  UmlEdge,
-  UmlAttribute,
-  UmlMethod,
-} from "../features/diagram/types/diagram.types";
+  NoteNode,
+  ClassAttribute,
+  ClassMethod,
+} from "../core/domain/models/nodes/class-diagram.types";
 
 /**
  * Service responsible for serializing LibreUML diagram state into a
@@ -25,17 +26,17 @@ export class XmiConverterService {
    * @param diagramId  Stable identifier for the diagram (used as Model xmi:id
    *                   to ensure deterministic, round-trip-safe documents).
    * @param diagramName Human-readable name of the model.
-   * @param nodes      All diagram nodes (umlClass + umlNote).
-   * @param edges      All diagram edges.
+   * @param nodes      All diagram nodes (domain nodes).
+   * @param edges      All diagram edges (domain edges).
    */
   public static exportToXmi(
     diagramId: string,
     diagramName: string,
-    nodes: UmlClassNode[],
-    edges: UmlEdge[]
+    nodes: DomainNode[],
+    edges: DomainEdge[]
   ): string {
-    const classNodes = nodes.filter((n) => n.type === "umlClass");
-    const noteNodes  = nodes.filter((n) => n.type === "umlNote");
+    const classNodes = nodes.filter((n) => n.type !== 'NOTE');
+    const noteNodes  = nodes.filter((n) => n.type === 'NOTE') as NoteNode[];
 
     const nodeIdSet = new Set(classNodes.map((n) => n.id));
 
@@ -74,8 +75,8 @@ export class XmiConverterService {
   public static downloadXmi(
     diagramId: string,
     diagramName: string,
-    nodes: UmlClassNode[],
-    edges: UmlEdge[]
+    nodes: DomainNode[],
+    edges: DomainEdge[]
   ): void {
     const xmiContent = this.exportToXmi(diagramId, diagramName, nodes, edges);
     const blob = new Blob([xmiContent], { type: "application/xml;charset=UTF-8" });
@@ -127,13 +128,13 @@ export class XmiConverterService {
 
   private static resolveTypeAttr(
     typeName: string,
-    nodes: UmlClassNode[]
+    nodes: DomainNode[]
   ): { attr: string; resolved: boolean } {
     const clean = typeName.replace(/\[\]$/, "").trim();
     const pid = this.primitiveId(clean);
     if (pid) return { attr: ` type="${pid}"`, resolved: true };
 
-    const classId = nodes.find((n) => n.data.label === clean)?.id;
+    const classId = nodes.find((n) => 'name' in n && n.name === clean)?.id;
     if (classId) return { attr: ` type="${classId}"`, resolved: true };
 
     return { attr: "", resolved: false };
@@ -161,43 +162,49 @@ export class XmiConverterService {
 
 
   private static serializeClassifier(
-    node: UmlClassNode,
-    classNodes: UmlClassNode[],
-    edges: UmlEdge[],
+    node: DomainNode,
+    classNodes: DomainNode[],
+    edges: DomainEdge[],
     nodeIdSet: Set<string>
   ): string {
-    const { id, data } = node;
-    const name = this.escapeXml(data.label);
+    const { id } = node;
+    
+    // Type guard: Skip NOTE nodes
+    if (node.type === 'NOTE') return '';
+    
+    const name = this.escapeXml('name' in node ? node.name : '');
 
     let umlType = "uml:Class";
     let extraAttrs = "";
 
-    if (data.stereotype === "interface") {
+    if (node.type === 'INTERFACE') {
       umlType = "uml:Interface";
       extraAttrs = ' isAbstract="true"';
-    } else if (data.stereotype === "enum") {
+    } else if (node.type === 'ENUM') {
       umlType = "uml:Enumeration";
-    } else if (data.stereotype === "abstract") {
+    } else if (node.type === 'ABSTRACT_CLASS') {
       umlType = "uml:Class";
       extraAttrs = ' isAbstract="true"';
     }
 
-    const templateXml = data.generics
-      ? this.serializeTemplateSignature(id, data.generics)
+    const templateXml = ('generics' in node && node.generics)
+      ? this.serializeTemplateSignature(id, node.generics)
       : "";
 
+    const attributes = ('attributes' in node) ? node.attributes : [];
     const attributesXml = this.serializeAttributes(
-      data.attributes || [],
+      attributes,
       classNodes,
       id,
       edges,
-      data.stereotype === "enum"
+      node.type === 'ENUM'
     );
 
+    const methods = ('methods' in node) ? node.methods : [];
     const operationsXml = this.serializeOperations(
-      data.methods || [],
+      methods,
       classNodes,
-      data.stereotype === "interface" || data.stereotype === "abstract"
+      node.type === 'INTERFACE' || node.type === 'ABSTRACT_CLASS'
     );
 
     const innerRelationsXml = this.serializeInnerRelations(id, edges, nodeIdSet);
@@ -243,10 +250,10 @@ export class XmiConverterService {
   }
 
   private static serializeAttributes(
-    attributes: UmlAttribute[],
-    classNodes: UmlClassNode[],
+    attributes: ClassAttribute[],
+    classNodes: DomainNode[],
     currentNodeId: string,
-    edges: UmlEdge[],
+    edges: DomainEdge[],
     isEnum: boolean
   ): string {
     if (!attributes.length) return "";
@@ -260,15 +267,15 @@ export class XmiConverterService {
         .join("\n");
     }
 
-    const associationTypes = new Set(["association", "aggregation", "composition"]);
+    const associationTypes = new Set(['ASSOCIATION', 'AGGREGATION', 'COMPOSITION']);
     const outgoingAssocTargets = new Set(
       edges
         .filter(
           (e) =>
-            e.source === currentNodeId &&
-            associationTypes.has(e.data?.type || e.type || "")
+            e.sourceNodeId === currentNodeId &&
+            associationTypes.has(e.type)
         )
-        .map((e) => e.target)
+        .map((e) => e.targetNodeId)
     );
 
     return attributes
@@ -278,7 +285,7 @@ export class XmiConverterService {
         const cleanType   = attr.type.replace(/\[\]$/, "").trim();
         const { attr: typeAttr } = this.resolveTypeAttr(cleanType, classNodes);
 
-        const refClassId = classNodes.find((n) => n.data.label === cleanType)?.id;
+        const refClassId = classNodes.find((n) => 'name' in n && n.name === cleanType)?.id;
         if (refClassId && outgoingAssocTargets.has(refClassId)) return "";
 
         const multiplicityXml = this.multiplicityXml(attr.id, attr.isArray);
@@ -297,8 +304,8 @@ export class XmiConverterService {
 
 
   private static serializeOperations(
-    methods: UmlMethod[],
-    classNodes: UmlClassNode[],
+    methods: ClassMethod[],
+    classNodes: DomainNode[],
     classifierIsAbstract: boolean
   ): string {
     if (!methods.length) return "";
@@ -360,26 +367,26 @@ export class XmiConverterService {
  
   private static serializeInnerRelations(
     nodeId: string,
-    edges: UmlEdge[],
+    edges: DomainEdge[],
     nodeIdSet: Set<string>
   ): string {
     return edges
-      .filter((e) => e.source === nodeId)
+      .filter((e) => e.sourceNodeId === nodeId)
       .map((edge) => {
-        const type = edge.data?.type || edge.type;
-        if (!nodeIdSet.has(edge.target)) return "";
+        const type = edge.type;
+        if (!nodeIdSet.has(edge.targetNodeId)) return "";
 
-        if (type === "inheritance") {
-          return `      <generalization xmi:type="uml:Generalization" xmi:id="${edge.id}" general="${edge.target}"/>`;
+        if (type === 'INHERITANCE') {
+          return `      <generalization xmi:type="uml:Generalization" xmi:id="${edge.id}" general="${edge.targetNodeId}"/>`;
         }
-        if (type === "implementation") {
+        if (type === 'IMPLEMENTATION') {
           return [
             `      <interfaceRealization`,
             `        xmi:type="uml:InterfaceRealization"`,
             `        xmi:id="${edge.id}"`,
             `        client="${nodeId}"`,
-            `        supplier="${edge.target}"`,
-            `        contract="${edge.target}"/>`,
+            `        supplier="${edge.targetNodeId}"`,
+            `        contract="${edge.targetNodeId}"/>`,
           ].join(" ");
         }
         return "";
@@ -389,24 +396,24 @@ export class XmiConverterService {
   }
 
   private static serializeRootRelations(
-    edges: UmlEdge[],
-    classNodes: UmlClassNode[],
+    edges: DomainEdge[],
+    classNodes: DomainNode[],
     nodeIdSet: Set<string>
   ): string {
     return edges
       .map((edge) => {
-        const type = edge.data?.type || edge.type;
+        const type = edge.type;
 
-        if (type === "inheritance" || type === "implementation") return "";
+        if (type === 'INHERITANCE' || type === 'IMPLEMENTATION') return "";
 
-        if (!nodeIdSet.has(edge.source) || !nodeIdSet.has(edge.target)) return "";
+        if (!nodeIdSet.has(edge.sourceNodeId) || !nodeIdSet.has(edge.targetNodeId)) return "";
 
-        if (type === "dependency") {
-          return `    <packagedElement xmi:type="uml:Dependency" xmi:id="${edge.id}" client="${edge.source}" supplier="${edge.target}"/>`;
+        if (type === 'DEPENDENCY') {
+          return `    <packagedElement xmi:type="uml:Dependency" xmi:id="${edge.id}" client="${edge.sourceNodeId}" supplier="${edge.targetNodeId}"/>`;
         }
 
-        if (["association", "aggregation", "composition"].includes(type || "")) {
-          return this.serializeAssociation(edge, classNodes, type!);
+        if (['ASSOCIATION', 'AGGREGATION', 'COMPOSITION'].includes(type)) {
+          return this.serializeAssociation(edge, classNodes, type);
         }
 
         return "";
@@ -417,40 +424,40 @@ export class XmiConverterService {
 
 
   private static serializeAssociation(
-    edge: UmlEdge,
-    classNodes: UmlClassNode[],
+    edge: DomainEdge,
+    classNodes: DomainNode[],
     relationType: string
   ): string {
     const id         = edge.id;
-    const sourceId   = edge.source;
-    const targetId   = edge.target;
+    const sourceId   = edge.sourceNodeId;
+    const targetId   = edge.targetNodeId;
     const endSrcId   = `${id}_endSource`;
     const endTgtId   = `${id}_endTarget`;
 
     const sourceNode = classNodes.find((n) => n.id === sourceId);
     const targetNode = classNodes.find((n) => n.id === targetId);
-    const sourceRole = this.escapeXml(
-      sourceNode?.data.label.charAt(0).toLowerCase() +
-      (sourceNode?.data.label.slice(1) || "source")
-    );
-    const targetRole = this.escapeXml(
-      targetNode?.data.label.charAt(0).toLowerCase() +
-      (targetNode?.data.label.slice(1) || "target")
-    );
+    
+    const getNodeName = (node: DomainNode | undefined): string => {
+      if (!node || !('name' in node)) return 'source';
+      return node.name.charAt(0).toLowerCase() + node.name.slice(1);
+    };
+    
+    const sourceRole = this.escapeXml(getNodeName(sourceNode));
+    const targetRole = this.escapeXml(getNodeName(targetNode));
 
     const aggregationAttr =
-      relationType === "composition"
+      relationType === 'COMPOSITION'
         ? ' aggregation="composite"'
-        : relationType === "aggregation"
+        : relationType === 'AGGREGATION'
         ? ' aggregation="shared"'
         : "";
 
-    const [srcLower, srcUpper] = this.parseMultiplicityBounds(
-      edge.data?.sourceMultiplicity ?? "1"
-    );
-    const [tgtLower, tgtUpper] = this.parseMultiplicityBounds(
-      edge.data?.targetMultiplicity ?? "0..*"
-    );
+    // Access multiplicity from domain edge (if it has Multiplicable mixin)
+    const sourceMultiplicity = ('sourceMultiplicity' in edge) ? edge.sourceMultiplicity : '1';
+    const targetMultiplicity = ('targetMultiplicity' in edge) ? edge.targetMultiplicity : '0..*';
+    
+    const [srcLower, srcUpper] = this.parseMultiplicityBounds(sourceMultiplicity || "1");
+    const [tgtLower, tgtUpper] = this.parseMultiplicityBounds(targetMultiplicity || "0..*");
 
     return [
       `    <packagedElement xmi:type="uml:Association" xmi:id="${id}">`,
@@ -470,23 +477,23 @@ export class XmiConverterService {
 
 
   private static serializeNotes(
-    noteNodes: UmlClassNode[],
-    edges: UmlEdge[],
+    noteNodes: NoteNode[],
+    edges: DomainEdge[],
     nodeIdSet: Set<string>
   ): string {
     if (!noteNodes.length) return "";
 
     return noteNodes
       .map((note) => {
-        const body = this.escapeXml(note.data.content || note.data.label || "");
+        const body = this.escapeXml(note.content || "");
 
         const annotated = edges
           .filter(
             (e) =>
-              (e.data?.type === "note" || e.type === "note") &&
-              (e.source === note.id || e.target === note.id)
+              e.type === 'NOTE_LINK' &&
+              (e.sourceNodeId === note.id || e.targetNodeId === note.id)
           )
-          .map((e) => (e.source === note.id ? e.target : e.source))
+          .map((e) => (e.sourceNodeId === note.id ? e.targetNodeId : e.sourceNodeId))
           .filter((id) => nodeIdSet.has(id));
 
         const annotatedAttr = annotated.length

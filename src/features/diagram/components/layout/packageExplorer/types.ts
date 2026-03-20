@@ -48,6 +48,7 @@ export interface PackageItemProps {
   onToggle: (path: string) => void;
   onClassToggle: (classId: string) => void;
   onClassClick: (nodeId: string) => void;
+  onEditClass: (nodeId: string) => void;
   onPackageContextMenu: (e: React.MouseEvent, packagePath: string, packageName: string) => void;
   onClassContextMenu: (e: React.MouseEvent, classId: string, className: string) => void;
   onRenameClass: (classId: string, newName: string) => void;
@@ -64,6 +65,7 @@ export interface ClassItemProps {
   isRenaming: boolean;
   onToggle: (classId: string) => void;
   onClassClick: (nodeId: string) => void;
+  onEditClass: (nodeId: string) => void;
   onContextMenu: (e: React.MouseEvent, classId: string, className: string) => void;
   onRename: (classId: string, newName: string) => void;
   onCancelRename: () => void;

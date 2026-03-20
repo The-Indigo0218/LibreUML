@@ -65,15 +65,17 @@
     },
     "export": {
       "title": "Exportar",
-      "image": "Imagen (PNG/SVG)...",
+      "diagram": "Exportar Diagrama...",
       "pdf": "Exportar PDF (Pronto)",
-      "github": "Publicar en GitHub"
+      "cloud": "Publicar en Nube (Pronto)",
+      "github": "Publicar en GitHub (Pronto)"
     },
     "code": {
       "title": "Código",
       "generateClass": "Generar Código de Clase...",
       "generateProject": "Generar Proyecto (.zip)...",
       "importJava": "Importar Código Java...",
+      "exportConfig": "Exportar Código Fuente...",
       "livePreview": "Vista Previa en Vivo"
     },
     "edu": {
@@ -88,6 +90,7 @@
     "help": {
       "title": "Ayuda",
       "gettingStarted": "Primeros Pasos",
+      "keyboardShortcuts": "Atajos de Teclado",
       "documentation": "Documentación",
       "reportIssue": "Reportar Error",
       "roadmap": "Hoja de Ruta",
@@ -96,6 +99,9 @@
   },
   "sidebar": {
     "toolbox": "Caja de Herramientas",
+    "project_structure": "Estructura del Proyecto",
+    "outline": "Esquema",
+    "project_files": "Archivos del Proyecto",
     "explorer": "Explorador",
     "addPackage": "Añadir Nuevo Paquete",
     "packageName": "Nombre del paquete...",
@@ -140,7 +146,9 @@
       "duplicate": "Duplicar",
       "edit": "Editar Propiedades",
       "delete": "Eliminar",
-      "generateCode": "Generar Código..."
+      "generateCode": "Generar Código...",
+      "generateMethods": "Generar Getters y Setters...",
+      "addToProject": "Añadir al Proyecto"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",
@@ -300,5 +308,334 @@
     "aggregation": "tiene un",
     "dependency": "usa",
     "association": ""
+  },
+  "common": {
+    "open_file": "Abrir archivo"
+  },
+  "tools": {
+    "enum": "Enumeración"
+  },
+  "actions": {
+    "rename": "Renombrar",
+    "delete": "Eliminar",
+    "open": "Abrir",
+    "addToProject": "Añadir al proyecto"
+  },
+  "activityBar": {
+    "projectStructure": "Estructura del Proyecto",
+    "packageExplorer": "Explorador de Paquetes",
+    "modelingTools": "Herramientas de Modelado",
+    "userProfile": "Perfil de Usuario",
+    "cloudSync": "Sincronización en Nube",
+    "githubIntegration": "Integración con GitHub",
+    "bugReport": "Reportar Error"
+  },
+  "statusbar": {
+    "problems": "Problemas",
+    "activeFile": "Archivo activo",
+    "untitled": "Sin título",
+    "validator": "Validador UML",
+    "umlValidator": "Validador UML",
+    "languageMode": "Seleccionar lenguaje destino",
+    "cloudSynced": "Nube sincronizada",
+    "cloudDisconnected": "Nube desconectada"
+  },
+  "welcome": {
+    "subtitle": "Diseña, Genera y Evoluciona tu arquitectura de software.",
+    "recentProjects": "Proyectos Recientes",
+    "startActions": "Acciones de Inicio",
+    "openProject": "Abrir proyecto",
+    "createProject": "Crear nuevo proyecto",
+    "openGithub": "Abrir proyecto de GitHub",
+    "starRepo": "Dar estrella al repositorio",
+    "viewDocs": "Ver documentación",
+    "getStarted": "Comenzar",
+    "footerPrefix": "Para empezar",
+    "footerOpenLink": "abre un proyecto",
+    "footerOr": "o",
+    "footerCreateLink": "crea uno nuevo"
+  },
+  "sleepScreen": {
+    "title": "Ningún archivo abierto",
+    "subtitle": "Abre un archivo o crea un nuevo diagrama para comenzar",
+    "shortcuts": {
+      "newFile": "Nuevo Archivo",
+      "openFile": "Abrir Archivo",
+      "save": "Guardar",
+      "quickOpen": "Apertura Rápida",
+      "spotlight": "Búsqueda Rápida",
+      "export": "Exportar Diagrama"
+    },
+    "quote": "\"Una buena arquitectura hace que el sistema sea fácil de entender, desarrollar, mantener y desplegar. El objetivo es minimizar el costo de vida útil y maximizar la productividad del programador.\" — Robert C. Martin"
+  },
+  "terminal": {
+    "tabs": {
+      "terminal": "Terminal",
+      "problems": "Problemas"
+    },
+    "placeholder": "escribe un comando…",
+    "noProblems": "No se detectaron problemas."
+  },
+  "windowControls": {
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "close": "Cerrar"
+  },
+  "primarySidebar": {
+    "userProfile": "Perfil de usuario próximamente",
+    "cloudSync": "Sincronización en nube próximamente",
+    "githubIntegration": "Integración con GitHub próximamente",
+    "bugReport": "Reporte de errores próximamente"
+  },
+  "packageExplorer": {
+    "title": "Paquetes",
+    "newPackage": "Nuevo Paquete",
+    "noPackages": "No hay paquetes o clases todavía",
+    "addClasses": "Añade clases a tu diagrama",
+    "expandAll": "Expandir Todo",
+    "collapseAll": "Contraer Todo",
+    "packageNameExists": "El nombre del paquete ya existe en este nivel",
+    "emptyPackage": "vacío",
+    "noPackage": "(Sin Paquete)"
+  },
+  "projectStructure": {
+    "title": "Archivos del Proyecto",
+    "newFile": "Nuevo Archivo",
+    "newFolder": "Nueva Carpeta",
+    "closePanel": "Cerrar Panel",
+    "emptyProject": "Proyecto vacío",
+    "addFilesAndFolders": "Añade archivos y carpetas para comenzar",
+    "noProjectActive": "No hay proyecto activo",
+    "unsyncedChanges": "Cambios sin Sincronizar",
+    "allFilesSynced": "Todos los archivos están sincronizados.",
+    "openFile": "Abrir Archivo",
+    "rename": "Renombrar",
+    "editDetails": "Editar Detalles",
+    "viewDescription": "Ver Descripción",
+    "newFileInside": "Nuevo Archivo dentro",
+    "newFolderInside": "Nueva Carpeta dentro",
+    "delete": "Eliminar"
+  },
+  "createProjectModal": {
+    "title": "Crear Nuevo Proyecto",
+    "projectName": "Nombre del Proyecto",
+    "projectNameRequired": "El nombre del proyecto es obligatorio",
+    "projectNamePlaceholder": "Mi Proyecto UML",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional del proyecto",
+    "cancel": "Cancelar",
+    "createProject": "Crear Proyecto"
+  },
+  "createFileModal": {
+    "title": "Crear Nuevo Archivo",
+    "editTitle": "Editar Archivo",
+    "fileName": "Nombre del Archivo",
+    "fileNameRequired": "El nombre del archivo es obligatorio",
+    "fileNamePlaceholder": "MiDiagrama",
+    "diagramType": "Tipo de Diagrama",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional del archivo",
+    "cancel": "Cancelar",
+    "createFile": "Crear Archivo",
+    "saveChanges": "Guardar Cambios",
+    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación"
+  },
+  "createFolderModal": {
+    "title": "Crear Nueva Carpeta",
+    "editTitle": "Editar Carpeta",
+    "folderName": "Nombre de la Carpeta",
+    "folderNameRequired": "El nombre de la carpeta es obligatorio",
+    "folderNamePlaceholder": "Mi Carpeta",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional de la carpeta",
+    "cancel": "Cancelar",
+    "createFolder": "Crear Carpeta",
+    "saveChanges": "Guardar Cambios",
+    "folderNameExists": "Ya existe una carpeta con este nombre en esta ubicación"
+  },
+  "viewDescriptionModal": {
+    "description": "Descripción",
+    "noDescription": "No se proporcionó descripción",
+    "close": "Cerrar"
+  },
+  "closeProjectModal": {
+    "title": "Cerrar Proyecto",
+    "message": "Los cambios no guardados se perderán. ¿Estás seguro de que quieres cerrar el proyecto?",
+    "dontShowAgain": "No mostrar esto de nuevo",
+    "cancel": "Cancelar",
+    "closeProject": "Cerrar Proyecto"
+  },
+  "nameConflictModal": {
+    "title": "Conflicto de Nombre",
+    "message": "Has cambiado el nombre del diagrama a \"{diagramName}\", pero estás editando el archivo \"{currentFileName}.luml\".",
+    "question": "¿Qué te gustaría hacer?",
+    "saveAsNew": "Guardar como \"{diagramName}.luml\"",
+    "newFile": "Nuevo Archivo",
+    "overwrite": "Sobrescribir \"{currentFileName}.luml\"",
+    "keepFile": "Mantener Archivo",
+    "cancel": "Cancelar"
+  },
+  "ssotElementEditor": {
+    "title": "Editar",
+    "name": "Nombre",
+    "visibility": "Visibilidad",
+    "abstractClass": "Clase abstracta",
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  },
+  "vfsEdgeAction": {
+    "title": "Editar Relación",
+    "relationType": "Tipo de Relación",
+    "origin": "Origen",
+    "destination": "Destino",
+    "changeDirection": "Cambiar Dirección",
+    "reversed": "Revertido ✓",
+    "multiplicityAndRoles": "Multiplicidad y Roles",
+    "role": "Rol (ej: empleado)",
+    "multiplicity": "Multiplicidad",
+    "lockAnchors": "Bloquear puntos de conexión",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  },
+  "globalDeleteModal": {
+    "title": "Eliminar del Proyecto",
+    "message": "Esto eliminará permanentemente \"{name}\" ({type}) de todo el proyecto.",
+    "allDiagrams": "Se eliminará de TODOS los diagramas, junto con cualquier asociación, generalización u otra relación que lo conecte.",
+    "cannotUndo": "Esta acción no se puede deshacer.",
+    "cancel": "Cancelar",
+    "deleteFromProject": "Eliminar del Proyecto"
+  },
+  "autoLayoutWarning": {
+    "title": "Diseño Automático Bloqueado",
+    "message": "Algunos bordes tienen anclajes bloqueados. El diseño automático omitirá estas conexiones para preservar tu posicionamiento manual.",
+    "tip": "Para desbloquear: clic derecho en un borde → desmarcar \"Bloquear puntos de conexión\"",
+    "dontShowAgain": "No mostrar esto de nuevo",
+    "continue": "Continuar"
+  },
+  "openFileModal": {
+    "title": "Abrir Archivo",
+    "supportedFormats": "Formatos soportados: .luml (LibreUML) y .xmi",
+    "question": "¿Cómo te gustaría abrir este archivo?",
+    "addToProject": "Añadir al Proyecto",
+    "addToProjectDesc": "Anidar dentro del espacio de trabajo del proyecto actual",
+    "openStandalone": "Abrir Independiente",
+    "openStandaloneDesc": "Abrir como un archivo externo separado",
+    "lumlNote": "Las exportaciones de proyecto .luml reemplazan el espacio de trabajo. Las exportaciones de diagrama .luml siguen el modo que seleccionaste arriba.",
+    "cancel": "Cancelar",
+    "opening": "Abriendo…"
+  },
+  "mobileGuard": {
+    "title": "Solo Desktop",
+    "message": "LibreUML es una herramienta de ingeniería que requiere precisión. Por favor, abre esta aplicación en una computadora para diseñar tus diagramas.",
+    "footer": "Resolución actual no soportada"
+  },
+  "rightSidebar": {
+    "title": "Explorador de Modelo",
+    "closePanel": "Cerrar Panel",
+    "noModel": "Abre un diagrama .luml y arrastra elementos para poblar el modelo.",
+    "classes": "Clases",
+    "abstractClasses": "Clases Abstractas",
+    "interfaces": "Interfaces",
+    "enums": "Enumeraciones",
+    "newClass": "Nueva Clase",
+    "newAbstractClass": "Nueva Clase Abstracta",
+    "newInterface": "Nueva Interfaz",
+    "newEnum": "Nueva Enumeración",
+    "edit": "Editar...",
+    "deleteFromProject": "Eliminar del Proyecto",
+    "none": "— ninguno —"
+  },
+  "toolPalette": {
+    "title": "Caja de Herramientas",
+    "autoLayout": "Diseño",
+    "nodes": "Nodos",
+    "connections": "Conexiones",
+    "legend": "Lógica de Conexión"
+  },
+  "canvas": {
+    "loading": "Cargando diagrama..."
+  },
+  "validation": {
+    "duplicateElement": "Elemento duplicado",
+    "permissionDenied": "Permiso denegado",
+    "invalidName": "Nombre inválido",
+    "classNameExists": "El nombre de clase ya existe en este paquete",
+    "attributeNameExists": "El nombre del atributo ya existe en esta clase",
+    "methodSignatureExists": "La firma del método ya existe en esta clase"
+  },
+  "codeExportModal": {
+    "title": "Exportar Código Fuente",
+    "subtitle": "Configurar ajustes de generación de código",
+    "targetLanguage": "Lenguaje Destino",
+    "comingSoon": "Próximamente",
+    "classSelector": {
+      "title": "Seleccionar Clases para Exportar",
+      "selectAll": "Seleccionar Todo",
+      "deselectAll": "Deseleccionar Todo",
+      "noClasses": "No hay clases disponibles en el diagrama actual",
+      "selectedCount": "{{count}} clase(s) seleccionada(s)"
+    },
+    "options": {
+      "title": "Opciones de Generación",
+      "generateGettersSetters": "Generar Getters y Setters",
+      "generateGettersSettersDesc": "Crear automáticamente métodos de acceso para todos los atributos",
+      "generateEmptyConstructors": "Generar Constructores Vacíos",
+      "generateEmptyConstructorsDesc": "Crear constructores predeterminados sin argumentos",
+      "includePackageDeclaration": "Incluir Declaración de Paquete",
+      "includePackageDeclarationDesc": "Agregar declaración de paquete al inicio de cada archivo",
+      "generateDocStubs": "Generar Plantillas de Documentación",
+      "generateDocStubsDesc": "Agregar plantillas de comentarios Javadoc/XML doc"
+    },
+    "compatibility": {
+      "warning": "La generación de código solo es compatible con Diagramas de Clases",
+      "currentDiagram": "Tipo de diagrama actual: {{type}}",
+      "switchToClassDiagram": "Por favor abre o crea un Diagrama de Clases para usar esta función"
+    },
+    "actions": {
+      "cancel": "Cancelar",
+      "export": "Exportar Código",
+      "exportDisabled": "Selecciona al menos una clase para exportar"
+    }
+  },
+  "keyboardShortcuts": {
+    "title": "Atajos de Teclado",
+    "subtitle": "Domina LibreUML con estos atajos",
+    "footerNote": "Presiona ESC para cerrar este diálogo en cualquier momento",
+    "categories": {
+      "general": "General",
+      "canvas": "Lienzo",
+      "terminal": "Terminal"
+    },
+    "shortcuts": {
+      "openFile": "Abrir Archivo",
+      "save": "Guardar",
+      "export": "Exportar Diagrama",
+      "spotlight": "Búsqueda Rápida",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "magicLayout": "Diseño Automático Mágico",
+      "generateCode": "Generar Código",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "fitView": "Ajustar Vista",
+      "delete": "Eliminar Seleccionado",
+      "commandHistoryUp": "Comando Anterior",
+      "commandHistoryDown": "Comando Siguiente",
+      "autocomplete": "Autocompletar",
+      "clearInput": "Limpiar Entrada"
+    },
+    "actions": {
+      "close": "¡Entendido!"
+    }
+  },
+  "singleClassGenerator": {
+    "title": "Generar Código de Clase",
+    "selectClass": "Seleccionar Clase",
+    "copyCode": "Copiar Código"
   }
 }

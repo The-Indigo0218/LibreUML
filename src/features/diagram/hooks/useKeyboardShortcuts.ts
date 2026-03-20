@@ -1,7 +1,12 @@
 import { useEffect } from "react";
-import { useDiagramStore } from "../../../store/diagramStore";
+import { useAutoLayout } from "./useAutoLayout";
+import { useUiStore } from "../../../store/uiStore";
 
 export const useKeyboardShortcuts = () => {
+  const { runLayout } = useAutoLayout();
+  const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
+  const openExportModal = useUiStore((s) => s.openExportModal);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -10,32 +15,31 @@ export const useKeyboardShortcuts = () => {
       )
         return;
 
-      const temporal = useDiagramStore.temporal.getState();
-      const { applyAutoLayout } = useDiagramStore.getState();
-
-      // Undo/Redo
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
-        if (e.shiftKey) {
-          temporal.redo();
-        } else {
-          temporal.undo();
-        }
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === "y") {
         e.preventDefault();
-        temporal.redo();
       }
 
-      // Magic Layout (Ctrl+L or Cmd+L)
       if ((e.ctrlKey || e.metaKey) && e.key === "l") {
         e.preventDefault();
-        applyAutoLayout("TB");
+        runLayout();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "o") {
+        e.preventDefault();
+        openOpenFileModal();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "e") {
+        e.preventDefault();
+        openExportModal();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [runLayout, openOpenFileModal, openExportModal]);
 };

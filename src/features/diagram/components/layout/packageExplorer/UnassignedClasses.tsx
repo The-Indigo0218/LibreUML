@@ -9,6 +9,7 @@ interface UnassignedClassesProps {
   expandedClasses: Set<string>;
   renamingId: string | null;
   onClassClick: (nodeId: string) => void;
+  onEditClass: (nodeId: string) => void;
   onClassToggle: (classId: string) => void;
   onClassContextMenu?: (e: React.MouseEvent, classId: string, className: string) => void;
   onRenameClass?: (classId: string, newName: string) => void;
@@ -21,7 +22,8 @@ export function UnassignedClasses({
   nodes, 
   expandedClasses,
   renamingId,
-  onClassClick, 
+  onClassClick,
+  onEditClass,
   onClassToggle,
   onClassContextMenu,
   onRenameClass,
@@ -61,6 +63,7 @@ export function UnassignedClasses({
               isRenaming={renamingId === node.id}
               onToggle={onClassToggle}
               onClassClick={onClassClick}
+              onEditClass={onEditClass}
               onContextMenu={onClassContextMenu || (() => {})}
               onRename={onRenameClass || (() => {})}
               onCancelRename={onCancelRename || (() => {})}

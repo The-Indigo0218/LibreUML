@@ -9,11 +9,11 @@ import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrig
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useTranslation } from "react-i18next";
 
-export function EduMenu() {
+export function EduMenuContent() {
   const { t } = useTranslation();
+  
   return (
-    <MenubarTrigger label={t("menubar.edu.title")}>
-      
+    <>
       <div className="px-2 py-1.5 text-xs font-semibold text-text-muted select-none">
         Learning Tools (Coming Soon)
       </div>
@@ -21,13 +21,13 @@ export function EduMenu() {
       <MenubarItem
         label={t("menubar.edu.linter")}
         icon={<CheckCircle2 className="w-4 h-4" />}
-        disabled={true} // 🔒 Incoming
+        disabled={true}
       />
 
       <MenubarItem
         label={t("menubar.edu.exam")}
         icon={<GraduationCap className="w-4 h-4" />}
-        disabled={true} // 🔒 Incoming
+        disabled={true}
       />
 
       <div className="h-px bg-surface-border my-1" />
@@ -35,21 +35,30 @@ export function EduMenu() {
       <MenubarItem
         label={t("menubar.edu.achievements")}
         icon={<Award className="w-4 h-4" />}
-        disabled={true} // 🔒 Incoming
+        disabled={true}
       />
 
       <MenubarItem
         label={t("menubar.edu.gamification")}
         icon={<Gamepad2 className="w-4 h-4" />}
-        disabled={true} // 🔒 Incoming
+        disabled={true}
       />
 
       <MenubarItem
         label={t("menubar.edu.certificates")}
         icon={<ScrollText className="w-4 h-4" />}
-        disabled={true} // 🔒 Incoming
+        disabled={true}
       />
+    </>
+  );
+}
 
+export function EduMenu() {
+  const { t } = useTranslation();
+  
+  return (
+    <MenubarTrigger label={t("menubar.edu.title")}>
+      <EduMenuContent />
     </MenubarTrigger>
   );
 }

@@ -1,27 +1,26 @@
 import { useCallback } from "react";
-import { type Node } from "reactflow";
-import { useDiagramStore } from "../../../store/diagramStore";
+import type { Node } from "reactflow";
 
+/**
+ * Node dragging hook - SSOT Version
+ * 
+ * The legacy version used temporal (zundo) for history snapshots and
+ * recalculated edge connections on drag. In the new SSOT architecture:
+ * - Position changes are persisted via useDiagram.onNodesChange
+ * - Edge connections are computed from domain data (no recalculation needed)
+ * - Undo/redo will be re-implemented as a future feature
+ */
 export const useNodeDragging = () => {
-  const triggerHistorySnapshot = useDiagramStore((s) => s.triggerHistorySnapshot);
-  const recalculateNodeConnections = useDiagramStore((s) => s.recalculateNodeConnections);
-  
-  const temporal = useDiagramStore.temporal.getState();
-
   const onNodeDragStart = useCallback(() => {
-
-    triggerHistorySnapshot();
-
-    temporal.pause();
-  }, [triggerHistorySnapshot, temporal]);
+    // Future: trigger history snapshot for undo/redo
+  }, []);
 
   const onNodeDragStop = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      recalculateNodeConnections(node.id);
-
-      temporal.resume();
+    (_: React.MouseEvent, _node: Node) => {
+      // Position is already persisted by useDiagram.onNodesChange
+      // Edge recalculation is handled by the view mapper
     },
-    [recalculateNodeConnections, temporal]
+    []
   );
 
   return { onNodeDragStart, onNodeDragStop };

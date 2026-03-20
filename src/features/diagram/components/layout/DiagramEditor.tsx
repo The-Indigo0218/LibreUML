@@ -2,59 +2,97 @@ import { useState } from "react";
 import { ReactFlowProvider } from "reactflow";
 import DiagramCanvas from "./DiagramCanvas";
 import AppMenubar from "../menubar/AppMenubar";
-import Toast from "../../../../components/shared/Toast";
-import { useDiagramStore } from "../../../../store/diagramStore";
 import ActivityBar, { type ActivityTab } from "./ActivityBar";
 import PrimarySideBar from "./PrimarySideBar";
-
-import { useAutoSave } from "../../../../hooks/useAutosave";
+import RightSidebar from "./RightSidebar";
+import BottomTerminal from "./BottomTerminal";
+import StatusBar from "./StatusBar";
+import TabBar from "./TabBar";
+import WelcomeScreen from "../../../workspace/components/WelcomeScreen";
+import SleepScreen from "../../../workspace/components/SleepScreen";
+import SSoTElementEditorModal from "../modals/SSoTElementEditorModal";
+import SSoTClassEditorModal from "../modals/SSoTClassEditorModal";
+import GlobalDeleteModal from "../modals/GlobalDeleteModal";
+import ToastContainer from "../../../../components/shared/ToastContainer";
+import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
-
-function DiagramManager() {
-  useAutoRestore();
-  useAutoSave();
-  return null;
-}
+import { useThemeSystem } from "../../../../hooks/useThemeSystem";
+import { useVFSStore } from "../../../../store/project-vfs.store";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useLayoutStore } from "../../../../store/layout.store";
 
 function EditorLogic() {
-  const activeToast = useDiagramStore((s) => s.activeToast);
-  const dismissToast = useDiagramStore((s) => s.dismissToast);
-  const isHydrated = useDiagramStore((s) => s.isHydrated);
-  const [activeTab, setActiveTab] = useState<ActivityTab>("tools");
+  const [activeTab, setActiveTab] = useState<ActivityTab>("structure");
+  const { project } = useVFSStore();
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const { isLeftPanelOpen, isRightPanelOpen, isBottomPanelOpen } = useLayoutStore();
 
-  if (!isHydrated) {
+  useAutoSave();
+  useAutoRestore();
+  useThemeSystem();
+
+  if (!project) {
     return (
-      <div className="flex w-screen h-screen items-center justify-center bg-gray-900 flex-col gap-4">
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-gray-400 font-medium tracking-wide">Inicializando LibreUML...</p>
-        <DiagramManager /> 
+      <div className="h-screen w-screen">
+        <WelcomeScreen />
       </div>
     );
   }
 
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-gray-50">
-      <DiagramManager />
-
       <AppMenubar />
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0">
         <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />
-        <PrimarySideBar activeTab={activeTab} />
 
-        <div className="flex-1 relative bg-slate-50 min-w-0">
-          <DiagramCanvas />
+        {/* ── Left panel (slides in/out) ─────────────────────────────── */}
+        <div
+          className={`h-full overflow-hidden transition-all duration-200 ease-in-out shrink-0 min-w-0 ${
+            isLeftPanelOpen ? "w-64" : "w-0"
+          }`}
+        >
+          <PrimarySideBar activeTab={activeTab} />
+        </div>
+
+        {/* ── Center column: tabs + canvas + bottom terminal ─────────── */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
+          <TabBar />
+
+          {/* Canvas row: diagram + right sidebar */}
+          <div className="flex flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-hidden">
+              {activeTabId ? <DiagramCanvas /> : <SleepScreen />}
+            </div>
+
+            {/* ── Right sidebar (slides in/out) ───────────────────────── */}
+            <div
+              className={`overflow-hidden transition-all duration-200 ease-in-out shrink-0 ${
+                isRightPanelOpen ? "w-64" : "w-0"
+              }`}
+            >
+              <RightSidebar />
+            </div>
+          </div>
+
+          {/* ── Bottom terminal (slides in/out) ─────────────────────── */}
+          <div
+            className={`overflow-hidden transition-all duration-200 ease-in-out shrink-0 ${
+              isBottomPanelOpen ? "h-72" : "h-0"
+            }`}
+          >
+            <BottomTerminal />
+          </div>
         </div>
       </div>
 
-      {activeToast && (
-        <Toast 
-          message={activeToast.message}
-          type={activeToast.type}
-          onClose={dismissToast} 
-          duration={3000}
-        />
-      )}
+      <StatusBar />
+
+      {/* ── VFS-native modals (portal-rendered, outside layout tree) ──── */}
+      <SSoTElementEditorModal />
+      <SSoTClassEditorModal />
+      <GlobalDeleteModal />
+      <ToastContainer />
     </div>
   );
 }

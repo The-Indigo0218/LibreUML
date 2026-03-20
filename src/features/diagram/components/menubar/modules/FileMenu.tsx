@@ -1,80 +1,96 @@
-import { useRef } from "react";
-import { 
-  FilePlus, 
-  FolderOpen, 
-  Save, 
-  LogOut, 
-  XCircle, 
-  FileOutput, 
+import { useState } from "react";
+import {
+  FilePlus,
+  FolderOpen,
+  Save,
+  LogOut,
+  XCircle,
+  FileOutput,
   RotateCcw,
-  FileCode2 
+  Download,
+  FileDown,
+  FolderX,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useDiagramActions } from "../../../hooks/useDiagramActions";
-import { useDiagramStore } from "../../../../../store/diagramStore";
-import { XmiImporterService } from "../../../../../services/xmiImporter.service";
+import { useWorkspaceStore } from "../../../../../store/workspace.store";
+import {
+  downloadProject,
+  exportDiagram,
+} from "../../../../../services/projectIO.service";
+import { useVFSStore } from "../../../../../store/project-vfs.store";
+import { useUiStore } from "../../../../../store/uiStore";
+import type { VFSFile } from "../../../../../core/domain/vfs/vfs.types";
+import CloseProjectModal, {
+  isCloseProjectWarningSuppressed,
+} from "../../modals/CloseProjectModal";
 
 interface FileMenuProps {
   actions: ReturnType<typeof useDiagramActions>;
+  onOpenProjectProperties?: () => void;
 }
 
-export function FileMenu({ actions }: FileMenuProps) {
+export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
   const { t } = useTranslation();
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const xmiInputRef = useRef<HTMLInputElement>(null);
 
-  const loadDiagram = useDiagramStore((s) => s.loadDiagram);
+  const activeProject = useVFSStore((s) => s.project);
+  const closeProject = useVFSStore((s) => s.closeProject);
+  const closeAllFiles = useWorkspaceStore((s) => s.closeAllFiles);
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
+  const [isCloseProjectModalOpen, setIsCloseProjectModalOpen] = useState(false);
 
-  const { 
-    handleNew, 
-    handleOpen, 
-    handleWebImport,
-    handleSave, 
-    handleSaveAs, 
-    handleCloseFile, 
-    handleExit, 
+  const {
+    handleNew,
+    handleSave,
+    handleSaveAs,
+    handleCloseFile,
+    handleExit,
     hasFilePath,
     handleDiscardChangesAction,
-    isDirty
+    isDirty,
   } = actions;
 
-  const onOpenClick = () => {
-    handleOpen(() => {
-      fileInputRef.current?.click();
-    });
+  // ── Determine export capability ───────────────────────────────────────────
+  const activeNode =
+    activeTabId && activeProject ? activeProject.nodes[activeTabId] : null;
+  const canExportDiagram =
+    !!activeProject &&
+    !!activeNode &&
+    activeNode.type === 'FILE' &&
+    (activeNode as VFSFile).extension !== '.model';
+
+  // ── VFS project export ────────────────────────────────────────────────────
+
+  const handleSaveProject = async () => {
+    try {
+      await downloadProject();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to export project.");
+    }
   };
 
-  const handleXmiUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleExportDiagram = async () => {
+    if (!activeTabId) return;
+    try {
+      await exportDiagram(activeTabId);
+    } catch (err) {
+      alert(
+        err instanceof Error ? err.message : "Failed to export diagram.",
+      );
+    }
+  };
 
-    const fileName = file.name.replace(/\.[^/.]+$/, "");
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const xmlContent = e.target?.result as string;
-        
-        const importedData = XmiImporterService.import(xmlContent);
-        
-        loadDiagram({
-          id: crypto.randomUUID(),
-          name: fileName,
-          nodes: importedData.nodes,
-          edges: importedData.edges,
-          viewport: { x: 0, y: 0, zoom: 1 } 
-        });
-        
-        if (xmiInputRef.current) xmiInputRef.current.value = '';
-      } catch (error) {
-        console.error("Error importando XMI:", error);
-        alert(t("messages.error.importXmi") || "Error importing XMI file. Ensure it complies with the OMG UML 2.x standard.");
-      }
-    };
-    reader.readAsText(file);
+  const handleCloseProject = () => {
+    if (isCloseProjectWarningSuppressed()) {
+      closeProject();
+      closeAllFiles();
+    } else {
+      setIsCloseProjectModalOpen(true);
+    }
   };
 
   const isElectron = !!window.electronAPI?.isElectron();
@@ -83,74 +99,85 @@ export function FileMenu({ actions }: FileMenuProps) {
 
   return (
     <>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleWebImport}
-        accept=".json,.luml"
-        className="hidden"
-        style={{ display: 'none' }}
-      />
-
-      <input
-        type="file"
-        ref={xmiInputRef}
-        onChange={handleXmiUpload}
-        accept=".xmi,.xml"
-        className="hidden"
-        style={{ display: 'none' }}
-      />
-
       <MenubarTrigger label={t("menubar.file.title") || "File"}>
         <MenubarItem
           label={t("menubar.file.new") || "New Diagram"}
           icon={<FilePlus className="w-4 h-4" />}
           onClick={handleNew}
         />
+
         <MenubarItem
-          label={t("menubar.file.open") || "Open..."}
+          label="Open File..."
           icon={<FolderOpen className="w-4 h-4" />}
           shortcut="Ctrl+O"
-          onClick={onOpenClick} 
+          onClick={openOpenFileModal}
         />
-        
-        <MenubarItem
-          label={t("menubar.file.importXmi") || "Import XMI..."}
-          icon={<FileCode2 className="w-4 h-4 text-blue-400" />}
-          onClick={() => xmiInputRef.current?.click()}
-        />
-        
+
         <div className="h-px bg-surface-border my-1" />
-        
+
+        {/* ── VFS Project I/O ─────────────────────────────────────────── */}
+        <MenubarItem
+          label="Save Project (.luml)"
+          icon={<Download className="w-4 h-4 text-emerald-400" />}
+          shortcut="Ctrl+Shift+E"
+          onClick={handleSaveProject}
+          disabled={!activeProject}
+        />
+
+        <MenubarItem
+          label="Export Diagram (.luml)"
+          icon={<FileDown className="w-4 h-4 text-blue-400" />}
+          onClick={handleExportDiagram}
+          disabled={!canExportDiagram}
+        />
+
+        {activeProject && onOpenProjectProperties && (
+          <MenubarItem
+            label="Project Properties..."
+            icon={<SlidersHorizontal className="w-4 h-4 text-blue-400" />}
+            onClick={onOpenProjectProperties}
+          />
+        )}
+
+        <div className="h-px bg-surface-border my-1" />
+
         <MenubarItem
           label={t("menubar.file.save") || "Save"}
           icon={<Save className="w-4 h-4" />}
           shortcut="Ctrl+S"
           onClick={handleSave}
-          disabled={isSaveDisabled} 
+          disabled={isSaveDisabled}
         />
         <MenubarItem
           label={t("menubar.file.saveAs") || "Save As..."}
           icon={<FileOutput className="w-4 h-4" />}
           shortcut="Ctrl+Shift+S"
           onClick={handleSaveAs}
-          disabled={isSaveAsDisabled} 
+          disabled={isSaveAsDisabled}
         />
 
         <MenubarItem
           label={t("menubar.file.discard") || "Discard Changes"}
           icon={<RotateCcw className="w-4 h-4" />}
-          onClick={handleDiscardChangesAction} 
+          onClick={handleDiscardChangesAction}
           disabled={!hasFilePath || !isDirty}
         />
 
         <div className="h-px bg-surface-border my-1" />
 
-        <MenubarItem
-          label={t("menubar.file.close") || "Close Editor"}
-          icon={<XCircle className="w-4 h-4" />}
-          onClick={handleCloseFile}
-        />
+        {activeProject ? (
+          <MenubarItem
+            label="Close Project"
+            icon={<FolderX className="w-4 h-4" />}
+            onClick={handleCloseProject}
+          />
+        ) : (
+          <MenubarItem
+            label={t("menubar.file.close") || "Close Editor"}
+            icon={<XCircle className="w-4 h-4" />}
+            onClick={handleCloseFile}
+          />
+        )}
         <MenubarItem
           label={t("menubar.file.exit") || "Exit"}
           icon={<LogOut className="w-4 h-4" />}
@@ -158,6 +185,15 @@ export function FileMenu({ actions }: FileMenuProps) {
           danger
         />
       </MenubarTrigger>
+
+      <CloseProjectModal
+        isOpen={isCloseProjectModalOpen}
+        onClose={() => setIsCloseProjectModalOpen(false)}
+        onConfirm={() => {
+          closeProject();
+          closeAllFiles();
+        }}
+      />
     </>
   );
 }

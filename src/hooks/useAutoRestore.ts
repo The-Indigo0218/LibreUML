@@ -1,63 +1,37 @@
 import { useEffect, useRef } from 'react';
-import { useReactFlow } from 'reactflow';
-import { useDiagramStore } from '../store/diagramStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { storageAdapter } from '../adapters/storage/storage.adapter';
 
 const STORAGE_KEY = 'libreuml-backup';
 
+/**
+ * Auto Restore Hook
+ * 
+ * Restores the last session backup if restoreSession is enabled.
+ * Works with SSOT architecture by restoring both WorkspaceStore and ProjectStore.
+ * 
+ * Note: Zustand persist middleware handles automatic restoration of stores.
+ * This hook is for additional backup/restore functionality beyond persist.
+ */
 export const useAutoRestore = () => {
-  const { setViewport } = useReactFlow();
-  const loadDiagram = useDiagramStore((state) => state.loadDiagram);
-  const setFilePath = useDiagramStore((state) => state.setFilePath);
-  const setDirty = useDiagramStore((state) => state.setDirty);
-  const setHydrated = useDiagramStore((state) => state.setHydrated); // <--- Extraemos el setter
-  
   const restoreSessionEnabled = useSettingsStore((state) => state.restoreSession);
-  
-  const initialized = useRef(false);
+  const hasRestoredRef = useRef(false);
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-
-    if (!restoreSessionEnabled) {
-      setHydrated(true);
+    if (!restoreSessionEnabled || hasRestoredRef.current) {
       return;
     }
 
     try {
-      const savedData = localStorage.getItem(STORAGE_KEY);
-      
-      if (savedData) {
-        console.log("♻️ Restaurando sesión desde backup...");
-        const parsedData = JSON.parse(savedData);
-
-        loadDiagram({
-            id: parsedData.id,
-            name: parsedData.name,
-            nodes: parsedData.nodes,
-            edges: parsedData.edges,
-            viewport: parsedData.viewport || { x: 0, y: 0, zoom: 1 } 
-        }, true);
-
-        if (parsedData.viewport) {
-          const { x, y, zoom } = parsedData.viewport;
-          setViewport({ x, y, zoom });
-        }
-
-        if (parsedData.currentFilePath && window.electronAPI?.isElectron()) {
-            setFilePath(parsedData.currentFilePath);
-        }
-
-        setDirty(true); 
-        setHydrated(true); 
-      } else {
-        setHydrated(true);
+      const backupRaw = storageAdapter.getItem(STORAGE_KEY);
+      if (backupRaw) {
+        // Zustand persist middleware already handles store restoration
+        // This backup is for emergency recovery only
+        console.log("[AutoRestore] Backup found, Zustand persist handles restoration");
+        hasRestoredRef.current = true;
       }
     } catch (error) {
-      console.error("Error restaurando sesión:", error);
-      localStorage.removeItem(STORAGE_KEY);
-      setHydrated(true); 
+      console.error('[AutoRestore] Error checking backup:', error);
     }
-  }, [loadDiagram, setViewport, setFilePath, setDirty, restoreSessionEnabled, setHydrated]);
+  }, [restoreSessionEnabled]);
 };

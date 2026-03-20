@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Package, Download, Box, Hammer, Coffee } from "lucide-react";
-import { useDiagramStore } from "../../../../store/diagramStore";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useProjectStore } from "../../../../store/project.store";
 import { ProjectZipperService } from "../../../../services/project-zipper.service";
-import type { UmlClassNode, UmlEdge } from "../../types/diagram.types";
 import { useTranslation } from "react-i18next";
 
 interface Props {
@@ -11,9 +11,25 @@ interface Props {
 }
 
 export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
-  const nodes = useDiagramStore((s) => s.nodes);
-  const diagramName = useDiagramStore((s) => s.diagramName);
-  const edges = useDiagramStore((s) => s.edges);
+  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
+  const getFile = useWorkspaceStore((s) => s.getFile);
+  const getNodes = useProjectStore((s) => s.getNodes);
+  const getEdges = useProjectStore((s) => s.getEdges);
+  
+  const activeFile = activeFileId ? getFile(activeFileId) : undefined;
+  const diagramName = activeFile?.name || "Untitled";
+  
+  // PHASE 4: Fetch domain nodes and edges from ProjectStore
+  const nodes = useMemo(() => {
+    if (!activeFile) return [];
+    return getNodes(activeFile.nodeIds);
+  }, [activeFile, getNodes]);
+
+  const edges = useMemo(() => {
+    if (!activeFile) return [];
+    return getEdges(activeFile.edgeIds);
+  }, [activeFile, getEdges]);
+  
   const { t } = useTranslation();
   
   // --- State  ---
@@ -31,7 +47,9 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
     }
   }, [isOpen, diagramName]);
 
-  const classNodes = nodes.filter(n => n.type === 'umlClass') as UmlClassNode[];
+  const classNodes = useMemo(() => 
+    nodes.filter(n => n.type === 'CLASS' || n.type === 'INTERFACE' || n.type === 'ABSTRACT_CLASS' || n.type === 'ENUM'),
+  [nodes]);
 
   const packageName = `${groupId}.${artifactId}`.replace(/\.\./g, ".").toLowerCase();
 
@@ -40,14 +58,15 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
  const handleGenerate = async () => {
     setIsGenerating(true);
     try {
+      // PHASE 4: Pass domain nodes directly to ProjectZipperService
       await ProjectZipperService.generateAndDownloadZip({
         projectName: artifactId, 
         groupId,
         artifactId,      
         packageName,     
         nodes: classNodes,
-        allNodes: nodes as UmlClassNode[], 
-        edges: edges as UmlEdge[],    
+        allNodes: nodes, 
+        edges: edges,    
         javaVersion,     
         buildTool        
       });

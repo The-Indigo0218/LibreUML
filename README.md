@@ -8,7 +8,7 @@
 
 **The Open Source, Local-First UML Editor for Students and Developers.**
 
-LibreUML es una herramienta moderna para el modelado de software, diseñada para cerrar la brecha entre el diseño visual y el código real. Sin logins, sin nube, sin complicaciones.
+LibreUML es una herramienta moderna para el modelado de software, diseñada para cerrar la brecha entre el diseño visual y el código real. Local-First por defecto. Cloud-Ready cuando lo necesites.
 
 ![LibreUML Hero Shot](assets/screenshots/hero-dark.png)
 
@@ -18,7 +18,7 @@ LibreUML es una herramienta moderna para el modelado de software, diseñada para
 
 La mayoría de herramientas UML son costosas, requieren registro o son demasiado complejas para un entorno académico. **LibreUML** nace con una filosofía clara:
 
-* 🔒 **Local-First:** Tus diagramas son archivos (`.luml`). Nada se sube a la nube. Tú posees tus datos.
+* 🔒 **Local-First & Cloud-Ready:** Tus diagramas te pertenecen. Trabaja 100% offline con archivos locales (.luml), o conecta tu cuenta de GitHub para sincronizar tu arquitectura directamente con tus repositorios en la nube.
 * ⚡ **Developer Experience:** Interfaz inspirada en VS Code. Atajos de teclado, paleta de comandos y modo oscuro nativo.
 * 🔄 **Ciclo Completo:** Dibuja y genera código Java. O importa código Java y genera el diagrama.
 
@@ -64,7 +64,7 @@ El proyecto explora no solo UML, sino también diagramas de flujo, modelado de b
 ## 🛑 ¿Qué NO es LibreUML?
 
 Para gestionar las expectativas:
-* ❌ **No es un SaaS:** No hay base de datos central ni colaboración en tiempo real (por diseño).
+* ❌ **🔄 No es un SaaS cerrado (Es un Ecosistema Híbrido):** Puedes usar LibreUML sin cuenta para tareas rápidas y locales. Sin embargo, puedes iniciar sesión de forma opcional en LibreUML Academy para desbloquear integraciones avanzadas, telemetría de aprendizaje y sincronización en la nube.
 * ❌ **No es un LMS:** No califica a los estudiantes (aunque incluye herramientas para que ellos se auto-evalúen).
 * ❌ **No es un IDE completo:** Genera la estructura, pero la lógica de negocio se escribe en tu IDE favorito (IntelliJ, Eclipse, VS Code).
 

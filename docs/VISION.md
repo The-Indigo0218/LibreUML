@@ -45,7 +45,7 @@ Estos principios definirán los límites del proyecto y orientarán su evolució
 
 **LibreUML no será:**
 - Un producto de pago.
-- Un SaaS cerrado.
+- - Un SaaS cerrado o restrictivo (el motor de diseño core siempre será libre y accesible, la nube es un añadido de valor, no una barrera)..
 - Un reemplazo de un IDE.
 - Una herramienta limitada a un solo tipo de diagrama.
 
@@ -91,7 +91,7 @@ Las métricas consideradas serán:
 - Enfocadas en uso y patrones generales.
 - Utilizadas para toma de decisiones pedagógicas y técnicas.
 
-El uso del editor **no requerirá login obligatorio**, y la recolección de datos nunca condicionará el acceso a funcionalidades educativas.
+El uso del editor **no requerirá login obligatorio**, Sin embargo, la integración opcional con cuentas (como GitHub) permitirá a los estudiantes sincronizar su progreso, integrarse con sus repositorios y acceder a herramientas de validación avanzada (Linter en la nube). La nube en LibreUML existe para dar superpoderes al estudiante, no para secuestrar sus datos.
 
 ---
 
@@ -113,7 +113,7 @@ LibreUML no busca reemplazar a la universidad, sino **fortalecer la forma en que
 LibreUML nunca será:
 - Una herramienta que cobre por aprender.
 - Una plataforma que oculte funciones educativas detrás de cuentas obligatorias.
-- Un sistema que dependa exclusivamente de la nube.
+- Un sistema que dependa exclusivamente de la nube (siempre podrás abrir LibreUML y diseñar offline).
 - Un proyecto que sacrifique principios por crecimiento rápido.
 
 ---

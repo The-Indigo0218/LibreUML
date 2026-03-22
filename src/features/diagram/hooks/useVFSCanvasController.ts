@@ -244,7 +244,6 @@ function makeReactFlowNode(
  */
 function makeReactFlowNoteNode(
   viewNode: ViewNode,
-  activeTabId: string,
   onSave: (viewNodeId: string, update: { content?: string; title?: string }) => void,
 ) {
   const viewModel: NoteViewModel = {
@@ -431,7 +430,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
       // NOTE nodes are visual-only — no semantic IR backing, no rename callback needed.
       if (kind === 'NOTE') {
-        return makeReactFlowNoteNode(viewNode, activeTabId ?? '', handleNoteUpdate);
+        return makeReactFlowNoteNode(viewNode, handleNoteUpdate);
       }
 
       const label = element?.name ?? 'NewClass';

@@ -7,6 +7,7 @@ import type {
   UmlClassData,
   UmlAttribute,
   UmlMethod,
+  UmlEnumLiteral,
   visibility as UmlVisibility,
 } from "../../types/diagram.types";
 import type {
@@ -89,12 +90,21 @@ function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData
     };
   }
 
+  // Map IREnumLiterals → UmlEnumLiterals so the EnumLiteralsEditor
+  // in ClassEditorModal can display and edit them.
+  const literals: UmlEnumLiteral[] = element.data.literals.map((l, i) => ({
+    id: `lit-${i}-${l.name}`,
+    name: l.name,
+    value: l.value,
+  }));
+
   return {
     label: element.data.name,
     package: element.data.packageName ?? "",
     attributes: [],
     methods: [],
     stereotype: "enum",
+    literals,
   };
 }
 
@@ -170,7 +180,14 @@ export default function SSoTClassEditorModal() {
       const { operations } = toIrMembers(newData);
       setElementMembers(editingId, [], operations);
     } else {
-      updateEnum(editingId, { name: newData.label });
+      // Map UmlEnumLiterals back to IREnumLiterals and persist name + literals atomically.
+      updateEnum(editingId, {
+        name: newData.label,
+        literals: (newData.literals ?? []).map((l) => ({
+          name: l.name,
+          ...(l.value !== undefined && l.value !== '' ? { value: l.value } : {}),
+        })),
+      });
     }
 
     setElementPackage(editingId, newData.package || undefined);

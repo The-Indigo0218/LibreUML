@@ -83,6 +83,12 @@ export interface NoteViewModel {
   domainId: string;
   title?: string;
   content: string;
+  /**
+   * Optional persistence callback. Provided by the layer that knows how to
+   * save note content (VFS controller, or omitted for legacy ProjectStore path).
+   * When absent the component falls back to useProjectStore.updateNode().
+   */
+  onSave?: (update: { content?: string; title?: string }) => void;
 }
 
 /**

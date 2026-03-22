@@ -47,6 +47,10 @@ export interface ViewNode {
   height?: number;
   zIndex?: number;
   color?: string;
+  /** Persisted text content for Note nodes (no IR backing element). */
+  content?: string;
+  /** Persisted title for Note nodes. */
+  noteTitle?: string;
 }
 
 export interface ViewEdge {

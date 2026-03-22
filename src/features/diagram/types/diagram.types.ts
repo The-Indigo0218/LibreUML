@@ -39,6 +39,12 @@ export interface UmlPackage {
   parentId?: string;
 }
 
+export interface UmlEnumLiteral {
+  id: string;
+  name: string;
+  value?: string;
+}
+
 export interface UmlClassData {
   label: string;
   generics?: string;
@@ -47,7 +53,9 @@ export interface UmlClassData {
   methods: UmlMethod[];
   stereotype: stereotype;
   isMain?: boolean;
-  package?: string; 
+  package?: string;
+  /** Only populated when stereotype === 'enum'. Ignored otherwise. */
+  literals?: UmlEnumLiteral[];
 }
 
 export interface UmlClassNode {

@@ -385,8 +385,14 @@ export default function DiagramCanvas() {
                   label: editingNode.name,
                   attributes: [],
                   methods: [],
-                  stereotype: 'enum',
+                  stereotype: 'enum' as const,
                   package: editingNode.package,
+                  // Hydrate existing literals so the editor can display them
+                  literals: (editingNode.literals ?? []).map((l) => ({
+                    id: l.id,
+                    name: l.name,
+                    value: l.value !== undefined ? String(l.value) : undefined,
+                  })),
                 }
               : {
                   label: '',
@@ -416,6 +422,12 @@ export default function DiagramCanvas() {
               updateNode(editingNode.id, {
                 name: newData.label,
                 package: newData.package,
+                // Persist literals back to the domain EnumNode
+                literals: (newData.literals ?? []).map((l) => ({
+                  id: l.id,
+                  name: l.name,
+                  value: l.value !== undefined && l.value !== '' ? l.value : undefined,
+                })),
               });
             }
             closeModals();

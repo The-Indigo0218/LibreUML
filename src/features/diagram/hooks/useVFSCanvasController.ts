@@ -239,16 +239,20 @@ function makeReactFlowNode(
 
 /**
  * Builds a ReactFlow note node (visual-only, no IR element).
- * UmlNoteNode will call ProjectStore.updateNode for title/content edits,
- * which silently no-ops since there is no matching ProjectStore entry.
- * Position is persisted via onNodesChange → VFSStore (same as class nodes).
+ * Content is persisted inside the ViewNode itself (content / noteTitle fields).
+ * The onSave callback writes updates back to VFSStore so they survive re-renders.
  */
-function makeReactFlowNoteNode(viewNode: ViewNode) {
+function makeReactFlowNoteNode(
+  viewNode: ViewNode,
+  activeTabId: string,
+  onSave: (viewNodeId: string, update: { content?: string; title?: string }) => void,
+) {
   const viewModel: NoteViewModel = {
     id: viewNode.id,
-    domainId: viewNode.id, // No semantic ID; use view node ID as domainId
-    title: 'Note',
-    content: '',
+    domainId: viewNode.id,
+    title: viewNode.noteTitle ?? 'Note',
+    content: viewNode.content ?? '',
+    onSave: (update) => onSave(viewNode.id, update),
   };
 
   return {
@@ -397,6 +401,26 @@ export function useVFSCanvasController(): VFSCanvasResult {
     }
   }, [project?.domainModelId]);
 
+  // Stable callback: persists note content / title back into the ViewNode inside VFSStore.
+  const handleNoteUpdate = useCallback(
+    (viewNodeId: string, update: { content?: string; title?: string }) => {
+      if (!activeTabId || !diagramView) return;
+      const updatedNodes = diagramView.nodes.map((vn) => {
+        if (vn.id !== viewNodeId) return vn;
+        return {
+          ...vn,
+          ...(update.content !== undefined ? { content: update.content } : {}),
+          ...(update.title !== undefined ? { noteTitle: update.title } : {}),
+        };
+      });
+      useVFSStore.getState().updateFileContent(activeTabId, {
+        ...diagramView,
+        nodes: updatedNodes,
+      });
+    },
+    [activeTabId, diagramView],
+  );
+
   // Map ViewNodes → ReactFlow nodes.
   // Each node's onRename closure captures elementId and kind for targeted ModelStore updates.
   const nodes = useMemo((): VFSReactFlowNode[] => {
@@ -407,7 +431,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
       // NOTE nodes are visual-only — no semantic IR backing, no rename callback needed.
       if (kind === 'NOTE') {
-        return makeReactFlowNoteNode(viewNode);
+        return makeReactFlowNoteNode(viewNode, activeTabId ?? '', handleNoteUpdate);
       }
 
       const label = element?.name ?? 'NewClass';

@@ -7,6 +7,7 @@ import type {
   UmlClassData,
   UmlAttribute,
   UmlMethod,
+  UmlEnumLiteral,
   visibility as Visibility,
 } from "../../types/diagram.types";
 import type {
@@ -322,6 +323,7 @@ export default function ClassEditorModal({
             ...m,
             parameters: m.parameters || [],
           })) || [],
+    literals: umlData.literals ?? [],
   }));
 
   const [classNameError, setClassNameError] = useState(false);
@@ -507,6 +509,39 @@ export default function ClassEditorModal({
     setDraft((prev) => ({ ...prev, methods: newMethods }));
   };
 
+  // ── Enum literal CRUD ──────────────────────────────────────────────────────
+
+  const addLiteral = () => {
+    const newLiteral: UmlEnumLiteral = {
+      id: crypto.randomUUID(),
+      name: `LITERAL_${(draft.literals?.length ?? 0) + 1}`,
+      value: undefined,
+    };
+    setDraft((prev) => ({ ...prev, literals: [...(prev.literals ?? []), newLiteral] }));
+  };
+
+  const updateLiteral = (index: number, field: keyof UmlEnumLiteral, value: string) => {
+    const next = [...(draft.literals ?? [])];
+    next[index] = { ...next[index], [field]: value || undefined };
+    setDraft((prev) => ({ ...prev, literals: next }));
+  };
+
+  const removeLiteral = (index: number) => {
+    setDraft((prev) => ({
+      ...prev,
+      literals: (prev.literals ?? []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const moveLiteral = (index: number, direction: 'up' | 'down') => {
+    const arr = [...(draft.literals ?? [])];
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === arr.length - 1) return;
+    const target = direction === 'up' ? index - 1 : index + 1;
+    [arr[index], arr[target]] = [arr[target], arr[index]];
+    setDraft((prev) => ({ ...prev, literals: arr }));
+  };
+
   const addParameter = (methodIndex: number) => {
     const newMethods = [...draft.methods];
     newMethods[methodIndex].parameters.push({ name: 'param', type: 'String', isArray: false });
@@ -647,8 +682,79 @@ export default function ClassEditorModal({
 
         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6">
 
-          {/* ── Attributes ──────────────────────────────────────────────── */}
-          <div className="flex flex-col">
+          {/* ── Enum Literals (only rendered for enum stereotype) ─────── */}
+          {draft.stereotype === 'enum' && (
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                  Enum Constants / Literals
+                </label>
+                <button
+                  onClick={addLiteral}
+                  className="text-xs flex items-center gap-1 text-purple-400 hover:text-purple-300 bg-purple-400/10 px-2 py-1 rounded"
+                >
+                  <Plus className="w-3 h-3" /> Add Literal
+                </button>
+              </div>
+
+              {(draft.literals ?? []).length === 0 && (
+                <p className="text-xs text-text-muted italic px-1">
+                  No literals yet. Click &quot;Add Literal&quot; to define enum constants.
+                </p>
+              )}
+
+              <div className="space-y-2">
+                {(draft.literals ?? []).map((lit, idx) => (
+                  <div
+                    key={lit.id}
+                    className="flex items-center gap-3 bg-surface-secondary p-2 rounded border border-surface-border group transition-colors hover:border-purple-500/40"
+                  >
+                    {/* Literal name */}
+                    <input
+                      className="bg-transparent border-b border-transparent focus:border-purple-400 outline-none flex-1 min-w-0 text-sm font-mono uppercase tracking-wide"
+                      placeholder="LITERAL_NAME"
+                      value={lit.name}
+                      onChange={(e) => updateLiteral(idx, 'name', e.target.value.toUpperCase())}
+                    />
+                    <span className="text-text-muted font-mono text-xs">=</span>
+                    {/* Optional value */}
+                    <input
+                      className="bg-transparent border-b border-transparent focus:border-purple-400 outline-none w-20 text-sm font-mono text-purple-300"
+                      placeholder="value"
+                      value={lit.value ?? ''}
+                      onChange={(e) => updateLiteral(idx, 'value', e.target.value)}
+                    />
+                    {/* Reorder / delete */}
+                    <div className="flex items-center gap-1 border-l border-surface-border pl-3 ml-1">
+                      <button
+                        onClick={() => moveLiteral(idx, 'up')}
+                        disabled={idx === 0}
+                        className="text-text-muted hover:text-white disabled:opacity-30"
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => moveLiteral(idx, 'down')}
+                        disabled={idx === (draft.literals ?? []).length - 1}
+                        className="text-text-muted hover:text-white disabled:opacity-30"
+                      >
+                        <ArrowDown className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => removeLiteral(idx)}
+                        className="text-red-400 hover:text-red-300 ml-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Attributes (only for non-enum stereotypes) ───────────── */}
+          {draft.stereotype !== 'enum' && <div className="flex flex-col">
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
                 {t('modals.classEditor.attributes')}
@@ -755,10 +861,10 @@ export default function ClassEditorModal({
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
 
-          {/* ── Methods ─────────────────────────────────────────────────── */}
-          <div className="flex flex-col pt-4 border-t border-surface-border">
+          {/* ── Methods (only for non-enum stereotypes) ──────────────── */}
+          {draft.stereotype !== 'enum' && <div className="flex flex-col pt-4 border-t border-surface-border">
             <div className="flex justify-between items-center mb-2">
               <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
                 {t('modals.classEditor.constructorsAndMethods')}
@@ -979,7 +1085,7 @@ export default function ClassEditorModal({
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
         </div>
 
         <div className="shrink-0 flex justify-end gap-3 pt-4 mt-4 border-t border-surface-border">

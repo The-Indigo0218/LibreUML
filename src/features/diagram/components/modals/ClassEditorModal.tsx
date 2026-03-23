@@ -326,9 +326,6 @@ export default function ClassEditorModal({
     literals: umlData.literals ?? [],
   }));
 
-  const [classNameError, setClassNameError] = useState(false);
-  const [attributeErrors, setAttributeErrors] = useState<Set<number>>(new Set());
-  const [methodErrors, setMethodErrors] = useState<Set<number>>(new Set());
   const classNameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -340,46 +337,8 @@ export default function ClassEditorModal({
     });
   }, [draft.label]);
 
-  const validateClassName = (name: string): boolean => {
-    if (ssotContext) {
-      return ssotContext.elementNames.some((n) => n !== umlData.label && n === name);
-    }
-    const currentPackage = draft.package ?? '';
-    return nodes.some((node) => {
-      if (node.id === editingId) return false;
-      if (!isPackageableNode(node)) return false;
-      return node.name === name && (node.package ?? '') === currentPackage;
-    });
-  };
-
-  const validateAttributeName = (name: string, currentIndex: number): boolean => {
-    return draft.attributes.some((attr, idx) => idx !== currentIndex && attr.name === name);
-  };
-
-  const validateMethodSignature = (method: UmlMethod, currentIndex: number): boolean => {
-    return draft.methods.some((m, idx) => {
-      if (idx === currentIndex) return false;
-      if (m.name !== method.name) return false;
-      if (m.parameters.length !== method.parameters.length) return false;
-      return m.parameters.every((p, i) => {
-        const otherParam = method.parameters[i];
-        return (
-          p.type === otherParam.type && (p.isArray || false) === (otherParam.isArray || false)
-        );
-      });
-    });
-  };
-
   const handleClassNameChange = (newName: string) => {
-    if (validateClassName(newName)) {
-      setClassNameError(true);
-      setTimeout(() => {
-        setDraft((prev) => ({ ...prev, label: umlData.label }));
-        setClassNameError(false);
-      }, 2000);
-    } else {
-      setDraft({ ...draft, label: newName });
-    }
+    setDraft((prev) => ({ ...prev, label: newName }));
   };
 
   const addAttribute = () => {
@@ -394,25 +353,6 @@ export default function ClassEditorModal({
   };
 
   const updateAttribute = (index: number, field: keyof UmlAttribute, value: string | boolean) => {
-    if (field === 'name' && typeof value === 'string') {
-      if (validateAttributeName(value, index)) {
-        setAttributeErrors((prev) => new Set(prev).add(index));
-        setTimeout(() => {
-          setDraft((prev) => {
-            const newAttrs = [...prev.attributes];
-            newAttrs[index] = { ...newAttrs[index], name: prev.attributes[index].name };
-            return { ...prev, attributes: newAttrs };
-          });
-          setAttributeErrors((prev) => {
-            const next = new Set(prev);
-            next.delete(index);
-            return next;
-          });
-        }, 2000);
-        return;
-      }
-    }
-
     const newAttrs = [...draft.attributes];
     newAttrs[index] = { ...newAttrs[index], [field]: value };
     setDraft((prev) => ({ ...prev, attributes: newAttrs }));
@@ -470,29 +410,6 @@ export default function ClassEditorModal({
     const newMethods = [...draft.methods];
     newMethods[index] = { ...newMethods[index], [field]: value };
     if (field === 'returnType' && value === 'void') newMethods[index].isReturnArray = false;
-
-    if (field === 'name') {
-      if (validateMethodSignature(newMethods[index], index)) {
-        setMethodErrors((prev) => new Set(prev).add(index));
-        setTimeout(() => {
-          setDraft((prev) => {
-            const revertMethods = [...prev.methods];
-            revertMethods[index] = {
-              ...revertMethods[index],
-              name: prev.methods[index].name,
-            };
-            return { ...prev, methods: revertMethods };
-          });
-          setMethodErrors((prev) => {
-            const next = new Set(prev);
-            next.delete(index);
-            return next;
-          });
-        }, 2000);
-        return;
-      }
-    }
-
     setDraft((prev) => ({ ...prev, methods: newMethods }));
   };
 
@@ -545,19 +462,6 @@ export default function ClassEditorModal({
   const addParameter = (methodIndex: number) => {
     const newMethods = [...draft.methods];
     newMethods[methodIndex].parameters.push({ name: 'param', type: 'String', isArray: false });
-
-    if (validateMethodSignature(newMethods[methodIndex], methodIndex)) {
-      setMethodErrors((prev) => new Set(prev).add(methodIndex));
-      setTimeout(() => {
-        setMethodErrors((prev) => {
-          const next = new Set(prev);
-          next.delete(methodIndex);
-          return next;
-        });
-      }, 2000);
-      return;
-    }
-
     setDraft((prev) => ({ ...prev, methods: newMethods }));
   };
 
@@ -572,28 +476,6 @@ export default function ClassEditorModal({
       ...newMethods[methodIndex].parameters[paramIndex],
       [field]: value,
     };
-
-    if (field === 'type' || field === 'isArray') {
-      if (validateMethodSignature(newMethods[methodIndex], methodIndex)) {
-        setMethodErrors((prev) => new Set(prev).add(methodIndex));
-        setTimeout(() => {
-          setDraft((prev) => {
-            const revertMethods = [...prev.methods];
-            revertMethods[methodIndex].parameters[paramIndex] = {
-              ...prev.methods[methodIndex].parameters[paramIndex],
-            };
-            return { ...prev, methods: revertMethods };
-          });
-          setMethodErrors((prev) => {
-            const next = new Set(prev);
-            next.delete(methodIndex);
-            return next;
-          });
-        }, 2000);
-        return;
-      }
-    }
-
     setDraft((prev) => ({ ...prev, methods: newMethods }));
   };
 
@@ -641,19 +523,10 @@ export default function ClassEditorModal({
               </label>
               <input
                 ref={classNameInputRef}
-                className={`w-full bg-surface-secondary border rounded p-2 text-text-primary outline-none transition-colors ${
-                  classNameError
-                    ? 'border-red-500 text-red-500'
-                    : 'border-surface-border focus:border-uml-class-border'
-                }`}
+                className="w-full bg-surface-secondary border border-surface-border focus:border-uml-class-border rounded p-2 text-text-primary outline-none transition-colors"
                 value={draft.label}
                 onChange={(e) => handleClassNameChange(e.target.value)}
               />
-              {classNameError && (
-                <p className="text-xs text-red-500 mt-1">
-                  Class name already exists in this package
-                </p>
-              )}
             </div>
 
             {!ssotContext && (
@@ -788,9 +661,7 @@ export default function ClassEditorModal({
               {draft.attributes.map((attr, idx) => (
                 <div key={attr.id}>
                   <div
-                    className={`flex items-center gap-3 bg-surface-secondary p-2 rounded border group transition-colors ${
-                      attributeErrors.has(idx) ? 'border-red-500' : 'border-surface-border'
-                    }`}
+                    className="flex items-center gap-3 bg-surface-secondary p-2 rounded border border-surface-border group transition-colors"
                   >
                     <select
                       className="bg-transparent text-uml-abstract-border font-mono outline-none cursor-pointer"
@@ -804,11 +675,7 @@ export default function ClassEditorModal({
                       ))}
                     </select>
                     <input
-                      className={`bg-transparent border-b outline-none flex-1 min-w-0 text-sm transition-colors ${
-                        attributeErrors.has(idx)
-                          ? 'border-red-500 text-red-500'
-                          : 'border-transparent focus:border-uml-class-border'
-                      }`}
+                      className="bg-transparent border-b border-transparent focus:border-uml-class-border outline-none flex-1 min-w-0 text-sm transition-colors"
                       placeholder={t('modals.classEditor.placeholders.name')}
                       value={attr.name}
                       onChange={(e) => updateAttribute(idx, 'name', e.target.value)}
@@ -853,11 +720,6 @@ export default function ClassEditorModal({
                       </button>
                     </div>
                   </div>
-                  {attributeErrors.has(idx) && (
-                    <p className="text-xs text-red-500 mt-1 ml-2">
-                      Attribute name already exists in this class
-                    </p>
-                  )}
                 </div>
               ))}
             </div>
@@ -906,11 +768,7 @@ export default function ClassEditorModal({
                 <div key={method.id}>
                   <div
                     className={`flex flex-col bg-surface-secondary rounded border overflow-hidden transition-colors ${
-                      methodErrors.has(methodIdx)
-                        ? 'border-red-500'
-                        : method.isConstructor
-                          ? 'border-purple-500/30'
-                          : 'border-surface-border'
+                      method.isConstructor ? 'border-purple-500/30' : 'border-surface-border'
                     }`}
                   >
                     <div
@@ -936,9 +794,7 @@ export default function ClassEditorModal({
                         className={`bg-transparent border-b outline-none flex-1 min-w-0 text-sm font-medium transition-colors ${
                           method.isConstructor
                             ? 'opacity-60 cursor-not-allowed border-transparent'
-                            : methodErrors.has(methodIdx)
-                              ? 'border-red-500 text-red-500'
-                              : 'border-transparent focus:border-uml-class-border'
+                            : 'border-transparent focus:border-uml-class-border'
                         }`}
                         placeholder={t('modals.classEditor.placeholders.methodName')}
                         value={method.isConstructor ? draft.label : method.name}
@@ -1077,11 +933,6 @@ export default function ClassEditorModal({
                       )}
                     </div>
                   </div>
-                  {methodErrors.has(methodIdx) && (
-                    <p className="text-xs text-red-500 mt-1 ml-2">
-                      Method signature already exists in this class
-                    </p>
-                  )}
                 </div>
               ))}
             </div>

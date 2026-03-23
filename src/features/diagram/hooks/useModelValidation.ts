@@ -18,14 +18,11 @@ export function useModelValidation(): ModelValidationResult {
 
     const errors: string[] = [];
 
-    const resolvePackage = (packageId?: string): string =>
-      packageId ? (model.packages[packageId]?.name ?? '') : '';
-
-    // ── Duplicate elements (same name + package across classes/interfaces/enums) ──
+    // ── Duplicate elements (same FQN: name + package across classes/interfaces/enums) ──
     const elementSeen = new Map<string, number>();
 
-    const trackElement = (name: string, packageId?: string) => {
-      const pkg = resolvePackage(packageId);
+    const trackElement = (name: string, packageName?: string) => {
+      const pkg = packageName?.trim() ?? '';
       const key = `${name.trim()}\x00${pkg}`;
       elementSeen.set(key, (elementSeen.get(key) ?? 0) + 1);
     };
@@ -34,9 +31,9 @@ export function useModelValidation(): ModelValidationResult {
     const internalInterfaces = Object.values(model.interfaces).filter((i) => !i.isExternal);
     const internalEnums = Object.values(model.enums).filter((e) => !e.isExternal);
 
-    for (const cls of internalClasses) trackElement(cls.name, cls.packageId);
-    for (const iface of internalInterfaces) trackElement(iface.name, iface.packageId);
-    for (const enm of internalEnums) trackElement(enm.name, enm.packageId);
+    for (const cls of internalClasses) trackElement(cls.name, cls.packageName);
+    for (const iface of internalInterfaces) trackElement(iface.name, iface.packageName);
+    for (const enm of internalEnums) trackElement(enm.name, enm.packageName);
 
     for (const [key, count] of elementSeen) {
       if (count > 1) {
@@ -65,14 +62,14 @@ export function useModelValidation(): ModelValidationResult {
       }
     };
 
-    // ── Duplicate operations within a classifier (same name + param types) ────
+    // ── Duplicate operations within a classifier (same name + param types + return type) ──
     const checkDuplicateOperations = (ownerName: string, operationIds: string[]) => {
       const seen = new Map<string, number>();
       for (const id of operationIds) {
         const op = model.operations[id];
         if (!op) continue;
         const paramTypes = op.parameters.map((p) => p.type).join(',');
-        const sig = `${op.name.trim()}(${paramTypes})`;
+        const sig = `${op.name.trim()}(${paramTypes}):${op.returnType ?? 'void'}`;
         seen.set(sig, (seen.get(sig) ?? 0) + 1);
       }
       for (const [sig, count] of seen) {

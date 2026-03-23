@@ -635,12 +635,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
       // Block self-inheritance and self-realization — UML forbids these.
       const wsState = useWorkspaceStore.getState();
-      const activeFileId = wsState.activeFileId;
-      const activeWsFile = activeFileId
-        ? wsState.files?.find((f: { id: string }) => f.id === activeFileId)
-        : null;
-      const rawMode = (activeWsFile?.metadata as Record<string, unknown> | undefined)
-        ?.activeConnectionMode as string | undefined;
+      const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
       const kind: RelationKind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
 
       const SELF_LOOP_FORBIDDEN = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);

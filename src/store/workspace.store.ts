@@ -8,6 +8,8 @@ interface WorkspaceStoreState {
   activeTabId: string | null;
   files: DiagramFile[];
   activeFileId: string | null;
+  /** Connection mode per tab, keyed by activeTabId. Works for both legacy and VFS files. */
+  connectionModes: Record<string, string>;
 
   openTab: (fileId: string) => void;
   closeTab: (fileId: string) => void;
@@ -30,6 +32,7 @@ interface WorkspaceStoreState {
   markFileClean: (fileId: string) => void;
   createNewFile: (diagramType: DiagramType, name?: string) => DiagramFile;
   closeAllFiles: () => void;
+  setTabConnectionMode: (tabId: string, mode: string) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceStoreState>()(
@@ -39,6 +42,7 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
       activeTabId: null,
       files: [],
       activeFileId: null,
+      connectionModes: {},
 
       openTab: (fileId) =>
         set((state) => {
@@ -264,6 +268,14 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
           openTabs: [],
           activeTabId: null,
         }),
+
+      setTabConnectionMode: (tabId, mode) =>
+        set((state) => ({
+          connectionModes: {
+            ...state.connectionModes,
+            [tabId]: mode,
+          },
+        })),
     }),
     {
       name: 'libreuml-workspace-storage',

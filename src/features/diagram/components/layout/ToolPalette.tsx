@@ -38,23 +38,32 @@ export default function ToolPalette() {
     }
   }, [diagramType]);
 
+  const setTabConnectionMode = useWorkspaceStore((s) => s.setTabConnectionMode);
+
   const activeConnectionMode = useWorkspaceStore((s) => {
-    if (!activeFileId) return 'association';
-    const f = s.files.find(file => file.id === activeFileId);
-    return ((f?.metadata as any)?.activeConnectionMode || 'association').toLowerCase();
+    const tabId = s.activeTabId;
+    if (!tabId) return 'association' as UmlRelationType;
+    return ((s.connectionModes?.[tabId] ?? 'association') as string).toLowerCase() as UmlRelationType;
   });
 
   const setConnectionMode = (mode: UmlRelationType) => {
-    if (!activeFileId) return;
-    const currentFile = useWorkspaceStore.getState().getFile(activeFileId);
-    if (!currentFile) return;
+    const tabId = useWorkspaceStore.getState().activeTabId;
+    if (!tabId) return;
+    const upperMode = mode.toUpperCase();
+    setTabConnectionMode(tabId, upperMode);
 
-    updateFile(activeFileId, {
-      metadata: {
-        ...(currentFile.metadata || {}),
-        activeConnectionMode: mode.toUpperCase() as any,
-      },
-    });
+    // Keep legacy file metadata in sync for useDiagram.ts compatibility
+    if (activeFileId) {
+      const currentFile = useWorkspaceStore.getState().getFile(activeFileId);
+      if (currentFile) {
+        updateFile(activeFileId, {
+          metadata: {
+            ...(currentFile.metadata || {}),
+            activeConnectionMode: upperMode as any,
+          },
+        });
+      }
+    }
   };
 
   const [isNodesOpen, setIsNodesOpen] = useState(true);

@@ -45,6 +45,8 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
     {
       titleKey: 'keyboardShortcuts.categories.general',
       shortcuts: [
+        { keys: [modKey, 'N'], descriptionKey: 'keyboardShortcuts.shortcuts.newDiagram' },
+        { keys: ['Alt', 'N'], descriptionKey: 'keyboardShortcuts.shortcuts.newDiagramWeb' },
         { keys: [modKey, 'O'], descriptionKey: 'keyboardShortcuts.shortcuts.openFile' },
         { keys: [modKey, 'S'], descriptionKey: 'keyboardShortcuts.shortcuts.save' },
         { keys: [modKey, 'E'], descriptionKey: 'keyboardShortcuts.shortcuts.export' },

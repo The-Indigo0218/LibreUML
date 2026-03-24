@@ -19,7 +19,6 @@ import type {
 import type { ClassDiagramMetadata } from "../../../../core/domain/workspace/diagram-file.types";
 import { Plus, Trash2, ArrowUp, ArrowDown, Wand2, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useUiStore } from "../../../../store/uiStore";
 
 // ─── TypeCombobox ─────────────────────────────────────────────────────────────
 
@@ -55,6 +54,22 @@ function TypeCombobox({
     if (!userHasTyped) return options;
     const q = inputValue.trim().toLowerCase();
     if (!q) return options;
+
+    const genericIdx = q.indexOf('<');
+    if (genericIdx > 0) {
+      // Generic-aware matching: exact prefix first, then same-base-type generics, then raw base
+      const baseQ = q.slice(0, genericIdx);
+      const exact = options.filter((o) => o.toLowerCase().startsWith(q));
+      const sameBase = options.filter((o) => {
+        const ol = o.toLowerCase();
+        return !exact.includes(o) && ol.startsWith(baseQ) && ol.includes('<');
+      });
+      const raw = options.filter(
+        (o) => !exact.includes(o) && !sameBase.includes(o) && o.toLowerCase().includes(baseQ),
+      );
+      return [...exact, ...sameBase, ...raw];
+    }
+
     const prefix = options.filter((o) => o.toLowerCase().startsWith(q));
     const rest = options.filter(
       (o) => !o.toLowerCase().startsWith(q) && o.toLowerCase().includes(q),
@@ -144,8 +159,12 @@ function TypeCombobox({
         setActiveIndex((prev) => Math.max(prev - 1, -1));
         break;
       case 'Enter':
-        if (!isOpen) break;
         e.preventDefault();
+        if (!isOpen || filteredOptions.length === 0) {
+          commit(inputValue);
+          inputRef.current?.blur();
+          break;
+        }
         if (activeIndex >= 0 && activeIndex < filteredOptions.length) {
           commit(filteredOptions[activeIndex]);
         } else {
@@ -294,7 +313,6 @@ export default function ClassEditorModal({
       .map((name) => ({ id: name, name }));
   }, [activeFileId, getFile, nodes, ssotContext]);
 
-  const editingId = useUiStore((state) => state.editingId);
   const { t } = useTranslation();
 
   const [typeContext, setTypeContext] = useState<SupportedLanguage>('uml');
@@ -529,27 +547,25 @@ export default function ClassEditorModal({
               />
             </div>
 
-            {!ssotContext && (
-              <div>
-                <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
-                  {t('modals.classEditor.package')}
-                </label>
-                <select
-                  className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-text-primary focus:border-uml-class-border outline-none"
-                  value={draft.package || ''}
-                  onChange={(e) =>
-                    setDraft({ ...draft, package: e.target.value || undefined })
-                  }
-                >
-                  <option value="">{t('modals.classEditor.noPackage')}</option>
-                  {packages.map((pkg) => (
-                    <option key={pkg.id} value={pkg.name}>
-                      {pkg.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div>
+              <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider mb-2">
+                {t('modals.classEditor.package')}
+              </label>
+              <select
+                className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-text-primary focus:border-uml-class-border outline-none"
+                value={draft.package || ''}
+                onChange={(e) =>
+                  setDraft({ ...draft, package: e.target.value || undefined })
+                }
+              >
+                <option value="">{t('modals.classEditor.noPackage')}</option>
+                {packages.map((pkg) => (
+                  <option key={pkg.id} value={pkg.name}>
+                    {pkg.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

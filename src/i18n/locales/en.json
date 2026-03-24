@@ -142,7 +142,10 @@
       "delete": "Delete",
       "generateCode": "Generate Code...",
       "generateMethods": "Generate Getters & Setters...",
-      "addToProject": "Add to Project"
+      "addToProject": "Add to Project",
+      "removeFromDiagram": "Remove from Diagram",
+      "removeFromCanvas": "Remove from Canvas",
+      "deleteFromModel": "Delete from Model"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",
@@ -611,6 +614,8 @@
       "terminal": "Terminal"
     },
     "shortcuts": {
+      "newDiagram": "New Diagram (Electron)",
+      "newDiagramWeb": "New Diagram (Web / Chromium)",
       "openFile": "Open File",
       "save": "Save",
       "export": "Export Diagram",

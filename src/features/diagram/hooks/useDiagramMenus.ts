@@ -215,7 +215,7 @@ export const useDiagramMenus = ({
             },
           },
           {
-            label: "Clean Canvas",
+            label: t("contextMenu.pane.cleanCanvas"),
             onClick: onClearCanvas,
             danger: true,
           },
@@ -272,13 +272,13 @@ export const useDiagramMenus = ({
 
         if (onDeleteNodeFromModel) {
           baseOptions.push({
-            label: t("contextMenu.node.removeFromDiagram") || "Remove from Diagram",
+            label: t("contextMenu.node.removeFromDiagram"),
             onClick: () => onDeleteNode!(nodeId),
           });
           baseOptions.push({
             label: isNodeExternal
-              ? "Remove from Canvas"
-              : t("contextMenu.node.deleteFromModel") || "Delete from Model",
+              ? t("contextMenu.node.removeFromCanvas")
+              : t("contextMenu.node.deleteFromModel"),
             onClick: () => onDeleteNodeFromModel(nodeId),
             danger: true,
           });

@@ -308,13 +308,15 @@ export async function injectDiagramIntoVFS(
     mode === 'standalone',
   );
 
-  const viewNodes: ViewNode[] = view.nodes
-    .filter((n) => idMap.has(n.elementId))
-    .map((n) => ({
-      ...n,
-      id: crypto.randomUUID(),
-      elementId: idMap.get(n.elementId)!,
-    }));
+  const viewNodes: ViewNode[] = view.nodes.flatMap((n) => {
+    // Note ViewNodes use an empty elementId as a sentinel (view-only, no IR element).
+    // Pass them through with a fresh id while preserving their content / noteTitle.
+    if (!n.elementId) {
+      return [{ ...n, id: crypto.randomUUID() }];
+    }
+    if (!idMap.has(n.elementId)) return [];
+    return [{ ...n, id: crypto.randomUUID(), elementId: idMap.get(n.elementId)! }];
+  });
 
   const viewEdges: ViewEdge[] = view.edges
     .filter((e) => idMap.has(e.relationId))

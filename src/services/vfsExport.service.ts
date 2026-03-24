@@ -225,6 +225,24 @@ export function downloadVfsDiagramXmi(
   const nodes = semanticModelToDomainNodes(model, elementIds);
   const edges = semanticModelToDomainEdges(model, elementIds);
 
+  // Note ViewNodes are view-only (elementId === '') — they have no IR element in the
+  // SemanticModel. Build lightweight NoteNode objects so the XMI converter can emit
+  // <ownedComment> elements for each note present in the diagram.
+  if (diagramView) {
+    const now = Date.now();
+    for (const vn of diagramView.nodes) {
+      if (!vn.elementId) {
+        nodes.push({
+          id: vn.id,
+          type: 'NOTE',
+          content: vn.content ?? '',
+          createdAt: now,
+          updatedAt: now,
+        } as DomainNode);
+      }
+    }
+  }
+
   XmiConverterService.downloadXmi(model.id, diagramName, nodes, edges);
 }
 

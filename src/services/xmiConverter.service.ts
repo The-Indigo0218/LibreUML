@@ -191,7 +191,12 @@ export class XmiConverterService {
       ? this.serializeTemplateSignature(id, node.generics)
       : "";
 
-    const attributes = ('attributes' in node) ? node.attributes : [];
+    // EnumNode stores its members in `literals`, not `attributes`.
+    // serializeAttributes only uses id + name for the isEnum path, so the
+    // literal objects ({ id, name, value? }) satisfy that contract.
+    const attributes = node.type === 'ENUM'
+      ? ('literals' in node ? (node as unknown as { literals: ClassAttribute[] }).literals : [])
+      : ('attributes' in node ? node.attributes : []);
     const attributesXml = this.serializeAttributes(
       attributes,
       classNodes,

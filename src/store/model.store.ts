@@ -329,6 +329,28 @@ export const useModelStore = create<ModelStoreState>()(
   })),
   {
     name: 'libreuml-model-storage',
+    // v0 → v1: SemanticModel gained enums, dataTypes, actors, useCases, activityNodes,
+    // objectInstances, components, nodes, artifacts, and packageNames. Returning users
+    // whose localStorage was written before these fields existed would otherwise crash
+    // on any code path that assumes a non-undefined dictionary (e.g. model.enums[id]).
+    version: 1,
+    migrate: (persistedState: unknown, version: number): { model: SemanticModel | null } => {
+      const typed = persistedState as { model: SemanticModel | null };
+      if (version < 1 && typed.model) {
+        const m = typed.model;
+        m.enums            = m.enums            ?? {};
+        m.dataTypes        = m.dataTypes        ?? {};
+        m.actors           = m.actors           ?? {};
+        m.useCases         = m.useCases         ?? {};
+        m.activityNodes    = m.activityNodes    ?? {};
+        m.objectInstances  = m.objectInstances  ?? {};
+        m.components       = m.components       ?? {};
+        m.nodes            = m.nodes            ?? {};
+        m.artifacts        = m.artifacts        ?? {};
+        m.packageNames     = m.packageNames     ?? [];
+      }
+      return typed;
+    },
     // Persist only the model data — actions are reconstructed from the store definition.
     partialize: (state) => ({ model: state.model }),
     storage: {

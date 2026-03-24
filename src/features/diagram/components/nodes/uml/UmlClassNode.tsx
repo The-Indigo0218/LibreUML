@@ -178,7 +178,8 @@ const UmlClassNode = ({ data, selected }: NodeProps<NodeViewModel>) => {
               section.items.map((item) => (
                 <div
                   key={item.id}
-                  className={`hover:text-text-primary transition-colors py-0.5 leading-relaxed ${
+                  title={item.text}
+                  className={`hover:text-text-primary transition-colors py-0.5 leading-relaxed truncate ${
                     item.isStatic ? 'underline' : ''
                   } ${item.isAbstract ? 'italic' : ''}`}
                 >

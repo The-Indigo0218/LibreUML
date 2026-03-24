@@ -79,8 +79,8 @@ function TypeCombobox({
 
   useEffect(() => {
     committedRef.current = value;
-    if (!isOpen) setInputValue(value);
-  }, [value, isOpen]);
+    setInputValue(value);
+  }, [value]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -114,7 +114,6 @@ function TypeCombobox({
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     setDropdownPos({ top: rect.bottom + 2, left: rect.left, width: rect.width });
-    setUserHasTyped(false);
     setIsOpen(true);
   };
 
@@ -193,7 +192,10 @@ function TypeCombobox({
           setInputValue(e.target.value);
           if (!isOpen) openDropdown();
         }}
-        onFocus={openDropdown}
+        onFocus={() => {
+          setUserHasTyped(false);
+          openDropdown();
+        }}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         className={inputClassName}

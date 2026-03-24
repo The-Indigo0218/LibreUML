@@ -142,12 +142,15 @@ function buildSections(
 
     sections.push({
       id: 'operations',
-      items: ops.map((o) => ({
-        id: o.id,
-        text: `${irVisSymbol(o.visibility)}${o.name}(${o.parameters.map((p) => `${p.name}: ${p.type}`).join(', ')}): ${o.returnType ?? 'void'}`,
-        isStatic: o.isStatic,
-        isAbstract: o.isAbstract,
-      })),
+      items: ops.map((o) => {
+        const paramsStr = o.parameters.map((p) => `${p.name}: ${p.type}`).join(', ');
+        // A constructor's name matches the enclosing class name — omit the return type.
+        const isConstructor = o.name === element.name;
+        const text = isConstructor
+          ? `${irVisSymbol(o.visibility)}${o.name}(${paramsStr})`
+          : `${irVisSymbol(o.visibility)}${o.name}(${paramsStr}): ${o.returnType ?? 'void'}`;
+        return { id: o.id, text, isStatic: o.isStatic, isAbstract: o.isAbstract };
+      }),
     });
   } else if (kind === 'INTERFACE') {
     const iface = element as IRInterface;
@@ -155,11 +158,14 @@ function buildSections(
 
     sections.push({
       id: 'operations',
-      items: ops.map((o) => ({
-        id: o.id,
-        text: `${irVisSymbol(o.visibility)}${o.name}(${o.parameters.map((p) => `${p.name}: ${p.type}`).join(', ')}): ${o.returnType ?? 'void'}`,
-        isAbstract: o.isAbstract,
-      })),
+      items: ops.map((o) => {
+        const paramsStr = o.parameters.map((p) => `${p.name}: ${p.type}`).join(', ');
+        const isConstructor = o.name === element.name;
+        const text = isConstructor
+          ? `${irVisSymbol(o.visibility)}${o.name}(${paramsStr})`
+          : `${irVisSymbol(o.visibility)}${o.name}(${paramsStr}): ${o.returnType ?? 'void'}`;
+        return { id: o.id, text, isAbstract: o.isAbstract };
+      }),
     });
   } else if (kind === 'ENUM') {
     const enm = element as IREnum;

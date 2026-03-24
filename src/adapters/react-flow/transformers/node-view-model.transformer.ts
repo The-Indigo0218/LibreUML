@@ -82,23 +82,34 @@ function formatAttribute(attr: ClassAttribute): string {
 }
 
 /**
- * Formats a method into a display string
- * Example: "+ getName(): String"
+ * Formats a method into a display string.
+ * Constructors omit the return type: "+ Persona(name: String)"
+ * Regular methods include it:     "+ getName(): String"
+ *
+ * A method is treated as a constructor when isConstructor is true OR
+ * when its name matches the enclosing class name.
  */
-function formatMethod(method: ClassMethod): string {
+function formatMethod(method: ClassMethod, className?: string): string {
   const visibility = VISIBILITY_SYMBOLS[method.visibility] || '+';
   const staticPrefix = method.isStatic ? 'static ' : '';
   const abstractPrefix = method.isAbstract ? 'abstract ' : '';
-  
+
   const params = method.parameters
     .map(p => {
       const arrayNotation = p.isArray ? '[]' : '';
       return `${p.name}: ${p.type}${arrayNotation}`;
     })
     .join(', ');
-  
+
+  const isConstructor =
+    method.isConstructor === true ||
+    (className !== undefined && method.name === className);
+
+  if (isConstructor) {
+    return `${visibility} ${abstractPrefix}${staticPrefix}${method.name}(${params})`;
+  }
+
   const returnArrayNotation = method.isReturnArray ? '[]' : '';
-  
   return `${visibility} ${abstractPrefix}${staticPrefix}${method.name}(${params}): ${method.returnType}${returnArrayNotation}`;
 }
 
@@ -123,14 +134,15 @@ function transformAttributesSection(attributes: ClassAttribute[]): NodeSection {
 }
 
 /**
- * Transforms methods into a generic section
+ * Transforms methods into a generic section.
+ * Pass `className` so constructors are rendered without a return type.
  */
-function transformMethodsSection(methods: ClassMethod[]): NodeSection {
+function transformMethodsSection(methods: ClassMethod[], className?: string): NodeSection {
   return {
     id: 'methods',
     items: methods.map(method => ({
       id: method.id,
-      text: formatMethod(method),
+      text: formatMethod(method, className),
       isStatic: method.isStatic,
       isAbstract: method.isAbstract,
       metadata: {
@@ -161,15 +173,15 @@ function transformLiteralsSection(literals: Array<{ id: string; name: string; va
  */
 function transformClassNode(node: ClassNode): NodeViewModel {
   const sections: NodeSection[] = [];
-  
+
   // Add attributes section
   if (node.attributes.length > 0) {
     sections.push(transformAttributesSection(node.attributes));
   }
-  
-  // Add methods section
+
+  // Add methods section — pass node.name so constructors render without return type
   if (node.methods.length > 0) {
-    sections.push(transformMethodsSection(node.methods));
+    sections.push(transformMethodsSection(node.methods, node.name));
   }
   
   return {
@@ -193,10 +205,10 @@ function transformClassNode(node: ClassNode): NodeViewModel {
  */
 function transformInterfaceNode(node: InterfaceNode): NodeViewModel {
   const sections: NodeSection[] = [];
-  
-  // Interfaces only have methods
+
+  // Interfaces only have methods — pass node.name for consistency
   if (node.methods.length > 0) {
-    sections.push(transformMethodsSection(node.methods));
+    sections.push(transformMethodsSection(node.methods, node.name));
   }
   
   return {
@@ -219,15 +231,15 @@ function transformInterfaceNode(node: InterfaceNode): NodeViewModel {
  */
 function transformAbstractClassNode(node: AbstractClassNode): NodeViewModel {
   const sections: NodeSection[] = [];
-  
+
   // Add attributes section
   if (node.attributes.length > 0) {
     sections.push(transformAttributesSection(node.attributes));
   }
-  
-  // Add methods section
+
+  // Add methods section — pass node.name so constructors render without return type
   if (node.methods.length > 0) {
-    sections.push(transformMethodsSection(node.methods));
+    sections.push(transformMethodsSection(node.methods, node.name));
   }
   
   return {

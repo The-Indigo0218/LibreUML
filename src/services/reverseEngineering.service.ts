@@ -68,8 +68,12 @@ export class ReverseEngineeringService {
         stereotype: parsed.stereotype,
         attributes: parsed.attributes,
         methods: parsed.methods,
+        literals: parsed.literals?.map((lit, i) => ({
+          id: `lit-${i}`,
+          name: lit.name,
+        })),
         isMain: parsed.isMain,
-        package: parsed.package, // Preserve package information
+        package: parsed.package,
       },
     };
     nodesMap.set(mainNodeId, mainNode);

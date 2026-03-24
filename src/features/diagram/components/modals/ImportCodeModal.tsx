@@ -1,15 +1,13 @@
 import { useState, useRef } from "react";
-import type { ChangeEvent } from "react"; 
+import type { ChangeEvent } from "react";
 import { Upload, FileText, Code, AlertCircle, X } from "lucide-react";
-import { ReverseEngineeringService } from "../../../../services/reverseEngineering.service";
 import { useTranslation } from "react-i18next";
-// Import types for casting
-import type {
-  UmlClassNode,
-  UmlEdge,
-  UmlClassData,
-} from "../../types/diagram.types";
-import type { Node, Edge } from "reactflow";
+import { JavaParserService } from "../../../../services/javaParser.service";
+import { useModelStore } from "../../../../store/model.store";
+import { useProjectStore } from "../../../../store/project.store";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import type { DomainNode } from "../../../../core/domain/models/nodes";
+import type { IRAttribute, IROperation } from "../../../../core/domain/vfs/vfs.types";
 
 interface Props {
   isOpen: boolean;
@@ -28,15 +26,12 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // TODO: SSOT Migration - Reverse engineering needs to write to ProjectStore/WorkspaceStore
-  const nodes: any[] = [];
-  const edges: any[] = [];
-  const setNodes = (nodes: any[]) => {
-    console.warn("TODO: SSOT - setNodes not implemented", nodes);
-  };
-  const setEdges = (edges: any[]) => {
-    console.warn("TODO: SSOT - setEdges not implemented", edges);
-  };
+  // SSOT store hooks
+  const modelStore = useModelStore();
+  const addProjectNode = useProjectStore((s) => s.addNode);
+  const getActiveFile = useWorkspaceStore((s) => s.getActiveFile);
+  const addNodeToFile = useWorkspaceStore((s) => s.addNodeToFile);
+  const updateFile = useWorkspaceStore((s) => s.updateFile);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,17 +75,139 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
 
     setIsProcessing(true);
     try {
-      const result = ReverseEngineeringService.process(
-        code,
-        nodes as unknown as UmlClassNode[],
-        edges as unknown as UmlEdge[],
-      );
+      const parsed = JavaParserService.parse(code);
+      if (!parsed) {
+        setError("Failed to parse Java code. Check syntax.");
+        return;
+      }
 
-      setNodes(result.nodes as unknown as Node<UmlClassData>[]);
-      setEdges(result.edges as unknown as Edge[]);
+      const now = Date.now();
+      const nodeId = crypto.randomUUID();
+
+      // Helper: map UML symbol visibility to VFS string visibility
+      const symToVis = (sym: string): 'public' | 'private' | 'protected' | 'package' => {
+        switch (sym) {
+          case '+': return 'public';
+          case '-': return 'private';
+          case '#': return 'protected';
+          default:  return 'package';
+        }
+      };
+
+      // 1. Write semantic elements to useModelStore (if a model is active)
+      if (modelStore.model) {
+        if (parsed.stereotype === 'enum') {
+          modelStore.createEnum({
+            name: parsed.name,
+            literals: (parsed.literals ?? []).map((l) => ({ name: l.name })),
+            packageName: parsed.package,
+          });
+        } else if (parsed.stereotype === 'interface') {
+          const ifaceId = modelStore.createInterface({
+            name: parsed.name,
+            operationIds: [],
+            packageName: parsed.package,
+          });
+          const ops: IROperation[] = parsed.methods.map((m) => ({
+            id: m.id,
+            name: m.name,
+            kind: 'OPERATION' as const,
+            visibility: symToVis(m.visibility),
+            isStatic: m.isStatic,
+            isAbstract: m.isAbstract,
+            returnType: m.returnType || 'void',
+            parameters: (m.parameters || []).map((p) => ({ name: p.name, type: p.type })),
+          }));
+          modelStore.setElementMembers(ifaceId, [], ops);
+        } else {
+          const classId =
+            parsed.stereotype === 'abstract'
+              ? modelStore.createAbstractClass({ name: parsed.name, attributeIds: [], operationIds: [], packageName: parsed.package })
+              : modelStore.createClass({ name: parsed.name, attributeIds: [], operationIds: [], packageName: parsed.package });
+
+          const attrs: IRAttribute[] = parsed.attributes.map((a) => ({
+            id: a.id,
+            name: a.name,
+            kind: 'ATTRIBUTE' as const,
+            visibility: symToVis(a.visibility),
+            isStatic: a.isStatic,
+            type: a.type,
+            multiplicity: a.isArray ? '0..*' : undefined,
+            defaultValue: a.defaultValue,
+          }));
+          const ops: IROperation[] = parsed.methods.map((m) => ({
+            id: m.id,
+            name: m.name,
+            kind: 'OPERATION' as const,
+            visibility: symToVis(m.visibility),
+            isStatic: m.isStatic,
+            isAbstract: m.isAbstract,
+            returnType: m.returnType || 'void',
+            parameters: (m.parameters || []).map((p) => ({ name: p.name, type: p.type })),
+          }));
+          modelStore.setElementMembers(classId, attrs, ops);
+        }
+      }
+
+      // 2. Create visual DomainNode in useProjectStore
+      let domainNode: DomainNode;
+      if (parsed.stereotype === 'enum') {
+        domainNode = {
+          id: nodeId,
+          type: 'ENUM',
+          name: parsed.name,
+          literals: (parsed.literals ?? []).map((l, i) => ({ id: `lit-${i}`, name: l.name })),
+          package: parsed.package,
+          createdAt: now,
+          updatedAt: now,
+        } as DomainNode;
+      } else if (parsed.stereotype === 'interface') {
+        domainNode = {
+          id: nodeId,
+          type: 'INTERFACE',
+          name: parsed.name,
+          methods: parsed.methods,
+          generics: parsed.generics,
+          package: parsed.package,
+          createdAt: now,
+          updatedAt: now,
+        } as DomainNode;
+      } else {
+        domainNode = {
+          id: nodeId,
+          type: parsed.stereotype === 'abstract' ? 'ABSTRACT_CLASS' : 'CLASS',
+          name: parsed.name,
+          attributes: parsed.attributes,
+          methods: parsed.methods,
+          generics: parsed.generics,
+          package: parsed.package,
+          isMain: parsed.isMain,
+          createdAt: now,
+          updatedAt: now,
+        } as DomainNode;
+      }
+      addProjectNode(domainNode);
+
+      // 3. Register node to the active diagram file and set its initial position
+      const activeFile = getActiveFile();
+      if (activeFile) {
+        addNodeToFile(activeFile.id, nodeId);
+        const existingPositionMap =
+          (activeFile.metadata as Record<string, unknown> | undefined)?.positionMap as
+            | Record<string, { x: number; y: number }>
+            | undefined ?? {};
+        updateFile(activeFile.id, {
+          metadata: {
+            ...activeFile.metadata,
+            positionMap: {
+              ...existingPositionMap,
+              [nodeId]: { x: 100 + Math.random() * 50, y: 100 + Math.random() * 50 },
+            },
+          } as typeof activeFile.metadata,
+        });
+      }
 
       onClose();
-      // Reset state
       setCode("");
       setFileName(null);
     } catch (err) {

@@ -18,6 +18,7 @@ export class JavaGeneratorService {
 
     const isInterface = node.type === 'INTERFACE';
     const isEnum = node.type === 'ENUM';
+    const className = 'name' in node ? node.name : '';
 
     const parts: string[] = [];
 
@@ -31,29 +32,50 @@ export class JavaGeneratorService {
     parts.push(this.buildSignature(node, allNodes, edges));
     parts.push("{");
 
-    // Access attributes from domain node (CLASS and ABSTRACT_CLASS only)
-    const attributes = ('attributes' in node) ? node.attributes : [];
-    if (!isInterface && !isEnum && attributes.length > 0) {
-      parts.push(this.buildAttributes(attributes));
-    }
+    if (isEnum) {
+      // Enum body: literals first, then any explicitly-declared methods
+      const literals = ('literals' in node) ? node.literals : [];
+      parts.push(this.buildEnumLiterals(literals));
 
-    if (!isInterface && !isEnum && attributes.length > 0) {
-      parts.push("");
-      parts.push(this.buildConstructor(node, allNodes, edges));
-    }
-
-    if (!isInterface && !isEnum && attributes.length > 0) {
-      parts.push("");
-      parts.push(this.buildGettersAndSetters(attributes));
-    }
-
-    // Access methods from domain node
-    const methods = ('methods' in node) ? node.methods : [];
-    if (methods.length > 0) {
-      if (!isInterface && attributes.length > 0) {
+      const methods: ClassMethod[] = ('methods' in node) ? (node as any).methods as ClassMethod[] : [];
+      if (methods.length > 0) {
         parts.push("");
+        parts.push(this.buildMethods(methods, false, className));
       }
-      parts.push(this.buildMethods(methods, isInterface));
+    } else {
+      // Access attributes from domain node (CLASS and ABSTRACT_CLASS only)
+      const attributes = ('attributes' in node) ? node.attributes : [];
+
+      // Compute existing method names up-front for deduplication guards.
+      const methods = ('methods' in node) ? node.methods : [];
+      const existingMethodNames = new Set(methods.map((m) => m.name));
+
+      if (!isInterface && attributes.length > 0) {
+        parts.push(this.buildAttributes(attributes));
+      }
+
+      if (!isInterface && attributes.length > 0) {
+        const ctorCode = this.buildConstructor(node, allNodes, edges, existingMethodNames);
+        if (ctorCode !== null) {
+          parts.push("");
+          parts.push(ctorCode);
+        }
+      }
+
+      if (!isInterface && attributes.length > 0) {
+        const gsCode = this.buildGettersAndSetters(attributes, existingMethodNames);
+        if (gsCode) {
+          parts.push("");
+          parts.push(gsCode);
+        }
+      }
+
+      if (methods.length > 0) {
+        if (!isInterface && attributes.length > 0) {
+          parts.push("");
+        }
+        parts.push(this.buildMethods(methods, isInterface, className));
+      }
     }
 
     parts.push("}");
@@ -114,18 +136,33 @@ export class JavaGeneratorService {
         const vis = this.mapVisibility(attr.visibility);
         const rawType = this.formatType(attr.type);
         const type = rawType + (attr.isArray ? "[]" : "");
-        
+
         let initialization = "";
-        
+
         if (this.isCollectionType(rawType)) {
           initialization = ` = ${this.getCollectionInitializer(rawType)}`;
         } else if (rawType === "String" && !attr.isArray) {
           initialization = ' = ""';
         }
-        
-        return `    ${vis} ${type} ${attr.name}${initialization};`;
+
+        const visPrefix = vis ? `${vis} ` : '';
+        return `    ${visPrefix}${type} ${attr.name}${initialization};`;
       })
       .join("\n");
+  }
+
+  /**
+   * Generates the comma-separated enum constant list.
+   * e.g.:  "    ACTIVE, INACTIVE, PENDING;"
+   * When no literals are defined, emits an empty block comment placeholder.
+   */
+  private static buildEnumLiterals(
+    literals: Array<{ id: string; name: string; value?: string | number }>
+  ): string {
+    if (literals.length === 0) {
+      return "    // TODO: Add enum constants";
+    }
+    return "    " + literals.map((lit) => lit.name).join(", ") + ";";
   }
 
   private static isCollectionType(type: string): boolean {
@@ -136,20 +173,20 @@ export class JavaGeneratorService {
       'Queue', 'Deque', 'ArrayDeque',
       'Vector', 'Stack'
     ];
-    
+
     return collectionTypes.some(collType => type.startsWith(collType));
   }
 
   private static getCollectionInitializer(type: string): string {
     const genericMatch = type.match(/<(.+)>/);
     const generic = genericMatch ? `<${genericMatch[1]}>` : "<>";
-    
+
     if (type.startsWith('List')) return `new ArrayList${generic}()`;
     if (type.startsWith('Set')) return `new HashSet${generic}()`;
     if (type.startsWith('Map')) return `new HashMap${generic}()`;
     if (type.startsWith('Queue')) return `new ArrayDeque${generic}()`;
     if (type.startsWith('Deque')) return `new ArrayDeque${generic}()`;
-    
+
     if (type.startsWith('ArrayList')) return `new ArrayList${generic}()`;
     if (type.startsWith('LinkedList')) return `new LinkedList${generic}()`;
     if (type.startsWith('HashSet')) return `new HashSet${generic}()`;
@@ -161,35 +198,38 @@ export class JavaGeneratorService {
     if (type.startsWith('ArrayDeque')) return `new ArrayDeque${generic}()`;
     if (type.startsWith('Vector')) return `new Vector${generic}()`;
     if (type.startsWith('Stack')) return `new Stack${generic}()`;
-    
+
     return `new ${type}()`;
   }
 
   private static buildConstructor(
     node: DomainNode,
     allNodes: DomainNode[],
-    edges: DomainEdge[]
-  ): string {
+    edges: DomainEdge[],
+    existingMethodNames: Set<string> = new Set()
+  ): string | null {
     const className = 'name' in node ? node.name : '';
+    // Skip auto-generating if the user already modelled a constructor.
+    if (existingMethodNames.has(className)) return null;
     const attributes = ('attributes' in node) ? node.attributes : [];
-    
+
     const parentAttributes = this.getParentAttributes(node, allNodes, edges);
     const allParams = this.buildConstructorParameters(parentAttributes, attributes);
     const lines: string[] = [];
-    
+
     lines.push(`    public ${className}(${allParams.join(", ")}) {`);
-    
+
     if (parentAttributes.length > 0) {
       const superParams = parentAttributes.map(attr => attr.name).join(", ");
       lines.push(`        super(${superParams});`);
     }
-    
+
     attributes.forEach(attr => {
       lines.push(`        this.${attr.name} = ${attr.name};`);
     });
-    
+
     lines.push("    }");
-    
+
     return lines.join("\n");
   }
 
@@ -201,9 +241,9 @@ export class JavaGeneratorService {
     const inheritanceEdge = edges.find(
       (e) => e.sourceNodeId === node.id && e.type === 'INHERITANCE'
     );
-    
+
     if (!inheritanceEdge) return [];
-    
+
     const parentNode = allNodes.find((n) => n.id === inheritanceEdge.targetNodeId);
     return (parentNode && 'attributes' in parentNode) ? parentNode.attributes : [];
   }
@@ -223,37 +263,50 @@ export class JavaGeneratorService {
     ];
   }
 
-  private static buildGettersAndSetters(attributes: ClassAttribute[]): string {
+  private static buildGettersAndSetters(
+    attributes: ClassAttribute[],
+    existingMethodNames: Set<string> = new Set()
+  ): string {
     const methods: string[] = [];
-    
+
     attributes.forEach(attr => {
       const type = this.formatType(attr.type) + (attr.isArray ? "[]" : "");
       const capitalizedName = attr.name.charAt(0).toUpperCase() + attr.name.slice(1);
-      
-      methods.push(`    public ${type} get${capitalizedName}() {`);
-      methods.push(`        return this.${attr.name};`);
-      methods.push("    }");
-      
-      methods.push("");
-      
-      methods.push(`    public void set${capitalizedName}(${type} ${attr.name}) {`);
-      methods.push(`        this.${attr.name} = ${attr.name};`);
-      methods.push("    }");
+      const getterName = `get${capitalizedName}`;
+      const setterName = `set${capitalizedName}`;
+
+      if (!existingMethodNames.has(getterName)) {
+        methods.push(`    public ${type} ${getterName}() {`);
+        methods.push(`        return this.${attr.name};`);
+        methods.push("    }");
+        methods.push("");
+      }
+
+      if (!existingMethodNames.has(setterName)) {
+        methods.push(`    public void ${setterName}(${type} ${attr.name}) {`);
+        methods.push(`        this.${attr.name} = ${attr.name};`);
+        methods.push("    }");
+      }
     });
-    
+
+    // Trim trailing blank line if the last entry is an empty string.
+    while (methods.length > 0 && methods[methods.length - 1] === "") {
+      methods.pop();
+    }
+
     return methods.join("\n");
   }
 
   private static buildMethods(
     methods: ClassMethod[],
-    isInterface: boolean
+    isInterface: boolean,
+    className?: string
   ): string {
     return methods
       .map((method) => {
         const vis = this.mapVisibility(method.visibility);
-        const returnType =
-          this.formatType(method.returnType) +
-          (method.isReturnArray ? "[]" : "");
+        const visPrefix = vis ? `${vis} ` : '';
+
         const params = (method.parameters || [])
           .map((p) => {
             const paramType = this.formatType(p.type) + (p.isArray ? "[]" : "");
@@ -261,7 +314,22 @@ export class JavaGeneratorService {
           })
           .join(", ");
 
-        const signature = `    ${vis} ${returnType} ${method.name}(${params})`;
+        // A constructor has no return type in Java.
+        const isConstructor =
+          method.isConstructor === true ||
+          (!!className && method.name === className);
+
+        if (isConstructor) {
+          const signature = `    ${visPrefix}${method.name}(${params})`;
+          if (isInterface) return `${signature};`;
+          return `${signature} {\n        // TODO: Implement constructor\n    }`;
+        }
+
+        const returnType =
+          this.formatType(method.returnType) +
+          (method.isReturnArray ? "[]" : "");
+
+        const signature = `    ${visPrefix}${returnType} ${method.name}(${params})`;
 
         if (isInterface) {
           return `${signature};`;
@@ -271,8 +339,8 @@ export class JavaGeneratorService {
         if (returnType === "void") body = "// TODO: Implement logic";
         else if (
           ["int", "double", "float", "long", "short", "byte"].includes(
-            this.formatType(method.returnType) 
-          ) && !method.isReturnArray 
+            this.formatType(method.returnType)
+          ) && !method.isReturnArray
         )
           body = "return 0;";
         else if (this.formatType(method.returnType) === "boolean" && !method.isReturnArray)
@@ -299,16 +367,11 @@ export class JavaGeneratorService {
 
   private static mapVisibility(symbol: string): string {
     switch (symbol) {
-      case "+":
-        return "public";
-      case "-":
-        return "private";
-      case "#":
-        return "protected";
-      case "~":
-        return "";
-      default:
-        return "public";
+      case "+": return "public";
+      case "-": return "private";
+      case "#": return "protected";
+      case "~": return "";        // package-private: no keyword in Java
+      default:  return "public";
     }
   }
 }

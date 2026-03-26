@@ -31,14 +31,13 @@ export default function NameConflictModal({
           </div>
           <div>
             <h3 className="text-lg font-bold text-text-primary mb-1">
-              {t("alerts.nameConflictTitle") || "Conflicto de Nombre"}
+              {t("nameConflictModal.title")}
             </h3>
             <p className="text-text-secondary text-sm leading-relaxed">
-              Has cambiado el nombre del diagrama a <strong className="text-text-primary">"{diagramName}"</strong>, 
-              pero estás editando el archivo <strong className="text-text-primary">"{currentFileName}.luml"</strong>.
+              {t("nameConflictModal.message", { diagramName, currentFileName })}
             </p>
             <p className="text-text-muted text-xs mt-2">
-              ¿Qué te gustaría hacer?
+              {t("nameConflictModal.question")}
             </p>
           </div>
         </div>
@@ -48,16 +47,16 @@ export default function NameConflictModal({
             onClick={onSaveAsNew}
             className="w-full flex items-center justify-between px-4 py-3 bg-uml-class-border text-white rounded-lg hover:brightness-110 transition-all shadow-md group"
           >
-            <span className="font-medium text-sm">Guardar como "{diagramName}.luml"</span>
-            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded text-white group-hover:bg-white/30">Nuevo Archivo</span>
+            <span className="font-medium text-sm">{t("nameConflictModal.saveAsNew", { diagramName })}</span>
+            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded text-white group-hover:bg-white/30">{t("nameConflictModal.newFile")}</span>
           </button>
 
           <button
             onClick={onOverwrite}
             className="w-full flex items-center justify-between px-4 py-3 bg-surface-secondary border border-surface-border text-text-primary rounded-lg hover:bg-surface-hover hover:border-text-muted transition-all"
           >
-            <span className="font-medium text-sm">Sobrescribir "{currentFileName}.luml"</span>
-            <span className="text-[10px] text-text-muted border border-surface-border px-2 py-0.5 rounded">Mantener Archivo</span>
+            <span className="font-medium text-sm">{t("nameConflictModal.overwrite", { currentFileName })}</span>
+            <span className="text-[10px] text-text-muted border border-surface-border px-2 py-0.5 rounded">{t("nameConflictModal.keepFile")}</span>
           </button>
         </div>
 
@@ -66,7 +65,7 @@ export default function NameConflictModal({
             onClick={onCancel}
             className="text-text-muted text-sm hover:text-text-primary underline decoration-dotted underline-offset-4"
           >
-            Cancelar
+            {t("nameConflictModal.cancel")}
           </button>
         </div>
       </div>

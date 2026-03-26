@@ -7,6 +7,7 @@ import type { stereotype } from "../types/diagram.types";
 import { useWorkspaceStore } from "../../../store/workspace.store";
 import { useVFSStore } from "../../../store/project-vfs.store";
 import { useModelStore } from "../../../store/model.store";
+import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../store/standaloneModelOps";
 import { isDiagramView } from "./useVFSCanvasController";
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from "../../../core/domain/vfs/vfs.types";
 
@@ -224,17 +225,51 @@ export const useDiagramDnD = () => {
         if (!isDiagramView(freshContent)) return;
         const freshView = freshContent as DiagramView;
 
-        // a) Ensure SemanticModel is initialized (may be null on first drop).
-        const modelState = useModelStore.getState();
-        if (!modelState.model) {
-          modelState.initModel(freshProject.domainModelId ?? crypto.randomUUID());
-        }
+        const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
 
-        // b) Compute auto-incremented name, then create the semantic IR element.
-        const currentModel = useModelStore.getState().model!;
-        const elementName = dropConfig.getNextName(currentModel);
-        const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
-        const semanticId = dropConfig.create(elementName, isExternalFile || undefined);
+        let semanticId: string;
+
+        if (isStandaloneFile) {
+          // Standalone path: create IR element in localModel, never touch ModelStore.
+          ensureLocalModel(activeTabId);
+          const localM = getLocalModel(activeTabId);
+          if (!localM && stereotype !== 'note') return;
+
+          const elementName = localM ? dropConfig.getNextName(localM) : 'Note';
+          const ops = standaloneModelOps(activeTabId);
+
+          switch (stereotype) {
+            case 'class':
+              semanticId = ops.createClass({ name: elementName, attributeIds: [], operationIds: [] });
+              break;
+            case 'abstract':
+              semanticId = ops.createAbstractClass({ name: elementName, attributeIds: [], operationIds: [] });
+              break;
+            case 'interface':
+              semanticId = ops.createInterface({ name: elementName, operationIds: [] });
+              break;
+            case 'enum':
+              semanticId = ops.createEnum({ name: elementName, literals: [] });
+              break;
+            case 'note':
+              semanticId = '';
+              break;
+            default:
+              return;
+          }
+        } else {
+          // a) Ensure SemanticModel is initialized (may be null on first drop).
+          const modelState = useModelStore.getState();
+          if (!modelState.model) {
+            modelState.initModel(freshProject.domainModelId ?? crypto.randomUUID());
+          }
+
+          // b) Compute auto-incremented name, then create the semantic IR element.
+          const currentModel = useModelStore.getState().model!;
+          const elementName = dropConfig.getNextName(currentModel);
+          const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
+          semanticId = dropConfig.create(elementName, isExternalFile || undefined);
+        }
 
         // c) Create the visual ViewNode linked to the semantic element.
         const viewNode: ViewNode = {

@@ -16,10 +16,14 @@ import {
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useModelStore } from "../../../../store/model.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useUiStore } from "../../../../store/uiStore";
 import { useToastStore } from "../../../../store/toast.store";
+import { standaloneModelOps } from "../../../../store/standaloneModelOps";
 import { DRAG_TYPE_EXISTING, getNextVFSName } from "../../hooks/useDiagramDnD";
 import type {
+  VFSFile,
+  SemanticModel,
   IRClass,
   IRInterface,
   IREnum,
@@ -39,6 +43,7 @@ interface PkgPickerState {
   id: string;
   x: number;
   y: number;
+  isStandalone?: boolean;
 }
 
 // ─── Badge ────────────────────────────────────────────────────────────────────
@@ -238,21 +243,42 @@ export default function RightSidebar() {
   const openSSoTClassEditor = useUiStore((s) => s.openSSoTClassEditor);
   const openGlobalDelete = useUiStore((s) => s.openGlobalDelete);
 
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const activeVFSFile = activeTabId
+    ? (project?.nodes[activeTabId] as VFSFile | undefined)
+    : undefined;
+  const isStandalone = activeVFSFile?.type === "FILE" && activeVFSFile.standalone === true;
+
+  // Reactive subscription to the active file's localModel (standalone only).
+  const localModel = useVFSStore((s): SemanticModel | null => {
+    if (!activeTabId || !s.project) return null;
+    const node = s.project.nodes[activeTabId];
+    if (!node || node.type !== "FILE") return null;
+    return (node as VFSFile).localModel ?? null;
+  });
+
   const [ctxMenu, setCtxMenu] = useState<CtxMenuState | null>(null);
   const [pkgPicker, setPkgPicker] = useState<PkgPickerState | null>(null);
+  const [standaloneCtxMenu, setStandaloneCtxMenu] = useState<CtxMenuState | null>(null);
 
   const dismissCtxMenu = useCallback(() => setCtxMenu(null), []);
   const dismissPkgPicker = useCallback(() => setPkgPicker(null), []);
+  const dismissStandaloneCtxMenu = useCallback(() => setStandaloneCtxMenu(null), []);
 
   useEffect(() => {
-    if (!ctxMenu && !pkgPicker) return;
-    const handler = () => { dismissCtxMenu(); dismissPkgPicker(); };
+    if (!ctxMenu && !pkgPicker && !standaloneCtxMenu) return;
+    const handler = () => { dismissCtxMenu(); dismissPkgPicker(); dismissStandaloneCtxMenu(); };
     window.addEventListener("mousedown", handler);
     return () => window.removeEventListener("mousedown", handler);
-  }, [ctxMenu, pkgPicker, dismissCtxMenu, dismissPkgPicker]);
+  }, [ctxMenu, pkgPicker, standaloneCtxMenu, dismissCtxMenu, dismissPkgPicker, dismissStandaloneCtxMenu]);
 
   const handleShowContextMenu = useCallback(
     (id: string, x: number, y: number) => setCtxMenu({ id, x, y }),
+    [],
+  );
+
+  const handleShowStandaloneContextMenu = useCallback(
+    (id: string, x: number, y: number) => setStandaloneCtxMenu({ id, x, y }),
     [],
   );
 
@@ -379,6 +405,19 @@ export default function RightSidebar() {
     useToastStore.getState().show(`Package "${name}" created`);
   }, [model, ensureModel, addPackageName]);
 
+  const handleStandaloneNewPackage = useCallback(() => {
+    if (!activeTabId) return;
+    const raw = window.prompt("Package name (e.g. com.example.models):");
+    if (!raw?.trim()) return;
+    const name = raw.trim();
+    if ((localModel?.packageNames ?? []).includes(name)) {
+      useToastStore.getState().show(`Package "${name}" already exists`);
+      return;
+    }
+    standaloneModelOps(activeTabId).addPackageName(name);
+    useToastStore.getState().show(`Package "${name}" created`);
+  }, [activeTabId, localModel]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const renderGroup = (key: string, group: PkgGroup) => {
@@ -452,18 +491,18 @@ export default function RightSidebar() {
         onDoubleClick={toggleRightPanel}
       >
         <div className="flex items-center gap-2">
-          <Network className="w-4 h-4 text-text-muted" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+          <Network className={`w-4 h-4 ${isStandalone ? "text-text-muted/30" : "text-text-muted"}`} />
+          <h3 className={`text-xs font-semibold uppercase tracking-wider ${isStandalone ? "text-text-muted/30" : "text-text-muted"}`}>
             Model Explorer
           </h3>
         </div>
         <div className="flex items-center gap-0.5">
           <button
-            onClick={(e) => { e.stopPropagation(); handleNewPackage(); }}
+            onClick={(e) => { e.stopPropagation(); isStandalone ? handleStandaloneNewPackage() : handleNewPackage(); }}
             className="p-1 hover:bg-surface-hover rounded transition-colors opacity-0 group-hover:opacity-100"
             title="New Package"
           >
-            <FolderPlus className="w-3.5 h-3.5 text-text-muted" />
+            <FolderPlus className={`w-3.5 h-3.5 ${isStandalone ? "text-amber-400/60" : "text-text-muted"}`} />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); toggleRightPanel(); }}
@@ -476,7 +515,100 @@ export default function RightSidebar() {
       </div>
 
       {/* Body */}
-      {!model && !project ? (
+      {isStandalone ? (
+        <div className="flex-1 overflow-y-auto py-1">
+          {!localModel || (
+            Object.keys(localModel.classes).length === 0 &&
+            Object.keys(localModel.interfaces).length === 0 &&
+            Object.keys(localModel.enums).length === 0
+          ) ? (
+            <div className="flex flex-col items-center justify-center h-full p-5 gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#1e2738] border border-[#2a3358]">
+                <Network className="w-5 h-5 text-amber-400/40" />
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-medium text-amber-400/60 mb-1">
+                  Standalone File
+                </p>
+                <p className="text-[11px] text-text-muted/30 leading-relaxed">
+                  Drop elements onto the canvas to populate this diagram.
+                </p>
+              </div>
+            </div>
+          ) : (() => {
+            const lm = localModel!;
+            const DEFAULT_SPKG = "__default__";
+            const spkgNames: string[] = lm.packageNames ?? [];
+            interface SpkgGroup { classes: typeof lm.classes[string][]; interfaces: typeof lm.interfaces[string][]; enums: typeof lm.enums[string][]; }
+            const emptySpkg = (): SpkgGroup => ({ classes: [], interfaces: [], enums: [] });
+            const spkgGroups = new Map<string, SpkgGroup>();
+            spkgGroups.set(DEFAULT_SPKG, emptySpkg());
+            spkgNames.forEach((n) => spkgGroups.set(n, emptySpkg()));
+            Object.values(lm.classes).forEach((cls) => {
+              const key = cls.packageName?.trim() || DEFAULT_SPKG;
+              if (!spkgGroups.has(key)) spkgGroups.set(key, emptySpkg());
+              spkgGroups.get(key)!.classes.push(cls);
+            });
+            Object.values(lm.interfaces).forEach((iface) => {
+              const key = iface.packageName?.trim() || DEFAULT_SPKG;
+              if (!spkgGroups.has(key)) spkgGroups.set(key, emptySpkg());
+              spkgGroups.get(key)!.interfaces.push(iface);
+            });
+            Object.values(lm.enums).forEach((enm) => {
+              const key = enm.packageName?.trim() || DEFAULT_SPKG;
+              if (!spkgGroups.has(key)) spkgGroups.set(key, emptySpkg());
+              spkgGroups.get(key)!.enums.push(enm);
+            });
+
+            return Array.from(spkgGroups.entries()).map(([key, group]) => {
+              const total = group.classes.length + group.interfaces.length + group.enums.length;
+              if (total === 0 && key !== DEFAULT_SPKG) return null;
+              return (
+                <PackageFolder
+                  key={key}
+                  name={key === DEFAULT_SPKG ? "default" : key}
+                  count={total}
+                  isDefault={key === DEFAULT_SPKG}
+                >
+                  {group.classes.map((cls) => (
+                    <ElementRow
+                      key={cls.id}
+                      id={cls.id}
+                      name={cls.name}
+                      badge={cls.isAbstract ? "A" : "C"}
+                      badgeClass={cls.isAbstract ? "bg-purple-500/20 text-purple-400" : "bg-blue-500/20 text-blue-400"}
+                      attributes={cls.attributeIds.map((id) => lm.attributes[id]).filter(Boolean)}
+                      operations={cls.operationIds.map((id) => lm.operations[id]).filter(Boolean)}
+                      onShowContextMenu={handleShowStandaloneContextMenu}
+                    />
+                  ))}
+                  {group.interfaces.map((iface) => (
+                    <ElementRow
+                      key={iface.id}
+                      id={iface.id}
+                      name={iface.name}
+                      badge="I"
+                      badgeClass="bg-emerald-500/20 text-emerald-400"
+                      operations={iface.operationIds.map((id) => lm.operations[id]).filter(Boolean)}
+                      onShowContextMenu={handleShowStandaloneContextMenu}
+                    />
+                  ))}
+                  {group.enums.map((enm) => (
+                    <ElementRow
+                      key={enm.id}
+                      id={enm.id}
+                      name={enm.name}
+                      badge="E"
+                      badgeClass="bg-amber-500/20 text-amber-400"
+                      onShowContextMenu={handleShowStandaloneContextMenu}
+                    />
+                  ))}
+                </PackageFolder>
+              );
+            });
+          })()}
+        </div>
+      ) : !model && !project ? (
         <div className="flex-1 flex items-center justify-center p-4">
           <p className="text-xs text-text-muted/40 text-center leading-relaxed">
             Open a .luml diagram and drop elements to populate the model.
@@ -547,6 +679,59 @@ export default function RightSidebar() {
         </div>
       )}
 
+      {/* Standalone element context menu */}
+      {standaloneCtxMenu && activeTabId && (
+        <div
+          className="fixed z-[9000] bg-[#1a2235] border border-[#2d3f5c] rounded-lg shadow-2xl py-1 min-w-[180px]"
+          style={{ top: Math.min(standaloneCtxMenu.y, window.innerHeight - 160), left: standaloneCtxMenu.x }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 transition-colors"
+            onClick={() => { openSSoTClassEditor(standaloneCtxMenu.id); dismissStandaloneCtxMenu(); }}
+          >
+            <Pencil className="w-3.5 h-3.5 text-slate-400" />
+            Edit...
+          </button>
+
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 transition-colors"
+            onClick={() => {
+              setPkgPicker({ id: standaloneCtxMenu.id, x: standaloneCtxMenu.x + 182, y: standaloneCtxMenu.y, isStandalone: true });
+              dismissStandaloneCtxMenu();
+            }}
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" />
+            Move to Package...
+          </button>
+
+          <div className="border-t border-[#2d3f5c] my-1" />
+
+          <button
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-red-400 hover:bg-red-950/40 transition-colors"
+            onClick={() => {
+              const lm = localModel;
+              if (!lm) { dismissStandaloneCtxMenu(); return; }
+              const id = standaloneCtxMenu.id;
+              const elementName =
+                lm.classes[id]?.name ??
+                lm.interfaces[id]?.name ??
+                lm.enums[id]?.name ??
+                'Element';
+              const ops = standaloneModelOps(activeTabId);
+              if (lm.classes[id])         ops.deleteClass(id);
+              else if (lm.interfaces[id]) ops.deleteInterface(id);
+              else if (lm.enums[id])      ops.deleteEnum(id);
+              useToastStore.getState().show(`"${elementName}" deleted from standalone diagram`);
+              dismissStandaloneCtxMenu();
+            }}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete from Diagram
+          </button>
+        </div>
+      )}
+
       {/* Package picker */}
       {pkgPicker && (
         <div
@@ -562,16 +747,30 @@ export default function RightSidebar() {
           </p>
           <button
             className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 hover:bg-white/5 transition-colors italic"
-            onClick={() => { setElementPackage(pkgPicker.id, undefined); dismissPkgPicker(); }}
+            onClick={() => {
+              if (pkgPicker.isStandalone && activeTabId) {
+                standaloneModelOps(activeTabId).setElementPackage(pkgPicker.id, undefined);
+              } else {
+                setElementPackage(pkgPicker.id, undefined);
+              }
+              dismissPkgPicker();
+            }}
           >
             <Folder className="w-3.5 h-3.5 text-slate-500" />
             (default)
           </button>
-          {(model?.packageNames ?? []).map((pkgName) => (
+          {(pkgPicker.isStandalone ? (localModel?.packageNames ?? []) : (model?.packageNames ?? [])).map((pkgName) => (
             <button
               key={pkgName}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 transition-colors"
-              onClick={() => { setElementPackage(pkgPicker.id, pkgName); dismissPkgPicker(); }}
+              onClick={() => {
+                if (pkgPicker.isStandalone && activeTabId) {
+                  standaloneModelOps(activeTabId).setElementPackage(pkgPicker.id, pkgName);
+                } else {
+                  setElementPackage(pkgPicker.id, pkgName);
+                }
+                dismissPkgPicker();
+              }}
             >
               <Folder className="w-3.5 h-3.5 text-blue-400/60" />
               {pkgName}

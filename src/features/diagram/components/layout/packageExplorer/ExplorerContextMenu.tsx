@@ -1,4 +1,5 @@
 import { Edit2, Trash2, FolderPlus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { ContextMenuState } from "./types";
 
 interface ExplorerContextMenuProps {
@@ -14,6 +15,8 @@ export function ExplorerContextMenu({
   onDelete,
   onAddChild 
 }: ExplorerContextMenuProps) {
+  const { t } = useTranslation();
+  
   if (!contextMenu) return null;
 
   return (
@@ -31,7 +34,7 @@ export function ExplorerContextMenu({
           onClick={onAddChild}
         >
           <FolderPlus className="w-4 h-4 text-green-400" />
-          <span>New Package</span>
+          <span>{t('packageExplorer.newPackage')}</span>
         </button>
       )}
       
@@ -40,7 +43,7 @@ export function ExplorerContextMenu({
         onClick={onRename}
       >
         <Edit2 className="w-4 h-4 text-blue-400" />
-        <span>Rename</span>
+        <span>{t('actions.rename')}</span>
       </button>
       
       <button
@@ -48,7 +51,7 @@ export function ExplorerContextMenu({
         onClick={onDelete}
       >
         <Trash2 className="w-4 h-4" />
-        <span>Delete</span>
+        <span>{t('actions.delete')}</span>
       </button>
     </div>
   );

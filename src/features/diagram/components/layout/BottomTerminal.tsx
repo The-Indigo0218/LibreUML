@@ -17,13 +17,16 @@ const TYPE_CLASS: Record<OutputLine['type'], string> = {
 };
 
 function TerminalLine({ line }: { line: OutputLine }) {
+  const { t } = useTranslation();
+  
   if (line.type === 'input') {
-    const cmd = line.content.startsWith('libreuml~$ ')
-      ? line.content.slice('libreuml~$ '.length)
+    const prefix = t('terminalPrompt.prefix');
+    const cmd = line.content.startsWith(`${prefix} `)
+      ? line.content.slice(`${prefix} `.length)
       : line.content;
     return (
       <div className="leading-relaxed whitespace-pre-wrap break-all">
-        <span className="text-[#4ade80] select-none">libreuml~$ </span>
+        <span className="text-[#4ade80] select-none">{prefix} </span>
         <span className="text-[#94a3b8]">{cmd}</span>
       </div>
     );

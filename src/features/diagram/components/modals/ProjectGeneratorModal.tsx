@@ -167,10 +167,10 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
                      onChange={(e) => setJavaVersion(e.target.value)}
                      className="w-full bg-surface-secondary border border-surface-border rounded p-2 text-sm font-mono text-text-primary focus:border-purple-500 outline-none"
                    >
-                     <option value="21">Java 21 (LTS)</option>
-                     <option value="17">Java 17 (LTS)</option>
-                     <option value="11">Java 11 (LTS)</option>
-                     <option value="8">Java 8</option>
+                     <option value="21">{t('projectGenerator.javaVersions.java21')}</option>
+                     <option value="17">{t('projectGenerator.javaVersions.java17')}</option>
+                     <option value="11">{t('projectGenerator.javaVersions.java11')}</option>
+                     <option value="8">{t('projectGenerator.javaVersions.java8')}</option>
                    </select>
                 </div>
              </div>

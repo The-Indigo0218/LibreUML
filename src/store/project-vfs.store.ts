@@ -8,6 +8,7 @@ import type {
   DiagramType,
   FileExtension,
   DiagramView,
+  SemanticModel,
 } from '../core/domain/vfs/vfs.types';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
 
@@ -29,7 +30,8 @@ interface VFSStoreState {
     name: string,
     diagramType: DiagramType,
     extension: FileExtension,
-    isExternal?: boolean
+    isExternal?: boolean,
+    standalone?: boolean
   ) => string;
   deleteNode: (nodeId: string) => void;
   renameNode: (nodeId: string, newName: string) => void;
@@ -44,6 +46,17 @@ interface VFSStoreState {
    * @param relationIds   - Set of relation IDs that were cascade-deleted alongside it.
    */
   purgeElementFromAllDiagrams: (elementId: string, relationIds: Set<string>) => void;
+  /**
+   * Initialises an empty SemanticModel as the localModel for a standalone file.
+   * Safe to call multiple times — no-ops if localModel is already present.
+   */
+  initLocalModel: (fileId: string) => void;
+  /**
+   * Runs a plain-object mutation on a file's localModel via a deep-clone cycle.
+   * The updater receives a mutable copy of the current localModel. No-ops when
+   * the file does not exist or has no localModel.
+   */
+  updateLocalModel: (fileId: string, updater: (draft: SemanticModel) => void) => void;
 }
 
 export const useVFSStore = create<VFSStoreState>()(
@@ -118,7 +131,7 @@ export const useVFSStore = create<VFSStoreState>()(
         return id;
       },
 
-      createFile: (parentId, name, diagramType, extension, isExternal = false) => {
+      createFile: (parentId, name, diagramType, extension, isExternal = false, standalone = false) => {
         const id = crypto.randomUUID();
         const now = Date.now();
 
@@ -131,6 +144,34 @@ export const useVFSStore = create<VFSStoreState>()(
               }
             : null;
 
+        // Seed an empty localModel for new standalone .luml files so the
+        // canvas never needs to call initLocalModel on first open.
+        const localModel: SemanticModel | null =
+          standalone && extension === '.luml'
+            ? {
+                id: crypto.randomUUID(),
+                name: `${name} (standalone)`,
+                version: '1.0.0',
+                packages: {},
+                classes: {},
+                interfaces: {},
+                enums: {},
+                dataTypes: {},
+                attributes: {},
+                operations: {},
+                actors: {},
+                useCases: {},
+                activityNodes: {},
+                objectInstances: {},
+                components: {},
+                nodes: {},
+                artifacts: {},
+                relations: {},
+                createdAt: now,
+                updatedAt: now,
+              }
+            : null;
+
         const file: VFSFile = {
           id,
           name,
@@ -139,7 +180,9 @@ export const useVFSStore = create<VFSStoreState>()(
           diagramType,
           extension,
           isExternal,
+          standalone,
           content,
+          localModel,
           createdAt: now,
           updatedAt: now,
         };
@@ -292,6 +335,72 @@ export const useVFSStore = create<VFSStoreState>()(
             project: {
               ...state.project,
               nodes: updatedNodes,
+              updatedAt: Date.now(),
+            },
+          };
+        });
+      },
+
+      initLocalModel: (fileId) => {
+        set((state) => {
+          if (!state.project) return state;
+          const node = state.project.nodes[fileId];
+          if (!node || node.type !== 'FILE') return state;
+          const file = node as VFSFile;
+          if (file.localModel) return state; // already initialised — no-op
+          const now = Date.now();
+          const emptyModel: SemanticModel = {
+            id: crypto.randomUUID(),
+            name: `${file.name} (standalone)`,
+            version: '1.0.0',
+            packages: {},
+            classes: {},
+            interfaces: {},
+            enums: {},
+            dataTypes: {},
+            attributes: {},
+            operations: {},
+            actors: {},
+            useCases: {},
+            activityNodes: {},
+            objectInstances: {},
+            components: {},
+            nodes: {},
+            artifacts: {},
+            relations: {},
+            createdAt: now,
+            updatedAt: now,
+          };
+          return {
+            project: {
+              ...state.project,
+              nodes: {
+                ...state.project.nodes,
+                [fileId]: { ...file, localModel: emptyModel, updatedAt: now } as VFSFile,
+              },
+              updatedAt: now,
+            },
+          };
+        });
+      },
+
+      updateLocalModel: (fileId, updater) => {
+        set((state) => {
+          if (!state.project) return state;
+          const node = state.project.nodes[fileId];
+          if (!node || node.type !== 'FILE') return state;
+          const file = node as VFSFile;
+          if (!file.localModel) return state; // must call initLocalModel first
+          // Deep-clone so the updater can mutate safely without immer
+          const draft = JSON.parse(JSON.stringify(file.localModel)) as SemanticModel;
+          updater(draft);
+          return {
+            project: {
+              ...state.project,
+              nodes: {
+                ...state.project.nodes,
+                [fileId]: { ...file, localModel: draft, updatedAt: Date.now() } as VFSFile,
+              },
               updatedAt: Date.now(),
             },
           };

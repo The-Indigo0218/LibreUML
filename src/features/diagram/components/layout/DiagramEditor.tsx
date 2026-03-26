@@ -15,6 +15,13 @@ import SSoTClassEditorModal from "../modals/SSoTClassEditorModal";
 import GlobalDeleteModal from "../modals/GlobalDeleteModal";
 import ToastContainer from "../../../../components/shared/ToastContainer";
 import { OpenFileModal } from "../modals/OpenFileModal";
+import KeyboardShortcutsModal from "../modals/KeyboardShortcutsModal";
+import ExportModal from "../modals/ExportModal";
+import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
+import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
+import ImportCodeModal from "../modals/ImportCodeModal";
+import CodeExportConfigModal from "../modals/CodeExportConfigModal";
+import { useUiStore } from "../../../../store/uiStore";
 import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
@@ -28,6 +35,7 @@ function EditorLogic() {
   const { project } = useVFSStore();
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const { isLeftPanelOpen, isRightPanelOpen, isBottomPanelOpen } = useLayoutStore();
+  const { activeModal, closeModals } = useUiStore();
 
   useAutoSave();
   useAutoRestore();
@@ -130,6 +138,32 @@ function EditorLogic() {
       <SSoTClassEditorModal />
       <GlobalDeleteModal />
       <ToastContainer />
+
+      {/* ── Menubar-triggered modals (available regardless of canvas state) ── */}
+      <KeyboardShortcutsModal
+        isOpen={activeModal === 'keyboard-shortcuts'}
+        onClose={closeModals}
+      />
+      <ExportModal
+        isOpen={activeModal === 'export-modal'}
+        onClose={closeModals}
+      />
+      <SingleClassGeneratorModal
+        isOpen={activeModal === 'engineering-single'}
+        onClose={closeModals}
+      />
+      <ProjectGeneratorModal
+        isOpen={activeModal === 'engineering-project'}
+        onClose={closeModals}
+      />
+      <ImportCodeModal
+        isOpen={activeModal === 'import-code'}
+        onClose={closeModals}
+      />
+      <CodeExportConfigModal
+        isOpen={activeModal === 'code-export-config'}
+        onClose={closeModals}
+      />
     </div>
   );
 }

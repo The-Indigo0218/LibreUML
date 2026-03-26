@@ -1,14 +1,21 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FolderOpen, FolderPlus, ExternalLink, X, Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
 import {
   injectXmiIntoVFS,
-  openLumlFile,
+  injectDiagramIntoVFS,
   type OpenMode,
 } from '../../../../services/openFileService';
+import {
+  parseLumlFile,
+  loadParsedProject,
+  ProjectImportError,
+} from '../../../../services/projectIO.service';
 
 export function OpenFileModal() {
+  const { t } = useTranslation();
   const activeModal = useUiStore((s) => s.activeModal);
   const closeModals = useUiStore((s) => s.closeModals);
 
@@ -40,16 +47,45 @@ export function OpenFileModal() {
     }
 
     const mode = pendingMode.current;
-    const ext = file.name.toLowerCase().split('.').pop();
+    const nameLower = file.name.toLowerCase();
 
     setIsProcessing(true);
     setError(null);
 
     try {
-      if (ext === 'luml') {
-        await openLumlFile(file, mode);
+      if (nameLower.endsWith('.luml.zip')) {
+        // ── Full workspace project archive ─────────────────────────────────
+        // Validate that the content really is a project, not a misnamed file.
+        const result = await parseLumlFile(file);
+        if (result.exportType !== 'project') {
+          setError(
+            'This file is a diagram (.luml), not a workspace project. ' +
+            'Open it with a .luml extension instead.',
+          );
+          return;
+        }
+        loadParsedProject(result.project, result.model);
         closeModals();
-      } else if (ext === 'xmi' || ext === 'xml' || ext === 'xmin') {
+
+      } else if (nameLower.endsWith('.luml')) {
+        // ── Single diagram file ────────────────────────────────────────────
+        // Validate that the content is a diagram, not a project archive.
+        const result = await parseLumlFile(file);
+        if (result.exportType === 'project') {
+          setError(
+            'This file is a full workspace project. ' +
+            'Projects are saved as .luml.zip — rename this file or open it from the Welcome Screen.',
+          );
+          return;
+        }
+        await injectDiagramIntoVFS(result.view, result.partialModel, result.name, mode);
+        closeModals();
+
+      } else if (
+        nameLower.endsWith('.xmi') ||
+        nameLower.endsWith('.xml') ||
+        nameLower.endsWith('.xmin')
+      ) {
         await new Promise<void>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = async (ev) => {
@@ -66,17 +102,19 @@ export function OpenFileModal() {
           reader.readAsText(file);
         });
         closeModals();
+
       } else {
         setError(
-          `Unsupported file type ".${ext}". Supported formats: .luml, .xmi, .xmin`,
+          'Unsupported file type. Supported formats: ' +
+          '.luml (diagram), .luml.zip (project), .xmi',
         );
       }
     } catch (err) {
-      setError(
-        err instanceof Error
+      const msg =
+        err instanceof ProjectImportError || err instanceof Error
           ? err.message
-          : 'An unexpected error occurred while opening the file.',
-      );
+          : 'An unexpected error occurred while opening the file.';
+      setError(msg);
     } finally {
       e.target.value = '';
       setIsProcessing(false);
@@ -98,9 +136,10 @@ export function OpenFileModal() {
                 Open File
               </h2>
               <p className="text-xs text-text-muted mt-0.5">
-                Supported formats:{' '}
                 <span className="font-mono text-indigo-400">.luml</span>{' '}
-                (LibreUML) and{' '}
+                diagram ·{' '}
+                <span className="font-mono text-indigo-400">.luml.zip</span>{' '}
+                project ·{' '}
                 <span className="font-mono text-indigo-400">.xmi</span>
               </p>
             </div>
@@ -160,14 +199,14 @@ export function OpenFileModal() {
           </button>
         </div>
 
-        {/* ── .luml note ───────────────────────────────────────────────── */}
+        {/* ── format note ──────────────────────────────────────────────── */}
         <div className="flex items-start gap-2 mb-4 px-3 py-2.5 rounded-lg bg-amber-500/5 border border-amber-500/15">
           <Info className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
           <p className="text-xs text-text-muted leading-relaxed">
             <span className="font-mono text-amber-400">.luml</span>{' '}
-            <em>project</em> exports replace the workspace.{' '}
-            <span className="font-mono text-amber-400">.luml</span>{' '}
-            <em>diagram</em> exports follow the mode you selected above.
+            {t('openFileModal.lumlFileNote')}{' '}
+            <span className="font-mono text-amber-400">.luml.zip</span>{' '}
+            {t('openFileModal.lumlZipNote')}
           </p>
         </div>
 
@@ -194,7 +233,7 @@ export function OpenFileModal() {
           type="file"
           ref={fileInputRef}
           onChange={handleFileSelected}
-          accept=".luml,.xmi,.xml,.xmin"
+          accept=".luml,.luml.zip,.xmi,.xml,.xmin"
           className="hidden"
           aria-hidden="true"
         />

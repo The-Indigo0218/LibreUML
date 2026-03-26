@@ -15,7 +15,9 @@ import {
   Edit3,
   PanelLeftClose,
   ExternalLink,
+  Unlink,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
@@ -24,7 +26,7 @@ import { useToastStore } from "../../../../store/toast.store";
 import CreateFileModal from "./CreateFileModal";
 import CreateFolderModal from "./CreateFolderModal";
 import ViewDescriptionModal from "./ViewDescriptionModal";
-import type { VFSFolder, VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
+import type { VFSFolder, VFSFile, DiagramView, SemanticModel } from "../../../../core/domain/vfs/vfs.types";
 
 type VFSNode = VFSFolder | VFSFile;
 
@@ -37,6 +39,8 @@ interface ContextMenuState {
   nodeName: string;
   isFolder: boolean;
   isExternal?: boolean;
+  isStandalone?: boolean;
+  isLuml?: boolean;
 }
 
 // ─── TreeItem ─────────────────────────────────────────────────────────────────
@@ -95,7 +99,8 @@ function TreeItem({
           .filter(
             (n) =>
               n.parentId === node.id &&
-              !(n.type === "FILE" && (n as VFSFile).extension === ".model"),
+              !(n.type === "FILE" && (n as VFSFile).extension === ".model") &&
+              !(n.type === "FILE" && (n as VFSFile).standalone === true),
           )
           .sort((a, b) => {
             if (a.type === b.type) return a.name.localeCompare(b.name);
@@ -197,10 +202,13 @@ function TreeItem({
 
   // ── File row ──────────────────────────────────────────────────────────────
   const isLuml = (node as VFSFile).extension === ".luml";
+  const isStandaloneFile = isLuml && (node as VFSFile).standalone === true;
   const FileIcon = isLuml ? LayoutTemplate : FileText;
-  const fileIconCls = isLuml
-    ? "w-3.5 h-3.5 text-purple-400 shrink-0"
-    : "w-3.5 h-3.5 text-text-muted shrink-0";
+  const fileIconCls = isStandaloneFile
+    ? "w-3.5 h-3.5 text-amber-400 shrink-0"
+    : isLuml
+      ? "w-3.5 h-3.5 text-purple-400 shrink-0"
+      : "w-3.5 h-3.5 text-text-muted shrink-0";
 
   return (
     <div
@@ -225,9 +233,14 @@ function TreeItem({
       ) : (
         <>
           <FileIcon className={fileIconCls} />
-          <span className="text-xs text-text-secondary group-hover:text-text-primary truncate">
+          <span className="text-xs text-text-secondary group-hover:text-text-primary truncate flex-1">
             {node.name}
           </span>
+          {isStandaloneFile && (
+            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-px leading-none">
+              solo
+            </span>
+          )}
         </>
       )}
     </div>
@@ -237,6 +250,7 @@ function TreeItem({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ProjectStructure() {
+  const { t } = useTranslation();
   const { project, deleteNode, renameNode, updateNode: updateVFSNode } = useVFSStore();
   const { openTab } = useWorkspaceStore();
   const { toggleLeftPanel } = useLayoutStore();
@@ -306,6 +320,8 @@ export default function ProjectStructure() {
       nodeName: node.name,
       isFolder: node.type === "FOLDER",
       isExternal: node.type === "FILE" && (node as VFSFile).isExternal === true,
+      isStandalone: node.type === "FILE" && (node as VFSFile).standalone === true,
+      isLuml: node.type === "FILE" && (node as VFSFile).extension === ".luml",
     });
   };
 
@@ -368,6 +384,279 @@ export default function ProjectStructure() {
     }
 
     useToastStore.getState().show(`"${file.name}" and all its classes added to project`);
+    setContextMenu(null);
+  };
+
+  /**
+   * Eject lifecycle: converts a project .luml file to standalone mode.
+   *
+   * Deep-clones all IR elements referenced in the file's DiagramView into
+   * a new per-file localModel with fresh UUIDs. The DiagramView is remapped
+   * to point at the new local IDs. Original elements stay in the global model.
+   */
+  const handleMakeStandalone = () => {
+    if (!contextMenu || !project) return;
+    const file = project.nodes[contextMenu.nodeId] as VFSFile;
+    if (!file || file.type !== "FILE") return;
+
+    const ms = useModelStore.getState();
+    const view = file.content as DiagramView | null;
+
+    if (!ms.model || !view || !('nodes' in view)) {
+      // No global model or no valid DiagramView — seed empty localModel and flip flag.
+      useVFSStore.getState().updateNode(contextMenu.nodeId, {
+        standalone: true,
+        localModel: null,
+      } as Partial<VFSFile>);
+      useVFSStore.getState().initLocalModel(contextMenu.nodeId);
+      useToastStore.getState().show(`"${file.name}" is now standalone`);
+      setContextMenu(null);
+      return;
+    }
+
+    const globalModel = ms.model;
+    const elementIds = new Set<string>();
+    (view as DiagramView).nodes.forEach((vn) => { if (vn.elementId) elementIds.add(vn.elementId); });
+
+    const now = Date.now();
+    const newLocalModel: SemanticModel = {
+      id: crypto.randomUUID(),
+      name: `${file.name} (standalone)`,
+      version: '1.0.0',
+      packages: {},
+      classes: {},
+      interfaces: {},
+      enums: {},
+      dataTypes: {},
+      attributes: {},
+      operations: {},
+      actors: {},
+      useCases: {},
+      activityNodes: {},
+      objectInstances: {},
+      components: {},
+      nodes: {},
+      artifacts: {},
+      relations: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // Map: old global element ID → new local element ID
+    const elementIdMap = new Map<string, string>();
+
+    for (const oldId of elementIds) {
+      const newId = crypto.randomUUID();
+      elementIdMap.set(oldId, newId);
+
+      const cls = globalModel.classes[oldId];
+      if (cls) {
+        const newAttrIds: string[] = [];
+        for (const attrId of cls.attributeIds) {
+          const attr = globalModel.attributes[attrId];
+          if (attr) {
+            const newAttrId = crypto.randomUUID();
+            newLocalModel.attributes[newAttrId] = { ...attr, id: newAttrId };
+            newAttrIds.push(newAttrId);
+          }
+        }
+        const newOpIds: string[] = [];
+        for (const opId of cls.operationIds) {
+          const op = globalModel.operations[opId];
+          if (op) {
+            const newOpId = crypto.randomUUID();
+            newLocalModel.operations[newOpId] = { ...op, id: newOpId };
+            newOpIds.push(newOpId);
+          }
+        }
+        newLocalModel.classes[newId] = { ...cls, id: newId, attributeIds: newAttrIds, operationIds: newOpIds };
+        continue;
+      }
+
+      const iface = globalModel.interfaces[oldId];
+      if (iface) {
+        const newOpIds: string[] = [];
+        for (const opId of iface.operationIds) {
+          const op = globalModel.operations[opId];
+          if (op) {
+            const newOpId = crypto.randomUUID();
+            newLocalModel.operations[newOpId] = { ...op, id: newOpId };
+            newOpIds.push(newOpId);
+          }
+        }
+        newLocalModel.interfaces[newId] = { ...iface, id: newId, operationIds: newOpIds };
+        continue;
+      }
+
+      const enm = globalModel.enums[oldId];
+      if (enm) {
+        newLocalModel.enums[newId] = { ...enm, id: newId };
+      }
+    }
+
+    // Clone relations where both endpoints are in this diagram
+    const relationIdMap = new Map<string, string>();
+    for (const rel of Object.values(globalModel.relations)) {
+      const newSrc = elementIdMap.get(rel.sourceId);
+      const newTgt = elementIdMap.get(rel.targetId);
+      if (!newSrc || !newTgt) continue;
+      const newRelId = crypto.randomUUID();
+      relationIdMap.set(rel.id, newRelId);
+      newLocalModel.relations[newRelId] = { ...rel, id: newRelId, sourceId: newSrc, targetId: newTgt };
+    }
+
+    // Carry over the package names that are actually used by elements in this diagram.
+    const usedPackageNames = new Set<string>();
+    for (const cls of Object.values(newLocalModel.classes)) {
+      if (cls.packageName) usedPackageNames.add(cls.packageName);
+    }
+    for (const iface of Object.values(newLocalModel.interfaces)) {
+      if (iface.packageName) usedPackageNames.add(iface.packageName);
+    }
+    for (const enm of Object.values(newLocalModel.enums)) {
+      if (enm.packageName) usedPackageNames.add(enm.packageName);
+    }
+    newLocalModel.packageNames = Array.from(usedPackageNames);
+
+    // Remap DiagramView to new local IDs
+    const diagramView = view as DiagramView;
+    const newNodes = diagramView.nodes.map((vn) => ({
+      ...vn,
+      elementId: elementIdMap.get(vn.elementId) ?? vn.elementId,
+    }));
+    const newEdges = diagramView.edges
+      .filter((ve) => relationIdMap.has(ve.relationId))
+      .map((ve) => ({ ...ve, relationId: relationIdMap.get(ve.relationId)! }));
+
+    useVFSStore.getState().updateNode(contextMenu.nodeId, {
+      standalone: true,
+      localModel: newLocalModel,
+      content: { ...diagramView, nodes: newNodes, edges: newEdges },
+    } as Partial<VFSFile>);
+
+    useToastStore.getState().show(`"${file.name}" is now standalone — ${elementIds.size} element${elementIds.size !== 1 ? 's' : ''} forked`);
+    setContextMenu(null);
+  };
+
+  /**
+   * Merge lifecycle: returns a standalone .luml file back to the shared project workspace.
+   *
+   * Injects all localModel elements into the global SemanticModel with conflict
+   * resolution (appends _1, _2 suffix for name collisions). Remaps the DiagramView
+   * to point at new global IDs. Clears localModel and flips standalone: false.
+   */
+  const handleAddStandaloneToProject = () => {
+    if (!contextMenu || !project) return;
+    const file = project.nodes[contextMenu.nodeId] as VFSFile;
+    if (!file || file.type !== "FILE") return;
+
+    const localModel = file.localModel;
+
+    if (!localModel) {
+      // No localModel — just flip the flag (backward-compat).
+      useVFSStore.getState().updateNode(contextMenu.nodeId, { standalone: false } as Partial<VFSFile>);
+      useToastStore.getState().show(`"${file.name}" rejoined the project workspace`);
+      setContextMenu(null);
+      return;
+    }
+
+    const ms = useModelStore.getState();
+    if (!ms.model) {
+      ms.initModel(project.domainModelId);
+    }
+    const refreshedMs = useModelStore.getState();
+    const globalModel = refreshedMs.model!;
+
+    const resolveConflict = (name: string, existingNames: Set<string>): string => {
+      if (!existingNames.has(name)) return name;
+      let i = 1;
+      while (existingNames.has(`${name}_${i}`)) i++;
+      return `${name}_${i}`;
+    };
+
+    const existingClassNames = new Set(Object.values(globalModel.classes).map((c) => c.name));
+    const existingIfaceNames = new Set(Object.values(globalModel.interfaces).map((i) => i.name));
+    const existingEnumNames = new Set(Object.values(globalModel.enums).map((e) => e.name));
+
+    // Map: old localModel element ID → new global element ID
+    const elementIdMap = new Map<string, string>();
+
+    for (const cls of Object.values(localModel.classes)) {
+      const resolvedName = resolveConflict(cls.name, existingClassNames);
+      existingClassNames.add(resolvedName);
+      const attrs = cls.attributeIds.map((id) => localModel.attributes[id]).filter(Boolean);
+      const ops = cls.operationIds.map((id) => localModel.operations[id]).filter(Boolean);
+      const newGlobalId = cls.isAbstract
+        ? refreshedMs.createAbstractClass({ name: resolvedName, packageName: cls.packageName, attributeIds: [], operationIds: [] })
+        : refreshedMs.createClass({ name: resolvedName, packageName: cls.packageName, attributeIds: [], operationIds: [] });
+      elementIdMap.set(cls.id, newGlobalId);
+      if (attrs.length > 0 || ops.length > 0) {
+        refreshedMs.setElementMembers(
+          newGlobalId,
+          attrs.map((a) => ({ ...a, id: crypto.randomUUID() })),
+          ops.map((o) => ({ ...o, id: crypto.randomUUID() })),
+        );
+      }
+    }
+
+    for (const iface of Object.values(localModel.interfaces)) {
+      const resolvedName = resolveConflict(iface.name, existingIfaceNames);
+      existingIfaceNames.add(resolvedName);
+      const ops = iface.operationIds.map((id) => localModel.operations[id]).filter(Boolean);
+      const newGlobalId = refreshedMs.createInterface({ name: resolvedName, packageName: iface.packageName, operationIds: [] });
+      elementIdMap.set(iface.id, newGlobalId);
+      if (ops.length > 0) {
+        refreshedMs.setElementMembers(newGlobalId, [], ops.map((o) => ({ ...o, id: crypto.randomUUID() })));
+      }
+    }
+
+    for (const enm of Object.values(localModel.enums)) {
+      const resolvedName = resolveConflict(enm.name, existingEnumNames);
+      existingEnumNames.add(resolvedName);
+      const newGlobalId = refreshedMs.createEnum({ name: resolvedName, packageName: enm.packageName, literals: enm.literals });
+      elementIdMap.set(enm.id, newGlobalId);
+    }
+
+    // Inject package names from localModel into the global model (dedup via addPackageName).
+    for (const pkgName of (localModel.packageNames ?? [])) {
+      if (pkgName) refreshedMs.addPackageName(pkgName);
+    }
+
+    // Inject relations (only those where both endpoints were successfully mapped)
+    const relationIdMap = new Map<string, string>();
+    for (const rel of Object.values(localModel.relations)) {
+      const newSrc = elementIdMap.get(rel.sourceId);
+      const newTgt = elementIdMap.get(rel.targetId);
+      if (!newSrc || !newTgt) continue;
+      const { id: _id, ...relData } = rel;
+      const newRelId = refreshedMs.createRelation({ ...relData, sourceId: newSrc, targetId: newTgt });
+      relationIdMap.set(rel.id, newRelId);
+    }
+
+    // Remap DiagramView
+    const view = file.content as DiagramView | null;
+    let newContent: DiagramView | null = view;
+    if (view && 'nodes' in view) {
+      const diagramView = view as DiagramView;
+      const newNodes = diagramView.nodes.map((vn) => ({
+        ...vn,
+        elementId: elementIdMap.get(vn.elementId) ?? vn.elementId,
+      }));
+      const newEdges = diagramView.edges.map((ve) => ({
+        ...ve,
+        relationId: relationIdMap.get(ve.relationId) ?? ve.relationId,
+      }));
+      newContent = { ...diagramView, nodes: newNodes, edges: newEdges };
+    }
+
+    useVFSStore.getState().updateNode(contextMenu.nodeId, {
+      standalone: false,
+      localModel: null,
+      content: newContent,
+    } as Partial<VFSFile>);
+
+    const merged = elementIdMap.size;
+    useToastStore.getState().show(`"${file.name}" merged — ${merged} element${merged !== 1 ? 's' : ''} added to project`);
     setContextMenu(null);
   };
 
@@ -460,7 +749,7 @@ export default function ProjectStructure() {
         <div className="flex-1 flex items-center justify-center min-h-0">
           <div className="text-center">
             <FolderTree className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
-            <p className="text-sm text-text-muted">No project active</p>
+            <p className="text-sm text-text-muted">{t('projectStructure.noProjectActive')}</p>
           </div>
         </div>
       </div>
@@ -474,14 +763,14 @@ export default function ProjectStructure() {
   );
 
   const projectNodes = allRootNodes
-    .filter((n) => !(n.type === "FILE" && (n as VFSFile).isExternal === true))
+    .filter((n) => !(n.type === "FILE" && ((n as VFSFile).isExternal === true || (n as VFSFile).standalone === true)))
     .sort((a, b) => {
       if (a.type === b.type) return a.name.localeCompare(b.name);
       return a.type === "FOLDER" ? -1 : 1;
     });
 
-  const standaloneNodes = allRootNodes
-    .filter((n) => n.type === "FILE" && (n as VFSFile).isExternal === true)
+  const standaloneNodes = Object.values(project.nodes)
+    .filter((n) => n.type === "FILE" && ((n as VFSFile).standalone === true || (n as VFSFile).isExternal === true))
     .sort((a, b) => a.name.localeCompare(b.name)) as VFSFile[];
 
   return (
@@ -531,9 +820,9 @@ export default function ProjectStructure() {
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <FolderTree className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
-                <p className="text-sm text-text-muted">Empty project</p>
+                <p className="text-sm text-text-muted">{t('projectStructure.emptyProject')}</p>
                 <p className="text-xs text-text-muted/70 mt-1">
-                  Add files and folders to begin
+                  {t('projectStructure.addFilesAndFolders')}
                 </p>
               </div>
             </div>
@@ -586,23 +875,49 @@ export default function ProjectStructure() {
 
           {isStandaloneExpanded && (
             <div className="pb-1">
-              {standaloneNodes.map((file) => (
-                <div
-                  key={file.id}
-                  className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover transition-colors cursor-pointer group"
-                  style={{ paddingLeft: "28px" }}
-                  onContextMenu={(e) => handleContextMenu(e, file)}
-                  onDoubleClick={() => handleOpenFile(file.id)}
-                >
-                  <LayoutTemplate className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="text-xs text-text-secondary group-hover:text-text-primary truncate flex-1">
-                    {file.name}
-                  </span>
-                  <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-px leading-none">
-                    ext
-                  </span>
-                </div>
-              ))}
+              {standaloneNodes.map((file) => {
+                const isEditing = editingNodeId === file.id;
+                return (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover transition-colors cursor-pointer group"
+                    style={{ paddingLeft: "28px" }}
+                    onContextMenu={(e) => handleContextMenu(e, file)}
+                    onDoubleClick={() => handleOpenFile(file.id)}
+                  >
+                    <LayoutTemplate className={`w-3.5 h-3.5 shrink-0 ${file.standalone ? "text-amber-400" : "text-purple-400"}`} />
+                    {isEditing ? (
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+                          else if (e.key === "Escape") { e.preventDefault(); cancelEdit(); }
+                        }}
+                        onBlur={commitEdit}
+                        className="flex-1 bg-surface-secondary border border-blue-500 rounded px-1 py-0.5 text-xs text-text-primary focus:outline-none"
+                      />
+                    ) : (
+                      <>
+                        <span className="text-xs text-text-secondary group-hover:text-text-primary truncate flex-1">
+                          {file.name}
+                        </span>
+                        {file.standalone ? (
+                          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-px leading-none">
+                            solo
+                          </span>
+                        ) : (
+                          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-sky-500/80 bg-sky-500/10 border border-sky-500/20 rounded px-1 py-px leading-none">
+                            ext
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -627,6 +942,8 @@ export default function ProjectStructure() {
                 <FileText className="w-3 h-3" />
                 Open File
               </button>
+
+              {/* External file (from XMI/legacy import) → integrate elements into project */}
               {contextMenu.isExternal && (
                 <button
                   onClick={handleAddFileToProject}
@@ -636,6 +953,29 @@ export default function ProjectStructure() {
                   Add File to Project
                 </button>
               )}
+
+              {/* Standalone diagram file → rejoin shared workspace (flag only, model untouched) */}
+              {contextMenu.isLuml && !contextMenu.isExternal && contextMenu.isStandalone && (
+                <button
+                  onClick={handleAddStandaloneToProject}
+                  className="w-full px-3 py-1.5 text-left text-xs text-emerald-400 hover:bg-surface-hover flex items-center gap-2"
+                >
+                  <FolderPlus className="w-3 h-3" />
+                  Add to Project
+                </button>
+              )}
+
+              {/* Normal project diagram → isolate canvas view (flag only, model untouched) */}
+              {contextMenu.isLuml && !contextMenu.isExternal && !contextMenu.isStandalone && (
+                <button
+                  onClick={handleMakeStandalone}
+                  className="w-full px-3 py-1.5 text-left text-xs text-amber-400 hover:bg-surface-hover flex items-center gap-2"
+                >
+                  <Unlink className="w-3 h-3" />
+                  Make Standalone
+                </button>
+              )}
+
               <div className="border-t border-surface-border my-1" />
             </>
           )}

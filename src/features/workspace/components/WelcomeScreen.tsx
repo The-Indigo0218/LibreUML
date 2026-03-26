@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../../../store/settingsStore";
 import { useThemeSystem } from "../../../hooks/useThemeSystem";
 import CreateProjectModal from "../../diagram/components/layout/CreateProjectModal";
-import { importProject, ProjectImportError } from "../../../services/projectIO.service";
+import { ProjectImportError } from "../../../services/projectIO.service";
+import { openLumlFile } from "../../../services/openFileService";
 import { useVFSStore } from "../../../store/project-vfs.store";
 import type { LibreUMLProject } from "../../../core/domain/vfs/vfs.types";
 
@@ -48,8 +49,9 @@ export default function WelcomeScreen({ onOpenProject: _onOpenProject }: Welcome
     if (!file) return;
 
     try {
-      const project = await importProject(file);
-      alert(`Project "${project.projectName}" loaded successfully.`);
+      // openLumlFile handles both full-project archives (loads workspace) and
+      // single-diagram exports / legacy V1 files (opens standalone).
+      await openLumlFile(file, 'standalone');
     } catch (err) {
       if (err instanceof ProjectImportError) {
         alert(`Import failed:\n\n${err.message}`);
@@ -99,9 +101,9 @@ export default function WelcomeScreen({ onOpenProject: _onOpenProject }: Welcome
         type="file"
         ref={lumlInputRef}
         onChange={handleLumlFileSelected}
-        accept=".luml"
+        accept=".luml.zip,.luml"
         style={{ display: 'none' }}
-        aria-label="Open LibreUML project"
+        aria-label="Open LibreUML project (.luml.zip)"
       />
       <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
         <button

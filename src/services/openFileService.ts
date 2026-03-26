@@ -44,6 +44,7 @@ import { useModelStore } from '../store/model.store';
 import { useVFSStore } from '../store/project-vfs.store';
 import { useWorkspaceStore } from '../store/workspace.store';
 import { useToastStore } from '../store/toast.store';
+import { standaloneModelOps } from '../store/standaloneModelOps';
 import { XmiImporterService } from './xmiImporter.service';
 import { parseLumlFile, loadParsedProject } from './projectIO.service';
 
@@ -190,6 +191,89 @@ export async function injectDiagramIntoVFS(
   mode: OpenMode,
 ): Promise<void> {
   ensureContext(mode, name);
+
+  // ── Standalone path: inject into per-file localModel ──────────────────────
+  // Elements never touch the global SemanticModel — all writes go through
+  // standaloneModelOps which targets the file's VFSFile.localModel.
+  if (mode === 'standalone') {
+    const fileId = useVFSStore.getState().createFile(
+      null,                // always root for standalone files
+      name,
+      'CLASS_DIAGRAM',
+      '.luml',
+      false,               // isExternal: false
+      true,                // standalone: true — seeds empty localModel automatically
+    );
+
+    const ops = standaloneModelOps(fileId);
+    const idMap = new Map<string, string>();
+
+    for (const [oldId, cls] of Object.entries(partialModel.classes)) {
+      const newAttrs: IRAttribute[] = cls.attributeIds
+        .map((id) => partialModel.attributes[id])
+        .filter(Boolean)
+        .map((a) => ({ ...a, id: crypto.randomUUID() }));
+      const newOps: IROperation[] = cls.operationIds
+        .map((id) => partialModel.operations[id])
+        .filter(Boolean)
+        .map((o) => ({ ...o, id: crypto.randomUUID(), parameters: o.parameters ?? [] }));
+      const newId = cls.isAbstract
+        ? ops.createAbstractClass({ name: cls.name, packageName: cls.packageName, attributeIds: [], operationIds: [], visibility: cls.visibility })
+        : ops.createClass({ name: cls.name, packageName: cls.packageName, attributeIds: [], operationIds: [], visibility: cls.visibility, isAbstract: false });
+      ops.setElementMembers(newId, newAttrs, newOps);
+      idMap.set(oldId, newId);
+    }
+
+    for (const [oldId, iface] of Object.entries(partialModel.interfaces)) {
+      const newOps: IROperation[] = iface.operationIds
+        .map((id) => partialModel.operations[id])
+        .filter(Boolean)
+        .map((o) => ({ ...o, id: crypto.randomUUID(), parameters: o.parameters ?? [] }));
+      const newId = ops.createInterface({ name: iface.name, packageName: iface.packageName, operationIds: [], visibility: iface.visibility });
+      ops.setElementMembers(newId, [], newOps);
+      idMap.set(oldId, newId);
+    }
+
+    for (const [oldId, enm] of Object.entries(partialModel.enums)) {
+      const newId = ops.createEnum({ name: enm.name, packageName: enm.packageName, literals: [...(enm.literals ?? [])], visibility: enm.visibility });
+      idMap.set(oldId, newId);
+    }
+
+    for (const [oldRelId, rel] of Object.entries(partialModel.relations)) {
+      const newSourceId = idMap.get(rel.sourceId);
+      const newTargetId = idMap.get(rel.targetId);
+      if (!newSourceId || !newTargetId) continue;
+      const { id: _id, ...relData } = rel;
+      const newRelId = ops.createRelation({
+        ...relData,
+        sourceId: newSourceId,
+        targetId: newTargetId,
+        ...(rel.sourceEnd ? { sourceEnd: { ...rel.sourceEnd, elementId: newSourceId } } : {}),
+        ...(rel.targetEnd ? { targetEnd: { ...rel.targetEnd, elementId: newTargetId } } : {}),
+      });
+      idMap.set(oldRelId, newRelId);
+    }
+
+    for (const pkgName of (partialModel.packageNames ?? [])) {
+      if (pkgName) ops.addPackageName(pkgName);
+    }
+
+    const viewNodes: ViewNode[] = view.nodes.flatMap((n) => {
+      if (!n.elementId) return [{ ...n, id: crypto.randomUUID() }];
+      if (!idMap.has(n.elementId)) return [];
+      return [{ ...n, id: crypto.randomUUID(), elementId: idMap.get(n.elementId)! }];
+    });
+    const viewEdges: ViewEdge[] = view.edges
+      .filter((e) => idMap.has(e.relationId))
+      .map((e) => ({ ...e, id: crypto.randomUUID(), relationId: idMap.get(e.relationId)! }));
+
+    useVFSStore.getState().updateFileContent(fileId, { diagramId: fileId, nodes: viewNodes, edges: viewEdges });
+    useWorkspaceStore.getState().openTab(fileId);
+    useToastStore.getState().show(`"${name}" opened as standalone`);
+    return;
+  }
+
+  // ── Project path: inject into global SemanticModel ────────────────────────
   const modelStore = useModelStore.getState();
 
   // ── Remap and create IR elements ───────────────────────────────────────────
@@ -211,15 +295,12 @@ export async function injectDiagramIntoVFS(
         parameters: o.parameters ?? [],
       }));
 
-    const externalFlag = mode === 'standalone' ? { isExternal: true as const } : {};
-
     const newId = cls.isAbstract
       ? modelStore.createAbstractClass({
           name: cls.name,
           attributeIds: [],
           operationIds: [],
           visibility: cls.visibility,
-          ...externalFlag,
         })
       : modelStore.createClass({
           name: cls.name,
@@ -227,7 +308,6 @@ export async function injectDiagramIntoVFS(
           operationIds: [],
           visibility: cls.visibility,
           isAbstract: false,
-          ...externalFlag,
         });
 
     modelStore.setElementMembers(newId, newAttrs, newOps);
@@ -245,12 +325,10 @@ export async function injectDiagramIntoVFS(
         parameters: o.parameters ?? [],
       }));
 
-    const externalFlag = mode === 'standalone' ? { isExternal: true as const } : {};
     const newId = modelStore.createInterface({
       name: iface.name,
       operationIds: [],
       visibility: iface.visibility,
-      ...externalFlag,
     });
     modelStore.setElementMembers(newId, [], newOps);
     idMap.set(oldId, newId);
@@ -258,18 +336,15 @@ export async function injectDiagramIntoVFS(
 
   // Enums
   for (const [oldId, enm] of Object.entries(partialModel.enums)) {
-    const externalFlag = mode === 'standalone' ? { isExternal: true as const } : {};
     const newId = modelStore.createEnum({
       name: enm.name,
       literals: [...(enm.literals ?? [])],
       visibility: enm.visibility,
-      ...externalFlag,
     });
     idMap.set(oldId, newId);
   }
 
   // Relations (after all elements so source/target IDs can be remapped)
-  const relExternalFlag = mode === 'standalone' ? { isExternal: true as const } : {};
   for (const [oldRelId, rel] of Object.entries(partialModel.relations)) {
     const newSourceId = idMap.get(rel.sourceId);
     const newTargetId = idMap.get(rel.targetId);
@@ -281,7 +356,6 @@ export async function injectDiagramIntoVFS(
       targetId: newTargetId,
       name: rel.name,
       stereotypes: rel.stereotypes,
-      ...relExternalFlag,
       ...(rel.sourceEnd || rel.targetEnd
         ? {
             sourceEnd: rel.sourceEnd
@@ -297,15 +371,14 @@ export async function injectDiagramIntoVFS(
   }
 
   // ── Build new DiagramView with remapped IDs ────────────────────────────────
-  const parentId =
-    mode === 'project' ? findDiagramsFolderId() : null;
+  const parentId = findDiagramsFolderId();
 
   const fileId = useVFSStore.getState().createFile(
     parentId,
     name,
     'CLASS_DIAGRAM',
     '.luml',
-    mode === 'standalone',
+    false,
   );
 
   const viewNodes: ViewNode[] = view.nodes.flatMap((n) => {
@@ -333,10 +406,6 @@ export async function injectDiagramIntoVFS(
   });
 
   useWorkspaceStore.getState().openTab(fileId);
-
-  if (mode === 'standalone') {
-    useToastStore.getState().show(`"${name}" opened as standalone`);
-  }
 }
 
 // ─── XMI injection ────────────────────────────────────────────────────────────

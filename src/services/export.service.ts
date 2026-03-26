@@ -101,6 +101,37 @@ export const ExportService = {
       },
     };
 
+    // Expand Note node elements so html-to-image captures them without scrollbars.
+    // Both the outer container (overflow-hidden) and the inner content area
+    // (max-h-40 / overflow-y-auto) need to be temporarily unlocked.
+    type StyleSnapshot = {
+      el: HTMLElement;
+      maxHeight: string;
+      height: string;
+      overflow: string;
+    };
+    const styleSnapshots: StyleSnapshot[] = [];
+
+    viewportEl
+      .querySelectorAll<HTMLElement>(".react-flow__node-umlNote")
+      .forEach((noteNode) => {
+        const container = noteNode.querySelector<HTMLElement>(":scope > div");
+        const contentArea = noteNode.querySelector<HTMLElement>(".overflow-y-auto");
+
+        [container, contentArea].forEach((el) => {
+          if (!el) return;
+          styleSnapshots.push({
+            el,
+            maxHeight: el.style.maxHeight,
+            height: el.style.height,
+            overflow: el.style.overflow,
+          });
+          el.style.height = "max-content";
+          el.style.maxHeight = "none";
+          el.style.overflow = "visible";
+        });
+      });
+
     let dataUrl = "";
 
     try {
@@ -132,6 +163,13 @@ export const ExportService = {
     } catch (error) {
       console.error("Error exporting image:", error);
       throw error;
+    } finally {
+      // Restore original inline styles whether the export succeeded or failed.
+      styleSnapshots.forEach(({ el, maxHeight, height, overflow }) => {
+        el.style.maxHeight = maxHeight;
+        el.style.height = height;
+        el.style.overflow = overflow;
+      });
     }
   },
 };

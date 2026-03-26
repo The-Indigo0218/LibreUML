@@ -58,6 +58,7 @@ export default function CreateFileModal({
   const [selectedParentId, setSelectedParentId] = useState<string | null>(
     initialParentId ?? parentId ?? null,
   );
+  const [standalone, setStandalone] = useState(false);
   const [validationError, setValidationError] = useState("");
 
   const { project, createFile, updateNode } = useVFSStore();
@@ -84,6 +85,7 @@ export default function CreateFileModal({
       setDiagramType("CLASS_DIAGRAM");
       setDescription("");
       setSelectedParentId(initialParentId ?? parentId ?? null);
+      setStandalone(false);
     }
     setValidationError("");
   }, [editNodeId, project, isOpen, initialParentId, parentId]);
@@ -118,7 +120,7 @@ export default function CreateFileModal({
     if (!fileName.trim()) return;
     if (!validateUniqueness()) return;
 
-    const targetParentId = selectedParentId === "root" ? null : selectedParentId;
+    const targetParentId = standalone ? null : (selectedParentId === "root" ? null : selectedParentId);
 
     if (editNodeId) {
       updateNode(editNodeId, {
@@ -134,6 +136,7 @@ export default function CreateFileModal({
         diagramType,
         ".luml",
         false,
+        standalone,
       );
       openTab(newFileId);
       useToastStore.getState().show(`"${fileName.trim()}" created`);
@@ -142,6 +145,7 @@ export default function CreateFileModal({
     setFileName("");
     setDiagramType("CLASS_DIAGRAM");
     setDescription("");
+    setStandalone(false);
     setValidationError("");
     onClose();
   };
@@ -247,14 +251,16 @@ export default function CreateFileModal({
             </label>
             <select
               id="location"
-              value={selectedParentId || "root"}
+              value={standalone ? "root" : (selectedParentId || "root")}
               onChange={(e) => {
+                if (standalone) return;
                 setSelectedParentId(
                   e.target.value === "root" ? null : e.target.value,
                 );
                 setValidationError("");
               }}
-              className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7C83FF]"
+              disabled={standalone}
+              className={`w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7C83FF] ${standalone ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <option value="root">/</option>
               {folders.map((folder) => (
@@ -320,6 +326,41 @@ export default function CreateFileModal({
               className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-[#7C83FF] resize-none"
             />
           </div>
+
+          {/* ── Standalone toggle (creation only) ───────────────────── */}
+          {!editNodeId && (
+            <div className="flex items-start gap-3 px-3 py-3 rounded-lg border border-[#2a3358] bg-[#0f1419]">
+              <button
+                id="standalone"
+                type="button"
+                role="switch"
+                aria-checked={standalone}
+                onClick={() => setStandalone((v) => !v)}
+                className={`relative mt-0.5 shrink-0 w-9 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7C83FF] ${
+                  standalone ? "bg-[#7C83FF]" : "bg-[#2a3358]"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    standalone ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+              <div className="flex flex-col gap-0.5">
+                <label
+                  htmlFor="standalone"
+                  className="text-sm font-medium text-[#cbd5e1] cursor-pointer select-none"
+                  onClick={() => setStandalone((v) => !v)}
+                >
+                  Standalone File
+                </label>
+                <p className="text-xs text-[#64748b] leading-snug">
+                  Isolates this diagram from the shared workspace model. The
+                  global Model Explorer will be hidden while this file is active.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* ── Actions ──────────────────────────────────────────────── */}
           <div className="flex items-center justify-end gap-3 pt-4">

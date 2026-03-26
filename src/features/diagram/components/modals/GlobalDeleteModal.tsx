@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { TriangleAlert, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useUiStore } from "../../../../store/uiStore";
 import { useModelStore } from "../../../../store/model.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
@@ -28,6 +29,7 @@ function resolveElement(model: SemanticModel, id: string): EditableElement | nul
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function GlobalDeleteModal() {
+  const { t } = useTranslation();
   const { activeModal, editingId, closeModals } = useUiStore();
   const model = useModelStore((s) => s.model);
   const deleteClass = useModelStore((s) => s.deleteClass);
@@ -105,7 +107,7 @@ export default function GlobalDeleteModal() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-red-900/30">
           <div className="flex items-center gap-2.5">
             <TriangleAlert className="w-4 h-4 text-red-400 shrink-0" />
-            <h2 className="text-sm font-semibold text-red-300">Delete from Project</h2>
+            <h2 className="text-sm font-semibold text-red-300">{t('globalDeleteModal.title')}</h2>
           </div>
           <button
             onClick={closeModals}
@@ -118,21 +120,15 @@ export default function GlobalDeleteModal() {
         {/* Body */}
         <div className="px-5 py-5 space-y-3">
           <p className="text-sm text-slate-300 leading-relaxed">
-            This will permanently delete{" "}
-            <span className="font-semibold text-white">
-              &ldquo;{element.data.name}&rdquo;
-            </span>{" "}
-            ({kindLabel}) from the entire project.
+            {t('globalDeleteModal.message', { name: element.data.name, type: kindLabel })}
           </p>
           <p className="text-sm text-slate-400 leading-relaxed">
-            It will be removed from{" "}
-            <span className="text-red-400 font-medium">ALL diagrams</span>, along with
-            any associations, generalizations, or other relations that connect to it.
+            {t('globalDeleteModal.allDiagrams')}
           </p>
           <div className="flex items-start gap-2 bg-red-950/30 border border-red-900/40 rounded-lg px-3 py-2.5 mt-1">
             <TriangleAlert className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
             <p className="text-xs text-red-300 leading-relaxed">
-              This action cannot be undone.
+              {t('globalDeleteModal.cannotUndo')}
             </p>
           </div>
         </div>
@@ -144,13 +140,13 @@ export default function GlobalDeleteModal() {
             onClick={closeModals}
             className="px-4 py-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
           >
-            Cancel
+            {t('modals.common.cancel')}
           </button>
           <button
             onClick={handleConfirm}
             className="px-5 py-1.5 text-sm bg-red-700 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
           >
-            Delete from Project
+            {t('globalDeleteModal.deleteFromProject')}
           </button>
         </div>
       </div>

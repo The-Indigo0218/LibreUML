@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ClassItem } from "./ClassItem";
 import { InlinePackageInput } from "./InlinePackageInput";
 import type { PackageItemProps } from "./types";
@@ -23,6 +24,7 @@ export function PackageItem({
   onAddChildPackage,
   onCancelAddChild,
 }: PackageItemProps) {
+  const { t } = useTranslation();
   // TODO: SSOT Migration - Package validation needs WorkspaceStore integration
   const packages: Array<{ id: string; name: string }> = [];
   
@@ -157,11 +159,11 @@ export function PackageItem({
             )}
 
             {!isRenaming && isEmpty && (
-              <span className="text-[10px] text-text-muted italic">empty</span>
+              <span className="text-[10px] text-text-muted italic">{t('packageExplorer.emptyPackage')}</span>
             )}
           </div>
           {hasError && (
-            <p className="text-xs text-red-500 mt-1 ml-2">Package name already exists at this level</p>
+            <p className="text-xs text-red-500 mt-1 ml-2">{t('packageExplorer.packageNameExists')}</p>
           )}
         </>
       )}

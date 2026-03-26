@@ -42,12 +42,6 @@ import { useVFSEdgeStyling } from "../../hooks/useVFSEdgeStyling";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
 import { useNodeDragging } from "../../hooks/useNodeDragging";
 import { useTranslation } from "react-i18next";
-import ExportModal from "../modals/ExportModal";
-import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
-import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
-import ImportCodeModal from "../modals/ImportCodeModal";
-import CodeExportConfigModal from "../modals/CodeExportConfigModal";
-import KeyboardShortcutsModal from "../modals/KeyboardShortcutsModal";
 
 export default function DiagramCanvas() {
   const { t } = useTranslation();
@@ -237,17 +231,24 @@ export default function DiagramCanvas() {
           );
           if (!viewNode) return undefined;
           if (!viewNode.elementId) return 'NOTE';
-          const ms = useModelStore.getState();
-          if (!ms.model) return undefined;
-          const cls = ms.model.classes[viewNode.elementId];
+          // Standalone files use localModel; project files use global ModelStore.
+          const activeModel = vfsController.isStandalone
+            ? vfsController.localModel
+            : useModelStore.getState().model;
+          if (!activeModel) return undefined;
+          const cls = activeModel.classes[viewNode.elementId];
           if (cls) return cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS';
-          if (ms.model.interfaces[viewNode.elementId]) return 'INTERFACE';
-          if (ms.model.enums[viewNode.elementId]) return 'ENUM';
+          if (activeModel.interfaces[viewNode.elementId]) return 'INTERFACE';
+          if (activeModel.enums[viewNode.elementId]) return 'ENUM';
           return 'NOTE';
         }
       : undefined,
     getIsNodeExternal: vfsController.isVFSFile
       ? (nodeId: string) => {
+          // Standalone elements live in localModel, not in global model.
+          // Per-node "Add to Project" is not meaningful here — use the
+          // file-level "Add to Project" in the Project Files sidebar instead.
+          if (vfsController.isStandalone) return false;
           const viewNode = vfsController.diagramView?.nodes.find(
             (vn) => vn.id === nodeId,
           );
@@ -463,20 +464,6 @@ export default function DiagramCanvas() {
         />
       )}
 
-      <SingleClassGeneratorModal 
-        isOpen={activeModal === 'engineering-single'}
-        onClose={closeModals}
-      />
-
-      <ProjectGeneratorModal
-        isOpen={activeModal === 'engineering-project'}
-        onClose={closeModals}
-      />
-
-      <ExportModal 
-        isOpen={activeModal === 'export-modal'}
-        onClose={closeModals}
-      />
 
       <ConfirmationModal
         isOpen={activeModal === 'clear-confirmation'}
@@ -489,10 +476,6 @@ export default function DiagramCanvas() {
         onCancel={closeModals}
       />
 
-      <ImportCodeModal 
-        isOpen={activeModal === 'import-code'}
-        onClose={closeModals}
-      />
 
       <MethodGeneratorModal
         isOpen={activeModal === 'method-generator'}
@@ -502,14 +485,6 @@ export default function DiagramCanvas() {
 
       <VfsEdgeActionModal />
       <AutoLayoutLockedWarningModal />
-      <CodeExportConfigModal
-        isOpen={activeModal === 'code-export-config'}
-        onClose={closeModals}
-      />
-      <KeyboardShortcutsModal 
-        isOpen={activeModal === 'keyboard-shortcuts'}
-        onClose={closeModals}
-      />
 
       <SpotlightModal />
     </div>

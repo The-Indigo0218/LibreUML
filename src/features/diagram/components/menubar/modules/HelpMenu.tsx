@@ -1,8 +1,9 @@
-import { 
-  BookOpen, 
-  Bug, 
-  Map, 
-  Info, 
+import { useState } from "react";
+import {
+  BookOpen,
+  Bug,
+  Map,
+  Info,
   Rocket,
   Keyboard
 } from "lucide-react";
@@ -10,17 +11,17 @@ import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrig
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useTranslation } from "react-i18next";
 import { useUiStore } from "../../../../../store/uiStore";
+import HelpDocumentationModal from "../../modals/HelpDocumentationModal";
 
-export function HelpMenuContent() {
+export function HelpMenuContent({ onOpenDocs }: { onOpenDocs: () => void }) {
   const { t } = useTranslation();
   const openKeyboardShortcuts = useUiStore((s) => s.openKeyboardShortcuts);
-  
-  const openDocs = () => window.open("https://github.com/The-Indigo0218/LibreUML#readme", "_blank");
+
   const reportIssue = () => window.open("https://github.com/The-Indigo0218/LibreUML/issues", "_blank");
-  const openRoadmap = () => window.open("https://github.com/The-Indigo0218/LibreUML/blob/main/roadmap.md", "_blank"); 
-  
+  const openRoadmap = () => window.open("https://github.com/The-Indigo0218/LibreUML/blob/main/roadmap.md", "_blank");
+
   const showAbout = () => {
-    alert("LibreUML v1.0.0\n\nThe Open Source UML Editor for Students.\nDeveloped with ❤️ in React + Electron.");
+    alert("LibreUML v0.7.0\n\nThe Open Source UML Editor for Students.\nDeveloped with ❤️ in React + Electron.");
   };
 
   return (
@@ -42,7 +43,7 @@ export function HelpMenuContent() {
       <MenubarItem
         label={t("menubar.help.documentation")}
         icon={<BookOpen className="w-4 h-4" />}
-        onClick={openDocs}
+        onClick={onOpenDocs}
       />
 
       <MenubarItem
@@ -70,10 +71,18 @@ export function HelpMenuContent() {
 
 export function HelpMenu() {
   const { t } = useTranslation();
+  const [isDocsOpen, setIsDocsOpen] = useState(false);
 
   return (
-    <MenubarTrigger label={t("menubar.help.title")}>
-      <HelpMenuContent />
-    </MenubarTrigger>
+    <>
+      <MenubarTrigger label={t("menubar.help.title")}>
+        <HelpMenuContent onOpenDocs={() => setIsDocsOpen(true)} />
+      </MenubarTrigger>
+
+      <HelpDocumentationModal
+        isOpen={isDocsOpen}
+        onClose={() => setIsDocsOpen(false)}
+      />
+    </>
   );
 }

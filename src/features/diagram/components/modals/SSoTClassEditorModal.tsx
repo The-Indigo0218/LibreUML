@@ -1,7 +1,10 @@
 import { useMemo } from "react";
 import { useUiStore } from "../../../../store/uiStore";
 import { useModelStore } from "../../../../store/model.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useToastStore } from "../../../../store/toast.store";
+import { standaloneModelOps } from "../../../../store/standaloneModelOps";
 import ClassEditorModal from "./ClassEditorModal";
 import type {
   UmlClassData,
@@ -18,6 +21,7 @@ import type {
   IRClass,
   IRInterface,
   IREnum,
+  VFSFile,
 } from "../../../../core/domain/vfs/vfs.types";
 import { autoConnectByAttributeType } from "../../utils/autoConnect";
 
@@ -143,54 +147,97 @@ export default function SSoTClassEditorModal() {
   const setElementPackage = useModelStore((s) => s.setElementPackage);
   const showToast = useToastStore((s) => s.show);
 
+  // Standalone context: resolve active file's isolation status and localModel.
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const isStandalone = useVFSStore((s): boolean => {
+    if (!activeTabId || !s.project) return false;
+    const node = s.project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return false;
+    return (node as VFSFile).standalone === true;
+  });
+  const localModel = useVFSStore((s): SemanticModel | null => {
+    if (!activeTabId || !s.project) return null;
+    const node = s.project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return null;
+    return (node as VFSFile).localModel ?? null;
+  });
+
+  // Use localModel when active file is standalone; global model otherwise.
+  const activeModel = isStandalone ? localModel : model;
+
   const isOpen = activeModal === "ssot-class-editor" && !!editingId;
 
   const element = useMemo(() => {
-    if (!isOpen || !editingId || !model) return null;
-    return resolveElement(model, editingId);
-  }, [isOpen, editingId, model]);
+    if (!isOpen || !editingId || !activeModel) return null;
+    return resolveElement(activeModel, editingId);
+  }, [isOpen, editingId, activeModel]);
 
   const umlData = useMemo(() => {
-    if (!element || !model) return null;
-    return toUmlData(model, element);
-  }, [element, model]);
+    if (!element || !activeModel) return null;
+    return toUmlData(activeModel, element);
+  }, [element, activeModel]);
 
   const ssotContext = useMemo(() => {
-    if (!model) return { elementNames: [], availableTypeNames: [] };
+    if (!activeModel) return { elementNames: [], availableTypeNames: [] };
     const names = [
-      ...Object.values(model.classes).map((c) => c.name),
-      ...Object.values(model.interfaces).map((i) => i.name),
-      ...Object.values(model.enums).map((e) => e.name),
+      ...Object.values(activeModel.classes).map((c) => c.name),
+      ...Object.values(activeModel.interfaces).map((i) => i.name),
+      ...Object.values(activeModel.enums).map((e) => e.name),
     ];
-    return { elementNames: names, availableTypeNames: names, packageNames: model.packageNames ?? [] };
-  }, [model]);
+    return { elementNames: names, availableTypeNames: names, packageNames: activeModel.packageNames ?? [] };
+  }, [activeModel]);
 
   if (!isOpen || !umlData || !editingId || !element) return null;
 
   const handleSave = (newData: UmlClassData) => {
-    if (!model) return;
+    if (!activeModel) return;
 
-    if (element.kind === "CLASS") {
-      updateClass(editingId, { name: newData.label });
-      const { attributes, operations } = toIrMembers(newData);
-      setElementMembers(editingId, attributes, operations);
-      autoConnectByAttributeType(editingId, attributes);
-    } else if (element.kind === "INTERFACE") {
-      updateInterface(editingId, { name: newData.label });
-      const { operations } = toIrMembers(newData);
-      setElementMembers(editingId, [], operations);
+    if (isStandalone && activeTabId) {
+      // Standalone path: all mutations route through standaloneModelOps.
+      // autoConnectByAttributeType is skipped — it reads/writes global ModelStore.
+      const ops = standaloneModelOps(activeTabId);
+      if (element.kind === "CLASS") {
+        ops.updateClass(editingId, { name: newData.label });
+        const { attributes, operations } = toIrMembers(newData);
+        ops.setElementMembers(editingId, attributes, operations);
+      } else if (element.kind === "INTERFACE") {
+        ops.updateInterface(editingId, { name: newData.label });
+        const { operations } = toIrMembers(newData);
+        ops.setElementMembers(editingId, [], operations);
+      } else {
+        ops.updateEnum(editingId, {
+          name: newData.label,
+          literals: (newData.literals ?? []).map((l) => ({
+            name: l.name,
+            ...(l.value !== undefined && l.value !== '' ? { value: l.value } : {}),
+          })),
+        });
+      }
+      ops.setElementPackage(editingId, newData.package || undefined);
     } else {
-      // Map UmlEnumLiterals back to IREnumLiterals and persist name + literals atomically.
-      updateEnum(editingId, {
-        name: newData.label,
-        literals: (newData.literals ?? []).map((l) => ({
-          name: l.name,
-          ...(l.value !== undefined && l.value !== '' ? { value: l.value } : {}),
-        })),
-      });
+      // Global model path: existing behaviour.
+      if (!model) return;
+      if (element.kind === "CLASS") {
+        updateClass(editingId, { name: newData.label });
+        const { attributes, operations } = toIrMembers(newData);
+        setElementMembers(editingId, attributes, operations);
+        autoConnectByAttributeType(editingId, attributes);
+      } else if (element.kind === "INTERFACE") {
+        updateInterface(editingId, { name: newData.label });
+        const { operations } = toIrMembers(newData);
+        setElementMembers(editingId, [], operations);
+      } else {
+        updateEnum(editingId, {
+          name: newData.label,
+          literals: (newData.literals ?? []).map((l) => ({
+            name: l.name,
+            ...(l.value !== undefined && l.value !== '' ? { value: l.value } : {}),
+          })),
+        });
+      }
+      setElementPackage(editingId, newData.package || undefined);
     }
 
-    setElementPackage(editingId, newData.package || undefined);
     showToast(`"${newData.label}" saved.`);
     closeModals();
   };

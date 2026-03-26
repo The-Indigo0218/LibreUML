@@ -27,6 +27,7 @@ import type { VFSFile } from "../../../../../core/domain/vfs/vfs.types";
 import CloseProjectModal, {
   isCloseProjectWarningSuppressed,
 } from "../../modals/CloseProjectModal";
+import SaveProjectWarningModal from "../../modals/SaveProjectWarningModal";
 
 interface FileMenuProps {
   actions: ReturnType<typeof useDiagramActions>;
@@ -42,6 +43,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
   const [isCloseProjectModalOpen, setIsCloseProjectModalOpen] = useState(false);
+  const [isSaveProjectWarningOpen, setIsSaveProjectWarningOpen] = useState(false);
 
   const {
     handleNew,
@@ -65,11 +67,25 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
 
   // ── VFS project export ────────────────────────────────────────────────────
 
-  const handleSaveProject = async () => {
+  const standaloneFileNames: string[] = activeProject
+    ? Object.values(activeProject.nodes)
+        .filter((n) => n.type === "FILE" && (n as VFSFile).standalone === true)
+        .map((n) => n.name)
+    : [];
+
+  const executeProjectSave = async () => {
     try {
       await downloadProject();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to export project.");
+    }
+  };
+
+  const handleSaveProject = () => {
+    if (standaloneFileNames.length > 0) {
+      setIsSaveProjectWarningOpen(true);
+    } else {
+      executeProjectSave();
     }
   };
 
@@ -117,7 +133,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
 
         {/* ── VFS Project I/O ─────────────────────────────────────────── */}
         <MenubarItem
-          label="Save Project (.luml)"
+          label="Save Project (.luml.zip)"
           icon={<Download className="w-4 h-4 text-emerald-400" />}
           shortcut="Ctrl+Shift+E"
           onClick={handleSaveProject}
@@ -193,6 +209,13 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
           closeProject();
           closeAllFiles();
         }}
+      />
+
+      <SaveProjectWarningModal
+        isOpen={isSaveProjectWarningOpen}
+        standaloneFileNames={standaloneFileNames}
+        onClose={() => setIsSaveProjectWarningOpen(false)}
+        onConfirm={executeProjectSave}
       />
     </>
   );

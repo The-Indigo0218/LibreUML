@@ -74,6 +74,7 @@
       "title": "Código",
       "generateClass": "Generar Código de Clase...",
       "generateProject": "Generar Proyecto (.zip)...",
+      "downloadProject": "Descargar Proyecto",
       "importJava": "Importar Código Java...",
       "exportConfig": "Exportar Código Fuente...",
       "livePreview": "Vista Previa en Vivo"
@@ -115,6 +116,7 @@
       "class": "Clase",
       "interface": "Interfaz",
       "abstract": "Abstracta",
+      "enum": "Enumeración",
       "note": "Nota"
     },
     "connections": {
@@ -278,17 +280,28 @@
       "download": "Descargar .zip"
     },
     "codePreview": {
-    "title": "Vista Previa de Código",
-    "subtitle": "Generar código para una clase individual",
-    "languageLabel": "Lenguaje:",
-    "classLabel": "Clase:",
-    "copyTitle": "Copiar al portapapeles",
-    "close": "Cerrar",
-    "copy": "Copiar Código",
-    "copied": "¡Copiado!",
-    "noClassSelected": "No hay clase seleccionada",
-    "invalidNode": "El nodo seleccionado no es una Clase/Interfaz válida"
-  }
+      "title": "Vista Previa de Código",
+      "subtitle": "Generar código para una sola clase",
+      "languageLabel": "Lenguaje:",
+      "classLabel": "Clase:",
+      "copyTitle": "Copiar al portapapeles",
+      "close": "Cerrar",
+      "copy": "Copiar Código",
+      "copied": "¡Copiado!",
+      "noClassSelected": "No hay clase seleccionada",
+      "invalidNode": "El nodo seleccionado no es una Clase/Interfaz válida"
+    },
+    "methodGenerator": {
+      "title": "Generar Métodos",
+      "selectAttributes": "Seleccionar Atributos",
+      "selectAll": "Seleccionar Todo",
+      "deselectAll": "Deseleccionar Todo",
+      "noAttributes": "No hay atributos disponibles. Añade atributos a la clase primero.",
+      "generateGettersSetters": "Getters y Setters",
+      "generateConstructor": "Constructor",
+      "generateAll": "Generar Todo",
+      "cancel": "Cancelar"
+    }
   },
   "alerts": {
     "exportError": "No se pudo generar la imagen. Intenta de nuevo.",
@@ -529,6 +542,8 @@
     "openStandalone": "Abrir Independiente",
     "openStandaloneDesc": "Abrir como un archivo externo separado",
     "lumlNote": "Las exportaciones de proyecto .luml reemplazan el espacio de trabajo. Las exportaciones de diagrama .luml siguen el modo que seleccionaste arriba.",
+    "lumlFileNote": "es un archivo de diagrama individual — sigue el modo de arriba.",
+    "lumlZipNote": "es un proyecto de espacio de trabajo completo — siempre reemplaza el espacio de trabajo.",
     "cancel": "Cancelar",
     "opening": "Abriendo…"
   },
@@ -641,6 +656,41 @@
   "singleClassGenerator": {
     "title": "Generar Código de Clase",
     "selectClass": "Seleccionar Clase",
-    "copyCode": "Copiar Código"
+    "copyCode": "Copiar Código",
+    "comingSoon": "Próximamente..."
+  },
+  "classEditor": {
+    "typeContext": {
+      "uml": "UML Estándar",
+      "java": "Java",
+      "csharp": "C# (Próximamente)",
+      "cpp": "C++ (Próximamente)",
+      "python": "Python (Próximamente)",
+      "typescript": "TypeScript (Próximamente)"
+    }
+  },
+  "projectGenerator": {
+    "javaVersions": {
+      "java21": "Java 21 (LTS)",
+      "java17": "Java 17 (LTS)",
+      "java11": "Java 11 (LTS)",
+      "java8": "Java 8"
+    }
+  },
+  "noteNode": {
+    "titlePlaceholder": "Doble clic para añadir título",
+    "contentPlaceholder": "Doble clic para editar..."
+  },
+  "ssotElementEditor": {
+    "editTitle": "Editar"
+  },
+  "exportFormats": {
+    "png": "PNG",
+    "svg": "SVG",
+    "xmi": "XMI",
+    "json": "JSON"
+  },
+  "terminalPrompt": {
+    "prefix": "libreuml~$"
   }
 }

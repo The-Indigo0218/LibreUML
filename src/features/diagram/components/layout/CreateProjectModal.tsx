@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import type { LibreUMLProject, VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
@@ -10,6 +11,7 @@ interface CreateProjectModalProps {
 }
 
 export default function CreateProjectModal({ isOpen, onClose }: CreateProjectModalProps) {
+  const { t } = useTranslation();
   const [projectName, setProjectName] = useState("");
   const [description, setDescription] = useState("");
   const { loadProject } = useVFSStore();
@@ -94,7 +96,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
         onKeyDown={handleKeyDown}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-[#e2e8f0]">Create New Project</h2>
+          <h2 className="text-xl font-semibold text-[#e2e8f0]">{t('createProjectModal.title')}</h2>
           <button
             onClick={onClose}
             className="p-1 hover:bg-[#1e2738] rounded transition-colors"
@@ -106,7 +108,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="projectName" className="block text-sm font-medium text-[#cbd5e1] mb-2">
-              Project Name <span className="text-red-400">*</span>
+              {t('createProjectModal.projectName')} <span className="text-red-400">*</span>
             </label>
             <input
               ref={inputRef}
@@ -114,20 +116,20 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
               type="text"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              placeholder="My UML Project"
+              placeholder={t('createProjectModal.projectNamePlaceholder')}
               className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-[#7C83FF]"
             />
           </div>
 
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-[#cbd5e1] mb-2">
-              Description
+              {t('createProjectModal.description')}
             </label>
             <textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional project description"
+              placeholder={t('createProjectModal.descriptionPlaceholder')}
               rows={3}
               className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-[#7C83FF] resize-none"
             />
@@ -139,14 +141,14 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-[#cbd5e1] bg-[#1e2738] hover:bg-[#2a3358] hover:text-[#e2e8f0] rounded-lg transition-colors"
             >
-              Cancel
+              {t('createProjectModal.cancel')}
             </button>
             <button
               type="submit"
               disabled={!projectName.trim()}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-[#374151] disabled:text-[#9ca3af] disabled:cursor-not-allowed rounded-lg transition-colors"
             >
-              Create Project
+              {t('createProjectModal.createProject')}
             </button>
           </div>
         </form>

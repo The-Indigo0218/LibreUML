@@ -203,9 +203,9 @@ export function OpenFileModal() {
           <Info className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
           <p className="text-xs text-text-muted leading-relaxed">
             <span className="font-mono text-amber-400">.luml</span>{' '}
-            is a single <em>diagram file</em> — follows the mode above.{' '}
+            {t('openFileModal.lumlFileNote')}{' '}
             <span className="font-mono text-amber-400">.luml.zip</span>{' '}
-            is a full <em>workspace project</em> — always replaces the workspace.
+            {t('openFileModal.lumlZipNote')}
           </p>
         </div>
 

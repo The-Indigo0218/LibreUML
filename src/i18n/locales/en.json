@@ -528,6 +528,8 @@
     "openStandalone": "Open Standalone",
     "openStandaloneDesc": "Open as a separate external file",
     "lumlNote": ".luml project exports replace the workspace. .luml diagram exports follow the mode you selected above.",
+    "lumlFileNote": "is a single diagram file — follows the mode above.",
+    "lumlZipNote": "is a full workspace project — always replaces the workspace.",
     "cancel": "Cancel",
     "opening": "Opening…"
   },
@@ -640,7 +642,8 @@
   "singleClassGenerator": {
     "title": "Generate Class Code",
     "selectClass": "Select Class",
-    "copyCode": "Copy Code"
+    "copyCode": "Copy Code",
+    "comingSoon": "Coming soon..."
   },
   "modals": {
     "methodGenerator": {
@@ -653,6 +656,16 @@
       "generateConstructor": "Constructor",
       "generateAll": "Generate All",
       "cancel": "Cancel"
+    }
+  },
+  "classEditor": {
+    "typeContext": {
+      "uml": "UML Standard",
+      "java": "Java",
+      "csharp": "C# (Soon)",
+      "cpp": "C++ (Soon)",
+      "python": "Python (Soon)",
+      "typescript": "TypeScript (Soon)"
     }
   },
   "noteNode": {
@@ -676,6 +689,14 @@
     "svg": "SVG",
     "xmi": "XMI",
     "json": "JSON"
+  },
+  "projectGenerator": {
+    "javaVersions": {
+      "java21": "Java 21 (LTS)",
+      "java17": "Java 17 (LTS)",
+      "java11": "Java 11 (LTS)",
+      "java8": "Java 8"
+    }
   },
   "terminalPrompt": {
     "prefix": "libreuml~$"

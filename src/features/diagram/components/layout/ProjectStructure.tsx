@@ -99,7 +99,8 @@ function TreeItem({
           .filter(
             (n) =>
               n.parentId === node.id &&
-              !(n.type === "FILE" && (n as VFSFile).extension === ".model"),
+              !(n.type === "FILE" && (n as VFSFile).extension === ".model") &&
+              !(n.type === "FILE" && (n as VFSFile).standalone === true),
           )
           .sort((a, b) => {
             if (a.type === b.type) return a.name.localeCompare(b.name);
@@ -762,14 +763,14 @@ export default function ProjectStructure() {
   );
 
   const projectNodes = allRootNodes
-    .filter((n) => !(n.type === "FILE" && (n as VFSFile).isExternal === true))
+    .filter((n) => !(n.type === "FILE" && ((n as VFSFile).isExternal === true || (n as VFSFile).standalone === true)))
     .sort((a, b) => {
       if (a.type === b.type) return a.name.localeCompare(b.name);
       return a.type === "FOLDER" ? -1 : 1;
     });
 
-  const standaloneNodes = allRootNodes
-    .filter((n) => n.type === "FILE" && (n as VFSFile).isExternal === true)
+  const standaloneNodes = Object.values(project.nodes)
+    .filter((n) => n.type === "FILE" && ((n as VFSFile).standalone === true || (n as VFSFile).isExternal === true))
     .sort((a, b) => a.name.localeCompare(b.name)) as VFSFile[];
 
   return (
@@ -882,13 +883,19 @@ export default function ProjectStructure() {
                   onContextMenu={(e) => handleContextMenu(e, file)}
                   onDoubleClick={() => handleOpenFile(file.id)}
                 >
-                  <LayoutTemplate className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <LayoutTemplate className={`w-3.5 h-3.5 shrink-0 ${file.standalone ? "text-amber-400" : "text-purple-400"}`} />
                   <span className="text-xs text-text-secondary group-hover:text-text-primary truncate flex-1">
                     {file.name}
                   </span>
-                  <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-px leading-none">
-                    ext
-                  </span>
+                  {file.standalone ? (
+                    <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-px leading-none">
+                      solo
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-sky-500/80 bg-sky-500/10 border border-sky-500/20 rounded px-1 py-px leading-none">
+                      ext
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

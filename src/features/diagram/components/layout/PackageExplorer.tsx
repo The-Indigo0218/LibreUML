@@ -5,6 +5,9 @@ import { useSettingsStore } from "../../../../store/settingsStore";
 import { useUiStore } from "../../../../store/uiStore";
 import { useModelStore } from "../../../../store/model.store";
 import { useToastStore } from "../../../../store/toast.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { standaloneModelOps } from "../../../../store/standaloneModelOps";
 import { buildPackageTree } from "./packageExplorer/buildPackageTree";
 import { PackageItem } from "./packageExplorer/PackageItem";
 import { ClassItem } from "./packageExplorer/ClassItem";
@@ -12,7 +15,7 @@ import { InlinePackageInput } from "./packageExplorer/InlinePackageInput";
 import { DeletePackageModal } from "./packageExplorer/DeletePackageModal";
 import type { UmlClassNode, UmlAttribute, UmlMethod, visibility as UmlVisibility } from "../../types/diagram.types";
 import type { DeletePackageState, TreeNode } from "./packageExplorer/types";
-import type { SemanticModel } from "../../../../core/domain/vfs/vfs.types";
+import type { SemanticModel, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
 // ── IR → UmlClassNode adapter ─────────────────────────────────────────────
 
@@ -144,19 +147,37 @@ export default function PackageExplorer() {
   const theme = useSettingsStore((s) => s.theme);
   const { t } = useTranslation();
 
+  // ── Standalone context ─────────────────────────────────────────────────
+
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const isStandalone = useVFSStore((s): boolean => {
+    if (!activeTabId || !s.project) return false;
+    const node = s.project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return false;
+    return (node as VFSFile).standalone === true;
+  });
+  const localModel = useVFSStore((s): SemanticModel | null => {
+    if (!activeTabId || !s.project) return null;
+    const node = s.project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return null;
+    return (node as VFSFile).localModel ?? null;
+  });
+
+  const activeModel = isStandalone ? localModel : model;
+
   // ── Derived data ───────────────────────────────────────────────────────
 
   const transformedNodes: UmlClassNode[] = useMemo(() => {
-    if (!model) return [];
-    return irToUmlNodes(model);
-  }, [model]);
+    if (!activeModel) return [];
+    return irToUmlNodes(activeModel);
+  }, [activeModel]);
 
   const allPackages: Array<{ id: string; name: string }> = useMemo(() => {
-    if (!model) return [];
+    if (!activeModel) return [];
     const pkgSet = new Map<string, { id: string; name: string }>();
 
     // Explicit packages from model
-    (model.packageNames ?? []).forEach((name) => {
+    (activeModel.packageNames ?? []).forEach((name) => {
       pkgSet.set(name, { id: `pkg-${name}`, name });
     });
 
@@ -175,7 +196,7 @@ export default function PackageExplorer() {
     });
 
     return Array.from(pkgSet.values());
-  }, [model, transformedNodes]);
+  }, [activeModel, transformedNodes]);
 
   const packageTree = useMemo(() => buildPackageTree(allPackages, transformedNodes), [allPackages, transformedNodes]);
 
@@ -216,13 +237,17 @@ export default function PackageExplorer() {
   const addPackage = useCallback((name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if ((model?.packageNames ?? []).includes(trimmed)) {
+    if ((activeModel?.packageNames ?? []).includes(trimmed)) {
       showToast(`Package "${trimmed}" already exists.`);
       return;
     }
-    addPackageName(trimmed);
+    if (isStandalone && activeTabId) {
+      standaloneModelOps(activeTabId).addPackageName(trimmed);
+    } else {
+      addPackageName(trimmed);
+    }
     showToast(`Package "${trimmed}" created.`);
-  }, [model, addPackageName, showToast]);
+  }, [activeModel, isStandalone, activeTabId, addPackageName, showToast]);
 
   const updatePackageName = useCallback((packagePath: string, newName: string) => {
     const trimmed = newName.trim();
@@ -232,58 +257,91 @@ export default function PackageExplorer() {
     pathSegments[pathSegments.length - 1] = trimmed;
     const newFullPath = pathSegments.join(".");
 
-    removePackageName(packagePath);
-    addPackageName(newFullPath);
-
-    // Rename on all affected elements
-    if (!model) return;
-    [...Object.values(model.classes), ...Object.values(model.interfaces), ...Object.values(model.enums)].forEach((el) => {
-      if (el.packageName === packagePath) {
-        setElementPackage(el.id, newFullPath);
-      }
-    });
+    if (isStandalone && activeTabId) {
+      const ops = standaloneModelOps(activeTabId);
+      ops.removePackageName(packagePath);
+      ops.addPackageName(newFullPath);
+      if (!activeModel) return;
+      [...Object.values(activeModel.classes), ...Object.values(activeModel.interfaces), ...Object.values(activeModel.enums)].forEach((el) => {
+        if (el.packageName === packagePath) ops.setElementPackage(el.id, newFullPath);
+      });
+    } else {
+      removePackageName(packagePath);
+      addPackageName(newFullPath);
+      if (!activeModel) return;
+      [...Object.values(activeModel.classes), ...Object.values(activeModel.interfaces), ...Object.values(activeModel.enums)].forEach((el) => {
+        if (el.packageName === packagePath) setElementPackage(el.id, newFullPath);
+      });
+    }
     showToast(`Package renamed to "${newFullPath}".`);
-  }, [model, removePackageName, addPackageName, setElementPackage, showToast]);
+  }, [activeModel, isStandalone, activeTabId, removePackageName, addPackageName, setElementPackage, showToast]);
 
   const deletePackage = useCallback((pkgPath: string, deleteClasses: boolean) => {
-    if (!model) return;
+    if (!activeModel) return;
 
     const allEls = [
-      ...Object.values(model.classes),
-      ...Object.values(model.interfaces),
-      ...Object.values(model.enums),
+      ...Object.values(activeModel.classes),
+      ...Object.values(activeModel.interfaces),
+      ...Object.values(activeModel.enums),
     ];
     const affected = allEls.filter((el) => el.packageName === pkgPath);
 
-    if (deleteClasses) {
-      affected.forEach((el) => {
-        if (model.classes[el.id]) deleteClass(el.id);
-        else if (model.interfaces[el.id]) deleteInterface(el.id);
-        else deleteEnum(el.id);
-      });
+    if (isStandalone && activeTabId) {
+      const ops = standaloneModelOps(activeTabId);
+      if (deleteClasses) {
+        affected.forEach((el) => {
+          if (activeModel.classes[el.id]) ops.deleteClass(el.id);
+          else if (activeModel.interfaces[el.id]) ops.deleteInterface(el.id);
+          else ops.deleteEnum(el.id);
+        });
+      } else {
+        affected.forEach((el) => ops.setElementPackage(el.id, undefined));
+      }
+      ops.removePackageName(pkgPath);
     } else {
-      affected.forEach((el) => setElementPackage(el.id, undefined));
+      if (deleteClasses) {
+        affected.forEach((el) => {
+          if (activeModel.classes[el.id]) deleteClass(el.id);
+          else if (activeModel.interfaces[el.id]) deleteInterface(el.id);
+          else deleteEnum(el.id);
+        });
+      } else {
+        affected.forEach((el) => setElementPackage(el.id, undefined));
+      }
+      removePackageName(pkgPath);
     }
-
-    removePackageName(pkgPath);
     showToast(`Package "${pkgPath}" deleted.`);
-  }, [model, deleteClass, deleteInterface, deleteEnum, setElementPackage, removePackageName, showToast]);
+  }, [activeModel, isStandalone, activeTabId, deleteClass, deleteInterface, deleteEnum, setElementPackage, removePackageName, showToast]);
 
   const deleteElement = useCallback((elementId: string) => {
-    if (!model) return;
-    if (model.classes[elementId]) { deleteClass(elementId); return; }
-    if (model.interfaces[elementId]) { deleteInterface(elementId); return; }
-    if (model.enums[elementId]) { deleteEnum(elementId); return; }
-  }, [model, deleteClass, deleteInterface, deleteEnum]);
+    if (!activeModel) return;
+    if (isStandalone && activeTabId) {
+      const ops = standaloneModelOps(activeTabId);
+      if (activeModel.classes[elementId]) ops.deleteClass(elementId);
+      else if (activeModel.interfaces[elementId]) ops.deleteInterface(elementId);
+      else if (activeModel.enums[elementId]) ops.deleteEnum(elementId);
+    } else {
+      if (activeModel.classes[elementId]) { deleteClass(elementId); return; }
+      if (activeModel.interfaces[elementId]) { deleteInterface(elementId); return; }
+      if (activeModel.enums[elementId]) { deleteEnum(elementId); return; }
+    }
+  }, [activeModel, isStandalone, activeTabId, deleteClass, deleteInterface, deleteEnum]);
 
   const renameElement = useCallback((elementId: string, newName: string) => {
     const trimmed = newName.trim();
-    if (!trimmed || !model) return;
-    if (model.classes[elementId]) updateClass(elementId, { name: trimmed });
-    else if (model.interfaces[elementId]) updateInterface(elementId, { name: trimmed });
-    else if (model.enums[elementId]) updateEnum(elementId, { name: trimmed });
+    if (!trimmed || !activeModel) return;
+    if (isStandalone && activeTabId) {
+      const ops = standaloneModelOps(activeTabId);
+      if (activeModel.classes[elementId]) ops.updateClass(elementId, { name: trimmed });
+      else if (activeModel.interfaces[elementId]) ops.updateInterface(elementId, { name: trimmed });
+      else if (activeModel.enums[elementId]) ops.updateEnum(elementId, { name: trimmed });
+    } else {
+      if (activeModel.classes[elementId]) updateClass(elementId, { name: trimmed });
+      else if (activeModel.interfaces[elementId]) updateInterface(elementId, { name: trimmed });
+      else if (activeModel.enums[elementId]) updateEnum(elementId, { name: trimmed });
+    }
     showToast(`Renamed to "${trimmed}".`);
-  }, [model, updateClass, updateInterface, updateEnum, showToast]);
+  }, [activeModel, isStandalone, activeTabId, updateClass, updateInterface, updateEnum, showToast]);
 
   // ── Handlers ───────────────────────────────────────────────────────────
 
@@ -403,7 +461,11 @@ export default function PackageExplorer() {
   const handleCancelRename = () => setRenamingId(null);
 
   const handleMoveToPackage = (elementId: string, targetPkg: string | undefined) => {
-    setElementPackage(elementId, targetPkg);
+    if (isStandalone && activeTabId) {
+      standaloneModelOps(activeTabId).setElementPackage(elementId, targetPkg);
+    } else {
+      setElementPackage(elementId, targetPkg);
+    }
     showToast(targetPkg ? `Moved to "${targetPkg}".` : "Removed from package.");
     setPkgPicker(null);
   };
@@ -445,7 +507,7 @@ export default function PackageExplorer() {
           />
         )}
 
-        {!model || (totalElements === 0 && !isAddingGlobal) ? (
+        {!activeModel || (totalElements === 0 && !isAddingGlobal) ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <Package className="w-12 h-12 text-text-muted/30 mb-3" />
             <p className="text-sm text-text-muted">{t('packageExplorer.noPackages')}</p>
@@ -633,7 +695,7 @@ export default function PackageExplorer() {
           >
             (default)
           </button>
-          {(model?.packageNames ?? []).map((pkgName) => (
+          {(activeModel?.packageNames ?? []).map((pkgName) => (
             <button
               key={pkgName}
               className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-hover"

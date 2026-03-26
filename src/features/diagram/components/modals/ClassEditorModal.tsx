@@ -657,12 +657,12 @@ export default function ClassEditorModal({
                     onChange={(e) => setTypeContext(e.target.value as SupportedLanguage)}
                     className="appearance-none bg-surface-secondary border border-surface-border rounded pl-2 pr-6 py-0.5 text-[11px] font-medium text-text-primary outline-none focus:border-blue-500/50 transition-colors cursor-pointer"
                   >
-                    <option value="uml">UML Standard</option>
-                    <option value="java">Java</option>
-                    <option value="csharp" disabled>C# (Soon)</option>
-                    <option value="cpp" disabled>C++ (Soon)</option>
-                    <option value="python" disabled>Python (Soon)</option>
-                    <option value="typescript" disabled>TypeScript (Soon)</option>
+                    <option value="uml">{t('classEditor.typeContext.uml')}</option>
+                    <option value="java">{t('classEditor.typeContext.java')}</option>
+                    <option value="csharp" disabled>{t('classEditor.typeContext.csharp')}</option>
+                    <option value="cpp" disabled>{t('classEditor.typeContext.cpp')}</option>
+                    <option value="python" disabled>{t('classEditor.typeContext.python')}</option>
+                    <option value="typescript" disabled>{t('classEditor.typeContext.typescript')}</option>
                   </select>
                   <ChevronDown className="absolute right-1.5 w-3 h-3 text-text-muted pointer-events-none" />
                 </div>

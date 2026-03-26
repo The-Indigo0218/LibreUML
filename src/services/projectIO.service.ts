@@ -431,11 +431,14 @@ export async function downloadProject(): Promise<void> {
 
   const zip = new JSZip();
 
-  // project.json — strip DiagramView content from FILE nodes
+  // project.json — strip DiagramView content, localModel, and exclude standalone files
   const nodesStripped: Record<string, VFSFolder | VFSFile> = {};
   for (const [id, node] of Object.entries(project.nodes as Record<string, VFSFolder | VFSFile>)) {
+    if (node.type === 'FILE' && (node as VFSFile).standalone === true) continue;
     nodesStripped[id] =
-      node.type === 'FILE' ? { ...(node as VFSFile), content: null } : node;
+      node.type === 'FILE'
+        ? { ...(node as VFSFile), content: null, localModel: undefined }
+        : node;
   }
 
   const manifest: LumlProjectManifest = {
@@ -449,11 +452,12 @@ export async function downloadProject(): Promise<void> {
   // domain.model — full SemanticModel
   zip.file(ZIP_DOMAIN_MODEL, JSON.stringify(model ?? null, null, 2));
 
-  // diagrams/{fileId}.json — DiagramView per diagram file
+  // diagrams/{fileId}.json — DiagramView per diagram file (standalone files excluded)
   const diagramsFolder = zip.folder('diagrams')!;
   for (const node of Object.values(project.nodes as Record<string, VFSFolder | VFSFile>)) {
     if (node.type === 'FILE' && (node as VFSFile).extension !== '.model') {
       const f = node as VFSFile;
+      if (f.standalone === true) continue;
       diagramsFolder.file(
         `${f.id}.json`,
         JSON.stringify(f.content ?? null, null, 2),

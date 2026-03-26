@@ -120,7 +120,7 @@ export default function CreateFileModal({
     if (!fileName.trim()) return;
     if (!validateUniqueness()) return;
 
-    const targetParentId = selectedParentId === "root" ? null : selectedParentId;
+    const targetParentId = standalone ? null : (selectedParentId === "root" ? null : selectedParentId);
 
     if (editNodeId) {
       updateNode(editNodeId, {
@@ -251,14 +251,16 @@ export default function CreateFileModal({
             </label>
             <select
               id="location"
-              value={selectedParentId || "root"}
+              value={standalone ? "root" : (selectedParentId || "root")}
               onChange={(e) => {
+                if (standalone) return;
                 setSelectedParentId(
                   e.target.value === "root" ? null : e.target.value,
                 );
                 setValidationError("");
               }}
-              className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7C83FF]"
+              disabled={standalone}
+              className={`w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] focus:outline-none focus:ring-2 focus:ring-[#7C83FF] ${standalone ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <option value="root">/</option>
               {folders.map((folder) => (

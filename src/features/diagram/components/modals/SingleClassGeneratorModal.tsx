@@ -162,7 +162,7 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
     }
 
     if (config.targetLanguage !== 'java') {
-      setGeneratedCode('// Coming soon...');
+      setGeneratedCode(`// ${t('singleClassGenerator.comingSoon')}`);
       return;
     }
 

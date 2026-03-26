@@ -529,6 +529,8 @@
     "openStandalone": "Abrir Independiente",
     "openStandaloneDesc": "Abrir como un archivo externo separado",
     "lumlNote": "Las exportaciones de proyecto .luml reemplazan el espacio de trabajo. Las exportaciones de diagrama .luml siguen el modo que seleccionaste arriba.",
+    "lumlFileNote": "es un archivo de diagrama individual — sigue el modo de arriba.",
+    "lumlZipNote": "es un proyecto de espacio de trabajo completo — siempre reemplaza el espacio de trabajo.",
     "cancel": "Cancelar",
     "opening": "Abriendo…"
   },
@@ -641,7 +643,8 @@
   "singleClassGenerator": {
     "title": "Generar Código de Clase",
     "selectClass": "Seleccionar Clase",
-    "copyCode": "Copiar Código"
+    "copyCode": "Copiar Código",
+    "comingSoon": "Próximamente..."
   },
   "modals": {
     "methodGenerator": {
@@ -654,6 +657,16 @@
       "generateConstructor": "Constructor",
       "generateAll": "Generar Todo",
       "cancel": "Cancelar"
+    }
+  },
+  "classEditor": {
+    "typeContext": {
+      "uml": "UML Estándar",
+      "java": "Java",
+      "csharp": "C# (Próximamente)",
+      "cpp": "C++ (Próximamente)",
+      "python": "Python (Próximamente)",
+      "typescript": "TypeScript (Próximamente)"
     }
   },
   "noteNode": {
@@ -677,6 +690,14 @@
     "svg": "SVG",
     "xmi": "XMI",
     "json": "JSON"
+  },
+  "projectGenerator": {
+    "javaVersions": {
+      "java21": "Java 21 (LTS)",
+      "java17": "Java 17 (LTS)",
+      "java11": "Java 11 (LTS)",
+      "java8": "Java 8"
+    }
   },
   "terminalPrompt": {
     "prefix": "libreuml~$"

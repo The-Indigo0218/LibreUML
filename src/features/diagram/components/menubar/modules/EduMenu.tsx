@@ -15,7 +15,7 @@ export function EduMenuContent() {
   return (
     <>
       <div className="px-2 py-1.5 text-xs font-semibold text-text-muted select-none">
-        Learning Tools (Coming Soon)
+        {t("menubar.edu.placeholder")}
       </div>
 
       <MenubarItem

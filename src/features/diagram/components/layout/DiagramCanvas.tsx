@@ -42,12 +42,6 @@ import { useVFSEdgeStyling } from "../../hooks/useVFSEdgeStyling";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
 import { useNodeDragging } from "../../hooks/useNodeDragging";
 import { useTranslation } from "react-i18next";
-import ExportModal from "../modals/ExportModal";
-import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
-import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
-import ImportCodeModal from "../modals/ImportCodeModal";
-import CodeExportConfigModal from "../modals/CodeExportConfigModal";
-import KeyboardShortcutsModal from "../modals/KeyboardShortcutsModal";
 
 export default function DiagramCanvas() {
   const { t } = useTranslation();
@@ -470,20 +464,6 @@ export default function DiagramCanvas() {
         />
       )}
 
-      <SingleClassGeneratorModal 
-        isOpen={activeModal === 'engineering-single'}
-        onClose={closeModals}
-      />
-
-      <ProjectGeneratorModal
-        isOpen={activeModal === 'engineering-project'}
-        onClose={closeModals}
-      />
-
-      <ExportModal 
-        isOpen={activeModal === 'export-modal'}
-        onClose={closeModals}
-      />
 
       <ConfirmationModal
         isOpen={activeModal === 'clear-confirmation'}
@@ -496,10 +476,6 @@ export default function DiagramCanvas() {
         onCancel={closeModals}
       />
 
-      <ImportCodeModal 
-        isOpen={activeModal === 'import-code'}
-        onClose={closeModals}
-      />
 
       <MethodGeneratorModal
         isOpen={activeModal === 'method-generator'}
@@ -509,14 +485,6 @@ export default function DiagramCanvas() {
 
       <VfsEdgeActionModal />
       <AutoLayoutLockedWarningModal />
-      <CodeExportConfigModal
-        isOpen={activeModal === 'code-export-config'}
-        onClose={closeModals}
-      />
-      <KeyboardShortcutsModal 
-        isOpen={activeModal === 'keyboard-shortcuts'}
-        onClose={closeModals}
-      />
 
       <SpotlightModal />
     </div>

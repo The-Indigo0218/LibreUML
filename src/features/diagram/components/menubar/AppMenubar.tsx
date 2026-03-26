@@ -19,6 +19,7 @@ import { ExportMenu, ExportMenuContent } from "./modules/ExportMenu";
 import { CodeMenu } from "./modules/CodeMenu";
 import { EduMenu, EduMenuContent } from "./modules/EduMenu";
 import { HelpMenu, HelpMenuContent } from "./modules/HelpMenu";
+import HelpDocumentationModal from "../modals/HelpDocumentationModal";
 import { useTranslation } from "react-i18next";
 import { useLayoutStore } from "../../../../store/layout.store";
 
@@ -38,6 +39,7 @@ export default function AppMenubar() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
+  const [isHelpDocsOpen, setIsHelpDocsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const actions = useDiagramActions();
@@ -128,7 +130,7 @@ export default function AppMenubar() {
                 </MenubarSubMenu>
                 
                 <MenubarSubMenu label={t("menubar.help.title")} icon={<HelpCircle className="w-4 h-4" />}>
-                  <HelpMenuContent />
+                  <HelpMenuContent onOpenDocs={() => setIsHelpDocsOpen(true)} />
                 </MenubarSubMenu>
               </MenubarTrigger>
             </div>
@@ -236,6 +238,11 @@ export default function AppMenubar() {
       <ProjectPropertiesModal
         isOpen={isPropertiesOpen}
         onClose={() => setIsPropertiesOpen(false)}
+      />
+
+      <HelpDocumentationModal
+        isOpen={isHelpDocsOpen}
+        onClose={() => setIsHelpDocsOpen(false)}
       />
     </>
   );

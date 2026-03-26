@@ -448,9 +448,9 @@ export default function PackageExplorer() {
         {!model || (totalElements === 0 && !isAddingGlobal) ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <Package className="w-12 h-12 text-text-muted/30 mb-3" />
-            <p className="text-sm text-text-muted">No packages or classes yet</p>
+            <p className="text-sm text-text-muted">{t('packageExplorer.noPackages')}</p>
             <p className="text-xs text-text-muted/70 mt-1">
-              Add classes to your diagram
+              {t('packageExplorer.addClasses')}
             </p>
           </div>
         ) : (

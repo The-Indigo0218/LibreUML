@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useUiStore } from "../../../../store/uiStore";
 import { useModelStore } from "../../../../store/model.store";
 import { useToastStore } from "../../../../store/toast.store";
@@ -41,6 +42,7 @@ const SSOT_TOAST_MESSAGE =
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SSoTElementEditorModal() {
+  const { t } = useTranslation();
   const { activeModal, editingId, closeModals } = useUiStore();
   const model = useModelStore((s) => s.model);
   const updateClass = useModelStore((s) => s.updateClass);
@@ -137,7 +139,7 @@ export default function SSoTElementEditorModal() {
             >
               {badgeLabel}
             </span>
-            <h2 className="text-sm font-semibold">Edit {kindLabel}</h2>
+            <h2 className="text-sm font-semibold">{t('ssotElementEditor.editTitle')} {kindLabel}</h2>
           </div>
           <button
             onClick={closeModals}
@@ -152,7 +154,7 @@ export default function SSoTElementEditorModal() {
           {/* Name */}
           <div>
             <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-              Name
+              {t('ssotElementEditor.name')}
             </label>
             <input
               autoFocus
@@ -165,7 +167,7 @@ export default function SSoTElementEditorModal() {
           {/* Visibility */}
           <div>
             <label className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-              Visibility
+              {t('ssotElementEditor.visibility')}
             </label>
             <select
               className="w-full bg-[#161b22] border border-[#1e2738] rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-blue-500/60 transition-colors"
@@ -189,7 +191,7 @@ export default function SSoTElementEditorModal() {
                 onChange={(e) => setIsAbstract(e.target.checked)}
                 className="accent-purple-500 w-3.5 h-3.5"
               />
-              <span className="text-sm text-slate-400">Abstract class</span>
+              <span className="text-sm text-slate-400">{t('ssotElementEditor.abstractClass')}</span>
             </label>
           )}
         </div>
@@ -200,14 +202,14 @@ export default function SSoTElementEditorModal() {
             onClick={closeModals}
             className="px-4 py-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
           >
-            Cancel
+            {t('ssotElementEditor.cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim()}
             className="px-5 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
           >
-            Save
+            {t('ssotElementEditor.save')}
           </button>
         </div>
       </div>

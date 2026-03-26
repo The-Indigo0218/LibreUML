@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ArrowLeftRight, Trash2, Check, Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
 import { useVFSStore } from '../../../../store/project-vfs.store';
 import { useModelStore } from '../../../../store/model.store';
@@ -48,6 +49,7 @@ const PRESET_BTN_IDLE =
   'bg-surface-primary border-surface-border text-text-secondary hover:border-indigo-400';
 
 export default function VfsEdgeActionModal() {
+  const { t } = useTranslation();
   const { activeModal, editingId, closeModals } = useUiStore();
   const project = useVFSStore((s) => s.project);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
@@ -185,7 +187,7 @@ export default function VfsEdgeActionModal() {
 
             <div className="flex items-center gap-3 bg-surface-secondary/50 rounded-lg p-3 border border-surface-border">
               <div className="flex-1 text-center min-w-0">
-                <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Origen</div>
+                <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">{t('vfsEdgeAction.origin')}</div>
                 <div className="text-sm font-semibold text-indigo-400 truncate">{displaySource}</div>
               </div>
               <button
@@ -200,7 +202,7 @@ export default function VfsEdgeActionModal() {
                 {reversed ? 'Revertido ✓' : 'Cambiar Dirección'}
               </button>
               <div className="flex-1 text-center min-w-0">
-                <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Destino</div>
+                <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">{t('vfsEdgeAction.destination')}</div>
                 <div className="text-sm font-semibold text-indigo-400 truncate">{displayTarget}</div>
               </div>
             </div>

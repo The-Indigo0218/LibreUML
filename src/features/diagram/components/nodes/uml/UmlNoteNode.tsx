@@ -1,6 +1,7 @@
 import { memo, useState, useEffect, useRef, useCallback } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { StickyNote } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { NoteViewModel } from "../../../../../adapters/react-flow/view-models/node.view-model";
 import { useProjectStore } from "../../../../../store/project.store";
 import { handleConfig } from "../../../../../config/theme.config";
@@ -29,6 +30,7 @@ import { handleConfig } from "../../../../../config/theme.config";
  *  character, which previously caused cursor-jump issues in the controlled textarea.
  */
 const UmlNoteNode = ({ data, selected }: NodeProps<NoteViewModel>) => {
+  const { t } = useTranslation();
   const updateNode = useProjectStore((s) => s.updateNode);
   const viewModel = data;
 
@@ -142,7 +144,7 @@ const UmlNoteNode = ({ data, selected }: NodeProps<NoteViewModel>) => {
             />
           ) : (
             <div className="font-bold text-sm text-uml-note-border truncate w-full pr-4 select-none">
-              {localTitle || <span className="opacity-40 font-normal italic">Double-click to add title</span>}
+              {localTitle || <span className="opacity-40 font-normal italic">{t('noteNode.titlePlaceholder')}</span>}
             </div>
           )}
 
@@ -188,7 +190,7 @@ const UmlNoteNode = ({ data, selected }: NodeProps<NoteViewModel>) => {
         ) : (
           <div className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] min-w-0 font-mono select-none cursor-default">
             {localContent || (
-              <span className="opacity-30 italic">Double-click to edit...</span>
+              <span className="opacity-30 italic">{t('noteNode.contentPlaceholder')}</span>
             )}
           </div>
         )}

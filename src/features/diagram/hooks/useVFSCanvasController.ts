@@ -5,6 +5,11 @@ import { useWorkspaceStore } from '../../../store/workspace.store';
 import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
 import { useToastStore } from '../../../store/toast.store';
+import {
+  standaloneModelOps,
+  getLocalModel,
+  ensureLocalModel,
+} from '../../../store/standaloneModelOps';
 import type {
   DiagramView,
   ViewNode,
@@ -299,6 +304,10 @@ export interface VFSReactFlowEdge {
 export interface VFSCanvasResult {
   /** True when the active tab is a .luml VFS file with a valid DiagramView. */
   isVFSFile: boolean;
+  /** True when the active file is a standalone diagram (uses localModel). */
+  isStandalone: boolean;
+  /** The file's localModel when isStandalone, otherwise null. */
+  localModel: SemanticModel | null;
   /** ReactFlow-compatible nodes derived from DiagramView + SemanticModel. */
   nodes: VFSReactFlowNode[];
   /** ReactFlow-compatible edges derived from DiagramView + SemanticModel. */
@@ -372,7 +381,7 @@ export interface VFSCanvasResult {
 export function useVFSCanvasController(): VFSCanvasResult {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const project = useVFSStore((s) => s.project);
-  const model = useModelStore((s) => s.model);
+  const globalModel = useModelStore((s) => s.model);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
 
   // Resolve VFS file for the active tab
@@ -382,6 +391,19 @@ export function useVFSCanvasController(): VFSCanvasResult {
     if (!node || node.type !== 'FILE') return null;
     return node as VFSFile;
   }, [activeTabId, project]);
+
+  const isStandalone = vfsFile?.standalone === true;
+
+  // Subscribe to localModel from VFSStore (reactive — updates when model mutates)
+  const localModel = useVFSStore((s): SemanticModel | null => {
+    if (!activeTabId || !s.project) return null;
+    const node = s.project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return null;
+    return (node as VFSFile).localModel ?? null;
+  });
+
+  // Active model: per-file local for standalone, shared global for project files
+  const model = isStandalone ? localModel : globalModel;
 
   // Safely extract DiagramView
   const diagramView = useMemo((): DiagramView | null => {
@@ -405,6 +427,13 @@ export function useVFSCanvasController(): VFSCanvasResult {
       ms.initModel(project.domainModelId);
     }
   }, [project?.domainModelId]);
+
+  // Backward-compat: standalone files created before localModel was introduced
+  // (or ejected via handleMakeStandalone) may lack a localModel. Seed it lazily.
+  useEffect(() => {
+    if (!activeTabId || !isStandalone) return;
+    ensureLocalModel(activeTabId);
+  }, [activeTabId, isStandalone]);
 
   // Stable callback: persists note content / title back into the ViewNode inside VFSStore.
   const handleNoteUpdate = useCallback(
@@ -445,28 +474,47 @@ export function useVFSCanvasController(): VFSCanvasResult {
       const badge = (element as IRClass | IRInterface | IREnum | null)?.packageName ?? undefined;
 
       const onRename = (name: string, generics?: string) => {
-        const ms = useModelStore.getState();
-        if (!ms.model) return;
-        switch (kind) {
-          case 'CLASS':
-          case 'ABSTRACT_CLASS':
-            ms.updateClass(viewNode.elementId, {
-              name,
-              ...(generics !== undefined ? { stereotypes: [generics] } : {}),
-            });
-            break;
-          case 'INTERFACE':
-            ms.updateInterface(viewNode.elementId, { name });
-            break;
-          case 'ENUM':
-            ms.updateEnum(viewNode.elementId, { name });
-            break;
+        if (isStandalone && activeTabId) {
+          const ops = standaloneModelOps(activeTabId);
+          switch (kind) {
+            case 'CLASS':
+            case 'ABSTRACT_CLASS':
+              ops.updateClass(viewNode.elementId, {
+                name,
+                ...(generics !== undefined ? { stereotypes: [generics] } : {}),
+              });
+              break;
+            case 'INTERFACE':
+              ops.updateInterface(viewNode.elementId, { name });
+              break;
+            case 'ENUM':
+              ops.updateEnum(viewNode.elementId, { name });
+              break;
+          }
+        } else {
+          const ms = useModelStore.getState();
+          if (!ms.model) return;
+          switch (kind) {
+            case 'CLASS':
+            case 'ABSTRACT_CLASS':
+              ms.updateClass(viewNode.elementId, {
+                name,
+                ...(generics !== undefined ? { stereotypes: [generics] } : {}),
+              });
+              break;
+            case 'INTERFACE':
+              ms.updateInterface(viewNode.elementId, { name });
+              break;
+            case 'ENUM':
+              ms.updateEnum(viewNode.elementId, { name });
+              break;
+          }
         }
       };
 
       return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename, badge);
     });
-  }, [diagramView, model]);
+  }, [diagramView, model, isStandalone, activeTabId]);
 
   // Map ViewEdges → ReactFlow edges.
   // Requires a reverse lookup from semantic elementId → ReactFlow node ID (ViewNode.id).
@@ -550,10 +598,12 @@ export function useVFSCanvasController(): VFSCanvasResult {
             // Prune ViewEdges whose relation involves the removed element.
             // (No ModelStore cascade — use "Delete from Model" for that.)
             if (removedVN.elementId) {
-              const ms = useModelStore.getState();
-              if (ms.model) {
+              const activeModel = isStandalone && activeTabId
+                ? getLocalModel(activeTabId)
+                : useModelStore.getState().model;
+              if (activeModel) {
                 updatedViewEdges = updatedViewEdges.filter((ve) => {
-                  const relation = ms.model!.relations[ve.relationId];
+                  const relation = activeModel.relations[ve.relationId];
                   if (!relation) return false;
                   return (
                     relation.sourceId !== removedVN.elementId &&
@@ -575,7 +625,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
         });
       }
     },
-    [activeTabId, updateFileContent],
+    [activeTabId, updateFileContent, isStandalone],
   );
 
   // ── onEdgesChange: edge deletion (keyboard Delete / context menu) ──────────
@@ -598,12 +648,14 @@ export function useVFSCanvasController(): VFSCanvasResult {
         if (change.type === 'remove') {
           const viewEdge = currentView.edges.find((ve) => ve.id === change.id);
           if (viewEdge) {
-            // Delete semantic relation from ModelStore.
-            const ms = useModelStore.getState();
-            if (ms.model && ms.model.relations[viewEdge.relationId]) {
-              ms.deleteRelation(viewEdge.relationId);
+            if (isStandalone) {
+              standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
+            } else {
+              const ms = useModelStore.getState();
+              if (ms.model && ms.model.relations[viewEdge.relationId]) {
+                ms.deleteRelation(viewEdge.relationId);
+              }
             }
-            // Remove ViewEdge from DiagramView.
             updatedEdges = updatedEdges.filter((ve) => ve.id !== change.id);
             dirty = true;
           }
@@ -614,7 +666,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
         updateFileContent(activeTabId, { ...currentView, edges: updatedEdges });
       }
     },
-    [activeTabId, updateFileContent],
+    [activeTabId, updateFileContent, isStandalone],
   );
 
   // ── onConnect: create edge from handle drag ────────────────────────────────
@@ -650,18 +702,24 @@ export function useVFSCanvasController(): VFSCanvasResult {
         return;
       }
 
-      const ms = useModelStore.getState();
-      if (!ms.model) return;
-
-      const isExternalFile = !!(fileNode as VFSFile).isExternal;
-
-      // Create semantic relation in ModelStore with the active tool's kind.
-      const relationId = ms.createRelation({
-        kind,
-        sourceId: sourceVN.elementId,
-        targetId: targetVN.elementId,
-        ...(isExternalFile ? { isExternal: true } : {}),
-      });
+      let relationId: string;
+      if (isStandalone) {
+        relationId = standaloneModelOps(activeTabId).createRelation({
+          kind,
+          sourceId: sourceVN.elementId,
+          targetId: targetVN.elementId,
+        });
+      } else {
+        const ms = useModelStore.getState();
+        if (!ms.model) return;
+        const isExternalFile = !!(fileNode as VFSFile).isExternal;
+        relationId = ms.createRelation({
+          kind,
+          sourceId: sourceVN.elementId,
+          targetId: targetVN.elementId,
+          ...(isExternalFile ? { isExternal: true } : {}),
+        });
+      }
 
       // Create visual ViewEdge linked to the new relation.
       const viewEdge: ViewEdge = {
@@ -677,7 +735,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
         edges: [...currentView.edges, viewEdge],
       });
     },
-    [activeTabId, updateFileContent],
+    [activeTabId, updateFileContent, isStandalone],
   );
 
   // ── removeNodeFromDiagram: view-only removal (context menu "Remove from Diagram") ──
@@ -697,13 +755,15 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
       const updatedNodes = currentView.nodes.filter((vn) => vn.id !== viewNodeId);
 
-      // Prune ViewEdges involving this element — no ModelStore cascade.
+      // Prune ViewEdges involving this element — no cascade into any model store.
       let updatedEdges = currentView.edges;
       if (removedVN.elementId) {
-        const ms = useModelStore.getState();
-        if (ms.model) {
+        const activeModel = isStandalone && activeTabId
+          ? getLocalModel(activeTabId)
+          : useModelStore.getState().model;
+        if (activeModel) {
           updatedEdges = currentView.edges.filter((ve) => {
-            const relation = ms.model!.relations[ve.relationId];
+            const relation = activeModel.relations[ve.relationId];
             if (!relation) return false;
             return (
               relation.sourceId !== removedVN.elementId &&
@@ -715,7 +775,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
       updateFileContent(activeTabId, { ...currentView, nodes: updatedNodes, edges: updatedEdges });
     },
-    [activeTabId, updateFileContent],
+    [activeTabId, updateFileContent, isStandalone],
   );
 
   // ── deleteElementFromModel: cascade delete + sweep all diagrams ─────────────
@@ -734,6 +794,34 @@ export function useVFSCanvasController(): VFSCanvasResult {
       if (!removedVN?.elementId) return;
 
       const elementId = removedVN.elementId;
+
+      if (isStandalone) {
+        // Standalone path: delete from localModel only — no global cascade.
+        const localM = getLocalModel(activeTabId);
+        if (!localM) return;
+
+        const elementName =
+          localM.classes[elementId]?.name ??
+          localM.interfaces[elementId]?.name ??
+          localM.enums[elementId]?.name ??
+          'Element';
+
+        const ops = standaloneModelOps(activeTabId);
+        if (localM.classes[elementId])         ops.deleteClass(elementId);
+        else if (localM.interfaces[elementId]) ops.deleteInterface(elementId);
+        else if (localM.enums[elementId])      ops.deleteEnum(elementId);
+
+        useToastStore.getState().show(`"${elementName}" deleted from standalone diagram`);
+
+        // Sweep this file's DiagramView only (relations cascade-deleted inside ops).
+        const modelAfterDelete = getLocalModel(activeTabId);
+        const updatedNodes = currentView.nodes.filter((vn) => vn.elementId !== elementId);
+        const updatedEdges = currentView.edges.filter(
+          (ve) => modelAfterDelete && !!modelAfterDelete.relations[ve.relationId],
+        );
+        updateFileContent(activeTabId, { ...currentView, nodes: updatedNodes, edges: updatedEdges });
+        return;
+      }
 
       // Cascade delete from ModelStore (removes IRRelation entries too).
       const ms = useModelStore.getState();
@@ -772,7 +860,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
         useVFSStore.getState().updateFileContent(nodeId, { ...view, nodes: updatedNodes, edges: updatedEdges });
       }
     },
-    [activeTabId, updateFileContent],
+    [activeTabId, updateFileContent, isStandalone],
   );
 
   // ── deleteEdgeById: used by context menu "Delete" ─────────────────────────
@@ -790,16 +878,20 @@ export function useVFSCanvasController(): VFSCanvasResult {
       const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
       if (!viewEdge) return;
 
-      const ms = useModelStore.getState();
-      if (ms.model && ms.model.relations[viewEdge.relationId]) {
-        ms.deleteRelation(viewEdge.relationId);
+      if (isStandalone) {
+        standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
+      } else {
+        const ms = useModelStore.getState();
+        if (ms.model && ms.model.relations[viewEdge.relationId]) {
+          ms.deleteRelation(viewEdge.relationId);
+        }
       }
       updateFileContent(activeTabId, {
         ...currentView,
         edges: currentView.edges.filter((ve) => ve.id !== viewEdgeId),
       });
     },
-    [activeTabId, updateFileContent],
+    [activeTabId, updateFileContent, isStandalone],
   );
 
   // ── reverseEdgeById: used by context menu "Reverse" ───────────────────────
@@ -817,17 +909,27 @@ export function useVFSCanvasController(): VFSCanvasResult {
       const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
       if (!viewEdge) return;
 
-      const ms = useModelStore.getState();
-      if (!ms.model) return;
-      const relation = ms.model.relations[viewEdge.relationId];
-      if (!relation) return;
-
-      ms.updateRelation(viewEdge.relationId, {
-        sourceId: relation.targetId,
-        targetId: relation.sourceId,
-      });
+      if (isStandalone) {
+        const localM = getLocalModel(activeTabId);
+        if (!localM) return;
+        const relation = localM.relations[viewEdge.relationId];
+        if (!relation) return;
+        standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, {
+          sourceId: relation.targetId,
+          targetId: relation.sourceId,
+        });
+      } else {
+        const ms = useModelStore.getState();
+        if (!ms.model) return;
+        const relation = ms.model.relations[viewEdge.relationId];
+        if (!relation) return;
+        ms.updateRelation(viewEdge.relationId, {
+          sourceId: relation.targetId,
+          targetId: relation.sourceId,
+        });
+      }
     },
-    [activeTabId],
+    [activeTabId, isStandalone],
   );
 
   // ── updateVFSEdgeProps: used by EditRelationModal ─────────────────────────
@@ -874,15 +976,21 @@ export function useVFSCanvasController(): VFSCanvasResult {
       const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
       if (!viewEdge) return;
 
-      const ms = useModelStore.getState();
-      if (!ms.model) return;
-      ms.updateRelation(viewEdge.relationId, { kind });
+      if (isStandalone) {
+        standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, { kind });
+      } else {
+        const ms = useModelStore.getState();
+        if (!ms.model) return;
+        ms.updateRelation(viewEdge.relationId, { kind });
+      }
     },
-    [activeTabId],
+    [activeTabId, isStandalone],
   );
 
   return {
     isVFSFile: !!vfsFile && !!diagramView,
+    isStandalone,
+    localModel,
     nodes,
     edges,
     diagramView,

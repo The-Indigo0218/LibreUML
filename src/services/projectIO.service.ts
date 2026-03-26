@@ -1,18 +1,23 @@
 /**
  * projectIO.service.ts
  *
- * Serialization / deserialization engine for LibreUML native project files (.luml).
+ * Serialization / deserialization engine for LibreUML native project files.
  *
- * A .luml file is always a ZIP archive.  Two payload variants are now supported,
- * distinguished by the "exportType" field in project.json:
+ * FILE EXTENSION CONVENTION
+ * ─────────────────────────
+ *   .luml       — single diagram file (one diagram, partial SemanticModel)
+ *   .luml.zip   — full workspace project (entire VFS tree + SemanticModel)
+ *
+ * Both are ZIP archives internally.  The payload type is distinguished by the
+ * "exportType" field in project.json:
  *
  *   exportType: "project"  (or absent for legacy files)
- *   ──────────────────────────────────────────────────────────────────────────
+ *   ──────────────────────────────────────────────────────────────────────
  *   Full workspace snapshot.  Includes the entire VFS tree, the complete
  *   SemanticModel, and every diagram's DiagramView.  Loading this replaces
- *   the current workspace.
+ *   the current workspace.  Saved as <name>.luml.zip.
  *
- *   ┌─ my_project.luml (ZIP) ──────────────────────────────────────────┐
+ *   ┌─ my_project.luml.zip (ZIP) ──────────────────────────────────────┐
  *   │  project.json     VFS metadata + full node tree (content: null)  │
  *   │  domain.model     Full SemanticModel JSON                        │
  *   │  diagrams/                                                        │
@@ -24,6 +29,7 @@
  *   Single-diagram export.  Contains only the elements referenced by one
  *   diagram — does NOT replace the workspace.  The user chooses whether to
  *   inject it into an existing project or open it as a standalone file.
+ *   Saved as <name>.luml.
  *
  *   ┌─ my_diagram.luml (ZIP) ──────────────────────────────────────────┐
  *   │  project.json     { exportType, diagramId, diagramName, …}       │
@@ -49,6 +55,7 @@ import type {
   SemanticModel,
   DiagramView,
 } from '../core/domain/vfs/vfs.types';
+import { isLegacyDiagramState, mapLegacyDiagram } from './legacyLumlMapper.service';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -145,6 +152,41 @@ function emptySemanticModel(id?: string): SemanticModel {
 // ─── Parse ────────────────────────────────────────────────────────────────────
 
 /**
+ * Fallback for V1 .luml files saved as plain JSON (pre-ZIP format).
+ * Reads the raw text, validates it matches the legacy DiagramState shape,
+ * and delegates to the legacy mapper to produce a diagram-type result.
+ */
+async function parseLegacyJsonFallback(file: File): Promise<LumlParseResult> {
+  let text: string;
+  try {
+    text = await file.text();
+  } catch {
+    throw new ProjectImportError('Could not read file contents.');
+  }
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw new ProjectImportError(
+      'Invalid file: not a valid ZIP archive or JSON. The file may be corrupted.',
+    );
+  }
+
+  if (!isLegacyDiagramState(raw)) {
+    throw new ProjectImportError(
+      'Invalid file: does not match any known LibreUML format. ' +
+        'The file may be corrupted or from an incompatible version.',
+    );
+  }
+
+  console.info(
+    '[LibreUML] Legacy V1 diagram detected — applying compatibility mapper.',
+  );
+  return mapLegacyDiagram(raw);
+}
+
+/**
  * Opens a .luml ZIP archive, validates its contents, and returns a
  * LumlParseResult without touching any Zustand stores.
  *
@@ -158,10 +200,8 @@ export async function parseLumlFile(file: File): Promise<LumlParseResult> {
   try {
     zip = await JSZip.loadAsync(file);
   } catch {
-    throw new ProjectImportError(
-      'Invalid file: could not open as a ZIP archive. ' +
-        'The file may be corrupted or was saved by an older version of LibreUML.',
-    );
+    // Not a ZIP — attempt V1 legacy plain-JSON fallback
+    return parseLegacyJsonFallback(file);
   }
 
   // ── 2. Read project.json ────────────────────────────────────────────────────
@@ -427,7 +467,7 @@ export async function downloadProject(): Promise<void> {
     compressionOptions: { level: 6 },
   });
 
-  triggerDownload(blob, `${toSlug(project.projectName, 'project')}.luml`);
+  triggerDownload(blob, `${toSlug(project.projectName, 'project')}.luml.zip`);
 }
 
 /**

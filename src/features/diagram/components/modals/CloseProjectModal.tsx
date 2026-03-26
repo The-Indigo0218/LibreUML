@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { X, FolderX } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const SUPPRESS_KEY = "libreuml-suppress-close-project-warning";
 
@@ -23,6 +24,7 @@ export default function CloseProjectModal({
   onClose,
   onConfirm,
 }: CloseProjectModalProps) {
+  const { t } = useTranslation();
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
   const handleConfirm = () => {
@@ -56,7 +58,7 @@ export default function CloseProjectModal({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <FolderX className="w-5 h-5 text-amber-400" />
-            <h2 className="text-base font-semibold text-[#e2e8f0]">Close Project</h2>
+            <h2 className="text-base font-semibold text-[#e2e8f0]">{t('closeProjectModal.title')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -67,7 +69,7 @@ export default function CloseProjectModal({
         </div>
 
         <p className="text-sm text-[#94a3b8] mb-5 leading-relaxed">
-          Unsaved changes will be lost. Are you sure you want to close the project?
+          {t('closeProjectModal.message')}
         </p>
 
         <label className="flex items-center gap-2 mb-6 cursor-pointer select-none">
@@ -77,7 +79,7 @@ export default function CloseProjectModal({
             onChange={(e) => setDontShowAgain(e.target.checked)}
             className="rounded border-[#2a3358] bg-[#0f1419] text-blue-500 focus:ring-blue-500"
           />
-          <span className="text-xs text-[#64748b]">Don&apos;t show this again</span>
+          <span className="text-xs text-[#64748b]">{t('closeProjectModal.dontShowAgain')}</span>
         </label>
 
         <div className="flex items-center justify-end gap-3">
@@ -86,14 +88,14 @@ export default function CloseProjectModal({
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-[#cbd5e1] bg-[#1e2738] hover:bg-[#2a3358] rounded-lg transition-colors"
           >
-            Cancel
+            {t('closeProjectModal.cancel')}
           </button>
           <button
             type="button"
             onClick={handleConfirm}
             className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
           >
-            Close Project
+            {t('closeProjectModal.closeProject')}
           </button>
         </div>
       </div>

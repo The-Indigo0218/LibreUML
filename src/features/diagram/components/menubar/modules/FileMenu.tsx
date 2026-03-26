@@ -117,7 +117,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
 
         {/* ── VFS Project I/O ─────────────────────────────────────────── */}
         <MenubarItem
-          label="Save Project (.luml)"
+          label="Save Project (.luml.zip)"
           icon={<Download className="w-4 h-4 text-emerald-400" />}
           shortcut="Ctrl+Shift+E"
           onClick={handleSaveProject}

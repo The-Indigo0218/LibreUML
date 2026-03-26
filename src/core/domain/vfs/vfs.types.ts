@@ -35,7 +35,15 @@ export interface VFSFile extends VFSBaseNode {
   extension: FileExtension;
   isExternal: boolean;
   isReadOnly?: boolean;
+  /** When true this diagram is isolated from the global shared model workspace. */
+  standalone?: boolean;
   content: unknown | null;
+  /**
+   * Per-file isolated SemanticModel for standalone diagrams.
+   * Populated only when standalone === true. All element creation/mutation
+   * in a standalone canvas writes here — never to the global useModelStore.
+   */
+  localModel?: SemanticModel | null;
 }
 
 export interface ViewNode {

@@ -642,5 +642,47 @@
     "title": "Generar Código de Clase",
     "selectClass": "Seleccionar Clase",
     "copyCode": "Copiar Código"
+  },
+  "modals": {
+    "methodGenerator": {
+      "title": "Generar Métodos",
+      "selectAttributes": "Seleccionar Atributos",
+      "selectAll": "Seleccionar Todo",
+      "deselectAll": "Deseleccionar Todo",
+      "noAttributes": "No hay atributos disponibles. Añade atributos a la clase primero.",
+      "generateGettersSetters": "Getters y Setters",
+      "generateConstructor": "Constructor",
+      "generateAll": "Generar Todo",
+      "cancel": "Cancelar"
+    }
+  },
+  "noteNode": {
+    "titlePlaceholder": "Doble clic para añadir título",
+    "contentPlaceholder": "Doble clic para editar..."
+  },
+  "ssotElementEditor": {
+    "editTitle": "Editar",
+    "abstractClass": "Clase abstracta"
+  },
+  "globalDeleteModal": {
+    "deleteFromProject": "Eliminar del Proyecto",
+    "allDiagrams": "TODOS los diagramas",
+    "cannotUndo": "Esta acción no se puede deshacer."
+  },
+  "closeProjectModal": {
+    "dontShowAgain": "No mostrar esto de nuevo"
+  },
+  "exportFormats": {
+    "png": "PNG",
+    "svg": "SVG",
+    "xmi": "XMI",
+    "json": "JSON"
+  },
+  "terminalPrompt": {
+    "prefix": "libreuml~$"
+  },
+  "vfsEdgeAction": {
+    "origin": "Origen",
+    "destination": "Destino"
   }
 }

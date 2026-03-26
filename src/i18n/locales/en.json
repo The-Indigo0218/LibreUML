@@ -645,19 +645,6 @@
     "copyCode": "Copy Code",
     "comingSoon": "Coming soon..."
   },
-  "modals": {
-    "methodGenerator": {
-      "title": "Generate Methods",
-      "selectAttributes": "Select Attributes",
-      "selectAll": "Select All",
-      "deselectAll": "Deselect All",
-      "noAttributes": "No attributes available. Add attributes to the class first.",
-      "generateGettersSetters": "Getters & Setters",
-      "generateConstructor": "Constructor",
-      "generateAll": "Generate All",
-      "cancel": "Cancel"
-    }
-  },
   "classEditor": {
     "typeContext": {
       "uml": "UML Standard",
@@ -668,28 +655,6 @@
       "typescript": "TypeScript (Soon)"
     }
   },
-  "noteNode": {
-    "titlePlaceholder": "Double-click to add title",
-    "contentPlaceholder": "Double-click to edit..."
-  },
-  "ssotElementEditor": {
-    "editTitle": "Edit",
-    "abstractClass": "Abstract class"
-  },
-  "globalDeleteModal": {
-    "deleteFromProject": "Delete from Project",
-    "allDiagrams": "ALL diagrams",
-    "cannotUndo": "This action cannot be undone."
-  },
-  "closeProjectModal": {
-    "dontShowAgain": "Don't show this again"
-  },
-  "exportFormats": {
-    "png": "PNG",
-    "svg": "SVG",
-    "xmi": "XMI",
-    "json": "JSON"
-  },
   "projectGenerator": {
     "javaVersions": {
       "java21": "Java 21 (LTS)",
@@ -698,11 +663,20 @@
       "java8": "Java 8"
     }
   },
+  "noteNode": {
+    "titlePlaceholder": "Double-click to add title",
+    "contentPlaceholder": "Double-click to edit..."
+  },
+  "ssotElementEditor": {
+    "editTitle": "Edit"
+  },
+  "exportFormats": {
+    "png": "PNG",
+    "svg": "SVG",
+    "xmi": "XMI",
+    "json": "JSON"
+  },
   "terminalPrompt": {
     "prefix": "libreuml~$"
-  },
-  "vfsEdgeAction": {
-    "origin": "Origin",
-    "destination": "Destination"
   }
 }

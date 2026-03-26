@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FolderOpen, FolderPlus, ExternalLink, X, Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
 import {
   injectXmiIntoVFS,
   injectDiagramIntoVFS,
-  openLumlFile,
   type OpenMode,
 } from '../../../../services/openFileService';
 import {
@@ -15,6 +15,7 @@ import {
 } from '../../../../services/projectIO.service';
 
 export function OpenFileModal() {
+  const { t } = useTranslation();
   const activeModal = useUiStore((s) => s.activeModal);
   const closeModals = useUiStore((s) => s.closeModals);
 

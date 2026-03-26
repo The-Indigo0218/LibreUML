@@ -587,8 +587,8 @@ export default function ProjectStructure() {
       const attrs = cls.attributeIds.map((id) => localModel.attributes[id]).filter(Boolean);
       const ops = cls.operationIds.map((id) => localModel.operations[id]).filter(Boolean);
       const newGlobalId = cls.isAbstract
-        ? refreshedMs.createAbstractClass({ name: resolvedName, attributeIds: [], operationIds: [] })
-        : refreshedMs.createClass({ name: resolvedName, attributeIds: [], operationIds: [] });
+        ? refreshedMs.createAbstractClass({ name: resolvedName, packageName: cls.packageName, attributeIds: [], operationIds: [] })
+        : refreshedMs.createClass({ name: resolvedName, packageName: cls.packageName, attributeIds: [], operationIds: [] });
       elementIdMap.set(cls.id, newGlobalId);
       if (attrs.length > 0 || ops.length > 0) {
         refreshedMs.setElementMembers(
@@ -603,7 +603,7 @@ export default function ProjectStructure() {
       const resolvedName = resolveConflict(iface.name, existingIfaceNames);
       existingIfaceNames.add(resolvedName);
       const ops = iface.operationIds.map((id) => localModel.operations[id]).filter(Boolean);
-      const newGlobalId = refreshedMs.createInterface({ name: resolvedName, operationIds: [] });
+      const newGlobalId = refreshedMs.createInterface({ name: resolvedName, packageName: iface.packageName, operationIds: [] });
       elementIdMap.set(iface.id, newGlobalId);
       if (ops.length > 0) {
         refreshedMs.setElementMembers(newGlobalId, [], ops.map((o) => ({ ...o, id: crypto.randomUUID() })));
@@ -613,7 +613,7 @@ export default function ProjectStructure() {
     for (const enm of Object.values(localModel.enums)) {
       const resolvedName = resolveConflict(enm.name, existingEnumNames);
       existingEnumNames.add(resolvedName);
-      const newGlobalId = refreshedMs.createEnum({ name: resolvedName, literals: enm.literals });
+      const newGlobalId = refreshedMs.createEnum({ name: resolvedName, packageName: enm.packageName, literals: enm.literals });
       elementIdMap.set(enm.id, newGlobalId);
     }
 
@@ -875,29 +875,49 @@ export default function ProjectStructure() {
 
           {isStandaloneExpanded && (
             <div className="pb-1">
-              {standaloneNodes.map((file) => (
-                <div
-                  key={file.id}
-                  className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover transition-colors cursor-pointer group"
-                  style={{ paddingLeft: "28px" }}
-                  onContextMenu={(e) => handleContextMenu(e, file)}
-                  onDoubleClick={() => handleOpenFile(file.id)}
-                >
-                  <LayoutTemplate className={`w-3.5 h-3.5 shrink-0 ${file.standalone ? "text-amber-400" : "text-purple-400"}`} />
-                  <span className="text-xs text-text-secondary group-hover:text-text-primary truncate flex-1">
-                    {file.name}
-                  </span>
-                  {file.standalone ? (
-                    <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-px leading-none">
-                      solo
-                    </span>
-                  ) : (
-                    <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-sky-500/80 bg-sky-500/10 border border-sky-500/20 rounded px-1 py-px leading-none">
-                      ext
-                    </span>
-                  )}
-                </div>
-              ))}
+              {standaloneNodes.map((file) => {
+                const isEditing = editingNodeId === file.id;
+                return (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover transition-colors cursor-pointer group"
+                    style={{ paddingLeft: "28px" }}
+                    onContextMenu={(e) => handleContextMenu(e, file)}
+                    onDoubleClick={() => handleOpenFile(file.id)}
+                  >
+                    <LayoutTemplate className={`w-3.5 h-3.5 shrink-0 ${file.standalone ? "text-amber-400" : "text-purple-400"}`} />
+                    {isEditing ? (
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+                          else if (e.key === "Escape") { e.preventDefault(); cancelEdit(); }
+                        }}
+                        onBlur={commitEdit}
+                        className="flex-1 bg-surface-secondary border border-blue-500 rounded px-1 py-0.5 text-xs text-text-primary focus:outline-none"
+                      />
+                    ) : (
+                      <>
+                        <span className="text-xs text-text-secondary group-hover:text-text-primary truncate flex-1">
+                          {file.name}
+                        </span>
+                        {file.standalone ? (
+                          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-amber-500/80 bg-amber-500/10 border border-amber-500/20 rounded px-1 py-px leading-none">
+                            solo
+                          </span>
+                        ) : (
+                          <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-sky-500/80 bg-sky-500/10 border border-sky-500/20 rounded px-1 py-px leading-none">
+                            ext
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

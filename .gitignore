@@ -133,3 +133,13 @@ PHASE_3.4_UNIFIED_EDGE.md
 PHASE_3.5_AUTO_LAYOUT.md
 docs/architecture
 docs/audit
+Architecture_DomainNodes.luml
+Architecture_IR_SemanticModel.luml
+Architecture_VFS_Workspace.luml
+.gitignore
+V1_STATUS.md
+.claude/HOOKS.md
+docs/V1_ARCHITECTURAL_AUDIT.md
+.gitignore
+.claude
+.claude/settings.json

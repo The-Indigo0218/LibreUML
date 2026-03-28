@@ -125,7 +125,7 @@ export function semanticModelToDomainNodes(
       attributes,
       methods,
       generics: cls.stereotypes?.[0],
-      package: 'default',
+      package: cls.packageName ?? 'default',
       createdAt: now,
       updatedAt: now,
     } as DomainNode);
@@ -145,7 +145,7 @@ export function semanticModelToDomainNodes(
       type: 'INTERFACE',
       name: iface.name,
       methods,
-      package: 'default',
+      package: iface.packageName ?? 'default',
       createdAt: now,
       updatedAt: now,
     } as DomainNode);
@@ -166,7 +166,7 @@ export function semanticModelToDomainNodes(
       type: 'ENUM',
       name: enm.name,
       literals,
-      package: 'default',
+      package: enm.packageName ?? 'default',
       createdAt: now,
       updatedAt: now,
     } as DomainNode);

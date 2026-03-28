@@ -15,6 +15,8 @@ import type {
   ViewNode,
   ViewEdge,
   VFSFile,
+  VFSFolder,
+  LibreUMLProject,
   IRClass,
   IRInterface,
   IREnum,
@@ -364,6 +366,80 @@ export interface VFSCanvasResult {
   ) => void;
 }
 
+// ─── Auto-VFS project generation ────────────────────────────────────────────
+
+/**
+ * Creates a default VFS project with a single empty class diagram file,
+ * loads it into VFSStore, and opens a tab for the diagram.
+ * Called silently when no project exists so the canvas is always VFS-backed.
+ */
+function ensureDefaultVFSProject(): void {
+  const vfs = useVFSStore.getState();
+  if (vfs.project) return; // Already has a project
+
+  const now = Date.now();
+  const projectId = crypto.randomUUID();
+  const modelFileId = crypto.randomUUID();
+  const diagramsFolderId = crypto.randomUUID();
+  const defaultDiagramId = crypto.randomUUID();
+
+  const modelFile: VFSFile = {
+    id: modelFileId,
+    name: 'domain.model',
+    type: 'FILE',
+    parentId: null,
+    diagramType: 'UNSPECIFIED',
+    extension: '.model',
+    isExternal: false,
+    content: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const diagramsFolder: VFSFolder = {
+    id: diagramsFolderId,
+    name: 'diagrams',
+    type: 'FOLDER',
+    parentId: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const defaultDiagram: VFSFile = {
+    id: defaultDiagramId,
+    name: 'Main.luml',
+    type: 'FILE',
+    parentId: diagramsFolderId,
+    diagramType: 'CLASS_DIAGRAM',
+    extension: '.luml',
+    isExternal: false,
+    content: {
+      diagramId: defaultDiagramId,
+      nodes: [],
+      edges: [],
+    } as DiagramView,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const project: LibreUMLProject = {
+    id: projectId,
+    projectName: 'Untitled Project',
+    version: '1.0.0',
+    domainModelId: modelFileId,
+    nodes: {
+      [modelFileId]: modelFile,
+      [diagramsFolderId]: diagramsFolder,
+      [defaultDiagramId]: defaultDiagram,
+    },
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  vfs.loadProject(project);
+  useWorkspaceStore.getState().openTab(defaultDiagramId);
+}
+
 /**
  * useVFSCanvasController
  *
@@ -383,6 +459,14 @@ export function useVFSCanvasController(): VFSCanvasResult {
   const project = useVFSStore((s) => s.project);
   const globalModel = useModelStore((s) => s.model);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
+
+  // Auto-generate a default VFS project if none exists.
+  // This ensures the canvas always has a VFS-backed diagram to render.
+  useEffect(() => {
+    if (!project) {
+      ensureDefaultVFSProject();
+    }
+  }, [project]);
 
   // Resolve VFS file for the active tab
   const vfsFile = useMemo((): VFSFile | null => {

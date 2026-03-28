@@ -11,6 +11,7 @@ import "reactflow/dist/style.css";
 import { useRef, useEffect, useCallback, useMemo } from "react";
 import { useUiStore } from "../../../../store/uiStore";
 import { useSettingsStore } from "../../../../store/settingsStore";
+import { useSelectionStore } from "../../../../store/selection.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
 import { useToastStore } from "../../../../store/toast.store";
@@ -81,6 +82,23 @@ export default function DiagramCanvas() {
   useKeyboardShortcuts();
   const { styledEdges: vfsStyledEdges, setHoveredNodeId: setVFSHoveredNodeId, setHoveredEdgeId: setVFSHoveredEdgeId } = useVFSEdgeStyling(vfsController.edges);
   const { onDragOver, onDrop } = useDiagramDnD();
+
+  const setSelection = useSelectionStore((s) => s.setSelection);
+  const clearSelection = useSelectionStore((s) => s.clear);
+  const handleSelectionChange = useCallback(
+    ({ nodes: selNodes, edges: selEdges }: { nodes: Node[]; edges: Edge[] }) => {
+      setSelection(
+        selNodes.map((n) => n.id),
+        selEdges.map((e) => e.id),
+      );
+    },
+    [setSelection],
+  );
+
+  // Clear selection when switching tabs — stale IDs from previous diagram are meaningless.
+  useEffect(() => {
+    clearSelection();
+  }, [vfsController.activeTabId, clearSelection]);
 
   const clearCanvas = useCallback(() => {
     if (vfsController.diagramView && vfsController.activeTabId) {
@@ -210,6 +228,7 @@ export default function DiagramCanvas() {
           e.stopPropagation();
           openVfsEdgeAction(edge.id);
         }}
+        onSelectionChange={handleSelectionChange}
         onPaneClick={closeMenu}
         onDragOver={onDragOver}
         onDrop={onDrop}

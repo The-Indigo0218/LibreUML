@@ -15,9 +15,9 @@ export function EditMenu() {
   const { t } = useTranslation();
   
   // Connect to the Logic Hook
-  const { 
-    undo, 
-    redo, 
+  const {
+    undo,
+    redo,
     selectAll,
     duplicateSelected,
     deleteSelected,

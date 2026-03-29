@@ -4,12 +4,14 @@ import { useUiStore } from "../../../store/uiStore";
 import { useVFSStore } from "../../../store/project-vfs.store";
 import { useModelStore } from "../../../store/model.store";
 import { useFileLifecycle } from "./actions/useFileLifecycle";
+import { useToastStore } from "../../../store/toast.store";
 
 export const useKeyboardShortcuts = () => {
   const { runLayout } = useAutoLayout();
   const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
   const openExportModal = useUiStore((s) => s.openExportModal);
-  const { createNewDiagram } = useFileLifecycle();
+  const { createNewDiagram, saveDiagram } = useFileLifecycle();
+  const showToast = useToastStore((s) => s.show);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -72,9 +74,19 @@ export const useKeyboardShortcuts = () => {
         e.preventDefault();
         openExportModal();
       }
+
+      // Ctrl+S / Cmd+S — Save current diagram
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        saveDiagram().then((success) => {
+          if (success) {
+            showToast("Saved");
+          }
+        });
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [runLayout, openOpenFileModal, openExportModal, createNewDiagram]);
+  }, [runLayout, openOpenFileModal, openExportModal, createNewDiagram, saveDiagram, showToast]);
 };

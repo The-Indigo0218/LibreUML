@@ -20,6 +20,7 @@ export type ActiveModal =
   | "global-delete"
   | "code-export-config"
   | "keyboard-shortcuts"
+  | "wiki"
   | null;
 
 interface UiStoreState {
@@ -45,6 +46,7 @@ interface UiStoreState {
   openAutoLayoutLockedWarning: () => void;
   openCodeExportConfig: () => void;
   openKeyboardShortcuts: () => void;
+  openWiki: () => void;
   closeModals: () => void;
 }
 
@@ -101,6 +103,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openKeyboardShortcuts: () =>
     set({ activeModal: "keyboard-shortcuts", editingId: null }),
+
+  openWiki: () => set({ activeModal: "wiki", editingId: null }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
 }));

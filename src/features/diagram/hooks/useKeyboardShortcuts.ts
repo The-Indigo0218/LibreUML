@@ -10,6 +10,7 @@ export const useKeyboardShortcuts = () => {
   const { runLayout } = useAutoLayout();
   const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
   const openExportModal = useUiStore((s) => s.openExportModal);
+  const openWiki = useUiStore((s) => s.openWiki);
   const { createNewDiagram, saveDiagram } = useFileLifecycle();
   const showToast = useToastStore((s) => s.show);
 
@@ -70,6 +71,12 @@ export const useKeyboardShortcuts = () => {
         openOpenFileModal();
       }
 
+      // Ctrl+H / Cmd+H — Open Wiki
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
+        e.preventDefault();
+        openWiki();
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key === "e") {
         e.preventDefault();
         openExportModal();
@@ -88,5 +95,5 @@ export const useKeyboardShortcuts = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [runLayout, openOpenFileModal, openExportModal, createNewDiagram, saveDiagram, showToast]);
+  }, [runLayout, openOpenFileModal, openExportModal, openWiki, createNewDiagram, saveDiagram, showToast]);
 };

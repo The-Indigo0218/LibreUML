@@ -92,6 +92,7 @@
       "title": "Ayuda",
       "gettingStarted": "Primeros Pasos",
       "keyboardShortcuts": "Atajos de Teclado",
+      "wiki": "Wiki UML (Ctrl+H)",
       "documentation": "Documentación",
       "reportIssue": "Reportar Error",
       "roadmap": "Hoja de Ruta",
@@ -647,7 +648,8 @@
       "commandHistoryUp": "Comando Anterior",
       "commandHistoryDown": "Comando Siguiente",
       "autocomplete": "Autocompletar",
-      "clearInput": "Limpiar Entrada"
+      "clearInput": "Limpiar Entrada",
+      "openWiki": "Abrir Wiki UML"
     },
     "actions": {
       "close": "¡Entendido!"
@@ -692,5 +694,185 @@
   },
   "terminalPrompt": {
     "prefix": "libreuml~$"
+  },
+  "wiki": {
+    "title": "Wiki UML",
+    "search_placeholder": "Buscar conceptos...",
+    "image_placeholder": "Imagen próximamente",
+    "sidebar_label": "Categorías del wiki",
+    "no_results": "No se encontraron resultados para tu búsqueda.",
+    "select_article": "Selecciona un tema del panel lateral.",
+    "close": "Cerrar",
+    "article_count": "{{count}} artículos",
+    "categories": {
+      "uml_concepts": "Conceptos UML",
+      "tool_features": "Características de LibreUML"
+    },
+    "subcategories": {
+      "structures": "Estructuras",
+      "relations": "Relaciones",
+      "annotations": "Anotaciones",
+      "export": "Exportación",
+      "file_management": "Gestión de Archivos"
+    },
+    "sections": {
+      "what": "¿Qué es?",
+      "when": "¿Cuándo usarlo?",
+      "example": "Ejemplo",
+      "iso_rules": "Reglas ISO 19505",
+      "what_for": "¿Para qué sirve?",
+      "how_to": "Cómo usar",
+      "related": "Artículos relacionados"
+    },
+    "concepts": {
+      "class": {
+        "title": "Clase",
+        "definition": "Un blueprint para crear objetos. Define estructura (atributos) y comportamiento (operaciones).",
+        "when": "Se usa para modelar entidades del dominio que tienen características y acciones.",
+        "example": "La clase `Student` con atributos `id`, `name`, `enrolledCourses` y métodos como `enroll(course)`.",
+        "iso_rules": "ISO 19505: Una clase debe tener un nombre único dentro del diagrama y puede definir visibilidad de miembros.",
+        "image_alt": "Diagrama de una clase UML"
+      },
+      "interface": {
+        "title": "Interfaz",
+        "definition": "Un contrato que define un conjunto de operaciones que una clase debe implementar.",
+        "when": "Se usa para definir comportamiento esperado sin especificar la implementación.",
+        "example": "La interfaz `PaymentProcessor` define operaciones como `process(amount)` y `refund(transactionId)`.",
+        "iso_rules": "ISO 19505: Una interfaz es un tipo especial de clasificador que especifica un conjunto de operaciones públicas.",
+        "image_alt": "Diagrama de una interfaz UML"
+      },
+      "enumeration": {
+        "title": "Enumeración",
+        "definition": "Un tipo de dato que contiene un conjunto fijo de valores nombrados.",
+        "when": "Se usa para modelar atributos que solo pueden tomar valores específicos predefinidos.",
+        "example": "La enumeración `Status` con valores `PENDING`, `ACTIVE`, `INACTIVE`.",
+        "iso_rules": "ISO 19505: Una enumeración es un clasificador que define literales (valores constantes).",
+        "image_alt": "Diagrama de una enumeración UML"
+      },
+      "association": {
+        "title": "Asociación",
+        "definition": "Una relación entre dos clases que indica que una puede interactuar u usar la otra.",
+        "when": "Se usa para modelar relaciones generales entre entidades (ej: 'Student enrolls in Course').",
+        "example": "Una asociación bidireccional entre `Student` y `Course` con multiplicidad `*` a `*`.",
+        "iso_rules": "ISO 19505: Una asociación conecta dos o más clasificadores. Incluye nombre, dirección y multiplicidad.",
+        "image_alt": "Diagrama de una asociación UML"
+      },
+      "inheritance": {
+        "title": "Generalización (Herencia)",
+        "definition": "Una relación 'es-un' donde una clase especializada hereda estructura y comportamiento de una clase general.",
+        "when": "Se usa para modelar jerarquías de clases donde una es más específica que otra.",
+        "example": "`Dog` y `Cat` heredan de `Animal`. Comparten atributos como `age`, `name` pero tienen operaciones específicas.",
+        "iso_rules": "ISO 19505: La generalización es una relación de especialización/generalización entre clasificadores.",
+        "image_alt": "Diagrama de herencia en UML"
+      },
+      "composition": {
+        "title": "Composición",
+        "definition": "Una relación 'tiene-un' fuerte donde la parte no puede existir sin el todo.",
+        "when": "Se usa cuando hay un ownership fuerte: el contenedor es responsable del ciclo de vida de las partes.",
+        "example": "`Company` compone `Departments`. Si la empresa se elimina, sus departamentos también.",
+        "iso_rules": "ISO 19505: La composición es una agregación fuerte representada con un diamante lleno.",
+        "image_alt": "Diagrama de composición en UML"
+      },
+      "aggregation": {
+        "title": "Agregación",
+        "definition": "Una relación 'tiene-un' débil donde la parte puede existir sin el todo.",
+        "when": "Se usa cuando hay un ownership débil: el contenedor simplemente agrupa las partes.",
+        "example": "`Team` agrega `Players`. Un jugador puede existir sin un equipo.",
+        "iso_rules": "ISO 19505: La agregación es una relación especial con multiplicidad donde las partes mantienen independencia.",
+        "image_alt": "Diagrama de agregación en UML"
+      },
+      "dependency": {
+        "title": "Dependencia",
+        "definition": "Una relación de uso unidireccional donde una clase depende de otra para funcionar.",
+        "when": "Se usa cuando una clase necesita otra pero sin relación de propiedad (ej: pasar como parámetro).",
+        "example": "`OrderService` depende de `PaymentGateway` para procesar pagos.",
+        "iso_rules": "ISO 19505: La dependencia es una relación unidireccional que indica acoplamiento temporal.",
+        "image_alt": "Diagrama de dependencia en UML"
+      },
+      "realization": {
+        "title": "Realización (Implementación)",
+        "definition": "Una relación donde una clase concreta implementa las operaciones definidas por una interfaz.",
+        "when": "Se usa para mostrar qué operaciones de una interfaz son implementadas por una clase.",
+        "example": "`PayPalProcessor` realiza (implementa) la interfaz `PaymentProcessor`.",
+        "iso_rules": "ISO 19505: La realización especifica que un clasificador implementa un contrato definido por una interfaz.",
+        "image_alt": "Diagrama de realización en UML"
+      },
+      "note": {
+        "title": "Nota",
+        "definition": "Un elemento de anotación que proporciona información adicional, comentarios o restricciones.",
+        "when": "Se usa para aclarar reglas de negocio, restricciones o detalles que no caben en el diagrama.",
+        "example": "Una nota anexa a una clase: 'Email must be unique in the system'.",
+        "iso_rules": "ISO 19505: Una nota es un símbolo gráfico que contiene comentarios libremente formateados.",
+        "image_alt": "Diagrama con nota en UML"
+      }
+    },
+    "features": {
+      "export_luml": {
+        "title": "Exportar a .luml",
+        "description": "Guarda tu diagrama en formato LibreUML (JSON comprimido).",
+        "how_to": [
+          "Click en 'File' → 'Export'",
+          "Selecciona 'LibreUML Format (.luml)'",
+          "Elige ubicación y nombre del archivo",
+          "El archivo se descargará con toda la información del diagrama"
+        ],
+        "tip": "Usa este formato para compartir diagramas entre usuarios y versiones de LibreUML."
+      },
+      "export_java": {
+        "title": "Exportar a Código Java",
+        "description": "Convierte tu diagrama UML a código Java listo para usar.",
+        "how_to": [
+          "Click en 'File' → 'Export'",
+          "Selecciona 'Java Source Code'",
+          "Ajusta opciones (paquete, generics, javadoc)",
+          "Descarga el archivo .java o .zip"
+        ],
+        "tip": "El código generado incluye clases, interfaces, herencia y anotaciones Javadoc."
+      },
+      "export_images": {
+        "title": "Exportar a Imágenes (PNG/SVG)",
+        "description": "Convierte tu diagrama a imagen PNG o SVG escalable.",
+        "how_to": [
+          "Click en 'File' → 'Export'",
+          "Selecciona 'Image (PNG)' o 'Vector (SVG)'",
+          "Elige resolución (PNG) o calidad (SVG)",
+          "Descarga la imagen lista para presentaciones"
+        ],
+        "tip": "SVG es escalable sin pérdida de calidad. PNG es ideal para Word/PowerPoint."
+      },
+      "export_xmi": {
+        "title": "Exportar a XMI (ISO 19505)",
+        "description": "Exporta a XMI (XML Metadata Interchange), estándar OMG para interoperabilidad.",
+        "how_to": [
+          "Click en 'File' → 'Export'",
+          "Selecciona 'XMI (ISO 19505)'",
+          "Verifica el destino del archivo",
+          "El XMI es compatible con Enterprise Architect, Astah, ArchiMate"
+        ],
+        "tip": "Asegúrate de que los conceptos usados cumplan ISO 19505 para máxima compatibilidad."
+      },
+      "projects_vs_standalone": {
+        "title": "Proyectos vs. Archivos Visitantes",
+        "description": "Entiende la diferencia entre un Proyecto (múltiples diagramas) y un Archivo Visitante (diagrama único).",
+        "how_to": [
+          "**Proyecto:** Clic en 'New Project' → coloca múltiples diagramas en una carpeta",
+          "**Archivo Visitante:** Clic en 'Open File' → abre un .luml sin proyecto",
+          "En un Proyecto: cambios se guardan automáticamente en la carpeta del proyecto",
+          "En Visitante: cambios se guardan en el archivo único al hacer Ctrl+S"
+        ],
+        "tip": "Usa Proyectos para trabajos grandes (tesis, sistemas). Usa Visitantes para ejemplos rápidos."
+      },
+      "autosave": {
+        "title": "Guardado Automático (Ctrl+S)",
+        "description": "LibreUML guarda tu trabajo automáticamente al presionar Ctrl+S.",
+        "how_to": [
+          "Edita tu diagrama normalmente",
+          "Presiona Ctrl+S en cualquier momento",
+          "Verás una notificación 'Guardado' en la esquina inferior",
+          "Tu trabajo está seguro en el sistema de archivos"
+        ],
+        "tip": "Ctrl+S guarda inmediatamente. También puedes usar File → Save."
+      }
+    }
   }
 }

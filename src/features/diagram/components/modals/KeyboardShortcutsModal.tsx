@@ -53,6 +53,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
         { keys: [modKey, 'K'], descriptionKey: 'keyboardShortcuts.shortcuts.spotlight' },
         { keys: [modKey, 'Z'], descriptionKey: 'keyboardShortcuts.shortcuts.undo' },
         { keys: [modKey, 'Y'], descriptionKey: 'keyboardShortcuts.shortcuts.redo' },
+        { keys: [modKey, 'H'], descriptionKey: 'keyboardShortcuts.shortcuts.openWiki' },
       ],
     },
     {

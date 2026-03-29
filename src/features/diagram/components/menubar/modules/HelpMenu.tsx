@@ -5,7 +5,8 @@ import {
   Map,
   Info,
   Rocket,
-  Keyboard
+  Keyboard,
+  GraduationCap,
 } from "lucide-react";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
@@ -16,6 +17,7 @@ import HelpDocumentationModal from "../../modals/HelpDocumentationModal";
 export function HelpMenuContent({ onOpenDocs }: { onOpenDocs: () => void }) {
   const { t } = useTranslation();
   const openKeyboardShortcuts = useUiStore((s) => s.openKeyboardShortcuts);
+  const openWiki = useUiStore((s) => s.openWiki);
 
   const reportIssue = () => window.open("https://github.com/The-Indigo0218/LibreUML/issues", "_blank");
   const openRoadmap = () => window.open("https://github.com/The-Indigo0218/LibreUML/blob/main/roadmap.md", "_blank");
@@ -36,6 +38,12 @@ export function HelpMenuContent({ onOpenDocs }: { onOpenDocs: () => void }) {
         label={t("menubar.help.keyboardShortcuts")}
         icon={<Keyboard className="w-4 h-4" />}
         onClick={openKeyboardShortcuts}
+      />
+
+      <MenubarItem
+        label={t("menubar.help.wiki")}
+        icon={<GraduationCap className="w-4 h-4" />}
+        onClick={openWiki}
       />
 
       <div className="h-px bg-surface-border my-1" />

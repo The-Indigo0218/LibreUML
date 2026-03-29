@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useAutoLayout } from "./useAutoLayout";
 import { useUiStore } from "../../../store/uiStore";
+import { useVFSStore } from "../../../store/project-vfs.store";
+import { useModelStore } from "../../../store/model.store";
 import { useFileLifecycle } from "./actions/useFileLifecycle";
 
 export const useKeyboardShortcuts = () => {
@@ -31,12 +33,29 @@ export const useKeyboardShortcuts = () => {
       )
         return;
 
+      // Ctrl+Shift+Z / Cmd+Shift+Z — redo (check before plain Ctrl+Z)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        // Redo on both stores to keep VFS and Model in sync
+        useVFSStore.temporal.getState().redo();
+        useModelStore.temporal.getState().redo();
+        return;
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
+        // Undo on both stores to keep VFS and Model in sync
+        useVFSStore.temporal.getState().undo();
+        useModelStore.temporal.getState().undo();
+        return;
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === "y") {
         e.preventDefault();
+        // Redo on both stores to keep VFS and Model in sync
+        useVFSStore.temporal.getState().redo();
+        useModelStore.temporal.getState().redo();
+        return;
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === "l") {

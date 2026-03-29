@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { NodeChange, EdgeChange, Connection } from 'reactflow';
-import { useVFSStore } from '../../store/project-vfs.store';
+import { useVFSStore, withoutUndo } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
 import { useToastStore } from '../../store/toast.store';
@@ -120,11 +120,19 @@ export function useCanvasEventHandlers({
       }
 
       if (dirty) {
-        updateFileContent(activeTabId, {
-          ...currentView,
-          nodes: updatedViewNodes,
-          edges: updatedViewEdges,
-        });
+        const hasSemanticChange = changes.some((c) => c.type === 'remove');
+        const commit = () =>
+          updateFileContent(activeTabId, {
+            ...currentView,
+            nodes: updatedViewNodes,
+            edges: updatedViewEdges,
+          });
+
+        if (hasSemanticChange) {
+          commit();
+        } else {
+          withoutUndo(commit);
+        }
       }
     },
     [activeTabId, updateFileContent, isStandalone],

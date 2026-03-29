@@ -1,7 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useReactFlow, type Node } from "reactflow";
-import { useDiagram } from "../../workspace/hooks/useDiagram";
-import { checkCollision } from "../../../util/geometry";
+import { useReactFlow } from "reactflow";
 import { NODE_WIDTH, NODE_HEIGHT } from "../../../config/theme.config";
 import type { stereotype } from "../types/diagram.types";
 import { useWorkspaceStore } from "../../../store/workspace.store";
@@ -41,16 +39,6 @@ export function getNextVFSName(existingNames: string[], prefix: string): string 
   }
   return `${prefix} ${max + 1}`;
 }
-
-// ─── Legacy node type mapping ─────────────────────────────────────────────────
-
-const stereotypeToNodeType: Record<stereotype, string> = {
-  class: 'CLASS',
-  interface: 'INTERFACE',
-  abstract: 'ABSTRACT_CLASS',
-  enum: 'ENUM',
-  note: 'NOTE',
-};
 
 // ─── VFS semantic drop configuration ─────────────────────────────────────────
 
@@ -105,27 +93,9 @@ const VFS_DROP_CONFIG: Partial<
 
 export const useDiagramDnD = () => {
   const { screenToFlowPosition } = useReactFlow();
-  const { addNodeToDiagram, nodes: legacyNodes } = useDiagram();
 
-  // VFS state ─────────────────────────────────────────────────────────────────
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
-  const project = useVFSStore((s) => s.project);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
-
-  /**
-   * Resolve the active VFS file and its DiagramView.
-   * Null when the active tab is not a VFS .luml file.
-   */
-  const vfsContext = useMemo((): { file: VFSFile; view: DiagramView } | null => {
-    if (!activeTabId || !project) return null;
-    const node = project.nodes[activeTabId];
-    if (!node || node.type !== 'FILE') return null;
-    const content = (node as VFSFile).content;
-    if (!isDiagramView(content)) return null;
-    return { file: node as VFSFile, view: content };
-  }, [activeTabId, project]);
-
-  const isVFSFile = !!vfsContext;
 
   // ─── Position helpers ─────────────────────────────────────────────────────
 
@@ -146,17 +116,8 @@ export const useDiagramDnD = () => {
     (event: React.DragEvent) => {
       event.preventDefault();
       event.dataTransfer.dropEffect = "move";
-
-      // VFS files allow drops anywhere (no collision detection needed yet).
-      if (isVFSFile) return;
-
-      const position = getCenteredPosition(event.clientX, event.clientY);
-      const isColliding = checkCollision(position, legacyNodes as Node[]);
-      if (isColliding) {
-        event.dataTransfer.dropEffect = "none";
-      }
     },
-    [getCenteredPosition, legacyNodes, isVFSFile],
+    [],
   );
 
   // ─── onDrop ───────────────────────────────────────────────────────────────
@@ -204,110 +165,88 @@ export const useDiagramDnD = () => {
 
       // ===================================================================
       // VFS SEMANTIC DROP
-      // Active when the current tab is a .luml VFS file with a DiagramView.
       // ===================================================================
-      if (isVFSFile && activeTabId) {
-        const dropConfig = VFS_DROP_CONFIG[stereotype];
+      if (!activeTabId) return;
 
-        if (!dropConfig) {
-          console.warn(`[VFS Drop] Stereotype "${stereotype}" has no VFS semantic mapping. Drop ignored.`);
-          return;
+      const dropConfig = VFS_DROP_CONFIG[stereotype];
+
+      if (!dropConfig) {
+        console.warn(`[VFS Drop] Stereotype "${stereotype}" has no VFS semantic mapping. Drop ignored.`);
+        return;
+      }
+
+      // Fresh read on every drop — avoids stale-closure overwrite on rapid drops.
+      const freshProject = useVFSStore.getState().project;
+      if (!freshProject) return;
+      const freshFileNode = freshProject.nodes[activeTabId];
+      if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+      const freshContent = (freshFileNode as VFSFile).content;
+      if (!isDiagramView(freshContent)) return;
+      const freshView = freshContent as DiagramView;
+
+      const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
+
+      let semanticId: string;
+
+      if (isStandaloneFile) {
+        // Standalone path: create IR element in localModel, never touch ModelStore.
+        ensureLocalModel(activeTabId);
+        const localM = getLocalModel(activeTabId);
+        if (!localM && stereotype !== 'note') return;
+
+        const elementName = localM ? dropConfig.getNextName(localM) : 'Note';
+        const ops = standaloneModelOps(activeTabId);
+
+        switch (stereotype) {
+          case 'class':
+            semanticId = ops.createClass({ name: elementName, attributeIds: [], operationIds: [] });
+            break;
+          case 'abstract':
+            semanticId = ops.createAbstractClass({ name: elementName, attributeIds: [], operationIds: [] });
+            break;
+          case 'interface':
+            semanticId = ops.createInterface({ name: elementName, operationIds: [] });
+            break;
+          case 'enum':
+            semanticId = ops.createEnum({ name: elementName, literals: [] });
+            break;
+          case 'note':
+            semanticId = '';
+            break;
+          default:
+            return;
+        }
+      } else {
+        // a) Ensure SemanticModel is initialized (may be null on first drop).
+        const modelState = useModelStore.getState();
+        if (!modelState.model) {
+          modelState.initModel(freshProject.domainModelId ?? crypto.randomUUID());
         }
 
-        // Fresh read on every drop — avoids stale-closure overwrite on rapid drops.
-        // If vfsContext.view were used here, rapid drops would each read the same
-        // snapshot and overwrite each other; getState() always returns the latest.
-        const freshProject = useVFSStore.getState().project;
-        if (!freshProject) return;
-        const freshFileNode = freshProject.nodes[activeTabId];
-        if (!freshFileNode || freshFileNode.type !== 'FILE') return;
-        const freshContent = (freshFileNode as VFSFile).content;
-        if (!isDiagramView(freshContent)) return;
-        const freshView = freshContent as DiagramView;
-
-        const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
-
-        let semanticId: string;
-
-        if (isStandaloneFile) {
-          // Standalone path: create IR element in localModel, never touch ModelStore.
-          ensureLocalModel(activeTabId);
-          const localM = getLocalModel(activeTabId);
-          if (!localM && stereotype !== 'note') return;
-
-          const elementName = localM ? dropConfig.getNextName(localM) : 'Note';
-          const ops = standaloneModelOps(activeTabId);
-
-          switch (stereotype) {
-            case 'class':
-              semanticId = ops.createClass({ name: elementName, attributeIds: [], operationIds: [] });
-              break;
-            case 'abstract':
-              semanticId = ops.createAbstractClass({ name: elementName, attributeIds: [], operationIds: [] });
-              break;
-            case 'interface':
-              semanticId = ops.createInterface({ name: elementName, operationIds: [] });
-              break;
-            case 'enum':
-              semanticId = ops.createEnum({ name: elementName, literals: [] });
-              break;
-            case 'note':
-              semanticId = '';
-              break;
-            default:
-              return;
-          }
-        } else {
-          // a) Ensure SemanticModel is initialized (may be null on first drop).
-          const modelState = useModelStore.getState();
-          if (!modelState.model) {
-            modelState.initModel(freshProject.domainModelId ?? crypto.randomUUID());
-          }
-
-          // b) Compute auto-incremented name, then create the semantic IR element.
-          const currentModel = useModelStore.getState().model!;
-          const elementName = dropConfig.getNextName(currentModel);
-          const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
-          semanticId = dropConfig.create(elementName, isExternalFile || undefined);
-        }
-
-        // c) Create the visual ViewNode linked to the semantic element.
-        const viewNode: ViewNode = {
-          id: crypto.randomUUID(),
-          elementId: semanticId,
-          x: position.x,
-          y: position.y,
-        };
-
-        // d) Persist the updated DiagramView to VFSStore.
-        const updatedView: DiagramView = {
-          ...freshView,
-          nodes: [...freshView.nodes, viewNode],
-        };
-        updateFileContent(activeTabId, updatedView);
-        return;
+        // b) Compute auto-incremented name, then create the semantic IR element.
+        const currentModel = useModelStore.getState().model!;
+        const elementName = dropConfig.getNextName(currentModel);
+        const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
+        semanticId = dropConfig.create(elementName, isExternalFile || undefined);
       }
 
-      // ===================================================================
-      // LEGACY DROP (non-VFS files — ProjectStore + WorkspaceStore pipeline)
-      // ===================================================================
-      if (checkCollision(position, legacyNodes as Node[])) {
-        return;
-      }
+      // c) Create the visual ViewNode linked to the semantic element.
+      const viewNode: ViewNode = {
+        id: crypto.randomUUID(),
+        elementId: semanticId,
+        x: position.x,
+        y: position.y,
+      };
 
-      const nodeType = stereotypeToNodeType[stereotype];
-      if (!nodeType) {
-        console.warn(`Unknown stereotype: ${stereotype}`);
-        return;
-      }
-
-      addNodeToDiagram(nodeType, position);
+      // d) Persist the updated DiagramView to VFSStore.
+      const updatedView: DiagramView = {
+        ...freshView,
+        nodes: [...freshView.nodes, viewNode],
+      };
+      updateFileContent(activeTabId, updatedView);
     },
     [
-      addNodeToDiagram,
       getCenteredPosition,
-      legacyNodes,
-      isVFSFile,
       activeTabId,
       updateFileContent,
     ],

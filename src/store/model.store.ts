@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
+import { temporal } from 'zundo';
 import type {
   SemanticModel,
   IRClass,
@@ -70,6 +71,7 @@ interface ModelStoreState {
 }
 
 export const useModelStore = create<ModelStoreState>()(
+  temporal(
   persist(
     immer((set) => ({
     model: null,
@@ -365,6 +367,19 @@ export const useModelStore = create<ModelStoreState>()(
         storageAdapter.removeItem(name);
       },
     },
+    onRehydrateStorage: () => {
+      return () => {
+        // Clear undo history created by persist rehydration —
+        // loading from storage is not a user action.
+        // Wrapped in setTimeout to avoid TDZ (Temporal Dead Zone) issue:
+        // onRehydrateStorage fires during create(), before useModelStore is assigned.
+        setTimeout(() => {
+          useModelStore.temporal.getState().clear();
+        }, 0);
+      };
+    },
   }
+  ),
+  { limit: 50 },
   )
 );

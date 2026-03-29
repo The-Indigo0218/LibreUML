@@ -10,6 +10,39 @@ import type {
 import type { CodeGenerationConfig } from '../store/codeGeneration.store';
 
 export class JavaIRGeneratorService {
+  // Standard Java library types that require imports (excluding java.lang.*)
+  private static readonly JAVA_IMPORTS: Record<string, string> = {
+    'List': 'java.util.List',
+    'ArrayList': 'java.util.ArrayList',
+    'LinkedList': 'java.util.LinkedList',
+    'Set': 'java.util.Set',
+    'HashSet': 'java.util.HashSet',
+    'TreeSet': 'java.util.TreeSet',
+    'LinkedHashSet': 'java.util.LinkedHashSet',
+    'Map': 'java.util.Map',
+    'HashMap': 'java.util.HashMap',
+    'TreeMap': 'java.util.TreeMap',
+    'LinkedHashMap': 'java.util.LinkedHashMap',
+    'Queue': 'java.util.Queue',
+    'Deque': 'java.util.Deque',
+    'ArrayDeque': 'java.util.ArrayDeque',
+    'Vector': 'java.util.Vector',
+    'Stack': 'java.util.Stack',
+    'Date': 'java.util.Date',
+    'Calendar': 'java.util.Calendar',
+    'Collection': 'java.util.Collection',
+    'Iterator': 'java.util.Iterator',
+    'Optional': 'java.util.Optional',
+    'Stream': 'java.util.stream.Stream',
+    'BigDecimal': 'java.math.BigDecimal',
+    'BigInteger': 'java.math.BigInteger',
+    'LocalDate': 'java.time.LocalDate',
+    'LocalDateTime': 'java.time.LocalDateTime',
+    'LocalTime': 'java.time.LocalTime',
+    'ZonedDateTime': 'java.time.ZonedDateTime',
+    'Instant': 'java.time.Instant',
+  };
+
   static generate(
     elementId: string,
     config: CodeGenerationConfig,
@@ -36,22 +69,45 @@ export class JavaIRGeneratorService {
   ): string {
     const lines: string[] = [];
 
+    // Package declaration
     if (config.includePackageDeclaration && cls.packageName) {
       lines.push(`package ${cls.packageName};`);
       lines.push('');
+    }
+
+    // Collect imports
+    const ownAttrs = cls.attributeIds
+      .map((id) => model.attributes[id])
+      .filter((a): a is IRAttribute => a != null);
+
+    const ops = cls.operationIds
+      .map((id) => model.operations[id])
+      .filter((o): o is IROperation => o != null);
+
+    const imports = this.collectImports(ownAttrs, ops);
+    if (imports.length > 0) {
+      for (const imp of imports) {
+        lines.push(`import ${imp};`);
+      }
+      lines.push('');
+    }
+
+    // Class Javadoc
+    if (cls.documentation) {
+      lines.push(...this.formatJavadoc(cls.documentation));
     }
 
     const parent = this.resolveParent(cls.id, model);
     lines.push(this.buildClassSignature(cls, parent, model));
     lines.push('{');
 
-    const ownAttrs = cls.attributeIds
-      .map((id) => model.attributes[id])
-      .filter((a): a is IRAttribute => a != null);
-
     if (ownAttrs.length > 0) {
       lines.push('');
       for (const attr of ownAttrs) {
+        // Attribute Javadoc
+        if (attr.documentation) {
+          lines.push(...this.formatJavadoc(attr.documentation, '    '));
+        }
         lines.push(`    private ${this.formatType(attr.type)} ${attr.name};`);
       }
     }
@@ -72,10 +128,6 @@ export class JavaIRGeneratorService {
       lines.push('');
       lines.push(...this.buildGettersSetters(ownAttrs));
     }
-
-    const ops = cls.operationIds
-      .map((id) => model.operations[id])
-      .filter((o): o is IROperation => o != null);
 
     if (ops.length > 0) {
       lines.push('');
@@ -187,6 +239,11 @@ export class JavaIRGeneratorService {
     const lines: string[] = [];
 
     for (const op of ops) {
+      // Operation Javadoc
+      if (op.documentation) {
+        lines.push(...this.formatJavadoc(op.documentation, '    '));
+      }
+
       const vis = this.mapVisibility(op.visibility);
       const staticMod = op.isStatic ? 'static ' : '';
       const abstractMod = !isInterface && op.isAbstract ? 'abstract ' : '';
@@ -252,9 +309,28 @@ export class JavaIRGeneratorService {
   ): string {
     const lines: string[] = [];
 
+    // Package declaration
     if (config.includePackageDeclaration && iface.packageName) {
       lines.push(`package ${iface.packageName};`);
       lines.push('');
+    }
+
+    // Collect imports
+    const ops = iface.operationIds
+      .map((id) => model.operations[id])
+      .filter((o): o is IROperation => o != null);
+
+    const imports = this.collectImports([], ops);
+    if (imports.length > 0) {
+      for (const imp of imports) {
+        lines.push(`import ${imp};`);
+      }
+      lines.push('');
+    }
+
+    // Interface Javadoc
+    if (iface.documentation) {
+      lines.push(...this.formatJavadoc(iface.documentation));
     }
 
     const superNames = Object.values(model.relations)
@@ -264,10 +340,6 @@ export class JavaIRGeneratorService {
 
     const extClause = superNames.length > 0 ? ` extends ${superNames.join(', ')}` : '';
     lines.push(`public interface ${iface.name}${extClause} {`);
-
-    const ops = iface.operationIds
-      .map((id) => model.operations[id])
-      .filter((o): o is IROperation => o != null);
 
     if (ops.length > 0) {
       lines.push('');
@@ -283,9 +355,15 @@ export class JavaIRGeneratorService {
   private static generateEnum(enm: IREnum, config: CodeGenerationConfig): string {
     const lines: string[] = [];
 
+    // Package declaration
     if (config.includePackageDeclaration && enm.packageName) {
       lines.push(`package ${enm.packageName};`);
       lines.push('');
+    }
+
+    // Enum Javadoc
+    if (enm.documentation) {
+      lines.push(...this.formatJavadoc(enm.documentation));
     }
 
     lines.push(`public enum ${enm.name} {`);
@@ -299,6 +377,72 @@ export class JavaIRGeneratorService {
   }
 
   // ─── Utilities ───────────────────────────────────────────────────────────────
+
+  /**
+   * Collects all required imports from types used in the element.
+   */
+  private static collectImports(
+    attrs: IRAttribute[],
+    ops: IROperation[],
+  ): string[] {
+    const imports = new Set<string>();
+
+    // Collect from attributes
+    for (const attr of attrs) {
+      this.extractImportsFromType(attr.type, imports);
+    }
+
+    // Collect from operations
+    for (const op of ops) {
+      // Return type
+      if (op.returnType) {
+        this.extractImportsFromType(op.returnType, imports);
+      }
+      // Parameters
+      for (const param of op.parameters) {
+        this.extractImportsFromType(param.type, imports);
+      }
+    }
+
+    return Array.from(imports).sort();
+  }
+
+  /**
+   * Extracts import statements from a type string (handles generics).
+   */
+  private static extractImportsFromType(typeStr: string | undefined, imports: Set<string>): void {
+    if (!typeStr) return;
+
+    // Extract base type and generic parameters
+    // e.g., "List<Map<String, Date>>" -> ["List", "Map", "Date"]
+    const typePattern = /\b([A-Z][a-zA-Z0-9]*)\b/g;
+    const matches = typeStr.matchAll(typePattern);
+
+    for (const match of matches) {
+      const typeName = match[1];
+      const importPath = this.JAVA_IMPORTS[typeName];
+      if (importPath) {
+        imports.add(importPath);
+      }
+    }
+  }
+
+  /**
+   * Formats documentation as a Javadoc comment block.
+   */
+  private static formatJavadoc(documentation: string | undefined, indent: string = ''): string[] {
+    if (!documentation?.trim()) return [];
+
+    const lines = documentation.trim().split('\n');
+    const javadoc: string[] = [`${indent}/**`];
+
+    for (const line of lines) {
+      javadoc.push(`${indent} * ${line.trim()}`);
+    }
+
+    javadoc.push(`${indent} */`);
+    return javadoc;
+  }
 
   private static formatType(rawType: string | undefined): string {
     if (!rawType?.trim()) return 'void';

@@ -1,7 +1,7 @@
 import dagre from 'dagre';
 import { useReactFlow } from 'reactflow';
 import { useCallback } from 'react';
-import { useVFSStore } from '../../../store/project-vfs.store';
+import { useVFSStore, withoutUndo } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import { useUiStore } from '../../../store/uiStore';
@@ -99,7 +99,9 @@ export function useAutoLayout() {
       };
     });
 
-    updateFileContent(activeTabId, { ...view, nodes: updatedNodes });
+    withoutUndo(() => {
+      updateFileContent(activeTabId, { ...view, nodes: updatedNodes });
+    });
 
     requestAnimationFrame(() => {
       fitView({ duration: 500 });

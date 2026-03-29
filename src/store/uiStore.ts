@@ -20,12 +20,14 @@ export type ActiveModal =
   | "global-delete"
   | "code-export-config"
   | "keyboard-shortcuts"
+  | "wiki"
   | null;
 
 interface UiStoreState {
   // state
   activeModal: ActiveModal;
   editingId: string | null;
+  isGetStartedOpen: boolean;
 
   // actions
   openClassEditor: (nodeId: string) => void;
@@ -45,12 +47,17 @@ interface UiStoreState {
   openAutoLayoutLockedWarning: () => void;
   openCodeExportConfig: () => void;
   openKeyboardShortcuts: () => void;
+  openWiki: () => void;
   closeModals: () => void;
+  openGetStarted: () => void;
+  closeGetStarted: () => void;
+  toggleGetStarted: () => void;
 }
 
 export const useUiStore = create<UiStoreState>((set) => ({
-  activeModal:null,
+  activeModal: null,
   editingId: null,
+  isGetStartedOpen: false,
 
   openClassEditor: (nodeId) =>
     set({ activeModal: "class-editor", editingId: nodeId }),
@@ -102,5 +109,11 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openKeyboardShortcuts: () =>
     set({ activeModal: "keyboard-shortcuts", editingId: null }),
 
+  openWiki: () => set({ activeModal: "wiki", editingId: null }),
+
   closeModals: () => set({ activeModal: null, editingId: null }),
+
+  openGetStarted: () => set({ isGetStartedOpen: true }),
+  closeGetStarted: () => set({ isGetStartedOpen: false }),
+  toggleGetStarted: () => set((s) => ({ isGetStartedOpen: !s.isGetStartedOpen })),
 }));

@@ -298,12 +298,14 @@ export async function injectDiagramIntoVFS(
     const newId = cls.isAbstract
       ? modelStore.createAbstractClass({
           name: cls.name,
+          packageName: cls.packageName,
           attributeIds: [],
           operationIds: [],
           visibility: cls.visibility,
         })
       : modelStore.createClass({
           name: cls.name,
+          packageName: cls.packageName,
           attributeIds: [],
           operationIds: [],
           visibility: cls.visibility,
@@ -327,6 +329,7 @@ export async function injectDiagramIntoVFS(
 
     const newId = modelStore.createInterface({
       name: iface.name,
+      packageName: iface.packageName,
       operationIds: [],
       visibility: iface.visibility,
     });
@@ -338,10 +341,16 @@ export async function injectDiagramIntoVFS(
   for (const [oldId, enm] of Object.entries(partialModel.enums)) {
     const newId = modelStore.createEnum({
       name: enm.name,
+      packageName: enm.packageName,
       literals: [...(enm.literals ?? [])],
       visibility: enm.visibility,
     });
     idMap.set(oldId, newId);
+  }
+
+  // Sync package names from the imported model
+  for (const pkgName of (partialModel.packageNames ?? [])) {
+    if (pkgName) modelStore.addPackageName(pkgName);
   }
 
   // Relations (after all elements so source/target IDs can be remapped)

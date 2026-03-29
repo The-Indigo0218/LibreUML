@@ -81,6 +81,7 @@
     },
     "edu": {
       "title": "Edu",
+      "wiki": "UML Wiki (Ctrl+H)",
       "placeholder": "Learning Tools (Soon)",
       "linter": "UML Linter (Auto-grade)",
       "exam": "Exam Mode",
@@ -92,6 +93,7 @@
       "title": "Help",
       "gettingStarted": "Getting Started",
       "keyboardShortcuts": "Keyboard Shortcuts",
+      "wiki": "UML Wiki (Ctrl+H)",
       "documentation": "Documentation",
       "reportIssue": "Report Issue",
       "roadmap": "Roadmap",
@@ -330,7 +332,8 @@
     "userProfile": "User Profile",
     "cloudSync": "Cloud Sync",
     "githubIntegration": "GitHub Integration",
-    "bugReport": "Bug Report"
+    "bugReport": "Bug Report",
+    "getStarted": "Get Started / Tutorial"
   },
   "statusbar": {
     "problems": "Problems",
@@ -633,7 +636,8 @@
       "commandHistoryUp": "Previous Command",
       "commandHistoryDown": "Next Command",
       "autocomplete": "Autocomplete",
-      "clearInput": "Clear Input"
+      "clearInput": "Clear Input",
+      "openWiki": "Open UML Wiki"
     },
     "actions": {
       "close": "Got it!"
@@ -678,5 +682,192 @@
   },
   "terminalPrompt": {
     "prefix": "libreuml~$"
+  },
+  "emptyState": {
+    "welcome": "Welcome to LibreUML!",
+    "subtitle": "Your canvas is empty. Start designing your first UML diagram or load a sample to explore.",
+    "startFromScratch": "Start from scratch",
+    "loadHospital": "Load Hospital System",
+    "hint": "Press Ctrl+H to open the UML Dictionary at any time."
+  },
+  "wiki": {
+    "title": "UML Wiki",
+    "search_placeholder": "Search concepts...",
+    "image_placeholder": "Image coming soon",
+    "sidebar_label": "Wiki categories",
+    "no_results": "No results found for your search.",
+    "select_article": "Select a topic from the sidebar.",
+    "close": "Close",
+    "article_count": "{{count}} articles",
+    "categories": {
+      "uml_concepts": "UML Concepts",
+      "tool_features": "LibreUML Features"
+    },
+    "subcategories": {
+      "structures": "Structures",
+      "relations": "Relations",
+      "annotations": "Annotations",
+      "export": "Export",
+      "file_management": "File Management"
+    },
+    "sections": {
+      "what": "What is it?",
+      "when": "When to use?",
+      "example": "Example",
+      "iso_rules": "ISO 19505 Rules",
+      "what_for": "What is it for?",
+      "how_to": "How to use",
+      "related": "Related articles"
+    },
+    "concepts": {
+      "class": {
+        "title": "Class",
+        "definition": "A blueprint for creating objects. Defines structure (attributes) and behavior (operations).",
+        "when": "Used to model domain entities that have characteristics and actions.",
+        "example": "The `Student` class with attributes `id`, `name`, `enrolledCourses` and methods like `enroll(course)`.",
+        "iso_rules": "ISO 19505: A class must have a unique name within the diagram and can define member visibility.",
+        "image_alt": "UML Class diagram"
+      },
+      "interface": {
+        "title": "Interface",
+        "definition": "A contract that defines a set of operations a class must implement.",
+        "when": "Used to define expected behavior without specifying the implementation.",
+        "example": "The `PaymentProcessor` interface defines operations like `process(amount)` and `refund(transactionId)`.",
+        "iso_rules": "ISO 19505: An interface is a special kind of classifier that specifies a set of public operations.",
+        "image_alt": "UML Interface diagram"
+      },
+      "enumeration": {
+        "title": "Enumeration",
+        "definition": "A data type that contains a fixed set of named values.",
+        "when": "Used to model attributes that can only take specific predefined values.",
+        "example": "The `Status` enumeration with values `PENDING`, `ACTIVE`, `INACTIVE`.",
+        "iso_rules": "ISO 19505: An enumeration is a classifier that defines literals (constant values).",
+        "image_alt": "UML Enumeration diagram"
+      },
+      "association": {
+        "title": "Association",
+        "definition": "A relationship between two classes indicating one can interact with or use the other.",
+        "when": "Used to model general relationships between entities (e.g., 'Student enrolls in Course').",
+        "example": "A bidirectional association between `Student` and `Course` with multiplicity `*` to `*`.",
+        "iso_rules": "ISO 19505: An association connects two or more classifiers. It includes name, direction, and multiplicity.",
+        "image_alt": "UML Association diagram"
+      },
+      "inheritance": {
+        "title": "Generalization (Inheritance)",
+        "definition": "An 'is-a' relationship where a specialized class inherits structure and behavior from a general class.",
+        "when": "Used to model class hierarchies where one class is more specific than another.",
+        "example": "`Dog` and `Cat` inherit from `Animal`. They share attributes like `age`, `name` but have specific operations.",
+        "iso_rules": "ISO 19505: Generalization is a specialization/generalization relationship between classifiers.",
+        "image_alt": "UML Inheritance diagram"
+      },
+      "composition": {
+        "title": "Composition",
+        "definition": "A strong 'has-a' relationship where the part cannot exist without the whole.",
+        "when": "Used when there is strong ownership: the container is responsible for the lifecycle of its parts.",
+        "example": "`Company` composes `Departments`. If the company is deleted, its departments are too.",
+        "iso_rules": "ISO 19505: Composition is a strong aggregation represented with a filled diamond.",
+        "image_alt": "UML Composition diagram"
+      },
+      "aggregation": {
+        "title": "Aggregation",
+        "definition": "A weak 'has-a' relationship where the part can exist without the whole.",
+        "when": "Used when there is weak ownership: the container simply groups the parts.",
+        "example": "`Team` aggregates `Players`. A player can exist without a team.",
+        "iso_rules": "ISO 19505: Aggregation is a special relationship with multiplicity where parts retain independence.",
+        "image_alt": "UML Aggregation diagram"
+      },
+      "dependency": {
+        "title": "Dependency",
+        "definition": "A unidirectional usage relationship where one class depends on another to function.",
+        "when": "Used when a class needs another without ownership (e.g., passing it as a parameter).",
+        "example": "`OrderService` depends on `PaymentGateway` to process payments.",
+        "iso_rules": "ISO 19505: Dependency is a unidirectional relationship indicating temporal coupling.",
+        "image_alt": "UML Dependency diagram"
+      },
+      "realization": {
+        "title": "Realization (Implementation)",
+        "definition": "A relationship where a concrete class implements the operations defined by an interface.",
+        "when": "Used to show which operations of an interface are implemented by a class.",
+        "example": "`PayPalProcessor` realizes (implements) the `PaymentProcessor` interface.",
+        "iso_rules": "ISO 19505: Realization specifies that a classifier implements a contract defined by an interface.",
+        "image_alt": "UML Realization diagram"
+      },
+      "note": {
+        "title": "Note",
+        "definition": "An annotation element that provides additional information, comments, or constraints.",
+        "when": "Used to clarify business rules, constraints, or details that do not fit in the diagram.",
+        "example": "A note attached to a class: 'Email must be unique in the system'.",
+        "iso_rules": "ISO 19505: A note is a graphical symbol containing freely formatted comments.",
+        "image_alt": "UML Note diagram"
+      }
+    },
+    "features": {
+      "export_luml": {
+        "title": "Export to .luml",
+        "description": "Save your diagram in LibreUML format (compressed JSON).",
+        "how_to": [
+          "Click 'File' → 'Export'",
+          "Select 'LibreUML Format (.luml)'",
+          "Choose file location and name",
+          "The file will download with all diagram information"
+        ],
+        "tip": "Use this format to share diagrams between LibreUML users and versions."
+      },
+      "export_java": {
+        "title": "Export to Java Code",
+        "description": "Convert your UML diagram to ready-to-use Java code.",
+        "how_to": [
+          "Click 'File' → 'Export'",
+          "Select 'Java Source Code'",
+          "Adjust options (package, generics, Javadoc)",
+          "Download the .java or .zip file"
+        ],
+        "tip": "Generated code includes classes, interfaces, inheritance, and Javadoc annotations."
+      },
+      "export_images": {
+        "title": "Export to Images (PNG/SVG)",
+        "description": "Convert your diagram to PNG image or scalable SVG.",
+        "how_to": [
+          "Click 'File' → 'Export'",
+          "Select 'Image (PNG)' or 'Vector (SVG)'",
+          "Choose resolution (PNG) or quality (SVG)",
+          "Download the image ready for presentations"
+        ],
+        "tip": "SVG is scalable without quality loss. PNG is ideal for Word/PowerPoint."
+      },
+      "export_xmi": {
+        "title": "Export to XMI (ISO 19505)",
+        "description": "Export to XMI (XML Metadata Interchange), the OMG standard for interoperability.",
+        "how_to": [
+          "Click 'File' → 'Export'",
+          "Select 'XMI (ISO 19505)'",
+          "Verify the file destination",
+          "XMI is compatible with Enterprise Architect, Astah, ArchiMate"
+        ],
+        "tip": "Make sure the concepts used comply with ISO 19505 for maximum compatibility."
+      },
+      "projects_vs_standalone": {
+        "title": "Projects vs. Visitor Files",
+        "description": "Understand the difference between a Project (multiple diagrams) and a Visitor File (single diagram).",
+        "how_to": [
+          "**Project:** Click 'New Project' → place multiple diagrams in one folder",
+          "**Visitor File:** Click 'Open File' → opens a .luml without a project",
+          "In a Project: changes are automatically saved in the project folder",
+          "In Visitor mode: changes are saved in the single file when pressing Ctrl+S"
+        ],
+        "tip": "Use Projects for large work (thesis, systems). Use Visitor files for quick examples."
+      },
+      "autosave": {
+        "title": "Auto-save (Ctrl+S)",
+        "description": "LibreUML saves your work automatically when you press Ctrl+S.",
+        "how_to": [
+          "Edit your diagram normally",
+          "Press Ctrl+S at any time",
+          "You will see a 'Saved' notification in the bottom corner",
+          "Your work is safe on the file system"
+        ],
+        "tip": "Ctrl+S saves immediately. You can also use File → Save."
+      }
+    }
   }
 }

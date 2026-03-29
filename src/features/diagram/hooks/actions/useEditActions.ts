@@ -1,157 +1,157 @@
 import { useCallback } from "react";
-import { useUiStore } from "../../../../store/uiStore";
-import { useProjectStore } from "../../../../store/project.store";
-import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useReactFlow } from "reactflow";
+import { useUiStore } from "../../../../store/uiStore";
+import { useSelectionStore } from "../../../../store/selection.store";
+import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
+import { useModelStore } from "../../../../store/model.store";
+import { standaloneModelOps, getLocalModel } from "../../../../store/standaloneModelOps";
+import { isDiagramView } from "../useVFSCanvasController";
+import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
 
 /**
- * PHASE 4.5: Edit Actions - SSOT Implementation
- * 
- * Provides edit operations that work with the SSOT architecture:
- * - Selection management via React Flow
- * - Duplicate/Delete operations via ProjectStore + WorkspaceStore
- * - Undo/Redo (TODO: requires history middleware)
+ * Edit Actions — reads selection from useSelectionStore (Zustand).
+ *
+ * Selection is synced from React Flow → store via DiagramCanvas.onSelectionChange.
+ * All actions here read from the store, making selection state accessible outside
+ * the React Flow context (clipboard, toolbars, future integrations).
  */
 export const useEditActions = () => {
-  const { openClassEditor } = useUiStore();
+  const { openSSoTClassEditor } = useUiStore();
   const { getNodes, getEdges, setNodes, setEdges } = useReactFlow();
 
-  // ProjectStore actions
-  const getNode = useProjectStore((s) => s.getNode);
-  const addNode = useProjectStore((s) => s.addNode);
-  const removeNode = useProjectStore((s) => s.removeNode);
-  const removeEdge = useProjectStore((s) => s.removeEdge);
-  const getEdgeIdsForNode = useProjectStore((s) => s.getEdgeIdsForNode);
-
-  // WorkspaceStore actions
-  const getActiveFile = useWorkspaceStore((s) => s.getActiveFile);
-  const addNodeToFile = useWorkspaceStore((s) => s.addNodeToFile);
-  const removeNodeFromFile = useWorkspaceStore((s) => s.removeNodeFromFile);
-  const removeEdgeFromFile = useWorkspaceStore((s) => s.removeEdgeFromFile);
-  const updateFile = useWorkspaceStore((s) => s.updateFile);
-  const markFileDirty = useWorkspaceStore((s) => s.markFileDirty);
+  // ── Selection actions ────────────────────────────────────────────────────
 
   const selectAll = useCallback(() => {
     const nodes = getNodes();
     const edges = getEdges();
-    
+
     setNodes(nodes.map((node) => ({ ...node, selected: true })));
     setEdges(edges.map((edge) => ({ ...edge, selected: true })));
+
+    // Sync to store (onSelectionChange will also fire, but this is immediate)
+    useSelectionStore.getState().setSelection(
+      nodes.map((n) => n.id),
+      edges.map((e) => e.id),
+    );
   }, [getNodes, getEdges, setNodes, setEdges]);
 
   const deselectAll = useCallback(() => {
     const nodes = getNodes();
     const edges = getEdges();
-    
+
     setNodes(nodes.map((node) => ({ ...node, selected: false })));
     setEdges(edges.map((edge) => ({ ...edge, selected: false })));
+
+    useSelectionStore.getState().clear();
   }, [getNodes, getEdges, setNodes, setEdges]);
 
-  const duplicateSelected = useCallback(() => {
-    const file = getActiveFile();
-    if (!file) return;
-
-    const nodes = getNodes();
-    const selectedNodes = nodes.filter((node) => node.selected);
-
-    if (selectedNodes.length === 0) return;
-
-    selectedNodes.forEach((viewNode) => {
-      const originalNode = getNode(viewNode.id);
-      if (!originalNode) return;
-
-      // Create new node with copied properties
-      const newNode = {
-        ...originalNode,
-        id: crypto.randomUUID(),
-        name: `${(originalNode as any).name}_copy`,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      } as any;
-
-      // Add to ProjectStore
-      addNode(newNode);
-
-      // Add to file
-      addNodeToFile(file.id, newNode.id);
-
-      // Update position map
-      const metadata = file.metadata as any;
-      const positionMap = metadata?.positionMap || {};
-      const originalPosition = viewNode.position;
-
-      const newPositionMap = {
-        ...positionMap,
-        [newNode.id]: {
-          x: originalPosition.x + 50,
-          y: originalPosition.y + 50,
-        },
-      };
-
-      updateFile(file.id, {
-        metadata: {
-          ...file.metadata,
-          positionMap: newPositionMap,
-        } as any,
-      });
-    });
-
-    markFileDirty(file.id);
-  }, [getNodes, getNode, addNode, addNodeToFile, getActiveFile, updateFile, markFileDirty]);
-
-  const deleteSelected = useCallback(() => {
-    const file = getActiveFile();
-    if (!file) return;
-
-    const nodes = getNodes();
-    const edges = getEdges();
-    
-    const selectedNodes = nodes.filter((node) => node.selected);
-    const selectedEdges = edges.filter((edge) => edge.selected);
-
-    if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
-
-    // Delete selected nodes (cascade delete will handle connected edges)
-    selectedNodes.forEach((viewNode) => {
-      const connectedEdgeIds = getEdgeIdsForNode(viewNode.id);
-
-      // Remove from WorkspaceStore
-      removeNodeFromFile(file.id, viewNode.id);
-      connectedEdgeIds.forEach((edgeId) => {
-        removeEdgeFromFile(file.id, edgeId);
-      });
-
-      // Remove from ProjectStore (cascade delete)
-      removeNode(viewNode.id);
-    });
-
-    // Delete selected edges
-    selectedEdges.forEach((viewEdge) => {
-      removeEdgeFromFile(file.id, viewEdge.id);
-      removeEdge(viewEdge.id);
-    });
-
-    markFileDirty(file.id);
-  }, [
-    getNodes,
-    getEdges,
-    getActiveFile,
-    getEdgeIdsForNode,
-    removeNodeFromFile,
-    removeEdgeFromFile,
-    removeNode,
-    removeEdge,
-    markFileDirty,
-  ]);
+  // ── Edit selected ────────────────────────────────────────────────────────
 
   const editSelected = useCallback(() => {
-    const nodes = getNodes();
-    const selectedNodes = nodes.filter((node) => node.selected);
+    const { selectedNodeIds } = useSelectionStore.getState();
+    if (selectedNodeIds.length !== 1) return;
 
-    if (selectedNodes.length === 1) {
-      openClassEditor(selectedNodes[0].id);
+    const viewNodeId = selectedNodeIds[0];
+
+    // Resolve the semantic elementId for the SSoT editor
+    const activeTabId = useWorkspaceStore.getState().activeTabId;
+    if (!activeTabId) return;
+    const project = useVFSStore.getState().project;
+    if (!project) return;
+    const fileNode = project.nodes[activeTabId];
+    if (!fileNode || fileNode.type !== 'FILE') return;
+    if (!isDiagramView((fileNode as VFSFile).content)) return;
+
+    const view = (fileNode as VFSFile).content as DiagramView;
+    const viewNode = view.nodes.find((vn) => vn.id === viewNodeId);
+    if (viewNode?.elementId) {
+      openSSoTClassEditor(viewNode.elementId);
     }
-  }, [getNodes, openClassEditor]);
+  }, [openSSoTClassEditor]);
+
+  // ── Delete selected (VFS) ────────────────────────────────────────────────
+
+  const deleteSelected = useCallback(() => {
+    const { selectedNodeIds, selectedEdgeIds } = useSelectionStore.getState();
+    if (selectedNodeIds.length === 0 && selectedEdgeIds.length === 0) return;
+
+    const activeTabId = useWorkspaceStore.getState().activeTabId;
+    if (!activeTabId) return;
+    const currentProject = useVFSStore.getState().project;
+    if (!currentProject) return;
+    const fileNode = currentProject.nodes[activeTabId];
+    if (!fileNode || fileNode.type !== 'FILE') return;
+    if (!isDiagramView((fileNode as VFSFile).content)) return;
+
+    const currentView = (fileNode as VFSFile).content as DiagramView;
+    const isStandalone = (fileNode as VFSFile).standalone === true;
+
+    // Remove selected edges from model + view
+    let updatedEdges = currentView.edges;
+    for (const edgeId of selectedEdgeIds) {
+      const viewEdge = updatedEdges.find((ve) => ve.id === edgeId);
+      if (!viewEdge) continue;
+
+      if (isStandalone) {
+        standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
+      } else {
+        const ms = useModelStore.getState();
+        if (ms.model?.relations[viewEdge.relationId]) {
+          ms.deleteRelation(viewEdge.relationId);
+        }
+      }
+      updatedEdges = updatedEdges.filter((ve) => ve.id !== edgeId);
+    }
+
+    // Remove selected nodes from view + prune their edges
+    let updatedNodes = currentView.nodes;
+    for (const nodeId of selectedNodeIds) {
+      const removedVN = updatedNodes.find((vn) => vn.id === nodeId);
+      if (!removedVN) continue;
+
+      updatedNodes = updatedNodes.filter((vn) => vn.id !== nodeId);
+
+      // Prune dangling edges whose relation involves this element
+      if (removedVN.elementId) {
+        const activeModel = isStandalone
+          ? getLocalModel(activeTabId)
+          : useModelStore.getState().model;
+        if (activeModel) {
+          updatedEdges = updatedEdges.filter((ve) => {
+            const relation = activeModel.relations[ve.relationId];
+            if (!relation) return false;
+            return (
+              relation.sourceId !== removedVN.elementId &&
+              relation.targetId !== removedVN.elementId
+            );
+          });
+        }
+      }
+    }
+
+    useVFSStore.getState().updateFileContent(activeTabId, {
+      ...currentView,
+      nodes: updatedNodes,
+      edges: updatedEdges,
+    });
+
+    useSelectionStore.getState().clear();
+  }, []);
+
+  // ── Duplicate selected (TODO: VFS implementation) ────────────────────────
+
+  const duplicateSelected = useCallback(() => {
+    const { selectedNodeIds } = useSelectionStore.getState();
+    if (selectedNodeIds.length === 0) return;
+
+    // TODO: Implement VFS-based duplication.
+    // This requires creating new IR elements in ModelStore/localModel,
+    // cloning their attributes/operations, and adding new ViewNodes.
+    console.warn("TODO: VFS duplicate not yet implemented");
+  }, []);
+
+  // ── Undo/Redo stubs ─────────────────────────────────────────────────────
 
   const undo = useCallback(() => {
     console.warn("TODO: SSOT - Undo not implemented. Requires history middleware (e.g., zundo)");
@@ -169,6 +169,5 @@ export const useEditActions = () => {
     editSelected,
     undo,
     redo,
-    openClassEditor,
   };
 };

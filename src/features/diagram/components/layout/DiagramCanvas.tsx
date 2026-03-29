@@ -10,34 +10,29 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { useRef, useEffect, useCallback, useMemo } from "react";
 import { useUiStore } from "../../../../store/uiStore";
-import { useProjectStore } from "../../../../store/project.store";
 import { useSettingsStore } from "../../../../store/settingsStore";
-import { useWorkspaceStore } from "../../../../store/workspace.store";
+import { useSelectionStore } from "../../../../store/selection.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
 import { useToastStore } from "../../../../store/toast.store";
-import { useDiagram } from "../../../workspace/hooks/useDiagram";
 import { canvasConfig, miniMapColors } from "../../../../config/theme.config";
 import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
 import type { RelationKind } from "../../../../core/domain/vfs/vfs.types";
-import type { AssociationEdge, AggregationEdge, CompositionEdge } from "../../../../core/domain/models/edges";
-import type { ClassDiagramMetadata } from "../../../../core/domain/workspace/diagram-file.types";
 
 import ContextMenu from "../ui/ContextMenu";
-import ClassEditorModal from "../modals/ClassEditorModal";
 import ConfirmationModal from "../../../../components/shared/ConfirmationModal";
 import SpotlightModal from "../modals/SpotlightModal";
-import MultiplicityModal from "../modals/MultiplicityModal";
 import VfsEdgeActionModal from "../modals/VfsEdgeActionModal";
 import { AutoLayoutLockedWarningModal } from "../modals/AutoLayoutLockedWarningModal";
 import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 
+import { GetStartedWidget } from "../ui/GetStartedWidget";
 import { useContextMenu } from "../../hooks/useContextMenu";
 import { useDiagramDnD } from "../../hooks/useDiagramDnD";
+import { useHospitalTemplate } from "../../hooks/useHospitalTemplate";
 import { useVFSCanvasController } from "../../hooks/useVFSCanvasController";
 import { useDiagramMenus } from "../../hooks/useDiagramMenus";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
-import { useEdgeStyling } from "../../hooks/useEdgeStyling";
 import { useVFSEdgeStyling } from "../../hooks/useVFSEdgeStyling";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
 import { useNodeDragging } from "../../hooks/useNodeDragging";
@@ -46,35 +41,45 @@ import { useTranslation } from "react-i18next";
 export default function DiagramCanvas() {
   const { t } = useTranslation();
 
-  const {
-    nodes: legacyNodes,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    edges: _edges,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-    file,
-    isReady,
-  } = useDiagram();
-
   const vfsController = useVFSCanvasController();
 
-  const nodes = vfsController.isVFSFile ? vfsController.nodes : legacyNodes;
-  const isCanvasReady = isReady || vfsController.isVFSFile;
+  const nodes = vfsController.nodes;
+  const isCanvasReady = vfsController.isVFSFile;
+  const activeTabId = vfsController.activeTabId;
 
-  const diagramType = file?.diagramType ?? 'CLASS_DIAGRAM';
+  // ── Get-Started widget ──────────────────────────────────────────────────────
+  const isGetStartedOpen = useUiStore((s) => s.isGetStartedOpen);
+  const openGetStarted = useUiStore((s) => s.openGetStarted);
+  const { loadTemplate } = useHospitalTemplate();
+  const prevTabIdRef = useRef<string | null>(null);
+
+  // Auto-open widget when switching to an empty diagram tab
+  useEffect(() => {
+    if (prevTabIdRef.current !== activeTabId) {
+      prevTabIdRef.current = activeTabId;
+      if (isCanvasReady && nodes.length === 0) {
+        openGetStarted();
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTabId]);
+
+  const handleLoadTemplate = useCallback(() => {
+    loadTemplate();
+  }, [loadTemplate]);
+
   const registry = useMemo(() => {
     const vfsDiagramType = vfsController.vfsFile?.diagramType;
     const effectiveType =
       vfsDiagramType === 'CLASS_DIAGRAM' || vfsDiagramType === 'USE_CASE_DIAGRAM'
         ? vfsDiagramType
-        : diagramType;
+        : 'CLASS_DIAGRAM';
     try {
       return getDiagramRegistry(effectiveType);
     } catch {
       return getDiagramRegistry('CLASS_DIAGRAM');
     }
-  }, [diagramType, vfsController.vfsFile]);
+  }, [vfsController.vfsFile]);
 
   const nodeTypes = useMemo(() => registry.nodeComponents, [registry]);
   const edgeTypes = useMemo(() => registry.edgeComponents, [registry]);
@@ -83,23 +88,9 @@ export default function DiagramCanvas() {
   const showGrid = useSettingsStore((s) => s.showGrid);
   const snapToGrid = useSettingsStore((s) => s.snapToGrid);
 
-  const updateNode = useProjectStore((s) => s.updateNode);
-  const updateEdge = useProjectStore((s) => s.updateEdge);
-  const getNode = useProjectStore((s) => s.getNode);
-  const getEdge = useProjectStore((s) => s.getEdge);
-  const removeNode = useProjectStore((s) => s.removeNode);
-  const removeEdge = useProjectStore((s) => s.removeEdge);
-
-  const removeNodeFromFile = useWorkspaceStore((s) => s.removeNodeFromFile);
-  const removeEdgeFromFile = useWorkspaceStore((s) => s.removeEdgeFromFile);
-  const updateFile = useWorkspaceStore((s) => s.updateFile);
-  const markFileDirty = useWorkspaceStore((s) => s.markFileDirty);
-
   const {
     activeModal,
     editingId,
-    openClassEditor,
-    openMultiplicityEditor,
     openClearConfirmation,
     openMethodGenerator,
     openSSoTClassEditor,
@@ -107,65 +98,41 @@ export default function DiagramCanvas() {
     closeModals
   } = useUiStore();
 
-  const editingNode = editingId ? getNode(editingId) : undefined;
-  const editingEdge = editingId ? getEdge(editingId) : undefined;
-
   const nodesRef = useRef(nodes);
   useEffect(() => {
     nodesRef.current = nodes;
   }, [nodes]);
 
-  const effectiveOnNodesChange = vfsController.isVFSFile
-    ? vfsController.onNodesChange
-    : onNodesChange;
-
-  const effectiveOnEdgesChange = vfsController.isVFSFile
-    ? vfsController.onEdgesChange
-    : onEdgesChange;
-
-  const effectiveOnConnect = vfsController.isVFSFile
-    ? vfsController.onConnect
-    : onConnect;
-
   useKeyboardShortcuts();
-  const { displayEdges, setHoveredNodeId: setLegacyHoveredNodeId, setHoveredEdgeId: setLegacyHoveredEdgeId } = useEdgeStyling();
   const { styledEdges: vfsStyledEdges, setHoveredNodeId: setVFSHoveredNodeId, setHoveredEdgeId: setVFSHoveredEdgeId } = useVFSEdgeStyling(vfsController.edges);
   const { onDragOver, onDrop } = useDiagramDnD();
 
+  const setSelection = useSelectionStore((s) => s.setSelection);
+  const clearSelection = useSelectionStore((s) => s.clear);
+  const handleSelectionChange = useCallback(
+    ({ nodes: selNodes, edges: selEdges }: { nodes: Node[]; edges: Edge[] }) => {
+      setSelection(
+        selNodes.map((n) => n.id),
+        selEdges.map((e) => e.id),
+      );
+    },
+    [setSelection],
+  );
+
+  // Clear selection when switching tabs — stale IDs from previous diagram are meaningless.
+  useEffect(() => {
+    clearSelection();
+  }, [vfsController.activeTabId, clearSelection]);
+
   const clearCanvas = useCallback(() => {
-    if (vfsController.isVFSFile && vfsController.diagramView && vfsController.activeTabId) {
+    if (vfsController.diagramView && vfsController.activeTabId) {
       useVFSStore.getState().updateFileContent(vfsController.activeTabId, {
         ...vfsController.diagramView,
         nodes: [],
         edges: [],
       });
-      return;
     }
-
-    if (!file) return;
-
-    const nodeIds = [...file.nodeIds];
-    const edgeIds = [...file.edgeIds];
-
-    edgeIds.forEach((edgeId) => {
-      removeEdgeFromFile(file.id, edgeId);
-      removeEdge(edgeId);
-    });
-
-    nodeIds.forEach((nodeId) => {
-      removeNodeFromFile(file.id, nodeId);
-      removeNode(nodeId);
-    });
-
-    updateFile(file.id, {
-      metadata: {
-        ...(file.metadata as ClassDiagramMetadata | undefined),
-        positionMap: {},
-      } as ClassDiagramMetadata,
-    });
-
-    markFileDirty(file.id);
-  }, [vfsController, file, removeEdgeFromFile, removeEdge, removeNodeFromFile, removeNode, updateFile, markFileDirty]);
+  }, [vfsController]);
 
   const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
     ASSOCIATION: "ASSOCIATION",
@@ -177,103 +144,79 @@ export default function DiagramCanvas() {
   };
 
   const { getMenuOptions } = useDiagramMenus({
-    onEditNode: vfsController.isVFSFile
-      ? (nodeId) => {
-          const viewNode = vfsController.diagramView?.nodes.find(
-            (vn) => vn.id === nodeId,
-          );
-          if (viewNode?.elementId) openSSoTClassEditor(viewNode.elementId);
-        }
-      : (id) => openClassEditor(id),
+    onEditNode: (nodeId) => {
+      const viewNode = vfsController.diagramView?.nodes.find(
+        (vn) => vn.id === nodeId,
+      );
+      if (viewNode?.elementId) openSSoTClassEditor(viewNode.elementId);
+    },
     onClearCanvas: () => openClearConfirmation(),
-    onEditEdgeMultiplicity: (id) => openMultiplicityEditor(id),
+    onEditEdgeMultiplicity: (id) => openVfsEdgeAction(id),
     onGenerateMethods: (id) => openMethodGenerator(id),
-    onDeleteNode: vfsController.isVFSFile
-      ? vfsController.removeNodeFromDiagram
-      : undefined,
-    onDeleteNodeFromModel: vfsController.isVFSFile
-      ? vfsController.deleteElementFromModel
-      : undefined,
-    onDeleteEdge: vfsController.isVFSFile
-      ? vfsController.deleteEdgeById
-      : undefined,
-    onReverseEdge: vfsController.isVFSFile
-      ? vfsController.reverseEdgeById
-      : undefined,
-    onChangeEdgeKind: vfsController.isVFSFile
-      ? (edgeId, legacyType) => {
-          const kind =
-            VFS_TYPE_TO_RELATION_KIND[legacyType] ??
-            (legacyType as RelationKind);
-          vfsController.changeEdgeKind(edgeId, kind);
-        }
-      : undefined,
-    onAddToProject: vfsController.isVFSFile
-      ? (nodeId) => {
-          const viewNode = vfsController.diagramView?.nodes.find(
-            (vn) => vn.id === nodeId,
-          );
-          if (!viewNode?.elementId) return;
-          const ms = useModelStore.getState();
-          const elementName =
-            ms.model?.classes[viewNode.elementId]?.name ??
-            ms.model?.interfaces[viewNode.elementId]?.name ??
-            ms.model?.enums[viewNode.elementId]?.name ??
-            'Element';
-          ms.integrateExternalElement(viewNode.elementId);
-          useToastStore.getState().show(`"${elementName}" added to project model`);
-        }
-      : undefined,
-    getVFSNodeKind: vfsController.isVFSFile
-      ? (nodeId: string) => {
-          const viewNode = vfsController.diagramView?.nodes.find(
-            (vn) => vn.id === nodeId,
-          );
-          if (!viewNode) return undefined;
-          if (!viewNode.elementId) return 'NOTE';
-          // Standalone files use localModel; project files use global ModelStore.
-          const activeModel = vfsController.isStandalone
-            ? vfsController.localModel
-            : useModelStore.getState().model;
-          if (!activeModel) return undefined;
-          const cls = activeModel.classes[viewNode.elementId];
-          if (cls) return cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS';
-          if (activeModel.interfaces[viewNode.elementId]) return 'INTERFACE';
-          if (activeModel.enums[viewNode.elementId]) return 'ENUM';
-          return 'NOTE';
-        }
-      : undefined,
-    getIsNodeExternal: vfsController.isVFSFile
-      ? (nodeId: string) => {
-          // Standalone elements live in localModel, not in global model.
-          // Per-node "Add to Project" is not meaningful here — use the
-          // file-level "Add to Project" in the Project Files sidebar instead.
-          if (vfsController.isStandalone) return false;
-          const viewNode = vfsController.diagramView?.nodes.find(
-            (vn) => vn.id === nodeId,
-          );
-          if (!viewNode?.elementId) return false;
-          const ms = useModelStore.getState();
-          if (!ms.model) return false;
-          return !!(
-            ms.model.classes[viewNode.elementId]?.isExternal ||
-            ms.model.interfaces[viewNode.elementId]?.isExternal ||
-            ms.model.enums[viewNode.elementId]?.isExternal
-          );
-        }
-      : undefined,
-    getElementId: vfsController.isVFSFile
-      ? (nodeId: string) =>
-          vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId)
-            ?.elementId
-      : undefined,
+    onDeleteNode: vfsController.removeNodeFromDiagram,
+    onDeleteNodeFromModel: vfsController.deleteElementFromModel,
+    onDeleteEdge: vfsController.deleteEdgeById,
+    onReverseEdge: vfsController.reverseEdgeById,
+    onChangeEdgeKind: (edgeId, legacyType) => {
+      const kind =
+        VFS_TYPE_TO_RELATION_KIND[legacyType] ??
+        (legacyType as RelationKind);
+      vfsController.changeEdgeKind(edgeId, kind);
+    },
+    onAddToProject: (nodeId) => {
+      const viewNode = vfsController.diagramView?.nodes.find(
+        (vn) => vn.id === nodeId,
+      );
+      if (!viewNode?.elementId) return;
+      const ms = useModelStore.getState();
+      const elementName =
+        ms.model?.classes[viewNode.elementId]?.name ??
+        ms.model?.interfaces[viewNode.elementId]?.name ??
+        ms.model?.enums[viewNode.elementId]?.name ??
+        'Element';
+      ms.integrateExternalElement(viewNode.elementId);
+      useToastStore.getState().show(`"${elementName}" added to project model`);
+    },
+    getVFSNodeKind: (nodeId: string) => {
+      const viewNode = vfsController.diagramView?.nodes.find(
+        (vn) => vn.id === nodeId,
+      );
+      if (!viewNode) return undefined;
+      if (!viewNode.elementId) return 'NOTE';
+      const activeModel = vfsController.isStandalone
+        ? vfsController.localModel
+        : useModelStore.getState().model;
+      if (!activeModel) return undefined;
+      const cls = activeModel.classes[viewNode.elementId];
+      if (cls) return cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS';
+      if (activeModel.interfaces[viewNode.elementId]) return 'INTERFACE';
+      if (activeModel.enums[viewNode.elementId]) return 'ENUM';
+      return 'NOTE';
+    },
+    getIsNodeExternal: (nodeId: string) => {
+      if (vfsController.isStandalone) return false;
+      const viewNode = vfsController.diagramView?.nodes.find(
+        (vn) => vn.id === nodeId,
+      );
+      if (!viewNode?.elementId) return false;
+      const ms = useModelStore.getState();
+      if (!ms.model) return false;
+      return !!(
+        ms.model.classes[viewNode.elementId]?.isExternal ||
+        ms.model.interfaces[viewNode.elementId]?.isExternal ||
+        ms.model.enums[viewNode.elementId]?.isExternal
+      );
+    },
+    getElementId: (nodeId: string) =>
+      vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId)
+        ?.elementId,
+    isStandalone: vfsController.isStandalone,
   });
 
   const {
     menu,
     onPaneContextMenu,
     onNodeContextMenu,
-    onEdgeContextMenu,
     closeMenu,
   } = useContextMenu();
   
@@ -290,30 +233,27 @@ export default function DiagramCanvas() {
   }
 
   return (
-    <div className="w-full h-full bg-canvas-base">
+    <div className="relative w-full h-full bg-canvas-base">
       <ReactFlow
         nodes={nodes as Node[]}
-        edges={(vfsController.isVFSFile ? vfsStyledEdges : displayEdges) as Edge[]}
-        onNodesChange={effectiveOnNodesChange}
-        onEdgesChange={effectiveOnEdgesChange}
-        onConnect={effectiveOnConnect}
+        edges={vfsStyledEdges as Edge[]}
+        onNodesChange={vfsController.onNodesChange}
+        onEdgesChange={vfsController.onEdgesChange}
+        onConnect={vfsController.onConnect}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        onNodeMouseEnter={(_, node) => { setLegacyHoveredNodeId(node.id); setVFSHoveredNodeId(node.id); }}
-        onNodeMouseLeave={() => { setLegacyHoveredNodeId(null); setVFSHoveredNodeId(null); }}
-        onEdgeMouseEnter={(_, edge) => { setLegacyHoveredEdgeId(edge.id); setVFSHoveredEdgeId(edge.id); }}
-        onEdgeMouseLeave={() => { setLegacyHoveredEdgeId(null); setVFSHoveredEdgeId(null); }}
+        onNodeMouseEnter={(_, node) => { setVFSHoveredNodeId(node.id); }}
+        onNodeMouseLeave={() => { setVFSHoveredNodeId(null); }}
+        onEdgeMouseEnter={(_, edge) => { setVFSHoveredEdgeId(edge.id); }}
+        onEdgeMouseLeave={() => { setVFSHoveredEdgeId(null); }}
         onPaneContextMenu={onPaneContextMenu}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={(e, edge) => {
-          if (vfsController.isVFSFile) {
-            e.preventDefault();
-            e.stopPropagation();
-            openVfsEdgeAction(edge.id);
-            return;
-          }
-          onEdgeContextMenu(e, edge);
+          e.preventDefault();
+          e.stopPropagation();
+          openVfsEdgeAction(edge.id);
         }}
+        onSelectionChange={handleSelectionChange}
         onPaneClick={closeMenu}
         onDragOver={onDragOver}
         onDrop={onDrop}
@@ -363,108 +303,6 @@ export default function DiagramCanvas() {
         />
       )}
 
-      {activeModal === 'class-editor' && editingNode && (
-        <ClassEditorModal
-          key={editingId}
-          isOpen={true}
-          umlData={
-            editingNode.type === 'CLASS' ||
-            editingNode.type === 'INTERFACE' ||
-            editingNode.type === 'ABSTRACT_CLASS'
-              ? {
-                  label: editingNode.name,
-                  generics: editingNode.generics,
-                  attributes: editingNode.type !== 'INTERFACE' ? editingNode.attributes : [],
-                  methods: editingNode.methods,
-                  stereotype: 
-                    editingNode.type === 'CLASS' ? 'class' : 
-                    editingNode.type === 'INTERFACE' ? 'interface' : 'abstract',
-                  package: editingNode.package,
-                }
-              : editingNode.type === 'ENUM'
-              ? {
-                  label: editingNode.name,
-                  attributes: [],
-                  methods: [],
-                  stereotype: 'enum' as const,
-                  package: editingNode.package,
-                  // Hydrate existing literals so the editor can display them
-                  literals: (editingNode.literals ?? []).map((l) => ({
-                    id: l.id,
-                    name: l.name,
-                    value: l.value !== undefined ? String(l.value) : undefined,
-                  })),
-                }
-              : {
-                  label: '',
-                  attributes: [],
-                  methods: [],
-                  stereotype: 'class',
-                }
-          }
-          onClose={closeModals}
-          onSave={(newData) => {
-            if (editingNode.type === 'CLASS' || editingNode.type === 'ABSTRACT_CLASS') {
-              updateNode(editingNode.id, {
-                name: newData.label,
-                generics: newData.generics,
-                attributes: newData.attributes,
-                methods: newData.methods,
-                package: newData.package,
-              });
-            } else if (editingNode.type === 'INTERFACE') {
-              updateNode(editingNode.id, {
-                name: newData.label,
-                generics: newData.generics,
-                methods: newData.methods,
-                package: newData.package,
-              });
-            } else if (editingNode.type === 'ENUM') {
-              updateNode(editingNode.id, {
-                name: newData.label,
-                package: newData.package,
-                // Persist literals back to the domain EnumNode
-                literals: (newData.literals ?? []).map((l) => ({
-                  id: l.id,
-                  name: l.name,
-                  value: l.value !== undefined && l.value !== '' ? l.value : undefined,
-                })),
-              });
-            }
-            closeModals();
-          }}
-        />
-      )}
-
-      {activeModal === 'multiplicity-editor' && editingEdge && (
-        <MultiplicityModal
-          isOpen={true}
-          initialSource={
-            (editingEdge.type === 'ASSOCIATION' ||
-             editingEdge.type === 'AGGREGATION' ||
-             editingEdge.type === 'COMPOSITION')
-              ? (editingEdge as AssociationEdge | AggregationEdge | CompositionEdge).sourceMultiplicity ?? ""
-              : ""
-          }
-          initialTarget={
-            (editingEdge.type === 'ASSOCIATION' ||
-             editingEdge.type === 'AGGREGATION' ||
-             editingEdge.type === 'COMPOSITION')
-              ? (editingEdge as AssociationEdge | AggregationEdge | CompositionEdge).targetMultiplicity ?? ""
-              : ""
-          }
-          onClose={closeModals}
-          onSave={(source, target) => {
-            updateEdge(editingEdge.id, {
-              sourceMultiplicity: source,
-              targetMultiplicity: target,
-            } as Partial<AssociationEdge>);
-            closeModals();
-          }}
-        />
-      )}
-
-
       <ConfirmationModal
         isOpen={activeModal === 'clear-confirmation'}
         title={t("modals.confirmation.clearTitle")}
@@ -487,6 +325,10 @@ export default function DiagramCanvas() {
       <AutoLayoutLockedWarningModal />
 
       <SpotlightModal />
+
+      {isGetStartedOpen && (
+        <GetStartedWidget onLoadTemplate={handleLoadTemplate} />
+      )}
     </div>
   );
 }

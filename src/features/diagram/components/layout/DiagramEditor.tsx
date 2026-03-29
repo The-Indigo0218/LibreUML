@@ -21,6 +21,7 @@ import SingleClassGeneratorModal from "../modals/SingleClassGeneratorModal";
 import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
 import ImportCodeModal from "../modals/ImportCodeModal";
 import CodeExportConfigModal from "../modals/CodeExportConfigModal";
+import WikiModal from "../../../../components/Wiki/WikiModal";
 import { useUiStore } from "../../../../store/uiStore";
 import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
@@ -162,6 +163,10 @@ function EditorLogic() {
       />
       <CodeExportConfigModal
         isOpen={activeModal === 'code-export-config'}
+        onClose={closeModals}
+      />
+      <WikiModal
+        isOpen={activeModal === 'wiki'}
         onClose={closeModals}
       />
     </div>

@@ -1,5 +1,6 @@
-import { FolderTree, Package, Wrench, UserCircle, Cloud, Github, Bug } from "lucide-react";
+import { FolderTree, Package, Wrench, UserCircle, Cloud, Github, Bug, MonitorPlay } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useUiStore } from "../../../../store/uiStore";
 
 export type ActivityTab = "structure" | "packages" | "tools" | "profile" | "cloud" | "github" | null;
 
@@ -10,6 +11,8 @@ interface ActivityBarProps {
 
 export default function ActivityBar({ activeTab, onTabChange }: ActivityBarProps) {
   const { t } = useTranslation();
+  const toggleGetStarted = useUiStore((s) => s.toggleGetStarted);
+  const isGetStartedOpen = useUiStore((s) => s.isGetStartedOpen);
 
   const handleTabClick = (tab: ActivityTab) => {
     onTabChange(activeTab === tab ? null : tab);
@@ -59,12 +62,24 @@ export default function ActivityBar({ activeTab, onTabChange }: ActivityBarProps
         onClick={() => handleTabClick("github")}
       />
 
+      <button
+        onClick={toggleGetStarted}
+        title={t("activityBar.getStarted")}
+        className={`mt-auto w-10 h-10 flex items-center justify-center rounded-md transition-all duration-200 ${
+          isGetStartedOpen
+            ? "text-purple-400 bg-purple-500/10"
+            : "text-text-muted hover:text-text-primary hover:bg-surface-hover"
+        }`}
+      >
+        <MonitorPlay className="w-5 h-5" />
+      </button>
+
       <a
         href="https://forms.gle/GBTnWcmEMV1EryMZ8"
         target="_blank"
         rel="noopener noreferrer"
         title="Report Bug"
-        className="mt-auto w-10 h-10 flex items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover transition-all duration-200"
+        className="w-10 h-10 flex items-center justify-center rounded-md text-text-muted hover:text-text-primary hover:bg-surface-hover transition-all duration-200"
       >
         <Bug className="w-5 h-5" />
       </a>

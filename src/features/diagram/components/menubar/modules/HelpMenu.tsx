@@ -5,7 +5,7 @@ import {
   Map,
   Info,
   Rocket,
-  Keyboard
+  Keyboard,
 } from "lucide-react";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
@@ -16,6 +16,7 @@ import HelpDocumentationModal from "../../modals/HelpDocumentationModal";
 export function HelpMenuContent({ onOpenDocs }: { onOpenDocs: () => void }) {
   const { t } = useTranslation();
   const openKeyboardShortcuts = useUiStore((s) => s.openKeyboardShortcuts);
+  const toggleGetStarted = useUiStore((s) => s.toggleGetStarted);
 
   const reportIssue = () => window.open("https://github.com/The-Indigo0218/LibreUML/issues", "_blank");
   const openRoadmap = () => window.open("https://github.com/The-Indigo0218/LibreUML/blob/main/roadmap.md", "_blank");
@@ -29,7 +30,7 @@ export function HelpMenuContent({ onOpenDocs }: { onOpenDocs: () => void }) {
       <MenubarItem
         label={t("menubar.help.gettingStarted")}
         icon={<Rocket className="w-4 h-4" />}
-        disabled={true}
+        onClick={toggleGetStarted}
       />
 
       <MenubarItem

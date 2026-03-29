@@ -1,13 +1,14 @@
 import { useCallback } from "react";
 import { useReactFlow } from "reactflow";
 import { useTranslation } from "react-i18next";
-import { useProjectStore } from "../../../store/project.store";
-import { useWorkspaceStore } from "../../../store/workspace.store";
 import { useUiStore } from "../../../store/uiStore";
-import { useDiagram } from "../../workspace/hooks/useDiagram";
-import type { DomainEdge } from "../../../core/domain/models/edges";
-import type { DomainNode } from "../../../core/domain/models";
-import type { ClassDiagramMetadata } from "../../../core/domain/workspace/diagram-file.types";
+import { useWorkspaceStore } from "../../../store/workspace.store";
+import { useVFSStore } from "../../../store/project-vfs.store";
+import { useModelStore } from "../../../store/model.store";
+import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../store/standaloneModelOps";
+import { isDiagramView } from "./useVFSCanvasController";
+import { getNextVFSName } from "./useDiagramDnD";
+import type { DiagramView, ViewNode, VFSFile } from "../../../core/domain/vfs/vfs.types";
 
 export type ContextMenuType = "pane" | "node" | "edge";
 
@@ -23,18 +24,20 @@ interface UseDiagramMenusProps {
   onClearCanvas: () => void;
   onEditEdgeMultiplicity: (edgeId: string) => void;
   onGenerateMethods?: (nodeId: string) => void;
-  onDeleteNode?: (nodeId: string) => void;
-  onDeleteNodeFromModel?: (nodeId: string) => void;
-  onDeleteEdge?: (edgeId: string) => void;
-  onReverseEdge?: (edgeId: string) => void;
-  onChangeEdgeKind?: (edgeId: string, kind: string) => void;
-  onAddToProject?: (nodeId: string) => void;
-  /** For VFS canvases: returns the semantic kind ('CLASS', 'INTERFACE', etc.) of a node by its ReactFlow ID. */
-  getVFSNodeKind?: (nodeId: string) => string | undefined;
-  /** For VFS canvases: returns true if the node's IR element has isExternal: true. */
-  getIsNodeExternal?: (nodeId: string) => boolean;
-  /** For VFS canvases: resolves a ReactFlow ViewNode.id to its semantic elementId. */
-  getElementId?: (nodeId: string) => string | undefined;
+  onDeleteNode: (nodeId: string) => void;
+  onDeleteNodeFromModel: (nodeId: string) => void;
+  onDeleteEdge: (edgeId: string) => void;
+  onReverseEdge: (edgeId: string) => void;
+  onChangeEdgeKind: (edgeId: string, kind: string) => void;
+  onAddToProject: (nodeId: string) => void;
+  /** Returns the semantic kind ('CLASS', 'INTERFACE', etc.) of a node by its ReactFlow ID. */
+  getVFSNodeKind: (nodeId: string) => string | undefined;
+  /** Returns true if the node's IR element has isExternal: true. */
+  getIsNodeExternal: (nodeId: string) => boolean;
+  /** Resolves a ReactFlow ViewNode.id to its semantic elementId. */
+  getElementId: (nodeId: string) => string | undefined;
+  /** True when the active diagram is a standalone .luml file (no project). */
+  isStandalone?: boolean;
 }
 
 export const useDiagramMenus = ({
@@ -51,134 +54,89 @@ export const useDiagramMenus = ({
   getVFSNodeKind,
   getIsNodeExternal,
   getElementId,
+  isStandalone = false,
 }: UseDiagramMenusProps) => {
   const { screenToFlowPosition } = useReactFlow();
   const { t } = useTranslation();
 
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator);
 
-  const { addNodeToDiagram, file, registry } = useDiagram();
-  const getNode = useProjectStore((s) => s.getNode);
-  const addNode = useProjectStore((s) => s.addNode);
-  const getEdge = useProjectStore((s) => s.getEdge);
-  const removeNode = useProjectStore((s) => s.removeNode);
-  const removeEdge = useProjectStore((s) => s.removeEdge);
-  const updateEdge = useProjectStore((s) => s.updateEdge);
-  const getEdgeIdsForNode = useProjectStore((s) => s.getEdgeIdsForNode);
-  const addNodeToFile = useWorkspaceStore((s) => s.addNodeToFile);
-  const updateFile = useWorkspaceStore((s) => s.updateFile);
-  const removeNodeFromFile = useWorkspaceStore((s) => s.removeNodeFromFile);
-  const removeEdgeFromFile = useWorkspaceStore((s) => s.removeEdgeFromFile);
-  const markFileDirty = useWorkspaceStore((s) => s.markFileDirty);
+  // ── VFS node creation for pane context menu ─────────────────────────────────
 
-  const deleteNode = useCallback(
-    (nodeId: string) => {
-      if (!file) return;
+  const addVFSNode = useCallback(
+    (kind: 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE', position: { x: number; y: number }) => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
 
-      const connectedEdgeIds = getEdgeIdsForNode(nodeId);
+      const freshProject = useVFSStore.getState().project;
+      if (!freshProject) return;
+      const fileNode = freshProject.nodes[tabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      const freshContent = (fileNode as VFSFile).content;
+      if (!isDiagramView(freshContent)) return;
+      const freshView = freshContent as DiagramView;
 
-      removeNodeFromFile(file.id, nodeId);
-      connectedEdgeIds.forEach((edgeId) => {
-        removeEdgeFromFile(file.id, edgeId);
-      });
+      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+      let semanticId = '';
 
-      removeNode(nodeId);
-      markFileDirty(file.id);
-    },
-    [file, getEdgeIdsForNode, removeEdgeFromFile, removeNodeFromFile, removeNode, markFileDirty]
-  );
+      if (kind === 'NOTE') {
+        // Notes have no semantic backing
+      } else if (isStandaloneFile) {
+        ensureLocalModel(tabId);
+        const localM = getLocalModel(tabId);
+        if (!localM) return;
+        const ops = standaloneModelOps(tabId);
+        switch (kind) {
+          case 'CLASS':
+            semanticId = ops.createClass({ name: getNextVFSName(Object.values(localM.classes).filter(c => !c.isAbstract).map(c => c.name), 'Class'), attributeIds: [], operationIds: [] });
+            break;
+          case 'ABSTRACT_CLASS':
+            semanticId = ops.createAbstractClass({ name: getNextVFSName(Object.values(localM.classes).filter(c => !!c.isAbstract).map(c => c.name), 'Abstract'), attributeIds: [], operationIds: [] });
+            break;
+          case 'INTERFACE':
+            semanticId = ops.createInterface({ name: getNextVFSName(Object.values(localM.interfaces).map(i => i.name), 'Interface'), operationIds: [] });
+            break;
+          case 'ENUM':
+            semanticId = ops.createEnum({ name: getNextVFSName(Object.values(localM.enums).map(e => e.name), 'Enum'), literals: [] });
+            break;
+        }
+      } else {
+        const ms = useModelStore.getState();
+        if (!ms.model) ms.initModel(freshProject.domainModelId ?? crypto.randomUUID());
+        const model = useModelStore.getState().model!;
+        const isExternalFile = !!(fileNode as VFSFile).isExternal;
+        switch (kind) {
+          case 'CLASS':
+            semanticId = ms.createClass({ name: getNextVFSName(Object.values(model.classes).filter(c => !c.isAbstract).map(c => c.name), 'Class'), attributeIds: [], operationIds: [], ...(isExternalFile ? { isExternal: true } : {}) });
+            break;
+          case 'ABSTRACT_CLASS':
+            semanticId = ms.createAbstractClass({ name: getNextVFSName(Object.values(model.classes).filter(c => !!c.isAbstract).map(c => c.name), 'Abstract'), attributeIds: [], operationIds: [], ...(isExternalFile ? { isExternal: true } : {}) });
+            break;
+          case 'INTERFACE':
+            semanticId = ms.createInterface({ name: getNextVFSName(Object.values(model.interfaces).map(i => i.name), 'Interface'), operationIds: [], ...(isExternalFile ? { isExternal: true } : {}) });
+            break;
+          case 'ENUM':
+            semanticId = ms.createEnum({ name: getNextVFSName(Object.values(model.enums).map(e => e.name), 'Enum'), literals: [], ...(isExternalFile ? { isExternal: true } : {}) });
+            break;
+        }
+      }
 
-  const duplicateNode = useCallback(
-    (nodeId: string) => {
-      if (!file || !registry) return;
-
-      const originalNode = getNode(nodeId);
-      if (!originalNode) return;
-
-      const newNode = registry.factories.createNode(originalNode.type);
-
-      const baseName = 'name' in originalNode
-        ? (originalNode as { name: string }).name
-        : 'Node';
-
-      const duplicatedNode = {
-        ...originalNode,
-        id: newNode.id,
-        createdAt: newNode.createdAt,
-        updatedAt: newNode.updatedAt,
-        ...('name' in originalNode ? { name: `${baseName}_copy` } : {}),
-      } as DomainNode;
-
-      addNode(duplicatedNode);
-      addNodeToFile(file.id, newNode.id);
-
-      const classMeta = file.metadata as ClassDiagramMetadata | undefined;
-      const positionMap = classMeta?.positionMap ?? {};
-      const originalPosition = positionMap[nodeId] ?? { x: 0, y: 0 };
-
-      const newPositionMap = {
-        ...positionMap,
-        [newNode.id]: {
-          x: originalPosition.x + 50,
-          y: originalPosition.y + 50,
-        },
+      const viewNode: ViewNode = {
+        id: crypto.randomUUID(),
+        elementId: semanticId,
+        x: position.x,
+        y: position.y,
       };
 
-      updateFile(file.id, {
-        metadata: {
-          ...classMeta,
-          positionMap: newPositionMap,
-        } as ClassDiagramMetadata,
+      useVFSStore.getState().updateFileContent(tabId, {
+        ...freshView,
+        nodes: [...freshView.nodes, viewNode],
       });
-
-      markFileDirty(file.id);
     },
-    [file, registry, getNode, addNode, addNodeToFile, updateFile, markFileDirty]
+    [],
   );
 
-  const deleteEdge = useCallback(
-    (edgeId: string) => {
-      if (!file) return;
-
-      removeEdgeFromFile(file.id, edgeId);
-      removeEdge(edgeId);
-      markFileDirty(file.id);
-    },
-    [file, removeEdgeFromFile, removeEdge, markFileDirty]
-  );
-
-  const reverseEdge = useCallback(
-    (edgeId: string) => {
-      const edge = getEdge(edgeId);
-      if (!edge) return;
-
-      updateEdge(edgeId, {
-        sourceNodeId: edge.targetNodeId,
-        targetNodeId: edge.sourceNodeId,
-      });
-
-      if (file) {
-        markFileDirty(file.id);
-      }
-    },
-    [getEdge, updateEdge, file, markFileDirty]
-  );
-
-  const changeEdgeType = useCallback(
-    (edgeId: string, newType: string) => {
-      const edge = getEdge(edgeId);
-      if (!edge) return;
-
-      updateEdge(edgeId, {
-        type: newType as DomainEdge['type'],
-      });
-
-      if (file) {
-        markFileDirty(file.id);
-      }
-    },
-    [getEdge, updateEdge, file, markFileDirty]
-  );
+  // ── getMenuOptions ────────────────────────────────────────────────────────
 
   const getMenuOptions = useCallback(
     (menu: ContextMenuState | null): { label: string; onClick: () => void; danger?: boolean }[] => {
@@ -190,28 +148,28 @@ export const useDiagramMenus = ({
             label: t("contextMenu.pane.addClass"),
             onClick: () => {
               const position = screenToFlowPosition({ x: menu.x, y: menu.y });
-              addNodeToDiagram("CLASS", position);
+              addVFSNode("CLASS", position);
             },
           },
           {
             label: t("contextMenu.pane.addInterface"),
             onClick: () => {
               const position = screenToFlowPosition({ x: menu.x, y: menu.y });
-              addNodeToDiagram("INTERFACE", position);
+              addVFSNode("INTERFACE", position);
             },
           },
           {
             label: t("contextMenu.pane.addAbstract"),
             onClick: () => {
               const position = screenToFlowPosition({ x: menu.x, y: menu.y });
-              addNodeToDiagram("ABSTRACT_CLASS", position);
+              addVFSNode("ABSTRACT_CLASS", position);
             },
           },
           {
             label: t("contextMenu.pane.addNote"),
             onClick: () => {
               const position = screenToFlowPosition({ x: menu.x, y: menu.y });
-              addNodeToDiagram("NOTE", position);
+              addVFSNode("NOTE", position);
             },
           },
           {
@@ -224,21 +182,14 @@ export const useDiagramMenus = ({
 
       if (menu.type === "node" && menu.id) {
         const nodeId = menu.id;
-        const node = getNode(nodeId);
-        // For VFS canvases, getNode returns undefined; fall back to the VFS kind resolver.
-        const vfsKind = getVFSNodeKind?.(nodeId);
-        const effectiveType = node?.type ?? vfsKind;
+        const effectiveType = getVFSNodeKind(nodeId);
         const isClassType =
           effectiveType === "CLASS" ||
           effectiveType === "INTERFACE" ||
           effectiveType === "ABSTRACT_CLASS";
-        const isNodeExternal = getIsNodeExternal?.(nodeId) ?? false;
+        const isNodeExternal = getIsNodeExternal(nodeId);
 
         const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [
-          {
-            label: t("contextMenu.node.duplicate"),
-            onClick: () => duplicateNode(nodeId),
-          },
           {
             label: t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
@@ -246,7 +197,7 @@ export const useDiagramMenus = ({
         ];
 
         if (isClassType) {
-          const resolvedId = getElementId?.(nodeId) ?? nodeId;
+          const resolvedId = getElementId(nodeId) ?? nodeId;
           baseOptions.push({
             label: t("contextMenu.node.generateCode"),
             icon: "code",
@@ -262,7 +213,7 @@ export const useDiagramMenus = ({
           }
         }
 
-        if (onAddToProject && isNodeExternal) {
+        if (isNodeExternal) {
           baseOptions.push({
             label: t("contextMenu.node.addToProject") || "Add to Project",
             icon: "plus",
@@ -270,22 +221,16 @@ export const useDiagramMenus = ({
           });
         }
 
-        if (onDeleteNodeFromModel) {
-          baseOptions.push({
-            label: t("contextMenu.node.removeFromDiagram"),
-            onClick: () => onDeleteNode!(nodeId),
-          });
+        baseOptions.push({
+          label: t("contextMenu.node.removeFromDiagram"),
+          onClick: () => onDeleteNode(nodeId),
+        });
+        if (!isStandalone) {
           baseOptions.push({
             label: isNodeExternal
               ? t("contextMenu.node.removeFromCanvas")
               : t("contextMenu.node.deleteFromModel"),
             onClick: () => onDeleteNodeFromModel(nodeId),
-            danger: true,
-          });
-        } else {
-          baseOptions.push({
-            label: t("contextMenu.node.delete"),
-            onClick: () => (onDeleteNode ?? deleteNode)(nodeId),
             danger: true,
           });
         }
@@ -296,114 +241,42 @@ export const useDiagramMenus = ({
       if (menu.type === "edge" && menu.id) {
         const edgeId = menu.id;
 
-        if (onDeleteEdge) {
-          const typeOptions = [
-            {
-              label: t("contextMenu.edge.toAssociation"),
-              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "ASSOCIATION"),
-            },
-            {
-              label: t("contextMenu.edge.toInheritance"),
-              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "INHERITANCE"),
-            },
-            {
-              label: t("contextMenu.edge.toImplementation"),
-              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "IMPLEMENTATION"),
-            },
-            {
-              label: t("contextMenu.edge.toDependency"),
-              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "DEPENDENCY"),
-            },
-            {
-              label: t("contextMenu.edge.toAggregation"),
-              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "AGGREGATION"),
-            },
-            {
-              label: t("contextMenu.edge.toComposition"),
-              onClick: () => (onChangeEdgeKind ?? changeEdgeType)(edgeId, "COMPOSITION"),
-            },
-          ];
-
-          return [
-            {
-              label: t("contextMenu.edge.reverse"),
-              onClick: () => (onReverseEdge ?? reverseEdge)(edgeId),
-            },
-            ...typeOptions,
-            {
-              label: t("contextMenu.edge.delete"),
-              onClick: () => onDeleteEdge(edgeId),
-              danger: true,
-            },
-          ];
-        }
-
-        const edge = getEdge(edgeId);
-        const type = edge?.type || "ASSOCIATION";
-        const isNoteEdge = type === "NOTE_LINK";
-
-        if (isNoteEdge) {
-          return [
-            {
-              label: t("contextMenu.edge.delete"),
-              onClick: () => deleteEdge(edgeId),
-              danger: true,
-            },
-          ];
-        }
-
-        const supportsMultiplicity = ["ASSOCIATION", "AGGREGATION", "COMPOSITION"].includes(type);
-
-        const multiplicityOptions = supportsMultiplicity
-          ? [
-              {
-                label: t("contextMenu.edge.defineMultiplicity"),
-                onClick: () => onEditEdgeMultiplicity(edgeId),
-              },
-            ]
-          : [];
-
-        const baseOptions = [
-          {
-            label: t("contextMenu.edge.reverse"),
-            onClick: () => reverseEdge(edgeId),
-          },
-        ];
-
         const typeOptions = [
           {
             label: t("contextMenu.edge.toAssociation"),
-            onClick: () => changeEdgeType(edgeId, "ASSOCIATION"),
+            onClick: () => onChangeEdgeKind(edgeId, "ASSOCIATION"),
           },
           {
             label: t("contextMenu.edge.toInheritance"),
-            onClick: () => changeEdgeType(edgeId, "INHERITANCE"),
+            onClick: () => onChangeEdgeKind(edgeId, "INHERITANCE"),
           },
           {
             label: t("contextMenu.edge.toImplementation"),
-            onClick: () => changeEdgeType(edgeId, "IMPLEMENTATION"),
+            onClick: () => onChangeEdgeKind(edgeId, "IMPLEMENTATION"),
           },
           {
             label: t("contextMenu.edge.toDependency"),
-            onClick: () => changeEdgeType(edgeId, "DEPENDENCY"),
+            onClick: () => onChangeEdgeKind(edgeId, "DEPENDENCY"),
           },
           {
             label: t("contextMenu.edge.toAggregation"),
-            onClick: () => changeEdgeType(edgeId, "AGGREGATION"),
+            onClick: () => onChangeEdgeKind(edgeId, "AGGREGATION"),
           },
           {
             label: t("contextMenu.edge.toComposition"),
-            onClick: () => changeEdgeType(edgeId, "COMPOSITION"),
+            onClick: () => onChangeEdgeKind(edgeId, "COMPOSITION"),
           },
         ];
 
         return [
-          ...baseOptions,
-          ...multiplicityOptions,
+          {
+            label: t("contextMenu.edge.reverse"),
+            onClick: () => onReverseEdge(edgeId),
+          },
           ...typeOptions,
           {
             label: t("contextMenu.edge.delete"),
-            onClick: () => deleteEdge(edgeId),
+            onClick: () => onDeleteEdge(edgeId),
             danger: true,
           },
         ];
@@ -412,19 +285,12 @@ export const useDiagramMenus = ({
       return [];
     },
     [
-      addNodeToDiagram,
-      duplicateNode,
-      deleteNode,
+      addVFSNode,
       onDeleteNode,
       onDeleteNodeFromModel,
-      reverseEdge,
-      changeEdgeType,
-      deleteEdge,
       onDeleteEdge,
       onReverseEdge,
       onChangeEdgeKind,
-      getNode,
-      getEdge,
       onClearCanvas,
       onEditNode,
       onEditEdgeMultiplicity,
@@ -435,6 +301,7 @@ export const useDiagramMenus = ({
       getVFSNodeKind,
       getIsNodeExternal,
       getElementId,
+      isStandalone,
       t,
     ]
   );

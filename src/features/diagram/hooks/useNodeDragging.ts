@@ -1,27 +1,92 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { Node } from "reactflow";
+import { useWorkspaceStore } from "../../../store/workspace.store";
+import { useVFSStore } from "../../../store/project-vfs.store";
+import { isDiagramView } from "./useVFSCanvasController";
+import type { VFSFile, DiagramView } from "../../../core/domain/vfs/vfs.types";
 
 /**
- * Node dragging hook - SSOT Version
- * 
- * The legacy version used temporal (zundo) for history snapshots and
- * recalculated edge connections on drag. In the new SSOT architecture:
- * - Position changes are persisted via useDiagram.onNodesChange
- * - Edge connections are computed from domain data (no recalculation needed)
- * - Undo/redo will be re-implemented as a future feature
+ * Pre-drag position snapshot — saved on drag start, available for undo.
+ * Maps ReactFlow node ID → { x, y } from the ViewNode before the drag began.
+ */
+export interface DragSnapshot {
+  tabId: string;
+  positions: Map<string, { x: number; y: number }>;
+}
+
+/**
+ * Node dragging hook — VFS architecture.
+ *
+ * - onNodeDragStart: captures pre-drag positions of ALL dragged nodes into a ref.
+ * - onNodeDragStop: persists final positions to VFSStore and exposes the snapshot
+ *   for future undo integration.
+ *
+ * POSITION FLOW:
+ *   During drag → onNodesChange (in useVFSCanvasController) writes intermediate
+ *                 positions to VFSStore so the controlled ReactFlow rerenders correctly.
+ *   Drag end   → onNodeDragStop writes the final positions (authoritative commit)
+ *                 and stores the pre-drag snapshot for undo.
+ *
+ * The intermediate writes in onNodesChange are necessary because ReactFlow is
+ * fully controlled (nodes come from VFSStore via useMemo). Without them the
+ * visual drag wouldn't work.
  */
 export const useNodeDragging = () => {
-  const onNodeDragStart = useCallback(() => {
-    // Future: trigger history snapshot for undo/redo
-  }, []);
+  /** Pre-drag snapshot — persists across the drag lifecycle. */
+  const dragSnapshotRef = useRef<DragSnapshot | null>(null);
 
-  const onNodeDragStop = useCallback(
-    (_: React.MouseEvent, _node: Node) => {
-      // Position is already persisted by useDiagram.onNodesChange
-      // Edge recalculation is handled by the view mapper
+  const onNodeDragStart = useCallback(
+    (_event: React.MouseEvent, _node: Node, draggedNodes: Node[]) => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
+
+      // Capture pre-drag positions for all nodes being dragged.
+      const positions = new Map<string, { x: number; y: number }>();
+      for (const n of draggedNodes) {
+        positions.set(n.id, { x: n.position.x, y: n.position.y });
+      }
+      dragSnapshotRef.current = { tabId, positions };
     },
-    []
+    [],
   );
 
-  return { onNodeDragStart, onNodeDragStop };
+  const onNodeDragStop = useCallback(
+    (_event: React.MouseEvent, _node: Node, draggedNodes: Node[]) => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
+
+      // Persist final positions to VFSStore.
+      const currentProject = useVFSStore.getState().project;
+      if (!currentProject) return;
+      const fileNode = currentProject.nodes[tabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      if (!isDiagramView((fileNode as VFSFile).content)) return;
+
+      const currentView = (fileNode as VFSFile).content as DiagramView;
+
+      // Build a lookup for quick position update
+      const finalPositions = new Map<string, { x: number; y: number }>();
+      for (const n of draggedNodes) {
+        finalPositions.set(n.id, { x: n.position.x, y: n.position.y });
+      }
+
+      const updatedNodes = currentView.nodes.map((vn) => {
+        const pos = finalPositions.get(vn.id);
+        return pos ? { ...vn, x: pos.x, y: pos.y } : vn;
+      });
+
+      useVFSStore.getState().updateFileContent(tabId, {
+        ...currentView,
+        nodes: updatedNodes,
+      });
+
+      // The pre-drag snapshot in dragSnapshotRef.current is now available
+      // for a future undo system to push onto its history stack.
+      // For now, just reset it.
+      dragSnapshotRef.current = null;
+    },
+    [],
+  );
+
+  return { onNodeDragStart, onNodeDragStop, dragSnapshotRef };
 };

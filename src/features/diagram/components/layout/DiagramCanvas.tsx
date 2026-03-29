@@ -210,6 +210,7 @@ export default function DiagramCanvas() {
     getElementId: (nodeId: string) =>
       vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId)
         ?.elementId,
+    isStandalone: vfsController.isStandalone,
   });
 
   const {

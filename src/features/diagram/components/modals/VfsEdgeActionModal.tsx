@@ -6,6 +6,7 @@ import { useUiStore } from '../../../../store/uiStore';
 import { useVFSStore } from '../../../../store/project-vfs.store';
 import { useModelStore } from '../../../../store/model.store';
 import { useWorkspaceStore } from '../../../../store/workspace.store';
+import { standaloneModelOps } from '../../../../store/standaloneModelOps';
 import { isDiagramView } from '../../hooks/useVFSCanvasController';
 import type { VFSFile, RelationKind, SemanticModel } from '../../../../core/domain/vfs/vfs.types';
 
@@ -60,17 +61,22 @@ export default function VfsEdgeActionModal() {
 
   const isOpen = activeModal === 'vfs-edge-action' && !!editingId;
 
-  const { viewEdge, relation } = useMemo(() => {
-    if (!isOpen || !editingId || !project || !model || !activeTabId)
-      return { viewEdge: undefined, relation: undefined };
+  const { viewEdge, relation, activeModel } = useMemo(() => {
+    const none = { viewEdge: undefined, relation: undefined, activeModel: null as SemanticModel | null };
+    if (!isOpen || !editingId || !project || !activeTabId) return none;
     const fileNode = project.nodes[activeTabId];
-    if (!fileNode || fileNode.type !== 'FILE') return { viewEdge: undefined, relation: undefined };
+    if (!fileNode || fileNode.type !== 'FILE') return none;
+    const isStandalone = (fileNode as VFSFile).standalone === true;
+    const resolvedModel: SemanticModel | null | undefined = isStandalone
+      ? ((fileNode as VFSFile).localModel ?? null)
+      : model;
+    if (!resolvedModel) return none;
     const content = (fileNode as VFSFile).content;
-    if (!isDiagramView(content)) return { viewEdge: undefined, relation: undefined };
+    if (!isDiagramView(content)) return none;
     const ve = content.edges.find((e) => e.id === editingId);
-    if (!ve) return { viewEdge: undefined, relation: undefined };
-    const rel = model.relations[ve.relationId];
-    return { viewEdge: ve, relation: rel ?? undefined };
+    if (!ve) return none;
+    const rel = resolvedModel.relations[ve.relationId];
+    return { viewEdge: ve, relation: rel ?? undefined, activeModel: resolvedModel };
   }, [isOpen, editingId, project, model, activeTabId]);
 
   const [kind, setKind] = useState<RelationKind>('ASSOCIATION');
@@ -93,10 +99,10 @@ export default function VfsEdgeActionModal() {
     }
   }, [isOpen, viewEdge, relation]);
 
-  if (!isOpen || !viewEdge || !relation || !model) return null;
+  if (!isOpen || !viewEdge || !relation || !activeModel) return null;
 
-  const sourceName = getElementName(model, relation.sourceId);
-  const targetName = getElementName(model, relation.targetId);
+  const sourceName = getElementName(activeModel, relation.sourceId);
+  const targetName = getElementName(activeModel, relation.targetId);
   const displaySource = reversed ? targetName : sourceName;
   const displayTarget = reversed ? sourceName : targetName;
 
@@ -108,17 +114,24 @@ export default function VfsEdgeActionModal() {
   const handleSave = () => {
     if (!canSave) return;
 
-    updateRelation(relation.id, {
-      kind,
-      ...(reversed
-        ? { sourceId: relation.targetId, targetId: relation.sourceId }
-        : {}),
-    });
-
     const freshProject = useVFSStore.getState().project;
     if (!activeTabId || !freshProject) { closeModals(); return; }
     const fileNode = freshProject.nodes[activeTabId];
     if (!fileNode || fileNode.type !== 'FILE') { closeModals(); return; }
+    const isStandalone = (fileNode as VFSFile).standalone === true;
+
+    const relationPatch = {
+      kind,
+      ...(reversed
+        ? { sourceId: relation.targetId, targetId: relation.sourceId }
+        : {}),
+    };
+    if (isStandalone) {
+      standaloneModelOps(activeTabId).updateRelation(relation.id, relationPatch);
+    } else {
+      updateRelation(relation.id, relationPatch);
+    }
+
     const content = (fileNode as VFSFile).content;
     if (!isDiagramView(content)) { closeModals(); return; }
 
@@ -139,18 +152,24 @@ export default function VfsEdgeActionModal() {
   };
 
   const handleDelete = () => {
-    deleteRelation(relation.id);
     const freshProject = useVFSStore.getState().project;
-    if (activeTabId && freshProject) {
-      const fileNode = freshProject.nodes[activeTabId];
-      if (fileNode && fileNode.type === 'FILE') {
-        const content = (fileNode as VFSFile).content;
-        if (isDiagramView(content)) {
-          updateFileContent(activeTabId, {
-            ...content,
-            edges: content.edges.filter((e) => e.id !== viewEdge.id),
-          });
-        }
+    if (!activeTabId || !freshProject) { closeModals(); return; }
+    const fileNode = freshProject.nodes[activeTabId];
+    const isStandalone = fileNode?.type === 'FILE' && (fileNode as VFSFile).standalone === true;
+
+    if (isStandalone) {
+      standaloneModelOps(activeTabId).deleteRelation(relation.id);
+    } else {
+      deleteRelation(relation.id);
+    }
+
+    if (activeTabId && freshProject && fileNode && fileNode.type === 'FILE') {
+      const content = (fileNode as VFSFile).content;
+      if (isDiagramView(content)) {
+        updateFileContent(activeTabId, {
+          ...content,
+          edges: content.edges.filter((e) => e.id !== viewEdge.id),
+        });
       }
     }
     closeModals();

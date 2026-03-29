@@ -36,6 +36,8 @@ interface UseDiagramMenusProps {
   getIsNodeExternal: (nodeId: string) => boolean;
   /** Resolves a ReactFlow ViewNode.id to its semantic elementId. */
   getElementId: (nodeId: string) => string | undefined;
+  /** True when the active diagram is a standalone .luml file (no project). */
+  isStandalone?: boolean;
 }
 
 export const useDiagramMenus = ({
@@ -52,6 +54,7 @@ export const useDiagramMenus = ({
   getVFSNodeKind,
   getIsNodeExternal,
   getElementId,
+  isStandalone = false,
 }: UseDiagramMenusProps) => {
   const { screenToFlowPosition } = useReactFlow();
   const { t } = useTranslation();
@@ -222,13 +225,15 @@ export const useDiagramMenus = ({
           label: t("contextMenu.node.removeFromDiagram"),
           onClick: () => onDeleteNode(nodeId),
         });
-        baseOptions.push({
-          label: isNodeExternal
-            ? t("contextMenu.node.removeFromCanvas")
-            : t("contextMenu.node.deleteFromModel"),
-          onClick: () => onDeleteNodeFromModel(nodeId),
-          danger: true,
-        });
+        if (!isStandalone) {
+          baseOptions.push({
+            label: isNodeExternal
+              ? t("contextMenu.node.removeFromCanvas")
+              : t("contextMenu.node.deleteFromModel"),
+            onClick: () => onDeleteNodeFromModel(nodeId),
+            danger: true,
+          });
+        }
 
         return baseOptions;
       }
@@ -296,6 +301,7 @@ export const useDiagramMenus = ({
       getVFSNodeKind,
       getIsNodeExternal,
       getElementId,
+      isStandalone,
       t,
     ]
   );

@@ -212,6 +212,26 @@ export function useCanvasEventHandlers({
         return;
       }
 
+      // Block bidirectional aggregation/composition — UML ISO forbids two-way whole-part.
+      const BIDIR_FORBIDDEN = new Set<RelationKind>(['AGGREGATION', 'COMPOSITION']);
+      if (BIDIR_FORBIDDEN.has(kind)) {
+        const activeModel = isStandalone && activeTabId
+          ? getLocalModel(activeTabId)
+          : useModelStore.getState().model;
+        if (activeModel) {
+          const hasBidir = Object.values(activeModel.relations).some(
+            (rel) =>
+              rel.sourceId === targetVN.elementId &&
+              rel.targetId === sourceVN.elementId &&
+              BIDIR_FORBIDDEN.has(rel.kind),
+          );
+          if (hasBidir) {
+            useToastStore.getState().show('⚠️ Relación inválida según normas UML ISO');
+            return;
+          }
+        }
+      }
+
       let relationId: string;
       if (isStandalone) {
         relationId = standaloneModelOps(activeTabId).createRelation({

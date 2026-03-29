@@ -1,19 +1,30 @@
-import { 
-  GraduationCap, 
-  Award, 
-  CheckCircle2, 
-  Gamepad2, 
-  ScrollText 
+import {
+  GraduationCap,
+  Award,
+  CheckCircle2,
+  Gamepad2,
+  ScrollText,
+  BookOpen,
 } from "lucide-react";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useTranslation } from "react-i18next";
+import { useUiStore } from "../../../../../store/uiStore";
 
 export function EduMenuContent() {
   const { t } = useTranslation();
-  
+  const openWiki = useUiStore((s) => s.openWiki);
+
   return (
     <>
+      <MenubarItem
+        label={t("menubar.edu.wiki")}
+        icon={<BookOpen className="w-4 h-4" />}
+        onClick={openWiki}
+      />
+
+      <div className="h-px bg-surface-border my-1" />
+
       <div className="px-2 py-1.5 text-xs font-semibold text-text-muted select-none">
         {t("menubar.edu.placeholder")}
       </div>

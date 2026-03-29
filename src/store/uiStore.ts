@@ -27,6 +27,7 @@ interface UiStoreState {
   // state
   activeModal: ActiveModal;
   editingId: string | null;
+  isGetStartedOpen: boolean;
 
   // actions
   openClassEditor: (nodeId: string) => void;
@@ -48,11 +49,15 @@ interface UiStoreState {
   openKeyboardShortcuts: () => void;
   openWiki: () => void;
   closeModals: () => void;
+  openGetStarted: () => void;
+  closeGetStarted: () => void;
+  toggleGetStarted: () => void;
 }
 
 export const useUiStore = create<UiStoreState>((set) => ({
-  activeModal:null,
+  activeModal: null,
   editingId: null,
+  isGetStartedOpen: false,
 
   openClassEditor: (nodeId) =>
     set({ activeModal: "class-editor", editingId: nodeId }),
@@ -107,4 +112,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openWiki: () => set({ activeModal: "wiki", editingId: null }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
+
+  openGetStarted: () => set({ isGetStartedOpen: true }),
+  closeGetStarted: () => set({ isGetStartedOpen: false }),
+  toggleGetStarted: () => set((s) => ({ isGetStartedOpen: !s.isGetStartedOpen })),
 }));

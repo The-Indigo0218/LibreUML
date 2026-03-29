@@ -81,6 +81,7 @@
     },
     "edu": {
       "title": "Edu",
+      "wiki": "Wiki UML (Ctrl+H)",
       "placeholder": "Herramientas (Pronto)",
       "linter": "Linter UML (Auto-calificar)",
       "exam": "Modo Examen",
@@ -345,7 +346,8 @@
     "userProfile": "Perfil de Usuario",
     "cloudSync": "Sincronización en Nube",
     "githubIntegration": "Integración con GitHub",
-    "bugReport": "Reportar Error"
+    "bugReport": "Reportar Error",
+    "getStarted": "Primeros Pasos / Tutorial"
   },
   "statusbar": {
     "problems": "Problemas",
@@ -694,6 +696,13 @@
   },
   "terminalPrompt": {
     "prefix": "libreuml~$"
+  },
+  "emptyState": {
+    "welcome": "¡Bienvenido a LibreUML!",
+    "subtitle": "Tu lienzo está vacío. Empieza a diseñar tu primer diagrama UML o carga un ejemplo para explorar.",
+    "startFromScratch": "Empezar desde cero",
+    "loadHospital": "Cargar Sistema de Hospital",
+    "hint": "Presiona Ctrl+H para abrir el Diccionario UML en cualquier momento."
   },
   "wiki": {
     "title": "Wiki UML",

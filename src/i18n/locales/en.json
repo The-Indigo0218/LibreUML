@@ -81,6 +81,7 @@
     },
     "edu": {
       "title": "Edu",
+      "wiki": "UML Wiki (Ctrl+H)",
       "placeholder": "Learning Tools (Soon)",
       "linter": "UML Linter (Auto-grade)",
       "exam": "Exam Mode",
@@ -331,7 +332,8 @@
     "userProfile": "User Profile",
     "cloudSync": "Cloud Sync",
     "githubIntegration": "GitHub Integration",
-    "bugReport": "Bug Report"
+    "bugReport": "Bug Report",
+    "getStarted": "Get Started / Tutorial"
   },
   "statusbar": {
     "problems": "Problems",
@@ -680,6 +682,13 @@
   },
   "terminalPrompt": {
     "prefix": "libreuml~$"
+  },
+  "emptyState": {
+    "welcome": "Welcome to LibreUML!",
+    "subtitle": "Your canvas is empty. Start designing your first UML diagram or load a sample to explore.",
+    "startFromScratch": "Start from scratch",
+    "loadHospital": "Load Hospital System",
+    "hint": "Press Ctrl+H to open the UML Dictionary at any time."
   },
   "wiki": {
     "title": "UML Wiki",

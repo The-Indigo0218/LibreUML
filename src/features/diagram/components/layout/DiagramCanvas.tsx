@@ -26,8 +26,10 @@ import VfsEdgeActionModal from "../modals/VfsEdgeActionModal";
 import { AutoLayoutLockedWarningModal } from "../modals/AutoLayoutLockedWarningModal";
 import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 
+import { GetStartedWidget } from "../ui/GetStartedWidget";
 import { useContextMenu } from "../../hooks/useContextMenu";
 import { useDiagramDnD } from "../../hooks/useDiagramDnD";
+import { useHospitalTemplate } from "../../hooks/useHospitalTemplate";
 import { useVFSCanvasController } from "../../hooks/useVFSCanvasController";
 import { useDiagramMenus } from "../../hooks/useDiagramMenus";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
@@ -43,6 +45,28 @@ export default function DiagramCanvas() {
 
   const nodes = vfsController.nodes;
   const isCanvasReady = vfsController.isVFSFile;
+  const activeTabId = vfsController.activeTabId;
+
+  // ── Get-Started widget ──────────────────────────────────────────────────────
+  const isGetStartedOpen = useUiStore((s) => s.isGetStartedOpen);
+  const openGetStarted = useUiStore((s) => s.openGetStarted);
+  const { loadTemplate } = useHospitalTemplate();
+  const prevTabIdRef = useRef<string | null>(null);
+
+  // Auto-open widget when switching to an empty diagram tab
+  useEffect(() => {
+    if (prevTabIdRef.current !== activeTabId) {
+      prevTabIdRef.current = activeTabId;
+      if (isCanvasReady && nodes.length === 0) {
+        openGetStarted();
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTabId]);
+
+  const handleLoadTemplate = useCallback(() => {
+    loadTemplate();
+  }, [loadTemplate]);
 
   const registry = useMemo(() => {
     const vfsDiagramType = vfsController.vfsFile?.diagramType;
@@ -208,7 +232,7 @@ export default function DiagramCanvas() {
   }
 
   return (
-    <div className="w-full h-full bg-canvas-base">
+    <div className="relative w-full h-full bg-canvas-base">
       <ReactFlow
         nodes={nodes as Node[]}
         edges={vfsStyledEdges as Edge[]}
@@ -300,6 +324,10 @@ export default function DiagramCanvas() {
       <AutoLayoutLockedWarningModal />
 
       <SpotlightModal />
+
+      {isGetStartedOpen && (
+        <GetStartedWidget onLoadTemplate={handleLoadTemplate} />
+      )}
     </div>
   );
 }

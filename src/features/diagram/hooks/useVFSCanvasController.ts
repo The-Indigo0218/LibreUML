@@ -4,12 +4,15 @@ import type { NodeChange, EdgeChange, Connection } from 'reactflow';
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
-import { useToastStore } from '../../../store/toast.store';
 import {
-  standaloneModelOps,
   getLocalModel,
   ensureLocalModel,
 } from '../../../store/standaloneModelOps';
+import {
+  useCanvasEventHandlers,
+  useNodeActions,
+  useEdgeActions,
+} from '../../../hooks/canvas';
 import type {
   DiagramView,
   ViewNode,
@@ -21,6 +24,7 @@ import type {
   IRInterface,
   IREnum,
   SemanticModel,
+  RelationKind,
 } from '../../../core/domain/vfs/vfs.types';
 import type {
   NodeViewModel,
@@ -29,22 +33,6 @@ import type {
   NodeSection,
 } from '../../../adapters/react-flow/view-models/node.view-model';
 import type { Visibility } from '../../../core/domain/vfs/vfs.types';
-import type { RelationKind } from '../../../core/domain/vfs/vfs.types';
-
-// ─── Tool → RelationKind mapping ─────────────────────────────────────────────
-// Mirrors the palette tool IDs (stored uppercase in file metadata) to semantic kinds.
-
-const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
-  ASSOCIATION:    'ASSOCIATION',
-  INHERITANCE:    'GENERALIZATION',
-  IMPLEMENTATION: 'REALIZATION',
-  DEPENDENCY:     'DEPENDENCY',
-  AGGREGATION:    'AGGREGATION',
-  COMPOSITION:    'COMPOSITION',
-  INCLUDE:        'INCLUDE',
-  EXTEND:         'EXTEND',
-  GENERALIZATION: 'GENERALIZATION',
-};
 
 // ─── Type guard ───────────────────────────────────────────────────────────────
 
@@ -320,40 +308,23 @@ export interface VFSCanvasResult {
   vfsFile: VFSFile | null;
   /** Active tab ID from WorkspaceStore. */
   activeTabId: string | null;
-  /**
-   * onNodesChange handler wired to the VFS layer.
-   * POSITION: persists x,y → DiagramView.ViewNode.
-   * REMOVE: view-only — removes ViewNode + prunes dangling ViewEdges from this
-   *         diagram only. Semantic element stays in ModelStore.
-   */
+  /** ReactFlow onNodesChange handler (position + removal). */
   onNodesChange: (changes: NodeChange[]) => void;
-  /**
-   * onEdgesChange handler wired to the VFS layer.
-   * REMOVE: deletes IRRelation from ModelStore + removes ViewEdge from DiagramView.
-   */
+  /** ReactFlow onEdgesChange handler (removal). */
   onEdgesChange: (changes: EdgeChange[]) => void;
-  /**
-   * onConnect handler: creates IRRelation in ModelStore + ViewEdge in DiagramView.
-   * Default relation kind is ASSOCIATION.
-   */
+  /** ReactFlow onConnect handler (creates relation). */
   onConnect: (connection: Connection) => void;
-  /**
-   * View-only removal: removes ViewNode + prunes dangling ViewEdges from THIS
-   * diagram only. Semantic element stays in ModelStore (appears in other diagrams).
-   */
+  /** View-only removal: removes ViewNode from this diagram only. */
   removeNodeFromDiagram: (viewNodeId: string) => void;
-  /**
-   * Full cascade: deletes semantic element from ModelStore + sweeps ViewNodes from
-   * ALL diagrams where the element appears. Use for "Delete from Model".
-   */
+  /** Full cascade: deletes semantic element from ModelStore + all diagrams. */
   deleteElementFromModel: (viewNodeId: string) => void;
-  /** Deletes a VFS edge by ViewEdge.id (removes IRRelation + ViewEdge). */
+  /** Deletes a VFS edge by ViewEdge.id. */
   deleteEdgeById: (viewEdgeId: string) => void;
-  /** Reverses a VFS edge by swapping IRRelation.sourceId ↔ targetId. */
+  /** Reverses a VFS edge by swapping source ↔ target. */
   reverseEdgeById: (viewEdgeId: string) => void;
-  /** Updates a VFS edge's IRRelation.kind (e.g. ASSOCIATION → GENERALIZATION). */
+  /** Updates a VFS edge's IRRelation.kind. */
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;
-  /** Updates display properties (multiplicity, roles, anchor) stored on ViewEdge. */
+  /** Updates display properties stored on ViewEdge. */
   updateVFSEdgeProps: (
     viewEdgeId: string,
     props: {
@@ -644,432 +615,25 @@ export function useVFSCanvasController(): VFSCanvasResult {
     return result;
   }, [diagramView, model]);
 
-  // ── onNodesChange: position drag-save + node removal ──────────────────────
+  // ── Delegate to extracted hooks ───────────────────────────────────────────
 
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      if (!activeTabId) return;
+  const eventHandlers = useCanvasEventHandlers({
+    activeTabId,
+    isStandalone,
+    updateFileContent,
+  });
 
-      // Read current state directly — this is an event handler, not a render.
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
+  const nodeActions = useNodeActions({
+    activeTabId,
+    isStandalone,
+    updateFileContent,
+  });
 
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-      let updatedViewNodes = currentView.nodes;
-      let updatedViewEdges = currentView.edges;
-      let dirty = false;
-
-      for (const change of changes) {
-        if (change.type === 'position' && change.position) {
-          // Strict separation: x, y belong to the VFS DiagramView.
-          updatedViewNodes = updatedViewNodes.map((vn) =>
-            vn.id === change.id
-              ? { ...vn, x: change.position!.x, y: change.position!.y }
-              : vn,
-          );
-          dirty = true;
-        } else if (change.type === 'remove') {
-          // Find the ViewNode before removing it.
-          const removedVN = currentView.nodes.find((vn) => vn.id === change.id);
-          if (removedVN) {
-            // View-only removal: delete the ViewNode from this diagram only.
-            // The semantic element stays in ModelStore — it can still appear in other diagrams.
-            updatedViewNodes = updatedViewNodes.filter((vn) => vn.id !== change.id);
-
-            // Prune ViewEdges whose relation involves the removed element.
-            // (No ModelStore cascade — use "Delete from Model" for that.)
-            if (removedVN.elementId) {
-              const activeModel = isStandalone && activeTabId
-                ? getLocalModel(activeTabId)
-                : useModelStore.getState().model;
-              if (activeModel) {
-                updatedViewEdges = updatedViewEdges.filter((ve) => {
-                  const relation = activeModel.relations[ve.relationId];
-                  if (!relation) return false;
-                  return (
-                    relation.sourceId !== removedVN.elementId &&
-                    relation.targetId !== removedVN.elementId
-                  );
-                });
-              }
-            }
-            dirty = true;
-          }
-        }
-      }
-
-      if (dirty) {
-        updateFileContent(activeTabId, {
-          ...currentView,
-          nodes: updatedViewNodes,
-          edges: updatedViewEdges,
-        });
-      }
-    },
-    [activeTabId, updateFileContent, isStandalone],
-  );
-
-  // ── onEdgesChange: edge deletion (keyboard Delete / context menu) ──────────
-
-  const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
-      if (!activeTabId) return;
-
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
-
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-      let updatedEdges = currentView.edges;
-      let dirty = false;
-
-      for (const change of changes) {
-        if (change.type === 'remove') {
-          const viewEdge = currentView.edges.find((ve) => ve.id === change.id);
-          if (viewEdge) {
-            if (isStandalone) {
-              standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
-            } else {
-              const ms = useModelStore.getState();
-              if (ms.model && ms.model.relations[viewEdge.relationId]) {
-                ms.deleteRelation(viewEdge.relationId);
-              }
-            }
-            updatedEdges = updatedEdges.filter((ve) => ve.id !== change.id);
-            dirty = true;
-          }
-        }
-      }
-
-      if (dirty) {
-        updateFileContent(activeTabId, { ...currentView, edges: updatedEdges });
-      }
-    },
-    [activeTabId, updateFileContent, isStandalone],
-  );
-
-  // ── onConnect: create edge from handle drag ────────────────────────────────
-
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      if (!activeTabId || !connection.source || !connection.target) return;
-
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
-
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-
-      // Resolve ReactFlow node IDs (ViewNode.id) → semantic element IDs.
-      const sourceVN = currentView.nodes.find((vn) => vn.id === connection.source);
-      const targetVN = currentView.nodes.find((vn) => vn.id === connection.target);
-      if (!sourceVN || !targetVN) return;
-
-      // Skip connections involving notes — they have no IR backing.
-      if (!sourceVN.elementId || !targetVN.elementId) return;
-
-      // Block self-inheritance and self-realization — UML forbids these.
-      const wsState = useWorkspaceStore.getState();
-      const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
-      const kind: RelationKind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
-
-      const SELF_LOOP_FORBIDDEN = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);
-      if (sourceVN.elementId === targetVN.elementId && SELF_LOOP_FORBIDDEN.has(kind)) {
-        useToastStore.getState().show('⚠️ Una clase no puede heredar de sí misma');
-        return;
-      }
-
-      let relationId: string;
-      if (isStandalone) {
-        relationId = standaloneModelOps(activeTabId).createRelation({
-          kind,
-          sourceId: sourceVN.elementId,
-          targetId: targetVN.elementId,
-        });
-      } else {
-        const ms = useModelStore.getState();
-        if (!ms.model) return;
-        const isExternalFile = !!(fileNode as VFSFile).isExternal;
-        relationId = ms.createRelation({
-          kind,
-          sourceId: sourceVN.elementId,
-          targetId: targetVN.elementId,
-          ...(isExternalFile ? { isExternal: true } : {}),
-        });
-      }
-
-      // Create visual ViewEdge linked to the new relation.
-      const viewEdge: ViewEdge = {
-        id: crypto.randomUUID(),
-        relationId,
-        waypoints: [],
-        sourceHandle: connection.sourceHandle ?? undefined,
-        targetHandle: connection.targetHandle ?? undefined,
-      };
-
-      updateFileContent(activeTabId, {
-        ...currentView,
-        edges: [...currentView.edges, viewEdge],
-      });
-    },
-    [activeTabId, updateFileContent, isStandalone],
-  );
-
-  // ── removeNodeFromDiagram: view-only removal (context menu "Remove from Diagram") ──
-
-  const removeNodeFromDiagram = useCallback(
-    (viewNodeId: string) => {
-      if (!activeTabId) return;
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
-
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-      const removedVN = currentView.nodes.find((vn) => vn.id === viewNodeId);
-      if (!removedVN) return;
-
-      const updatedNodes = currentView.nodes.filter((vn) => vn.id !== viewNodeId);
-
-      // Prune ViewEdges involving this element — no cascade into any model store.
-      let updatedEdges = currentView.edges;
-      if (removedVN.elementId) {
-        const activeModel = isStandalone && activeTabId
-          ? getLocalModel(activeTabId)
-          : useModelStore.getState().model;
-        if (activeModel) {
-          updatedEdges = currentView.edges.filter((ve) => {
-            const relation = activeModel.relations[ve.relationId];
-            if (!relation) return false;
-            return (
-              relation.sourceId !== removedVN.elementId &&
-              relation.targetId !== removedVN.elementId
-            );
-          });
-        }
-      }
-
-      updateFileContent(activeTabId, { ...currentView, nodes: updatedNodes, edges: updatedEdges });
-    },
-    [activeTabId, updateFileContent, isStandalone],
-  );
-
-  // ── deleteElementFromModel: cascade delete + sweep all diagrams ─────────────
-
-  const deleteElementFromModel = useCallback(
-    (viewNodeId: string) => {
-      if (!activeTabId) return;
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
-
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-      const removedVN = currentView.nodes.find((vn) => vn.id === viewNodeId);
-      if (!removedVN?.elementId) return;
-
-      const elementId = removedVN.elementId;
-
-      if (isStandalone) {
-        // Standalone path: delete from localModel only — no global cascade.
-        const localM = getLocalModel(activeTabId);
-        if (!localM) return;
-
-        const elementName =
-          localM.classes[elementId]?.name ??
-          localM.interfaces[elementId]?.name ??
-          localM.enums[elementId]?.name ??
-          'Element';
-
-        const ops = standaloneModelOps(activeTabId);
-        if (localM.classes[elementId])         ops.deleteClass(elementId);
-        else if (localM.interfaces[elementId]) ops.deleteInterface(elementId);
-        else if (localM.enums[elementId])      ops.deleteEnum(elementId);
-
-        useToastStore.getState().show(`"${elementName}" deleted from standalone diagram`);
-
-        // Sweep this file's DiagramView only (relations cascade-deleted inside ops).
-        const modelAfterDelete = getLocalModel(activeTabId);
-        const updatedNodes = currentView.nodes.filter((vn) => vn.elementId !== elementId);
-        const updatedEdges = currentView.edges.filter(
-          (ve) => modelAfterDelete && !!modelAfterDelete.relations[ve.relationId],
-        );
-        updateFileContent(activeTabId, { ...currentView, nodes: updatedNodes, edges: updatedEdges });
-        return;
-      }
-
-      // Cascade delete from ModelStore (removes IRRelation entries too).
-      const ms = useModelStore.getState();
-      if (ms.model) {
-        const elementName =
-          ms.model.classes[elementId]?.name ??
-          ms.model.interfaces[elementId]?.name ??
-          ms.model.enums[elementId]?.name ??
-          'Element';
-
-        if (ms.model.classes[elementId])         ms.deleteClass(elementId);
-        else if (ms.model.interfaces[elementId]) ms.deleteInterface(elementId);
-        else if (ms.model.enums[elementId])      ms.deleteEnum(elementId);
-
-        useToastStore.getState().show(`"${elementName}" deleted from model`);
-      }
-
-      // Sweep ALL diagram files: remove the ViewNode and prune orphaned ViewEdges.
-      const modelAfterDelete = useModelStore.getState().model;
-      const projectAfterDelete = useVFSStore.getState().project;
-      if (!projectAfterDelete) return;
-
-      for (const [nodeId, node] of Object.entries(projectAfterDelete.nodes)) {
-        if (node.type !== 'FILE') continue;
-        const content = (node as VFSFile).content;
-        if (!isDiagramView(content)) continue;
-
-        const view = content as DiagramView;
-        const hasElement = view.nodes.some((vn) => vn.elementId === elementId);
-        if (!hasElement) continue;
-
-        const updatedNodes = view.nodes.filter((vn) => vn.elementId !== elementId);
-        const updatedEdges = view.edges.filter(
-          (ve) => modelAfterDelete && !!modelAfterDelete.relations[ve.relationId],
-        );
-        useVFSStore.getState().updateFileContent(nodeId, { ...view, nodes: updatedNodes, edges: updatedEdges });
-      }
-    },
-    [activeTabId, updateFileContent, isStandalone],
-  );
-
-  // ── deleteEdgeById: used by context menu "Delete" ─────────────────────────
-
-  const deleteEdgeById = useCallback(
-    (viewEdgeId: string) => {
-      if (!activeTabId) return;
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
-
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-      const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
-      if (!viewEdge) return;
-
-      if (isStandalone) {
-        standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
-      } else {
-        const ms = useModelStore.getState();
-        if (ms.model && ms.model.relations[viewEdge.relationId]) {
-          ms.deleteRelation(viewEdge.relationId);
-        }
-      }
-      updateFileContent(activeTabId, {
-        ...currentView,
-        edges: currentView.edges.filter((ve) => ve.id !== viewEdgeId),
-      });
-    },
-    [activeTabId, updateFileContent, isStandalone],
-  );
-
-  // ── reverseEdgeById: used by context menu "Reverse" ───────────────────────
-
-  const reverseEdgeById = useCallback(
-    (viewEdgeId: string) => {
-      if (!activeTabId) return;
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
-
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-      const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
-      if (!viewEdge) return;
-
-      if (isStandalone) {
-        const localM = getLocalModel(activeTabId);
-        if (!localM) return;
-        const relation = localM.relations[viewEdge.relationId];
-        if (!relation) return;
-        standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, {
-          sourceId: relation.targetId,
-          targetId: relation.sourceId,
-        });
-      } else {
-        const ms = useModelStore.getState();
-        if (!ms.model) return;
-        const relation = ms.model.relations[viewEdge.relationId];
-        if (!relation) return;
-        ms.updateRelation(viewEdge.relationId, {
-          sourceId: relation.targetId,
-          targetId: relation.sourceId,
-        });
-      }
-    },
-    [activeTabId, isStandalone],
-  );
-
-  // ── updateVFSEdgeProps: used by EditRelationModal ─────────────────────────
-
-  const updateVFSEdgeProps = useCallback(
-    (
-      viewEdgeId: string,
-      props: {
-        sourceMultiplicity?: string;
-        targetMultiplicity?: string;
-        sourceRole?: string;
-        targetRole?: string;
-        anchorLocked?: boolean;
-      },
-    ) => {
-      if (!activeTabId) return;
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
-
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-      const updatedEdges = currentView.edges.map((ve) =>
-        ve.id === viewEdgeId ? { ...ve, ...props } : ve,
-      );
-      updateFileContent(activeTabId, { ...currentView, edges: updatedEdges });
-    },
-    [activeTabId, updateFileContent],
-  );
-
-  // ── changeEdgeKind: used by context menu "Change type" ────────────────────
-
-  const changeEdgeKind = useCallback(
-    (viewEdgeId: string, kind: RelationKind) => {
-      if (!activeTabId) return;
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
-
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-      const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
-      if (!viewEdge) return;
-
-      if (isStandalone) {
-        standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, { kind });
-      } else {
-        const ms = useModelStore.getState();
-        if (!ms.model) return;
-        ms.updateRelation(viewEdge.relationId, { kind });
-      }
-    },
-    [activeTabId, isStandalone],
-  );
+  const edgeActions = useEdgeActions({
+    activeTabId,
+    isStandalone,
+    updateFileContent,
+  });
 
   return {
     isVFSFile: !!vfsFile && !!diagramView,
@@ -1080,14 +644,14 @@ export function useVFSCanvasController(): VFSCanvasResult {
     diagramView,
     vfsFile,
     activeTabId,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-    removeNodeFromDiagram,
-    deleteElementFromModel,
-    deleteEdgeById,
-    reverseEdgeById,
-    changeEdgeKind,
-    updateVFSEdgeProps,
+    onNodesChange: eventHandlers.onNodesChange,
+    onEdgesChange: eventHandlers.onEdgesChange,
+    onConnect: eventHandlers.onConnect,
+    removeNodeFromDiagram: nodeActions.removeNodeFromDiagram,
+    deleteElementFromModel: nodeActions.deleteElementFromModel,
+    deleteEdgeById: edgeActions.deleteEdgeById,
+    reverseEdgeById: edgeActions.reverseEdgeById,
+    changeEdgeKind: edgeActions.changeEdgeKind,
+    updateVFSEdgeProps: edgeActions.updateVFSEdgeProps,
   };
 }

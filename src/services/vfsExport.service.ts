@@ -98,8 +98,9 @@ function irOperationToClassMethod(op: IROperation): ClassMethod {
 export function semanticModelToDomainNodes(
   model: SemanticModel,
   elementIds?: Set<string>,
-): DomainNode[] {
+): { nodes: DomainNode[]; classMap: Map<string, IRClass | IRInterface | IREnum> } {
   const nodes: DomainNode[] = [];
+  const classMap = new Map<string, IRClass | IRInterface | IREnum>();
   const now = Date.now();
 
   const shouldInclude = (id: string) => !elementIds || elementIds.has(id);
@@ -107,6 +108,8 @@ export function semanticModelToDomainNodes(
   // Classes (regular + abstract)
   for (const cls of Object.values(model.classes) as IRClass[]) {
     if (!shouldInclude(cls.id)) continue;
+
+    classMap.set(cls.id, cls);
 
     const attributes = cls.attributeIds
       .map((id) => model.attributes[id])
@@ -124,7 +127,7 @@ export function semanticModelToDomainNodes(
       name: cls.name,
       attributes,
       methods,
-      generics: cls.stereotypes?.[0],
+      // Generics will be handled via xmi:Extension in XmiConverterService
       package: cls.packageName ?? 'default',
       createdAt: now,
       updatedAt: now,
@@ -134,6 +137,8 @@ export function semanticModelToDomainNodes(
   // Interfaces
   for (const iface of Object.values(model.interfaces) as IRInterface[]) {
     if (!shouldInclude(iface.id)) continue;
+
+    classMap.set(iface.id, iface);
 
     const methods = iface.operationIds
       .map((id) => model.operations[id])
@@ -155,6 +160,8 @@ export function semanticModelToDomainNodes(
   for (const enm of Object.values(model.enums) as IREnum[]) {
     if (!shouldInclude(enm.id)) continue;
 
+    classMap.set(enm.id, enm);
+
     const literals = enm.literals.map((lit, i) => ({
       id: `${enm.id}_lit_${i}`,
       name: lit.name,
@@ -172,7 +179,7 @@ export function semanticModelToDomainNodes(
     } as DomainNode);
   }
 
-  return nodes;
+  return { nodes, classMap };
 }
 
 // ─── SemanticModel → DomainEdge[] ────────────────────────────────────────────
@@ -222,7 +229,7 @@ export function downloadVfsDiagramXmi(
     ? new Set(diagramView.nodes.map((vn) => vn.elementId).filter(Boolean))
     : undefined;
 
-  const nodes = semanticModelToDomainNodes(model, elementIds);
+  const { nodes, classMap } = semanticModelToDomainNodes(model, elementIds);
   const edges = semanticModelToDomainEdges(model, elementIds);
 
   // Note ViewNodes are view-only (elementId === '') — they have no IR element in the
@@ -243,7 +250,7 @@ export function downloadVfsDiagramXmi(
     }
   }
 
-  XmiConverterService.downloadXmi(model.id, diagramName, nodes, edges);
+  XmiConverterService.downloadXmi(model.id, diagramName, nodes, edges, classMap);
 }
 
 // ─── JSON download (DiagramView) ─────────────────────────────────────────────

@@ -5,6 +5,7 @@ import type {
   ClassAttribute,
   ClassMethod,
 } from "../core/domain/models/nodes/class-diagram.types";
+import type { IRClass, IRInterface, IREnum } from "../core/domain/vfs/vfs.types";
 
 /**
  * Service responsible for serializing LibreUML diagram state into a
@@ -28,12 +29,14 @@ export class XmiConverterService {
    * @param diagramName Human-readable name of the model.
    * @param nodes      All diagram nodes (domain nodes).
    * @param edges      All diagram edges (domain edges).
+   * @param classMap   Map of element IDs to IR elements (for generics metadata).
    */
   public static exportToXmi(
     diagramId: string,
     diagramName: string,
     nodes: DomainNode[],
-    edges: DomainEdge[]
+    edges: DomainEdge[],
+    classMap?: Map<string, IRClass | IRInterface | IREnum>
   ): string {
     const classNodes = nodes.filter((n) => n.type !== 'NOTE');
     const noteNodes  = nodes.filter((n) => n.type === 'NOTE') as NoteNode[];
@@ -41,14 +44,16 @@ export class XmiConverterService {
     const nodeIdSet = new Set(classNodes.map((n) => n.id));
 
     const classifiersXml = classNodes
-      .map((node) => this.serializeClassifier(node, classNodes, edges, nodeIdSet))
+      .map((node) => this.serializeClassifier(node, classNodes, edges, nodeIdSet, classMap))
       .join("\n");
 
     const rootRelationsXml = this.serializeRootRelations(edges, classNodes, nodeIdSet);
 
     const commentsXml = this.serializeNotes(noteNodes, edges, nodeIdSet);
 
-      const primitivesXml = this.serializePrimitiveTypes();
+    const primitivesXml = this.serializePrimitiveTypes();
+    
+    const extensionsXml = classMap ? this.serializeExtensions(classMap, nodeIdSet) : "";
 
     const modelId = `model_${diagramId.replace(/[^a-zA-Z0-9_]/g, "_")}`;
     const modelName = this.escapeXml(diagramName || "LibreUML_Project");
@@ -65,6 +70,7 @@ export class XmiConverterService {
       rootRelationsXml,
       commentsXml,
       `  </uml:Model>`,
+      extensionsXml,
       `</xmi:XMI>`,
     ]
       .filter(Boolean)
@@ -76,9 +82,10 @@ export class XmiConverterService {
     diagramId: string,
     diagramName: string,
     nodes: DomainNode[],
-    edges: DomainEdge[]
+    edges: DomainEdge[],
+    classMap?: Map<string, IRClass | IRInterface | IREnum>
   ): void {
-    const xmiContent = this.exportToXmi(diagramId, diagramName, nodes, edges);
+    const xmiContent = this.exportToXmi(diagramId, diagramName, nodes, edges, classMap);
     const blob = new Blob([xmiContent], { type: "application/xml;charset=UTF-8" });
     const url = URL.createObjectURL(blob);
 
@@ -141,6 +148,32 @@ export class XmiConverterService {
   }
 
 
+  private static serializeExtensions(
+    classMap: Map<string, IRClass | IRInterface | IREnum>,
+    nodeIdSet: Set<string>
+  ): string {
+    const extensions: string[] = [];
+
+    for (const [id, element] of classMap.entries()) {
+      if (!nodeIdSet.has(id)) continue;
+      
+      // Only IRClass can have stereotypes (used for generics)
+      if ('stereotypes' in element && element.stereotypes && element.stereotypes.length > 0) {
+        const genericTypes = element.stereotypes.join(', ');
+        extensions.push([
+          `  <xmi:Extension extender="gvUML">`,
+          `    <eAnnotations xmi:id="${id}_generics" source="gvUML" references="${id}">`,
+          `      <details xmi:id="${id}_generics_detail" key="genericTypes" value="${this.escapeXml(genericTypes)}"/>`,
+          `    </eAnnotations>`,
+          `  </xmi:Extension>`,
+        ].join("\n"));
+      }
+    }
+
+    return extensions.length > 0 ? extensions.join("\n") : "";
+  }
+
+
   private static serializePrimitiveTypes(): string {
     const primitives = [
       { id: "PT_String",  name: "String",  pathmap: "String"    },
@@ -165,7 +198,8 @@ export class XmiConverterService {
     node: DomainNode,
     classNodes: DomainNode[],
     edges: DomainEdge[],
-    nodeIdSet: Set<string>
+    nodeIdSet: Set<string>,
+    classMap?: Map<string, IRClass | IRInterface | IREnum>
   ): string {
     const { id } = node;
     
@@ -187,9 +221,8 @@ export class XmiConverterService {
       extraAttrs = ' isAbstract="true"';
     }
 
-    const templateXml = ('generics' in node && node.generics)
-      ? this.serializeTemplateSignature(id, node.generics)
-      : "";
+    // Generics are now handled via xmi:Extension, not inline template signature
+    // This maintains backward compatibility while following ISO 19505
 
     // EnumNode stores its members in `literals`, not `attributes`.
     // serializeAttributes only uses id + name for the isEnum path, so the
@@ -214,7 +247,7 @@ export class XmiConverterService {
 
     const innerRelationsXml = this.serializeInnerRelations(id, edges, nodeIdSet);
 
-    const children = [templateXml, attributesXml, operationsXml, innerRelationsXml]
+    const children = [attributesXml, operationsXml, innerRelationsXml]
       .filter(Boolean)
       .join("\n");
 
@@ -223,36 +256,6 @@ export class XmiConverterService {
       : `    <packagedElement xmi:type="${umlType}" xmi:id="${id}" name="${name}"${extraAttrs}/>`;
   }
 
-
-  private static serializeTemplateSignature(
-    classId: string,
-    genericsStr: string
-  ): string {
-    const sigId = `${classId}_tplSig`;
-    const params = genericsStr
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    const paramXml = params
-      .map((p, i) => {
-        const paramName = this.escapeXml(p.split(/\s+/)[0]);
-        const paramId   = `${classId}_tplParam_${i}`;
-        const elemId    = `${classId}_tplElem_${i}`;
-        return [
-          `        <ownedParameter xmi:type="uml:ClassifierTemplateParameter" xmi:id="${paramId}">`,
-          `          <parameteredElement xmi:type="uml:Class" xmi:id="${elemId}" name="${paramName}"/>`,
-          `        </ownedParameter>`,
-        ].join("\n");
-      })
-      .join("\n");
-
-    return [
-      `      <ownedTemplateSignature xmi:type="uml:RedefinableTemplateSignature" xmi:id="${sigId}" classifier="${classId}">`,
-      paramXml,
-      `      </ownedTemplateSignature>`,
-    ].join("\n");
-  }
 
   private static serializeAttributes(
     attributes: ClassAttribute[],

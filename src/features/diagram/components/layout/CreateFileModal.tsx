@@ -188,15 +188,15 @@ export default function CreateFileModal({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-[#161d2f] border border-[#2a3358] shadow-2xl rounded-lg w-full max-w-md relative z-[10000] p-6"
+        className="bg-[#161d2f] border border-[#2a3358] shadow-2xl rounded-lg w-full max-w-md relative z-[10000] flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between p-6 pb-4 shrink-0">
           <h2 className="text-xl font-semibold text-[#e2e8f0]">
             {editNodeId ? "Edit Diagram" : "Create New Diagram"}
           </h2>
@@ -208,7 +208,8 @@ export default function CreateFileModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="overflow-y-auto px-6 pb-4 space-y-4">
           {/* ── File Name ────────────────────────────────────────────── */}
           <div>
             <label
@@ -361,9 +362,10 @@ export default function CreateFileModal({
               </div>
             </div>
           )}
+          </div>
 
           {/* ── Actions ──────────────────────────────────────────────── */}
-          <div className="flex items-center justify-end gap-3 pt-4">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#2a3358] shrink-0">
             <button
               type="button"
               onClick={onClose}

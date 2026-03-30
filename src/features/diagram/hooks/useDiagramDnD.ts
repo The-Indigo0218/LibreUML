@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useReactFlow } from "reactflow";
 import { NODE_WIDTH, NODE_HEIGHT } from "../../../config/theme.config";
 import type { stereotype } from "../types/diagram.types";

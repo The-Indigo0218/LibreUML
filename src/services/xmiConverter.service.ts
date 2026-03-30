@@ -199,7 +199,7 @@ export class XmiConverterService {
     classNodes: DomainNode[],
     edges: DomainEdge[],
     nodeIdSet: Set<string>,
-    classMap?: Map<string, IRClass | IRInterface | IREnum>
+    _classMap?: Map<string, IRClass | IRInterface | IREnum>
   ): string {
     const { id } = node;
     

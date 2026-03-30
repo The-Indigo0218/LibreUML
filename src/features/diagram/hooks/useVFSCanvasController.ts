@@ -5,8 +5,8 @@ import { useWorkspaceStore } from '../../../store/workspace.store';
 import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
 import {
-  getLocalModel,
   ensureLocalModel,
+  standaloneModelOps,
 } from '../../../store/standaloneModelOps';
 import {
   useCanvasEventHandlers,
@@ -16,7 +16,6 @@ import {
 import type {
   DiagramView,
   ViewNode,
-  ViewEdge,
   VFSFile,
   VFSFolder,
   LibreUMLProject,

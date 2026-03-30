@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { ReactFlowProvider } from "reactflow";
-import DiagramCanvas from "./DiagramCanvas";
+import KonvaCanvas from "../../../../canvas/KonvaCanvas";
 import AppMenubar from "../menubar/AppMenubar";
 import ActivityBar, { type ActivityTab } from "./ActivityBar";
 import PrimarySideBar from "./PrimarySideBar";
@@ -107,7 +106,7 @@ function EditorLogic() {
           {/* Canvas row: diagram + right sidebar */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
             <div className="flex-1 overflow-hidden">
-              {activeTabId ? <DiagramCanvas /> : <SleepScreen />}
+              {activeTabId ? <KonvaCanvas /> : <SleepScreen />}
             </div>
 
             {/* ── Right sidebar (slides in/out) ───────────────────────── */}
@@ -174,9 +173,5 @@ function EditorLogic() {
 }
 
 export default function DiagramEditor() {
-  return (
-    <ReactFlowProvider>
-      <EditorLogic />
-    </ReactFlowProvider>
-  );
+  return <EditorLogic />;
 }

@@ -39,7 +39,12 @@ export interface LassoRect {
 
 interface UseSelectionOptions {
   stageRef: RefObject<Konva.Stage | null>;
-  boundsMap: Map<string, NodeBounds>;
+  /**
+   * Ref to the current bounds map (read at event time, not at render time).
+   * Using a ref here instead of a direct Map lets callers update the bounds
+   * after calling useSelection without creating a circular hook dependency.
+   */
+  boundsMapRef: RefObject<Map<string, NodeBounds>>;
 }
 
 export interface UseSelectionReturn {
@@ -79,7 +84,7 @@ function rectsIntersect(
 /** Minimum lasso size (world-space px) before the drag is treated as a lasso. */
 const LASSO_THRESHOLD = 4;
 
-export function useSelection({ stageRef, boundsMap }: UseSelectionOptions): UseSelectionReturn {
+export function useSelection({ stageRef, boundsMapRef }: UseSelectionOptions): UseSelectionReturn {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lassoRect, setLassoRect] = useState<LassoRect | null>(null);
 
@@ -174,7 +179,9 @@ export function useSelection({ stageRef, boundsMap }: UseSelectionOptions): UseS
 
           if (rect.width > LASSO_THRESHOLD || rect.height > LASSO_THRESHOLD) {
             const enclosed: string[] = [];
-            for (const [id, bounds] of boundsMap.entries()) {
+            // Read boundsMapRef.current at event time — always up-to-date
+            // regardless of when this callback was created.
+            for (const [id, bounds] of boundsMapRef.current.entries()) {
               if (
                 rectsIntersect(
                   rect.x, rect.y, rect.width, rect.height,
@@ -197,7 +204,7 @@ export function useSelection({ stageRef, boundsMap }: UseSelectionOptions): UseS
       lassoStart.current = null;
       setLassoRect(null);
     },
-    [stageRef, boundsMap],
+    [stageRef, boundsMapRef],
   );
 
   // ── Stage: click on empty area → clear selection ────────────────────────

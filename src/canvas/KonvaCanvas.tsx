@@ -9,7 +9,11 @@ import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
 import KonvaEdge from './edges/KonvaEdge';
 import SelectionRect from './selection/SelectionRect';
 import { useSelection } from './interactions/useSelection';
-import { isNoteViewModel, type NodeViewModel, type NoteViewModel } from '../adapters/react-flow/view-models/node.view-model';
+import { useDragHandler } from './interactions/useDragHandler';
+import {
+  isNoteViewModel,
+  type NodeViewModel,
+} from '../adapters/react-flow/view-models/node.view-model';
 import type { NodeBounds } from './edges/geometry';
 
 export default function KonvaCanvas() {
@@ -21,30 +25,56 @@ export default function KonvaCanvas() {
 
   const { nodes, edges } = useVFSCanvasController();
 
-  // Build id → NodeBounds map so KonvaEdge can route between shapes
-  // and useSelection can test lasso intersection in world space.
+  // ── Bounds map ref ────────────────────────────────────────────────────────
+  // useSelection reads this ref at event-handler time, so it always sees the
+  // latest drag-adjusted positions even though it is called before boundsMap
+  // is computed below.
+  const boundsMapRef = useRef<Map<string, NodeBounds>>(new Map());
+
+  // ── Selection ─────────────────────────────────────────────────────────────
+  const { selectedIds, lassoRect, onNodeClick, stageHandlers } = useSelection({
+    stageRef,
+    boundsMapRef,
+  });
+
+  // ── Drag handler ──────────────────────────────────────────────────────────
+  const { positionOverrides, dragPositions, ghostNodes, dragHandlers } = useDragHandler({
+    stageRef,
+    selectedIds,
+    nodes,
+  });
+
+  // ── Bounds map ────────────────────────────────────────────────────────────
+  // Priority: dragPositions (live, ~20 fps) > positionOverrides (post-drag) > node.position
+  //
+  // dragPositions is non-null only during active drags (50 ms debounced updates).
+  // This makes edges re-route in real-time while a node is being dragged.
+  //
+  // The map is also written into `boundsMapRef` every render so the lasso
+  // selection in useSelection always uses the most up-to-date positions.
   const boundsMap = useMemo((): Map<string, NodeBounds> => {
     const map = new Map<string, NodeBounds>();
     for (const node of nodes) {
-      const { x, y } = node.position;
+      const pos =
+        dragPositions?.get(node.id) ??
+        positionOverrides.get(node.id) ??
+        node.position;
       const vm = node.data;
       if (isNoteViewModel(vm)) {
         const { width, height } = getNoteShapeSize(vm);
-        map.set(node.id, { x, y, width, height });
+        map.set(node.id, { x: pos.x, y: pos.y, width, height });
       } else {
         const { width, height } = getClassShapeSize(vm as NodeViewModel);
-        map.set(node.id, { x, y, width, height });
+        map.set(node.id, { x: pos.x, y: pos.y, width, height });
       }
     }
     return map;
-  }, [nodes]);
+  }, [nodes, positionOverrides, dragPositions]);
 
-  const { selectedIds, lassoRect, onNodeClick, stageHandlers } = useSelection({
-    stageRef,
-    boundsMap,
-  });
+  // Keep ref in sync so lasso always uses the latest positions.
+  boundsMapRef.current = boundsMap;
 
-  // Track container dimensions
+  // ── Container resize ──────────────────────────────────────────────────────
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -87,15 +117,29 @@ export default function KonvaCanvas() {
           {/* ── Edges layer ──────────────────────────────────────── */}
           <Layer name="edges">
             {edges.map((edge) => {
+              const isSelfLoop = edge.source === edge.target;
               const sourceBounds = boundsMap.get(edge.source);
-              const targetBounds = boundsMap.get(edge.target);
+              const targetBounds = isSelfLoop
+                ? sourceBounds                         // same node
+                : boundsMap.get(edge.target);
               if (!sourceBounds || !targetBounds) return null;
+
+              // Obstacles = every node except this edge's source and target.
+              // Used by the orthogonal router to detour around blocking nodes.
+              const obstacles = isSelfLoop
+                ? []
+                : [...boundsMap.entries()]
+                    .filter(([id]) => id !== edge.source && id !== edge.target)
+                    .map(([, b]) => b);
+
               return (
                 <KonvaEdge
                   key={edge.id}
                   kind={edge.data.kind}
                   sourceBounds={sourceBounds}
                   targetBounds={targetBounds}
+                  isSelfLoop={isSelfLoop}
+                  obstacles={obstacles}
                 />
               );
             })}
@@ -104,16 +148,20 @@ export default function KonvaCanvas() {
           {/* ── Nodes layer ──────────────────────────────────────── */}
           <Layer name="nodes">
             {nodes.map((node) => {
-              const { x, y } = node.position;
+              const pos = positionOverrides.get(node.id) ?? node.position;
               const vm = node.data;
               if (isNoteViewModel(vm)) {
                 return (
                   <NoteShape
                     key={node.id}
                     viewModel={vm}
-                    x={x}
-                    y={y}
+                    x={pos.x}
+                    y={pos.y}
                     selected={selectedIds.has(node.id)}
+                    draggable
+                    onDragStart={dragHandlers.onDragStart}
+                    onDragMove={dragHandlers.onDragMove}
+                    onDragEnd={dragHandlers.onDragEnd}
                     onNodeClick={onNodeClick}
                   />
                 );
@@ -122,9 +170,13 @@ export default function KonvaCanvas() {
                 <ClassShape
                   key={node.id}
                   viewModel={vm as NodeViewModel}
-                  x={x}
-                  y={y}
+                  x={pos.x}
+                  y={pos.y}
                   selected={selectedIds.has(node.id)}
+                  draggable
+                  onDragStart={dragHandlers.onDragStart}
+                  onDragMove={dragHandlers.onDragMove}
+                  onDragEnd={dragHandlers.onDragEnd}
                   onNodeClick={onNodeClick}
                 />
               );
@@ -143,8 +195,32 @@ export default function KonvaCanvas() {
             )}
           </Layer>
 
-          {/* ── Interaction layer ────────────────────────────────── */}
-          <Layer name="interaction" />
+          {/* ── Interaction layer — ghost shapes during drag ──────── */}
+          <Layer name="interaction">
+            {ghostNodes.map((ghost) => {
+              const vm = ghost.data;
+              if (isNoteViewModel(vm)) {
+                return (
+                  <NoteShape
+                    key={'ghost-' + ghost.id}
+                    viewModel={vm}
+                    x={ghost.x}
+                    y={ghost.y}
+                    opacity={0.3}
+                  />
+                );
+              }
+              return (
+                <ClassShape
+                  key={'ghost-' + ghost.id}
+                  viewModel={vm as NodeViewModel}
+                  x={ghost.x}
+                  y={ghost.y}
+                  opacity={0.3}
+                />
+              );
+            })}
+          </Layer>
         </Stage>
       )}
     </div>

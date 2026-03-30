@@ -31,6 +31,7 @@
 
 import { useMemo } from 'react';
 import { Group, Rect, Text, Line } from 'react-konva';
+import type { KonvaEventObject } from 'konva/lib/Node';
 import type { NodeViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import { resolveNodeColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
@@ -157,10 +158,27 @@ interface ClassShapeProps {
   x: number;
   y: number;
   selected?: boolean;
+  /** Render opacity — pass 0.3 for ghost shapes during drag. */
+  opacity?: number;
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
+  draggable?: boolean;
+  onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
+  onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
+  onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
 }
 
-export default function ClassShape({ viewModel: vm, x, y, selected, onNodeClick }: ClassShapeProps) {
+export default function ClassShape({
+  viewModel: vm,
+  x,
+  y,
+  selected,
+  opacity,
+  onNodeClick,
+  draggable,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+}: ClassShapeProps) {
   const colors = resolveNodeColors(vm.style.containerClass);
   const layout = useMemo(() => computeLayout(vm), [vm]);
   const { width: W, height: H } = layout;
@@ -170,9 +188,15 @@ export default function ClassShape({ viewModel: vm, x, y, selected, onNodeClick 
 
   return (
     <Group
+      id={vm.id}
       x={x}
       y={y}
+      opacity={opacity}
       listening={true}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
+      onDragEnd={onDragEnd}
       onClick={(e) => {
         e.cancelBubble = true;
         onNodeClick?.(vm.id, e.evt.ctrlKey || e.evt.metaKey);

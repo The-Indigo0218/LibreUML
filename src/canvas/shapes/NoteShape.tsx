@@ -42,6 +42,7 @@ import { Group, Shape, Text, Line, Rect } from 'react-konva';
 import type Konva from 'konva';
 import type { Context } from 'konva/lib/Context';
 import type { Shape as KonvaShape } from 'konva/lib/Shape';
+import type { KonvaEventObject } from 'konva/lib/Node';
 import type { NoteViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import { resolveNoteColors } from '../tokens/colors';
 
@@ -88,10 +89,27 @@ interface NoteShapeProps {
   x: number;
   y: number;
   selected?: boolean;
+  /** Render opacity — pass 0.3 for ghost shapes during drag. */
+  opacity?: number;
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
+  draggable?: boolean;
+  onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
+  onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
+  onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
 }
 
-export default function NoteShape({ viewModel: vm, x, y, selected, onNodeClick }: NoteShapeProps) {
+export default function NoteShape({
+  viewModel: vm,
+  x,
+  y,
+  selected,
+  opacity,
+  onNodeClick,
+  draggable,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+}: NoteShapeProps) {
   const colors = resolveNoteColors();
   const contentRef = useRef<Konva.Text>(null);
 
@@ -115,9 +133,15 @@ export default function NoteShape({ viewModel: vm, x, y, selected, onNodeClick }
 
   return (
     <Group
+      id={vm.id}
       x={x}
       y={y}
+      opacity={opacity}
       listening={true}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
+      onDragEnd={onDragEnd}
       onClick={(e) => {
         e.cancelBubble = true;
         onNodeClick?.(vm.id, e.evt.ctrlKey || e.evt.metaKey);

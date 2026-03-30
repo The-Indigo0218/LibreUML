@@ -134,3 +134,88 @@ export function orthogonalRoute(src: AnchorPoint, tgt: Point): number[] {
 export function straightRoute(src: Point, tgt: Point): number[] {
   return [src.x, src.y, tgt.x, tgt.y];
 }
+
+// ─── Curved routing ───────────────────────────────────────────────────────────
+
+/** Outward unit direction for each face (away from the node body). */
+function faceOutward(face: AnchorFace): [number, number] {
+  switch (face) {
+    case 'Top':    return [0, -1];
+    case 'Bottom': return [0,  1];
+    case 'Left':   return [-1, 0];
+    case 'Right':  return [ 1, 0];
+  }
+}
+
+/**
+ * Cubic Bezier route.
+ * Returns an 8-element flat array: [x0,y0, cp1x,cp1y, cp2x,cp2y, x1,y1].
+ * Use with Konva `<Line bezier={true}>`.
+ *
+ * Control points extend outward from each anchor face, scaled to 40 % of the
+ * straight-line distance (min 60 px) so the curve reads naturally at all scales.
+ */
+export function curvedRoute(
+  src: AnchorPoint,
+  retractedTgt: Point,
+  tgtFace: AnchorFace,
+): number[] {
+  const dist = Math.hypot(retractedTgt.x - src.x, retractedTgt.y - src.y);
+  const cpLen = Math.max(60, dist * 0.4);
+
+  const [sdx, sdy] = faceOutward(src.face);
+  const [tdx, tdy] = faceOutward(tgtFace);
+
+  return [
+    src.x,                        src.y,
+    src.x + sdx * cpLen,          src.y + sdy * cpLen,          // cp1
+    retractedTgt.x + tdx * cpLen, retractedTgt.y + tdy * cpLen, // cp2
+    retractedTgt.x,               retractedTgt.y,
+  ];
+}
+
+// ─── Self-loop routing ────────────────────────────────────────────────────────
+
+export interface SelfLoopResult {
+  /** 8-element flat bezier array for Konva <Line bezier={true}>. */
+  points: number[];
+  /** Marker tip position (original, non-retracted anchor). */
+  markerX: number;
+  markerY: number;
+  markerFace: AnchorFace;
+}
+
+/**
+ * Self-loop path for an edge whose source and target are the same node.
+ *
+ * The loop exits the right face (~35 % down) and re-enters the top face
+ * (~70 % right), curving through the upper-right quadrant.
+ * `retract` shifts the bezier endpoint inward so the line body meets the
+ * base of the marker (same role as `retractAnchor` for straight edges).
+ */
+export function selfLoopPath(bounds: NodeBounds, retract: number): SelfLoopResult {
+  const OFF = 52; // loop extension outside the node bounding box
+
+  // Exit anchor — right face, 35 % down
+  const exitX = bounds.x + bounds.width;
+  const exitY = bounds.y + bounds.height * 0.35;
+
+  // Entry anchor tip — top face, 70 % right
+  const entryX = bounds.x + bounds.width * 0.7;
+  const entryY = bounds.y;
+
+  // Retract the endpoint so the line body terminates before the marker tip
+  const retractedEntryY = entryY - retract;
+
+  return {
+    points: [
+      exitX,                  exitY,
+      exitX + OFF * 1.5,      exitY - OFF * 0.25,      // cp1: far right, slightly up
+      entryX + OFF * 0.5,     retractedEntryY - OFF,   // cp2: above-right of entry
+      entryX,                 retractedEntryY,
+    ],
+    markerX: entryX,
+    markerY: entryY,
+    markerFace: 'Top',
+  };
+}

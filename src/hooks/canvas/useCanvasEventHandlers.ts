@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { NodeChange, EdgeChange, Connection } from 'reactflow';
+import type { KonvaNodeChange, KonvaEdgeChange, KonvaConnection } from '../../canvas/types/canvas.types';
 import { useVFSStore, withoutUndo } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
@@ -44,17 +44,17 @@ export interface UseCanvasEventHandlersResult {
    * REMOVE: view-only — removes ViewNode + prunes dangling ViewEdges from this
    *         diagram only. Semantic element stays in ModelStore.
    */
-  onNodesChange: (changes: NodeChange[]) => void;
+  onNodesChange: (changes: KonvaNodeChange[]) => void;
   /**
    * onEdgesChange handler wired to the VFS layer.
    * REMOVE: deletes IRRelation from ModelStore + removes ViewEdge from DiagramView.
    */
-  onEdgesChange: (changes: EdgeChange[]) => void;
+  onEdgesChange: (changes: KonvaEdgeChange[]) => void;
   /**
    * onConnect handler: creates IRRelation in ModelStore + ViewEdge in DiagramView.
    * Default relation kind is ASSOCIATION.
    */
-  onConnect: (connection: Connection) => void;
+  onConnect: (connection: KonvaConnection) => void;
 }
 
 export function useCanvasEventHandlers({
@@ -65,7 +65,7 @@ export function useCanvasEventHandlers({
   // ── onNodesChange: position drag-save + node removal ──────────────────────
 
   const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
+    (changes: KonvaNodeChange[]) => {
       if (!activeTabId) return;
 
       // Read current state directly — this is an event handler, not a render.
@@ -81,11 +81,11 @@ export function useCanvasEventHandlers({
       let dirty = false;
 
       for (const change of changes) {
-        if (change.type === 'position' && change.position) {
+        if (change.type === 'position') {
           // Strict separation: x, y belong to the VFS DiagramView.
           updatedViewNodes = updatedViewNodes.map((vn) =>
             vn.id === change.id
-              ? { ...vn, x: change.position!.x, y: change.position!.y }
+              ? { ...vn, x: change.position.x, y: change.position.y }
               : vn,
           );
           dirty = true;
@@ -141,7 +141,7 @@ export function useCanvasEventHandlers({
   // ── onEdgesChange: edge deletion (keyboard Delete / context menu) ──────────
 
   const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => {
+    (changes: KonvaEdgeChange[]) => {
       if (!activeTabId) return;
 
       const currentProject = useVFSStore.getState().project;
@@ -182,7 +182,7 @@ export function useCanvasEventHandlers({
   // ── onConnect: create edge from handle drag ────────────────────────────────
 
   const onConnect = useCallback(
-    (connection: Connection) => {
+    (connection: KonvaConnection) => {
       if (!activeTabId || !connection.source || !connection.target) return;
 
       const currentProject = useVFSStore.getState().project;

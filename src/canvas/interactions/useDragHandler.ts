@@ -26,7 +26,7 @@
  *   - If the dragged node is NOT in selectedIds → only that node drags (no selection change).
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { RefObject } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -57,6 +57,13 @@ interface UseDragHandlerOptions {
   stageRef: RefObject<Konva.Stage | null>;
   selectedIds: Set<string>;
   nodes: CanvasNode[];
+  /**
+   * Called with the final snapped positions of all dragged nodes when a drag
+   * completes (both normal dragEnd and window-mouseup fallback).
+   * Use this to persist positions to the store without causing extra re-renders
+   * during the drag itself.
+   */
+  onDragComplete?: (positions: Map<string, { x: number; y: number }>) => void;
 }
 
 export interface UseDragHandlerReturn {
@@ -94,7 +101,11 @@ export function useDragHandler({
   stageRef,
   selectedIds,
   nodes,
+  onDragComplete,
 }: UseDragHandlerOptions): UseDragHandlerReturn {
+  // Keep onDragComplete in a ref so event handlers never go stale.
+  const onDragCompleteRef = useRef(onDragComplete);
+  useEffect(() => { onDragCompleteRef.current = onDragComplete; });
   // Updated only on dragEnd (one re-render per drag, zero during drag).
   const [positionOverrides, setPositionOverrides] = useState<
     Map<string, { x: number; y: number }>
@@ -296,6 +307,9 @@ export function useDragHandler({
         return next;
       });
 
+      // Persist final positions to the store (e.g., VFSStore via onNodeChange).
+      if (updates.size > 0) onDragCompleteRef.current?.(updates);
+
       // Clear ghost shapes and live drag positions (React 18 batches both updates).
       setGhostNodes([]);
       setDragPositions(null);
@@ -308,6 +322,65 @@ export function useDragHandler({
     },
     [stageRef],
   );
+
+  // ── Window mouseup fallback ────────────────────────────────────────────────
+  // If the user releases the mouse button outside the canvas (e.g., drags off
+  // screen), Konva's native dragEnd event may never fire, leaving isDragging
+  // stuck at true and ghostNodes visible.
+  //
+  // Fix: listen for window 'mouseup' and run the same cleanup as onDragEnd.
+  // If onDragEnd already ran (user released inside canvas), isDragging.current
+  // is already false and this is a no-op.
+  useEffect(() => {
+    const handleWindowMouseUp = () => {
+      if (!isDragging.current) return;
+
+      // Cancel any in-flight rAF and debounce timer.
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+      if (edgeDebounceTimer.current !== null) {
+        clearTimeout(edgeDebounceTimer.current);
+        edgeDebounceTimer.current = null;
+      }
+      // Capture last known delta BEFORE clearing it so we can snap to the final position.
+      const lastDelta = latestDelta.current ?? { dx: 0, dy: 0 };
+      latestDelta.current = null;
+
+      const stage = stageRef.current;
+      if (stage) stage.draggable(true);
+
+      // Snap all dragging nodes to grid using their last known positions.
+      const updates = new Map<string, { x: number; y: number }>();
+      for (const nodeId of draggingIds.current) {
+        const start = startPositions.current.get(nodeId);
+        if (!start) continue;
+        const rawX = start.x + lastDelta.dx;
+        const rawY = start.y + lastDelta.dy;
+        updates.set(nodeId, { x: snapToGrid(rawX), y: snapToGrid(rawY) });
+      }
+
+      if (updates.size > 0) {
+        setPositionOverrides((prev) => {
+          const next = new Map(prev);
+          for (const [id, pos] of updates) next.set(id, pos);
+          return next;
+        });
+        onDragCompleteRef.current?.(updates);
+      }
+
+      setGhostNodes([]);
+      setDragPositions(null);
+      isDragging.current = false;
+      primaryId.current = null;
+      draggingIds.current = [];
+      startPositions.current = new Map();
+    };
+
+    window.addEventListener('mouseup', handleWindowMouseUp);
+    return () => window.removeEventListener('mouseup', handleWindowMouseUp);
+  }, [stageRef]);
 
   return {
     positionOverrides,

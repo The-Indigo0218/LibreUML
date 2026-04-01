@@ -51,6 +51,8 @@ export interface UseSelectionReturn {
   selectedIds: Set<string>;
   lassoRect: LassoRect | null;
   onNodeClick: (id: string, ctrl: boolean) => void;
+  /** Replaces the entire selection with the given IDs. Used by Ctrl+A. */
+  selectAll: (ids: string[]) => void;
   stageHandlers: {
     onMouseDown: (e: KonvaEventObject<MouseEvent>) => void;
     onMouseMove: (e: KonvaEventObject<MouseEvent>) => void;
@@ -127,6 +129,11 @@ export function useSelection({ stageRef, boundsMapRef }: UseSelectionOptions): U
       }
       return new Set([id]);
     });
+  }, []);
+
+  // ── Select all (Ctrl+A) ─────────────────────────────────────────────────
+  const selectAll = useCallback((ids: string[]) => {
+    setSelectedIds(new Set(ids));
   }, []);
 
   // ── Stage: lasso start ──────────────────────────────────────────────────
@@ -228,6 +235,7 @@ export function useSelection({ stageRef, boundsMapRef }: UseSelectionOptions): U
     selectedIds,
     lassoRect,
     onNodeClick,
+    selectAll,
     stageHandlers: {
       onMouseDown: onStageMouseDown,
       onMouseMove: onStageMouseMove,

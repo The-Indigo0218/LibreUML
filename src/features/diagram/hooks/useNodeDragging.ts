@@ -1,13 +1,18 @@
 import { useCallback, useRef } from "react";
-import type { Node } from "reactflow";
 import { useWorkspaceStore } from "../../../store/workspace.store";
 import { useVFSStore, withoutUndo } from "../../../store/project-vfs.store";
 import { isDiagramView } from "./useVFSCanvasController";
 import type { VFSFile, DiagramView } from "../../../core/domain/vfs/vfs.types";
 
+/** Minimal node descriptor — only position and id are accessed during drag. */
+interface PositionedNode {
+  id: string;
+  position: { x: number; y: number };
+}
+
 /**
  * Pre-drag position snapshot — saved on drag start, available for undo.
- * Maps ReactFlow node ID → { x, y } from the ViewNode before the drag began.
+ * Maps node ID → { x, y } from the ViewNode before the drag began.
  */
 export interface DragSnapshot {
   tabId: string;
@@ -36,7 +41,7 @@ export const useNodeDragging = () => {
   const dragSnapshotRef = useRef<DragSnapshot | null>(null);
 
   const onNodeDragStart = useCallback(
-    (_event: React.MouseEvent, _node: Node, draggedNodes: Node[]) => {
+    (_event: React.MouseEvent, _node: PositionedNode, draggedNodes: PositionedNode[]) => {
       const tabId = useWorkspaceStore.getState().activeTabId;
       if (!tabId) return;
 
@@ -51,7 +56,7 @@ export const useNodeDragging = () => {
   );
 
   const onNodeDragStop = useCallback(
-    (_event: React.MouseEvent, _node: Node, draggedNodes: Node[]) => {
+    (_event: React.MouseEvent, _node: PositionedNode, draggedNodes: PositionedNode[]) => {
       const tabId = useWorkspaceStore.getState().activeTabId;
       if (!tabId) return;
 

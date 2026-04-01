@@ -279,7 +279,7 @@ export class JavaGeneratorService {
 
       if (!existingMethodNames.has(getterName)) {
         methods.push(`    public ${type} ${getterName}() {`);
-        methods.push(`        return this${attr.name};`);
+        methods.push(`        return this.${attr.name};`);
         methods.push("    }");
         methods.push("");
       }

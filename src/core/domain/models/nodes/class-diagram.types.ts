@@ -42,7 +42,8 @@ export interface ClassMethod {
   name: string;
   returnType: string;
   visibility: Visibility;
-  parameters: Array<{ name: string; type: string }>;
+  parameters: MethodParameter[];
+  isReturnArray?: boolean;
   isStatic?: boolean;
   isAbstract?: boolean;
   isConstructor?: boolean;

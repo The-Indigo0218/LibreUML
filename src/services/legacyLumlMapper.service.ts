@@ -211,7 +211,8 @@ export function mapLegacyDiagram(
           name: m.name,
           returnType: m.returnType || 'void',
           visibility: mapVisibility(m.visibility),
-          parameters: m.parameters.map((p) => ({ name: p.name, type: p.type })),
+          parameters: m.parameters.map((p) => ({ name: p.name, type: p.type, isArray: p.isArray ?? false })),
+          isReturnArray: false,
           isStatic: m.isStatic ?? false,
         };
         partialModel.operations[opId] = op;
@@ -263,7 +264,8 @@ export function mapLegacyDiagram(
           name: m.name,
           returnType: m.returnType || 'void',
           visibility: mapVisibility(m.visibility),
-          parameters: m.parameters.map((p) => ({ name: p.name, type: p.type })),
+          parameters: m.parameters.map((p) => ({ name: p.name, type: p.type, isArray: p.isArray ?? false })),
+          isReturnArray: false,
           isStatic: m.isStatic ?? false,
         };
         partialModel.operations[opId] = op;

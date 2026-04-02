@@ -21,6 +21,8 @@ import ProjectGeneratorModal from "../modals/ProjectGeneratorModal";
 import ImportCodeModal from "../modals/ImportCodeModal";
 import CodeExportConfigModal from "../modals/CodeExportConfigModal";
 import WikiModal from "../../../../components/Wiki/WikiModal";
+import VfsEdgeActionModal from "../modals/VfsEdgeActionModal";
+import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 import { useUiStore } from "../../../../store/uiStore";
 import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
 import { useVFSAutoSave } from "../../../../hooks/actions/useVFSAutoSave";
@@ -36,7 +38,7 @@ function EditorLogic() {
   const { project } = useVFSStore();
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const { isLeftPanelOpen, isRightPanelOpen, isBottomPanelOpen } = useLayoutStore();
-  const { activeModal, closeModals } = useUiStore();
+  const { activeModal, editingId, closeModals } = useUiStore();
 
   useAutoSave();
   useVFSAutoSave();
@@ -139,6 +141,12 @@ function EditorLogic() {
       <SSoTElementEditorModal />
       <SSoTClassEditorModal />
       <GlobalDeleteModal />
+      <VfsEdgeActionModal />
+      <MethodGeneratorModal
+        isOpen={activeModal === 'method-generator'}
+        nodeId={activeModal === 'method-generator' ? (editingId ?? null) : null}
+        onClose={closeModals}
+      />
       <ToastContainer />
 
       {/* ── Menubar-triggered modals (available regardless of canvas state) ── */}

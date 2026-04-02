@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowLeftRight, Trash2, Check, Lock } from 'lucide-react';
+import { X, ArrowLeftRight, Trash2, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
 import { useVFSStore } from '../../../../store/project-vfs.store';
@@ -85,7 +85,6 @@ export default function VfsEdgeActionModal() {
   const [targetRole, setTargetRole] = useState('');
   const [sourceMul, setSourceMul] = useState('');
   const [targetMul, setTargetMul] = useState('');
-  const [anchorLocked, setAnchorLocked] = useState(false);
 
   useEffect(() => {
     if (isOpen && viewEdge && relation) {
@@ -95,7 +94,6 @@ export default function VfsEdgeActionModal() {
       setTargetRole(viewEdge.targetRole ?? '');
       setSourceMul(viewEdge.sourceMultiplicity ?? '');
       setTargetMul(viewEdge.targetMultiplicity ?? '');
-      setAnchorLocked(viewEdge.anchorLocked ?? false);
     }
   }, [isOpen, viewEdge, relation]);
 
@@ -143,7 +141,6 @@ export default function VfsEdgeActionModal() {
             targetRole,
             sourceMultiplicity: sourceMul,
             targetMultiplicity: targetMul,
-            anchorLocked,
           }
         : e,
     );
@@ -319,19 +316,6 @@ export default function VfsEdgeActionModal() {
               </div>
             </div>
           )}
-
-          <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-            <input
-              type="checkbox"
-              checked={anchorLocked}
-              onChange={(e) => setAnchorLocked(e.target.checked)}
-              className="accent-indigo-500 w-3.5 h-3.5"
-            />
-            <Lock className={`w-3.5 h-3.5 transition-colors ${anchorLocked ? 'text-indigo-400' : 'text-text-muted'}`} />
-            <span className="text-xs text-text-secondary font-medium group-hover:text-text-primary transition-colors">
-              Bloquear puntos de conexión
-            </span>
-          </label>
 
         </div>
 

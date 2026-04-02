@@ -91,17 +91,41 @@ export default function KonvaCanvas() {
     boundsMapRef,
   });
 
-  // ── Highlight edges (MAG-01.23 + MAG-01.24) ─────────────────────────────
-  // When highlightConnections is ON → ALL edges show with kind-specific colors.
-  // This matches v1 showAllEdges behavior: global "show all connections" mode.
-  const highlightedEdgeIds = useMemo((): Set<string> => {
-    if (!highlightConnections) return new Set();
-    return new Set(edges.map((e) => e.id));
-  }, [highlightConnections, edges]);
-
   // ── Hovered edge ID (MAG-01.24) ──────────────────────────────────────────
-  // Tracks which edge is being hovered for color preview on the Konva layer.
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+
+  // ── Highlighted edges (MAG-01.23 + MAG-01.24) ────────────────────────────
+  // Highlight mode + selection → connected edges show kind colors.
+  // Hover → that edge shows kind color (handled via isHovered prop directly).
+  const highlightedEdgeIds = useMemo((): Set<string> => {
+    if (!highlightConnections || selectedIds.size === 0) return new Set();
+    const selectedArray = Array.from(selectedIds);
+    const highlighted = new Set<string>();
+    edges.forEach((e) => {
+      if (selectedArray.includes(e.sourceId) || selectedArray.includes(e.targetId)) {
+        highlighted.add(e.id);
+      }
+    });
+    return highlighted;
+  }, [highlightConnections, selectedIds, edges]);
+
+  // ── Dimmed edges (MAG-01.24) ─────────────────────────────────────────────
+  // Hover: all edges except hovered are dimmed.
+  // Highlight mode + selection: non-connected edges are dimmed.
+  const dimmedEdgeIds = useMemo((): Set<string> => {
+    if (hoveredEdgeId) {
+      return new Set(edges.filter((e) => e.id !== hoveredEdgeId).map((e) => e.id));
+    }
+    if (highlightConnections && selectedIds.size > 0) {
+      const selectedArray = Array.from(selectedIds);
+      return new Set(
+        edges
+          .filter((e) => !selectedArray.includes(e.sourceId) && !selectedArray.includes(e.targetId))
+          .map((e) => e.id),
+      );
+    }
+    return new Set();
+  }, [hoveredEdgeId, highlightConnections, selectedIds, edges]);
 
   // ── onDragComplete → persist positions to VFSStore ────────────────────────
   const handleDragComplete = useCallback(
@@ -460,13 +484,6 @@ export default function KonvaCanvas() {
     [menu, getMenuOptions],
   );
 
-  // Edge tooltip state
-  const [edgeTooltip, setEdgeTooltip] = useState<{
-    kind: RelationKind;
-    x: number;
-    y: number;
-  } | null>(null);
-
   // Context menu handlers for Konva shapes
   const handleNodeContextMenu = useCallback(
     (e: KonvaEventObject<PointerEvent>, nodeId: string) => {
@@ -492,36 +509,16 @@ export default function KonvaCanvas() {
   );
 
   // Edge hover handlers (MAG-01.24)
-  // - setHoveredEdgeId: triggers color preview on Konva layer immediately
-  // - setEdgeTooltip: shows HTML tooltip after 500ms delay
+  // Badge tooltip is rendered inline on the Konva layer via KonvaEdge's isHovered prop.
   const handleEdgeMouseEnter = useCallback(
     (_e: KonvaEventObject<MouseEvent>, edgeId: string) => {
       setHoveredEdgeId(edgeId);
-
-      const edge = edges.find((ed) => ed.id === edgeId);
-      if (!edge) return;
-
-      const stage = stageRef.current;
-      if (!stage) return;
-
-      const sourceBounds = boundsMap.get(edge.sourceId);
-      const targetBounds = boundsMap.get(edge.targetId);
-      if (!sourceBounds || !targetBounds) return;
-
-      const midX = (sourceBounds.x + sourceBounds.width / 2 + targetBounds.x + targetBounds.width / 2) / 2;
-      const midY = (sourceBounds.y + sourceBounds.height / 2 + targetBounds.y + targetBounds.height / 2) / 2;
-
-      const transform = stage.getAbsoluteTransform().copy();
-      const screenPos = transform.point({ x: midX, y: midY });
-
-      setEdgeTooltip({ kind: edge.kind, x: screenPos.x, y: screenPos.y });
     },
-    [edges, boundsMap, stageRef],
+    [],
   );
 
   const handleEdgeMouseLeave = useCallback(() => {
     setHoveredEdgeId(null);
-    setEdgeTooltip(null);
   }, []);
 
   // ── Merged stage event handlers ────────────────────────────────────────────
@@ -638,6 +635,7 @@ export default function KonvaCanvas() {
                   targetRole={edge.targetRole}
                   isHighlighted={highlightedEdgeIds.has(edge.id)}
                   isHovered={hoveredEdgeId === edge.id}
+                  isDimmed={dimmedEdgeIds.has(edge.id)}
                   onContextMenu={handleEdgeContextMenu}
                   onMouseEnter={handleEdgeMouseEnter}
                   onMouseLeave={handleEdgeMouseLeave}
@@ -782,7 +780,6 @@ export default function KonvaCanvas() {
         contextMenu={menu}
         contextMenuOptions={contextMenuOptions}
         onCloseContextMenu={closeMenu}
-        edgeTooltip={edgeTooltip}
       />
     </div>
   );

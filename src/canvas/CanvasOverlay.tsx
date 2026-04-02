@@ -34,9 +34,7 @@
  */
 
 import InlineEditor from './overlays/InlineEditor';
-import EdgeTooltip from './overlays/EdgeTooltip';
 import ContextMenu from '../features/diagram/components/ui/ContextMenu';
-import type { RelationKind } from '../core/domain/vfs/vfs.types';
 
 interface CanvasOverlayProps {
   /** Context menu state (null = closed) */
@@ -50,19 +48,12 @@ interface CanvasOverlayProps {
   contextMenuOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[];
   /** Close context menu callback */
   onCloseContextMenu: () => void;
-  /** Edge tooltip state (null = hidden) */
-  edgeTooltip: {
-    kind: RelationKind;
-    x: number;
-    y: number;
-  } | null;
 }
 
 export default function CanvasOverlay({
   contextMenu,
   contextMenuOptions,
   onCloseContextMenu,
-  edgeTooltip,
 }: CanvasOverlayProps) {
   return (
     <div
@@ -89,18 +80,7 @@ export default function CanvasOverlay({
         </div>
       )}
 
-      {/* Edge tooltip (MAG-01.12) — pointer-events: none (passthrough) */}
-      {edgeTooltip && (
-        <EdgeTooltip
-          kind={edgeTooltip.kind}
-          x={edgeTooltip.x}
-          y={edgeTooltip.y}
-          visible={true}
-        />
-      )}
-
-      {/* Future: Connection labels (multiplicity, roles) */}
-      {/* <ConnectionLabels /> */}
+      {/* Edge badge tooltip is rendered inline on the Konva canvas via KonvaEdge */}
     </div>
   );
 }

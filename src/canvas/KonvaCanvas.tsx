@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Stage, Layer, Line, Circle } from 'react-konva';
+import type { KonvaEventObject } from 'konva/lib/Node';
 import GridPattern from './engine/GridPattern';
 import { useViewport } from './engine/useViewport';
 import { useSettingsStore } from '../store/settingsStore';
@@ -16,13 +17,29 @@ import { useConnectionDraw } from './interactions/useConnectionDraw';
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import CanvasOverlay from './CanvasOverlay';
 import { useInlineEditorStore } from './store/inlineEditorStore';
-import type { KonvaEventObject } from 'konva/lib/Node';
+import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
+import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
+import { useVFSCanvasController } from '../features/diagram/hooks/useVFSCanvasController';
+import { useUiStore } from '../store/uiStore';
+import { useModelStore } from '../store/model.store';
+import { useToastStore } from '../store/toast.store';
+import { useStageStore } from './store/stageStore';
 import type { KonvaNodeChange, KonvaEdgeChange } from './types/canvas.types';
 import {
   isNoteViewModel,
   type NodeViewModel,
 } from '../adapters/react-flow/view-models/node.view-model';
 import type { NodeBounds } from './edges/geometry';
+import type { RelationKind } from '../core/domain/vfs/vfs.types';
+
+const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
+  ASSOCIATION: 'ASSOCIATION',
+  INHERITANCE: 'GENERALIZATION',
+  IMPLEMENTATION: 'REALIZATION',
+  DEPENDENCY: 'DEPENDENCY',
+  AGGREGATION: 'AGGREGATION',
+  COMPOSITION: 'COMPOSITION',
+};
 
 export default function KonvaCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -30,6 +47,19 @@ export default function KonvaCanvas() {
 
   const showGrid = useSettingsStore((s) => s.showGrid);
   const { stageRef, stageProps, viewport } = useViewport();
+
+  // Register stage in global store so ExportModal can access it
+  const setStage = useStageStore((s) => s.setStage);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (stage) {
+      setStage(stage);
+      return () => setStage(null);
+    }
+  });
+
+  // VFS controller — needed for context menu callbacks
+  const vfsController = useVFSCanvasController();
 
   const {
     shapes,
@@ -230,7 +260,6 @@ export default function KonvaCanvas() {
       // Calculate screen-space position of the name text
       // Name text is positioned at (H_PAD, nameY + 3) within the Group
       const H_PAD = 10;
-      const NAME_FONT = 14;
       const NAME_H = 22;
       
       // Get absolute position of the group in stage coordinates
@@ -283,7 +312,6 @@ export default function KonvaCanvas() {
       // Calculate screen-space position of the title text
       const NOTE_H_PAD = 8;
       const NOTE_V_PAD = 8;
-      const NOTE_TITLE_FONT = 14;
       const NOTE_TITLE_H = 32;
       const NOTE_W = 224;
 
@@ -317,6 +345,164 @@ export default function KonvaCanvas() {
     },
     [shapes, stageRef, startInlineEditing],
   );
+
+  // ── Context Menu ──────────────────────────────────────────────────────────
+  const { menu, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu, closeMenu } = useContextMenu();
+
+  const {
+    openSSoTClassEditor,
+    openClearConfirmation,
+    openVfsEdgeAction,
+    openMethodGenerator,
+  } = useUiStore();
+
+  // Screen → canvas coordinate conversion for context menu "Add" actions
+  const screenToCanvas = useCallback(
+    (screen: { x: number; y: number }) => {
+      const stage = stageRef.current;
+      if (!stage) return screen;
+      const transform = stage.getAbsoluteTransform().copy().invert();
+      return transform.point(screen);
+    },
+    [stageRef],
+  );
+
+  const { getMenuOptions } = useDiagramMenus({
+    onEditNode: (nodeId) => {
+      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
+      if (viewNode?.elementId) openSSoTClassEditor(viewNode.elementId);
+      closeMenu();
+    },
+    onClearCanvas: () => { openClearConfirmation(); closeMenu(); },
+    onEditEdgeMultiplicity: (id) => { openVfsEdgeAction(id); closeMenu(); },
+    onGenerateMethods: (id) => { openMethodGenerator(id); closeMenu(); },
+    onDeleteNode: (nodeId) => {
+      vfsController.removeNodeFromDiagram(nodeId);
+      closeMenu();
+    },
+    onDeleteNodeFromModel: (nodeId) => {
+      vfsController.deleteElementFromModel(nodeId);
+      closeMenu();
+    },
+    onDeleteEdge: (edgeId) => {
+      vfsController.deleteEdgeById(edgeId);
+      closeMenu();
+    },
+    onReverseEdge: (edgeId) => {
+      vfsController.reverseEdgeById(edgeId);
+      closeMenu();
+    },
+    onChangeEdgeKind: (edgeId, legacyType) => {
+      const kind = VFS_TYPE_TO_RELATION_KIND[legacyType] ?? (legacyType as RelationKind);
+      vfsController.changeEdgeKind(edgeId, kind);
+      closeMenu();
+    },
+    onAddToProject: (nodeId) => {
+      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
+      if (!viewNode?.elementId) return;
+      const ms = useModelStore.getState();
+      const elementName =
+        ms.model?.classes[viewNode.elementId]?.name ??
+        ms.model?.interfaces[viewNode.elementId]?.name ??
+        ms.model?.enums[viewNode.elementId]?.name ??
+        'Element';
+      ms.integrateExternalElement(viewNode.elementId);
+      useToastStore.getState().show(`"${elementName}" added to project model`);
+      closeMenu();
+    },
+    getVFSNodeKind: (nodeId) => {
+      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
+      if (!viewNode) return undefined;
+      if (!viewNode.elementId) return 'NOTE';
+      const activeModel = vfsController.isStandalone
+        ? vfsController.localModel
+        : useModelStore.getState().model;
+      if (!activeModel) return undefined;
+      const cls = activeModel.classes[viewNode.elementId];
+      if (cls) return cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS';
+      if (activeModel.interfaces[viewNode.elementId]) return 'INTERFACE';
+      if (activeModel.enums[viewNode.elementId]) return 'ENUM';
+      return 'NOTE';
+    },
+    getIsNodeExternal: (nodeId) => {
+      if (vfsController.isStandalone) return false;
+      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
+      if (!viewNode?.elementId) return false;
+      const ms = useModelStore.getState();
+      if (!ms.model) return false;
+      return !!(
+        ms.model.classes[viewNode.elementId]?.isExternal ||
+        ms.model.interfaces[viewNode.elementId]?.isExternal ||
+        ms.model.enums[viewNode.elementId]?.isExternal
+      );
+    },
+    getElementId: (nodeId) =>
+      vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId)?.elementId,
+    isStandalone: vfsController.isStandalone,
+    screenToCanvas,
+  });
+
+  const contextMenuOptions = useMemo(
+    () => (menu ? getMenuOptions(menu) : []),
+    [menu, getMenuOptions],
+  );
+
+  // Edge tooltip state
+  const [edgeTooltip, setEdgeTooltip] = useState<{
+    kind: RelationKind;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Context menu handlers for Konva shapes
+  const handleNodeContextMenu = useCallback(
+    (e: KonvaEventObject<PointerEvent>, nodeId: string) => {
+      onNodeContextMenu(e.evt, { id: nodeId });
+    },
+    [onNodeContextMenu],
+  );
+
+  const handleEdgeContextMenu = useCallback(
+    (e: KonvaEventObject<PointerEvent>, edgeId: string) => {
+      onEdgeContextMenu(e.evt, { id: edgeId });
+    },
+    [onEdgeContextMenu],
+  );
+
+  const handleStageContextMenu = useCallback(
+    (e: KonvaEventObject<PointerEvent>) => {
+      if (e.target === e.target.getStage()) {
+        onPaneContextMenu(e.evt);
+      }
+    },
+    [onPaneContextMenu],
+  );
+
+  // Edge tooltip handlers
+  const handleEdgeMouseEnter = useCallback(
+    (_e: KonvaEventObject<MouseEvent>, edgeId: string) => {
+      const edge = edges.find((ed) => ed.id === edgeId);
+      if (!edge) return;
+
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const sourceBounds = boundsMap.get(edge.sourceId);
+      const targetBounds = boundsMap.get(edge.targetId);
+      if (!sourceBounds || !targetBounds) return;
+
+      const midX = (sourceBounds.x + sourceBounds.width / 2 + targetBounds.x + targetBounds.width / 2) / 2;
+      const midY = (sourceBounds.y + sourceBounds.height / 2 + targetBounds.y + targetBounds.height / 2) / 2;
+
+      const transform = stage.getAbsoluteTransform().copy();
+      const screenPos = transform.point({ x: midX, y: midY });
+
+      setEdgeTooltip({ kind: edge.kind, x: screenPos.x, y: screenPos.y });
+    },
+    [edges, boundsMap, stageRef],
+  );
+
+  const handleEdgeMouseLeave = useCallback(() => setEdgeTooltip(null), []);
 
   // ── Merged stage event handlers ────────────────────────────────────────────
   // Connection draw has priority over lasso selection:
@@ -387,6 +573,7 @@ export default function KonvaCanvas() {
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}
           onClick={stageHandlers.onClick}
+          onContextMenu={handleStageContextMenu}
         >
           {/* ── Background layer — grid ───────────────────────────── */}
           <Layer>
@@ -419,11 +606,15 @@ export default function KonvaCanvas() {
               return (
                 <KonvaEdge
                   key={edge.id}
+                  id={edge.id}
                   kind={edge.kind}
                   sourceBounds={sourceBounds}
                   targetBounds={targetBounds}
                   isSelfLoop={isSelfLoop}
                   obstacles={obstacles}
+                  onContextMenu={handleEdgeContextMenu}
+                  onMouseEnter={handleEdgeMouseEnter}
+                  onMouseLeave={handleEdgeMouseLeave}
                 />
               );
             })}
@@ -448,6 +639,7 @@ export default function KonvaCanvas() {
                     onDragEnd={dragHandlers.onDragEnd}
                     onNodeClick={onNodeClick}
                     onDblClick={(e) => handleNoteDblClick(shape.id, e)}
+                    onContextMenu={handleNodeContextMenu}
                   />
                 );
               }
@@ -464,6 +656,7 @@ export default function KonvaCanvas() {
                   onDragEnd={dragHandlers.onDragEnd}
                   onNodeClick={onNodeClick}
                   onDblClick={(e) => handleClassDblClick(shape.id, e)}
+                  onContextMenu={handleNodeContextMenu}
                 />
               );
             })}
@@ -559,7 +752,12 @@ export default function KonvaCanvas() {
       )}
 
       {/* HTML Overlay (Layer 0) — positioned above canvas */}
-      <CanvasOverlay />
+      <CanvasOverlay
+        contextMenu={menu}
+        contextMenuOptions={contextMenuOptions}
+        onCloseContextMenu={closeMenu}
+        edgeTooltip={edgeTooltip}
+      />
     </div>
   );
 }

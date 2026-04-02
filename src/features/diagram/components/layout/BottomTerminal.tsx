@@ -3,7 +3,7 @@ import { Terminal, PanelBottomClose, ChevronRight, XCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next';
 import { useLayoutStore } from '../../../../store/layout.store';
 import { useTerminal } from '../../../../features/terminal/useTerminal';
-import { useAutoLayout } from '../../hooks/useAutoLayout';
+import { useKonvaAutoLayout } from '../../../../canvas/hooks/useKonvaAutoLayout';
 import { useModelValidation } from '../../hooks/useModelValidation';
 import type { OutputLine } from '../../../../features/terminal/registry';
 
@@ -42,7 +42,7 @@ function TerminalLine({ line }: { line: OutputLine }) {
 export default function BottomPanel() {
   const { t } = useTranslation();
   const { toggleBottomPanel, bottomPanelTab, setBottomPanelTab } = useLayoutStore();
-  const { runLayout } = useAutoLayout();
+  const { runLayout } = useKonvaAutoLayout();
   const { output, input, setInput, handleKeyDown, inputRef } = useTerminal({
     actions: { runLayout },
   });

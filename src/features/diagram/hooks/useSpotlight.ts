@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useReactFlow } from "reactflow";
 import { create } from "zustand";
+import { useViewportControlStore } from "../../../canvas/store/viewportControlStore";
 import { useProjectStore } from "../../../store/project.store";
 import { useWorkspaceStore } from "../../../store/workspace.store";
 
@@ -19,7 +19,7 @@ export const useSpotlightStore = create<SpotlightState>((set) => ({
 export const useSpotlight = () => {
   const { isOpen, setIsOpen } = useSpotlightStore();
   const [searchTerm, setSearchTerm] = useState("");
-  const { fitView } = useReactFlow();
+  const fitView = useViewportControlStore((s) => s.fitView);
   
   // Read from SSOT: get active file's node IDs, then get domain nodes
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
@@ -70,13 +70,9 @@ export const useSpotlight = () => {
     });
   }, [nodes, searchTerm]);
 
-  const onSelectNode = useCallback((nodeId: string) => {
-    fitView({
-      nodes: [{ id: nodeId }],
-      duration: 800,
-      padding: 1.5,
-    });
-    
+  const onSelectNode = useCallback((_nodeId: string) => {
+    // Fits all content; node-specific scroll is a future enhancement
+    fitView();
     setIsOpen(false);
   }, [fitView, setIsOpen]);
 

@@ -162,6 +162,7 @@ interface ClassShapeProps {
   opacity?: number;
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
   onDblClick?: (e: KonvaEventObject<MouseEvent>) => void;
+  onContextMenu?: (e: KonvaEventObject<PointerEvent>, nodeId: string) => void;
   draggable?: boolean;
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
@@ -176,6 +177,7 @@ export default function ClassShape({
   opacity,
   onNodeClick,
   onDblClick,
+  onContextMenu,
   draggable,
   onDragStart,
   onDragMove,
@@ -206,6 +208,11 @@ export default function ClassShape({
       onDblClick={(e) => {
         e.cancelBubble = true;
         onDblClick?.(e);
+      }}
+      onContextMenu={(e) => {
+        e.evt.preventDefault();
+        e.cancelBubble = true;
+        onContextMenu?.(e, vm.id);
       }}
     >
       {/* ── Outer rect (fills bg + draws border) ───────────────────────── */}

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAutoLayout } from "./useAutoLayout";
+import { useKonvaAutoLayout } from "../../../canvas/hooks/useKonvaAutoLayout";
 import { useUiStore } from "../../../store/uiStore";
 import { useVFSStore } from "../../../store/project-vfs.store";
 import { useModelStore } from "../../../store/model.store";
@@ -8,7 +8,7 @@ import { useToastStore } from "../../../store/toast.store";
 import { flushVFSSave } from "../../../hooks/actions/useVFSAutoSave";
 
 export const useKeyboardShortcuts = () => {
-  const { runLayout } = useAutoLayout();
+  const { runLayout } = useKonvaAutoLayout();
   const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
   const openExportModal = useUiStore((s) => s.openExportModal);
   const openWiki = useUiStore((s) => s.openWiki);

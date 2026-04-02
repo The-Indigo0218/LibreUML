@@ -1,9 +1,9 @@
 import { useMemo, useCallback, useEffect } from 'react';
 import type { CSSProperties } from 'react';
-import type { NodeChange, EdgeChange, Connection } from 'reactflow';
 import type {
   KonvaNodeChange,
   KonvaEdgeChange,
+  KonvaConnection,
 } from '../../../canvas/types/canvas.types';
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import { useVFSStore } from '../../../store/project-vfs.store';
@@ -311,12 +311,8 @@ export interface VFSCanvasResult {
   vfsFile: VFSFile | null;
   /** Active tab ID from WorkspaceStore. */
   activeTabId: string | null;
-  /** ReactFlow onNodesChange handler (position + removal). RF-typed for DiagramCanvas. */
-  onNodesChange: (changes: NodeChange[]) => void;
-  /** ReactFlow onEdgesChange handler (removal). RF-typed for DiagramCanvas. */
-  onEdgesChange: (changes: EdgeChange[]) => void;
-  /** ReactFlow onConnect handler (creates relation). */
-  onConnect: (connection: Connection) => void;
+  /** Konva-native onConnect handler (creates relation). */
+  onConnect: (connection: KonvaConnection) => void;
   /** Konva-typed onNodesChange — used by useKonvaCanvasController. */
   onKonvaNodesChange: (changes: KonvaNodeChange[]) => void;
   /** Konva-typed onEdgesChange — used by useKonvaCanvasController. */
@@ -642,35 +638,6 @@ export function useVFSCanvasController(): VFSCanvasResult {
     updateFileContent,
   });
 
-  // ── RF adapters — wrap Konva-typed handlers for ReactFlow's DiagramCanvas ──
-  // useCanvasEventHandlers now uses KonvaNodeChange/KonvaEdgeChange internally.
-  // DiagramCanvas passes ReactFlow's NodeChange/EdgeChange, so we adapt here.
-
-  const onNodesChange = useCallback(
-    (rfChanges: NodeChange[]) => {
-      const konvaChanges: KonvaNodeChange[] = [];
-      for (const c of rfChanges) {
-        if (c.type === 'position' && c.position) {
-          konvaChanges.push({ type: 'position', id: c.id, position: c.position });
-        } else if (c.type === 'remove') {
-          konvaChanges.push({ type: 'remove', id: c.id });
-        }
-      }
-      if (konvaChanges.length > 0) eventHandlers.onNodesChange(konvaChanges);
-    },
-    [eventHandlers.onNodesChange],
-  );
-
-  const onEdgesChange = useCallback(
-    (rfChanges: EdgeChange[]) => {
-      const konvaChanges: KonvaEdgeChange[] = rfChanges
-        .filter((c) => c.type === 'remove')
-        .map((c) => ({ type: 'remove' as const, id: c.id }));
-      if (konvaChanges.length > 0) eventHandlers.onEdgesChange(konvaChanges);
-    },
-    [eventHandlers.onEdgesChange],
-  );
-
   return {
     isVFSFile: !!vfsFile && !!diagramView,
     isStandalone,
@@ -680,8 +647,6 @@ export function useVFSCanvasController(): VFSCanvasResult {
     diagramView,
     vfsFile,
     activeTabId,
-    onNodesChange,
-    onEdgesChange,
     onConnect: eventHandlers.onConnect,
     onKonvaNodesChange: eventHandlers.onNodesChange,
     onKonvaEdgesChange: eventHandlers.onEdgesChange,

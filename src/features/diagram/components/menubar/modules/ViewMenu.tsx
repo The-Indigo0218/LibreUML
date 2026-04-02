@@ -10,18 +10,20 @@ import {
   Network,
   Wand2
 } from "lucide-react";
-import { useReactFlow } from "reactflow";
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useSpotlightStore } from "../../../hooks/useSpotlight";
 import { useSettingsStore } from "../../../../../store/settingsStore";
-import { useAutoLayout } from "../../../hooks/useAutoLayout";
+import { useKonvaAutoLayout } from "../../../../../canvas/hooks/useKonvaAutoLayout";
+import { useViewportControlStore } from "../../../../../canvas/store/viewportControlStore";
 
 export function ViewMenuContent() {
   const { t } = useTranslation();
-  
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
+
+  const zoomIn = useViewportControlStore((s) => s.zoomIn);
+  const zoomOut = useViewportControlStore((s) => s.zoomOut);
+  const fitView = useViewportControlStore((s) => s.fitView);
 
   const showMiniMap = useSettingsStore((s) => s.showMiniMap);
   const toggleMiniMap = useSettingsStore((s) => s.toggleMiniMap);
@@ -32,7 +34,7 @@ export function ViewMenuContent() {
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
   const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
 
-  const { runLayout } = useAutoLayout();
+  const { runLayout } = useKonvaAutoLayout();
 
   const toggleSpotlight = useSpotlightStore((s) => s.toggle);
 
@@ -42,19 +44,19 @@ export function ViewMenuContent() {
         label={t("menubar.view.zoomIn") || "Zoom In"}
         icon={<ZoomIn className="w-4 h-4" />}
         shortcut="Ctrl + +"
-        onClick={() => zoomIn({ duration: 300 })}
+        onClick={() => zoomIn()}
       />
       <MenubarItem
         label={t("menubar.view.zoomOut") || "Zoom Out"}
         icon={<ZoomOut className="w-4 h-4" />}
         shortcut="Ctrl + -"
-        onClick={() => zoomOut({ duration: 300 })}
+        onClick={() => zoomOut()}
       />
       <MenubarItem
         label={t("menubar.view.fitView") || "Fit View"}
         icon={<Maximize className="w-4 h-4" />}
         shortcut="Space"
-        onClick={() => fitView({ duration: 800 })}
+        onClick={() => fitView()}
       />
 
       <div className="h-px bg-surface-border my-1" />

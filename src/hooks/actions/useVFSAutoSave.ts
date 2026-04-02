@@ -1,44 +1,38 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useVFSStore } from '../../store/project-vfs.store';
-import { downloadProject } from '../../services/projectIO.service';
 import { useToastStore } from '../../store/toast.store';
 
 /**
- * VFS Auto-Save Hook (MAG-01.9)
+ * VFS Auto-Save Hook (MAG-01.9 + MAG-01.22 Fix)
  *
- * Implements debounced auto-save for VFS projects:
- * - Monitors VFSStore.project.updatedAt changes
- * - Debounces saves to 500ms after last change
- * - Persists to disk via downloadProject()
- * - Exposes flushSave() for immediate Ctrl+S saves
+ * Monitors VFS project changes and provides save feedback.
+ * 
+ * IMPORTANT: Actual persistence is handled by Zustand's persist middleware
+ * (configured in project-vfs.store.ts). This hook only provides:
+ * - Debounced save notifications (optional toast)
+ * - flushSave() for Ctrl+S feedback
+ * - Save state tracking for UI indicators
  *
  * Architecture:
- * - Position changes wrapped in withoutUndo() don't pollute undo history
- * - Semantic changes (create/delete) trigger normal saves with undo
- * - Debounce prevents excessive disk writes during rapid edits
- * - Save indicator shows when saving (optional, nice to have)
+ * - Zustand persist middleware auto-saves to localStorage on every state change
+ * - This hook monitors updatedAt changes for UI feedback only
+ * - downloadProject() is ONLY called for explicit user downloads (File → Download)
+ * - No "Save As" dialogs on auto-save (MAG-01.22 fix)
  *
  * Usage:
- * - Call useVFSAutoSave() in DiagramEditor or KonvaCanvas
- * - Call flushSave() from Ctrl+S handler for immediate save
+ * - Call useVFSAutoSave() in DiagramEditor
+ * - Call flushSave() from Ctrl+S handler for instant feedback
  */
 
-const DEBOUNCE_DELAY = 500; // 500ms as per MAG-01.9 spec
+const DEBOUNCE_DELAY = 2000; // 2 seconds (increased from 500ms per MAG-01.22)
 
 export interface UseVFSAutoSaveResult {
-  /** Immediately flushes pending debounced save and triggers a new save */
   flushSave: () => Promise<boolean>;
-  /** Whether a save is currently in progress */
   isSaving: boolean;
 }
 
-// Global ref to store the flushSave function for keyboard shortcuts
 let globalFlushSave: (() => Promise<boolean>) | null = null;
 
-/**
- * Standalone function to trigger immediate VFS save from anywhere.
- * Used by keyboard shortcuts (Ctrl+S) to bypass debounce.
- */
 export async function flushVFSSave(): Promise<boolean> {
   if (globalFlushSave) {
     return globalFlushSave();
@@ -49,118 +43,81 @@ export async function flushVFSSave(): Promise<boolean> {
 
 export function useVFSAutoSave(): UseVFSAutoSaveResult {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isSavingRef = useRef<boolean>(false);
-  const lastSaveTimeRef = useRef<number>(0);
   const lastUpdatedAtRef = useRef<number>(0);
 
   const showToast = useToastStore((s) => s.show);
 
-  /**
-   * Performs the actual save operation.
-   * Downloads the project as .luml.zip to the user's downloads folder.
-   */
-  const performSave = useCallback(async (): Promise<boolean> => {
-    if (isSavingRef.current) {
-      console.log('[VFSAutoSave] Save already in progress, skipping');
-      return false;
-    }
 
+  const provideSaveFeedback = useCallback((): boolean => {
     const project = useVFSStore.getState().project;
     if (!project) {
-      console.log('[VFSAutoSave] No active project, skipping');
+      console.log('[VFSAutoSave] No active project');
       return false;
     }
 
-    // Check if there are actual changes since last save
     if (project.updatedAt === lastUpdatedAtRef.current) {
-      console.log('[VFSAutoSave] No changes since last save, skipping');
+      console.log('[VFSAutoSave] No changes since last save feedback');
       return false;
     }
 
-    try {
-      isSavingRef.current = true;
-      const startTime = Date.now();
+    lastUpdatedAtRef.current = project.updatedAt;
+    console.log(`[VFSAutoSave] ✓ Project "${project.projectName}" persisted (Zustand middleware)`);
+    return true;
+  }, []);
 
-      await downloadProject();
-
-      const duration = Date.now() - startTime;
-      lastSaveTimeRef.current = Date.now();
-      lastUpdatedAtRef.current = project.updatedAt;
-
-      console.log(
-        `[VFSAutoSave] ✓ Saved project "${project.projectName}" (${duration}ms)`,
-      );
-      return true;
-    } catch (error) {
-      console.error('[VFSAutoSave] Error saving project:', error);
-      showToast('⚠️ Save failed');
-      return false;
-    } finally {
-      isSavingRef.current = false;
-    }
-  }, [showToast]);
-
-  /**
-   * Debounced save - waits for user to stop making changes.
-   * Cancels previous pending save and schedules a new one.
-   */
-  const debouncedSave = useCallback(() => {
+ 
+  const debouncedSaveFeedback = useCallback(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
 
     debounceRef.current = setTimeout(() => {
-      performSave();
+      provideSaveFeedback();
     }, DEBOUNCE_DELAY);
-  }, [performSave]);
+  }, [provideSaveFeedback]);
 
-  /**
-   * Immediately flushes pending debounced save and triggers a new save.
-   * Used by Ctrl+S handler for instant save feedback.
-   */
+
   const flushSave = useCallback(async (): Promise<boolean> => {
-    // Cancel pending debounced save
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
 
-    // Perform immediate save
-    return performSave();
-  }, [performSave]);
+    const success = provideSaveFeedback();
+    if (success) {
+ 
+    }
+    return success;
+  }, [provideSaveFeedback]);
 
-  /**
-   * Watch VFSStore.project.updatedAt for changes.
-   * Trigger debounced save when project is modified.
-   */
+
   useEffect(() => {
-    // Register global flushSave function for keyboard shortcuts
     globalFlushSave = flushSave;
 
     const unsubscribe = useVFSStore.subscribe((state, prevState) => {
       const updatedAt = state.project?.updatedAt;
       const prevUpdatedAt = prevState.project?.updatedAt;
-      if (updatedAt === undefined) return; // No project loaded
-      if (updatedAt === prevUpdatedAt) return; // No change
+      if (updatedAt === undefined) return; 
+      if (updatedAt === prevUpdatedAt) return; 
 
-      console.log('[VFSAutoSave] Project updated, scheduling save...');
-      debouncedSave();
+      console.log('[VFSAutoSave] Project updated (auto-persisted by Zustand)');
+      debouncedSaveFeedback();
     });
 
     return () => {
       unsubscribe();
       // Unregister global flushSave
       globalFlushSave = null;
-      // Cancel pending save on unmount
+      // Cancel pending feedback on unmount
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
       }
     };
-  }, [debouncedSave, flushSave]);
+  }, [debouncedSaveFeedback, flushSave]);
 
   return {
     flushSave,
-    isSaving: isSavingRef.current,
+    isSaving: false, 
   };
 }

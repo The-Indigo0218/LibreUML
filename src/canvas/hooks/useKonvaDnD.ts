@@ -36,13 +36,13 @@ import type { stereotype } from '../../features/diagram/types/diagram.types';
 // ─── Drag type constants ──────────────────────────────────────────────────────
 
 /** Payload set by the tool palette — creates a NEW semantic element on drop. */
-export const DRAG_TYPE_NEW = 'application/reactflow' as const;
+export const DRAG_TYPE_NEW = 'application/libreuml-node' as const;
 
 /**
  * Payload set by the Model Explorer SSOT sidebar — the semantic element already
  * exists. The drop handler must ONLY create a ViewNode; it must NOT touch ModelStore.
  */
-export const DRAG_TYPE_EXISTING = 'application/reactflow-existing-node' as const;
+export const DRAG_TYPE_EXISTING = 'application/libreuml-existing-node' as const;
 
 // ─── Node dimensions (for centering) ──────────────────────────────────────────
 
@@ -155,7 +155,7 @@ const VFS_DROP_CONFIG: Partial<
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export interface UseKonvaDnDParams {
-  stageRef: React.RefObject<Konva.Stage>;
+  stageRef: React.RefObject<Konva.Stage | null>;
 }
 
 export interface UseKonvaDnDResult {
@@ -170,7 +170,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
   // ─── Position helpers ─────────────────────────────────────────────────────
 
   const getCenteredPosition = useCallback(
-    (clientX: number, clientY: number) => {
+    (_clientX: number, _clientY: number) => {
       const stage = stageRef.current;
       if (!stage) return { x: 0, y: 0 };
 

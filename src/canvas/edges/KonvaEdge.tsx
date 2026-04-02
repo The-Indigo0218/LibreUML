@@ -29,11 +29,11 @@
 
 import { useMemo } from 'react';
 import { Group, Line } from 'react-konva';
+import type { KonvaEventObject } from 'konva/lib/Node';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 import {
   selectAnchors,
   retractAnchor,
-  orthogonalRoute,
   curvedRoute,
   straightRoute,
   selfLoopPath,
@@ -66,6 +66,8 @@ function getEdgeColor(): string {
 export type RoutingMode = 'orthogonal' | 'curved' | 'straight';
 
 interface KonvaEdgeProps {
+  /** Unique edge ID */
+  id: string;
   kind: RelationKind;
   sourceBounds: NodeBounds;
   targetBounds: NodeBounds;
@@ -82,15 +84,25 @@ interface KonvaEdgeProps {
    * Only used for routingMode='orthogonal' (obstacle avoidance).
    */
   obstacles?: NodeBounds[];
+  /** Context menu handler (MAG-01.12) */
+  onContextMenu?: (e: KonvaEventObject<PointerEvent>, edgeId: string) => void;
+  /** Mouse enter handler for tooltip (MAG-01.12) */
+  onMouseEnter?: (e: KonvaEventObject<MouseEvent>, edgeId: string) => void;
+  /** Mouse leave handler for tooltip (MAG-01.12) */
+  onMouseLeave?: (e: KonvaEventObject<MouseEvent>, edgeId: string) => void;
 }
 
 export default function KonvaEdge({
+  id,
   kind,
   sourceBounds,
   targetBounds,
   isSelfLoop = false,
   routingMode = 'orthogonal',
   obstacles,
+  onContextMenu,
+  onMouseEnter,
+  onMouseLeave,
 }: KonvaEdgeProps) {
   const stroke = getEdgeColor();
   const dashed = DASHED_KINDS.has(kind);
@@ -142,7 +154,7 @@ export default function KonvaEdge({
   }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract]);
 
   return (
-    <Group listening={false}>
+    <Group>
       <Line
         points={points}
         bezier={bezier}
@@ -151,8 +163,12 @@ export default function KonvaEdge({
         dash={dashed ? [6, 4] : undefined}
         lineCap="round"
         lineJoin="round"
-        listening={false}
+        hitStrokeWidth={12} // Wider hit area for easier interaction
+        listening={true}
         perfectDrawEnabled={false}
+        onContextMenu={(e) => onContextMenu?.(e, id)}
+        onMouseEnter={(e) => onMouseEnter?.(e, id)}
+        onMouseLeave={(e) => onMouseLeave?.(e, id)}
       />
       <EdgeMarker
         kind={kind}

@@ -1,5 +1,5 @@
 /**
- * CanvasOverlay — HTML overlay layer (Layer 0) for canvas UI (MAG-01.10)
+ * CanvasOverlay — HTML overlay layer (Layer 0) for canvas UI (MAG-01.10, MAG-01.12)
  *
  * Architecture:
  * - Positioned absolutely above Konva Stage via CSS
@@ -18,12 +18,14 @@
  * - → hits Konva Stage → Konva event bubbling → handler hooks
  * - OR hits active overlay child (pointer-events: auto) → React event
  *
- * Children (current + future):
+ * Children:
  * - <InlineEditor /> (MAG-01.10) — text input for node names
  * - <ContextMenu /> (MAG-01.12) — right-click menu
- * - <EdgeTooltip /> (future) — hover tooltip for edge kind
- * - <ConnectionLabels /> (future) — multiplicity/role labels
- * - <MiniMap /> (future, could be Konva or HTML)
+ * - <EdgeTooltip /> (MAG-01.12) — hover tooltip for edge kind
+ *
+ * Future:
+ * - <ConnectionLabels /> — multiplicity/role labels
+ * - <MiniMap /> — could be Konva or HTML
  *
  * Integration:
  * - Rendered in KonvaCanvas above Stage
@@ -32,8 +34,36 @@
  */
 
 import InlineEditor from './overlays/InlineEditor';
+import EdgeTooltip from './overlays/EdgeTooltip';
+import ContextMenu from '../features/diagram/components/ui/ContextMenu';
+import type { RelationKind } from '../core/domain/vfs/vfs.types';
 
-export default function CanvasOverlay() {
+interface CanvasOverlayProps {
+  /** Context menu state (null = closed) */
+  contextMenu: {
+    type: 'node' | 'edge' | 'pane';
+    x: number;
+    y: number;
+    id?: string;
+  } | null;
+  /** Context menu options */
+  contextMenuOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[];
+  /** Close context menu callback */
+  onCloseContextMenu: () => void;
+  /** Edge tooltip state (null = hidden) */
+  edgeTooltip: {
+    kind: RelationKind;
+    x: number;
+    y: number;
+  } | null;
+}
+
+export default function CanvasOverlay({
+  contextMenu,
+  contextMenuOptions,
+  onCloseContextMenu,
+  edgeTooltip,
+}: CanvasOverlayProps) {
   return (
     <div
       className="absolute inset-0 z-10 pointer-events-none"
@@ -46,11 +76,28 @@ export default function CanvasOverlay() {
       {/* Inline text editor (MAG-01.10) */}
       <InlineEditor />
 
-      {/* Future: Context menus (MAG-01.12) */}
-      {/* <ContextMenu /> */}
+      {/* Context menu (MAG-01.12) — pointer-events: auto when visible */}
+      {contextMenu && (
+        <div className="pointer-events-auto">
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            options={contextMenuOptions}
+            onClose={onCloseContextMenu}
+            centered={contextMenu.type === 'node'}
+          />
+        </div>
+      )}
 
-      {/* Future: Edge tooltips */}
-      {/* <EdgeTooltip /> */}
+      {/* Edge tooltip (MAG-01.12) — pointer-events: none (passthrough) */}
+      {edgeTooltip && (
+        <EdgeTooltip
+          kind={edgeTooltip.kind}
+          x={edgeTooltip.x}
+          y={edgeTooltip.y}
+          visible={true}
+        />
+      )}
 
       {/* Future: Connection labels (multiplicity, roles) */}
       {/* <ConnectionLabels /> */}

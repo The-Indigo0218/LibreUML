@@ -1,6 +1,7 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { useViewportControlStore } from '../store/viewportControlStore';
 
 const MIN_SCALE = 0.1;
 const MAX_SCALE = 4;
@@ -15,6 +16,7 @@ export interface Viewport {
 export function useViewport() {
   const stageRef = useRef<Konva.Stage>(null);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
+  const register = useViewportControlStore((s) => s.register);
 
   const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -52,10 +54,31 @@ export function useViewport() {
     setViewport({ x: 0, y: 0, scale: 1 });
   }, []);
 
+  const zoomIn = useCallback(() => {
+    setViewport((v) => ({
+      ...v,
+      scale: Math.min(MAX_SCALE, v.scale * ZOOM_FACTOR),
+    }));
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setViewport((v) => ({
+      ...v,
+      scale: Math.max(MIN_SCALE, v.scale / ZOOM_FACTOR),
+    }));
+  }, []);
+
+  // Register controls so ViewMenu / useEditorControls can trigger them
+  useEffect(() => {
+    register({ zoomIn, zoomOut, fitView });
+  }, [register, zoomIn, zoomOut, fitView]);
+
   return {
     stageRef,
     viewport,
     fitView,
+    zoomIn,
+    zoomOut,
     stageProps: {
       draggable: true,
       onWheel: handleWheel,

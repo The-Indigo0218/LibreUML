@@ -93,7 +93,7 @@ export function useVFSAutoSave(): UseVFSAutoSaveResult {
       return true;
     } catch (error) {
       console.error('[VFSAutoSave] Error saving project:', error);
-      showToast('⚠️ Save failed', 'error');
+      showToast('⚠️ Save failed');
       return false;
     } finally {
       isSavingRef.current = false;
@@ -137,16 +137,15 @@ export function useVFSAutoSave(): UseVFSAutoSaveResult {
     // Register global flushSave function for keyboard shortcuts
     globalFlushSave = flushSave;
 
-    const unsubscribe = useVFSStore.subscribe(
-      (state) => state.project?.updatedAt,
-      (updatedAt) => {
-        if (updatedAt === undefined) return; // No project loaded
-        if (updatedAt === lastUpdatedAtRef.current) return; // No change
+    const unsubscribe = useVFSStore.subscribe((state, prevState) => {
+      const updatedAt = state.project?.updatedAt;
+      const prevUpdatedAt = prevState.project?.updatedAt;
+      if (updatedAt === undefined) return; // No project loaded
+      if (updatedAt === prevUpdatedAt) return; // No change
 
-        console.log('[VFSAutoSave] Project updated, scheduling save...');
-        debouncedSave();
-      },
-    );
+      console.log('[VFSAutoSave] Project updated, scheduling save...');
+      debouncedSave();
+    });
 
     return () => {
       unsubscribe();

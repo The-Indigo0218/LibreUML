@@ -93,6 +93,7 @@ interface NoteShapeProps {
   opacity?: number;
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
   onDblClick?: (e: KonvaEventObject<MouseEvent>) => void;
+  onContextMenu?: (e: KonvaEventObject<PointerEvent>, nodeId: string) => void;
   draggable?: boolean;
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
@@ -107,6 +108,7 @@ export default function NoteShape({
   opacity,
   onNodeClick,
   onDblClick,
+  onContextMenu,
   draggable,
   onDragStart,
   onDragMove,
@@ -151,6 +153,11 @@ export default function NoteShape({
       onDblClick={(e) => {
         e.cancelBubble = true;
         onDblClick?.(e);
+      }}
+      onContextMenu={(e) => {
+        e.evt.preventDefault();
+        e.cancelBubble = true;
+        onContextMenu?.(e, vm.id);
       }}
     >
       {/* ── Note body — custom path with cut corner ──────────────────────── */}

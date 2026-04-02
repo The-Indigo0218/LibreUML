@@ -1,13 +1,21 @@
+/**
+ * useKonvaAutoLayout — dagre-based auto-layout for Konva canvas (MAG-01.13)
+ *
+ * Replaces useAutoLayout (ReactFlow) with a Konva-native version.
+ * Reads node/edge data from VFSStore, runs dagre layout, writes back
+ * updated positions via updateFileContent, then calls fitView.
+ */
+
 import dagre from 'dagre';
-import { useReactFlow } from 'reactflow';
 import { useCallback } from 'react';
-import { useVFSStore, withoutUndo } from '../../../store/project-vfs.store';
-import { useModelStore } from '../../../store/model.store';
-import { useWorkspaceStore } from '../../../store/workspace.store';
-import { useUiStore } from '../../../store/uiStore';
-import { useToastStore } from '../../../store/toast.store';
-import { isDiagramView } from './useVFSCanvasController';
-import type { VFSFile, RelationKind } from '../../../core/domain/vfs/vfs.types';
+import { useVFSStore, withoutUndo } from '../../store/project-vfs.store';
+import { useModelStore } from '../../store/model.store';
+import { useWorkspaceStore } from '../../store/workspace.store';
+import { useUiStore } from '../../store/uiStore';
+import { useToastStore } from '../../store/toast.store';
+import { useViewportControlStore } from '../store/viewportControlStore';
+import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+import type { VFSFile, RelationKind } from '../../core/domain/vfs/vfs.types';
 
 const NODE_WIDTH = 180;
 const NODE_HEIGHT = 120;
@@ -19,8 +27,8 @@ const REVERSED_KINDS = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);
 
 export const LOCKED_WARNING_KEY = 'libreuml.autoLayout.skipLockedWarning';
 
-export function useAutoLayout() {
-  const { fitView, getNodes } = useReactFlow();
+export function useKonvaAutoLayout() {
+  const fitView = useViewportControlStore((s) => s.fitView);
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
   const openAutoLayoutLockedWarning = useUiStore((s) => s.openAutoLayoutLockedWarning);
@@ -39,15 +47,6 @@ export function useAutoLayout() {
     const model = useModelStore.getState().model;
     if (!model) return;
 
-    const rfNodes = getNodes();
-    const dimMap = new Map<string, { width: number; height: number }>();
-    for (const n of rfNodes) {
-      dimMap.set(n.id, {
-        width: n.width ?? NODE_WIDTH,
-        height: n.height ?? NODE_HEIGHT,
-      });
-    }
-
     const g = new dagre.graphlib.Graph();
     g.setDefaultEdgeLabel(() => ({}));
     g.setGraph({
@@ -59,11 +58,7 @@ export function useAutoLayout() {
     });
 
     for (const vn of view.nodes) {
-      const d = dimMap.get(vn.id);
-      g.setNode(vn.id, {
-        width: d?.width ?? NODE_WIDTH,
-        height: d?.height ?? NODE_HEIGHT,
-      });
+      g.setNode(vn.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
     }
 
     const elementToViewNode = new Map<string, string>();
@@ -91,11 +86,10 @@ export function useAutoLayout() {
     const updatedNodes = view.nodes.map((vn) => {
       if (!g.hasNode(vn.id)) return vn;
       const dn = g.node(vn.id);
-      const d = dimMap.get(vn.id);
       return {
         ...vn,
-        x: dn.x - (d?.width ?? NODE_WIDTH) / 2,
-        y: dn.y - (d?.height ?? NODE_HEIGHT) / 2,
+        x: dn.x - NODE_WIDTH / 2,
+        y: dn.y - NODE_HEIGHT / 2,
       };
     });
 
@@ -104,9 +98,9 @@ export function useAutoLayout() {
     });
 
     requestAnimationFrame(() => {
-      fitView({ duration: 500 });
+      fitView();
     });
-  }, [activeTabId, updateFileContent, fitView, getNodes]);
+  }, [activeTabId, updateFileContent, fitView]);
 
   const runLayout = useCallback(() => {
     const project = useVFSStore.getState().project;

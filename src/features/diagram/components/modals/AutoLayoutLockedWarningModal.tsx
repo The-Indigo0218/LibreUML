@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Lock } from 'lucide-react';
 import { useUiStore } from '../../../../store/uiStore';
-import { useAutoLayout, LOCKED_WARNING_KEY } from '../../hooks/useAutoLayout';
+import { useKonvaAutoLayout, LOCKED_WARNING_KEY } from '../../../../canvas/hooks/useKonvaAutoLayout';
 
 export function AutoLayoutLockedWarningModal() {
   const activeModal = useUiStore((s) => s.activeModal);
   const closeModals = useUiStore((s) => s.closeModals);
   const [dontShowAgain, setDontShowAgain] = useState(false);
-  const { executeLayout } = useAutoLayout();
+  const { executeLayout } = useKonvaAutoLayout();
 
   if (activeModal !== 'auto-layout-locked-warning') return null;
 

@@ -35,11 +35,6 @@ import type {
 import { classDiagramValidator } from '../validation/class-diagram.validator';
 import { useCaseDiagramValidator } from '../validation/use-case.validator';
 
-// PHASE 3: Import React Flow components for registration
-import UmlClassNode from '../../features/diagram/components/nodes/uml/UmlClassNode';
-import UmlNoteNode from '../../features/diagram/components/nodes/uml/UmlNoteNode';
-import CustomUmlEdge from '../../features/diagram/components/edges/CustomUmlEdge';
-import VfsUmlEdge from '../../features/diagram/components/edges/VfsUmlEdge';
 
 /**
  * Factory function for creating Class Diagram nodes.
@@ -414,16 +409,8 @@ const classDiagramRegistry: DiagramTypeRegistry = {
     },
   ],
 
-  // PHASE 3: React Flow component registry
-  nodeComponents: {
-    umlClass: UmlClassNode,
-    umlNote: UmlNoteNode,
-  },
-
-  edgeComponents: {
-    umlEdge: CustomUmlEdge,
-    vfsUmlEdge: VfsUmlEdge,
-  },
+  nodeComponents: {},
+  edgeComponents: {},
 
   validator: classDiagramValidator,
 
@@ -518,11 +505,8 @@ const useCaseDiagramRegistry: DiagramTypeRegistry = {
     },
   ],
 
-  // PHASE 3: React Flow component registry (empty for now - Use Case components not yet implemented)
   nodeComponents: {},
-  edgeComponents: {
-    vfsUmlEdge: VfsUmlEdge,
-  },
+  edgeComponents: {},
 
   validator: useCaseDiagramValidator,
 

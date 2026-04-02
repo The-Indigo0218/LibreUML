@@ -1,28 +1,19 @@
 import { useCallback } from "react";
-import { useReactFlow } from "reactflow";
+import { useViewportControlStore } from "../../../../canvas/store/viewportControlStore";
 
-/**
- * TODO: SSOT Migration - Editor Controls
- * 
- * This hook used useDiagramStore.temporal for undo/redo.
- * SSOT-compatible undo/redo needs to be implemented using a history system
- * that tracks changes to ProjectStore and WorkspaceStore.
- * 
- * For now, returning stub functions to prevent build errors.
- */
 export const useEditorControls = () => {
-  const { fitView } = useReactFlow();
+  const fitView = useViewportControlStore((s) => s.fitView);
 
   const handleFitView = useCallback(() => {
-    fitView({ duration: 800 });
+    fitView();
   }, [fitView]);
 
   const undo = useCallback(() => {
-    console.warn("TODO: SSOT - Undo not implemented. Need history system for ProjectStore/WorkspaceStore");
+    console.warn("TODO: SSOT - Undo not implemented. Requires history middleware (e.g., zundo)");
   }, []);
 
   const redo = useCallback(() => {
-    console.warn("TODO: SSOT - Redo not implemented. Need history system for ProjectStore/WorkspaceStore");
+    console.warn("TODO: SSOT - Redo not implemented. Requires history middleware (e.g., zundo)");
   }, []);
 
   return {

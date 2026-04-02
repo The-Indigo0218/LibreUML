@@ -12,8 +12,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useReactFlow } from "reactflow";
 import { useSettingsStore } from "../../../../store/settingsStore";
+import { useStageStore } from "../../../../canvas/store/stageStore";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
@@ -34,7 +34,7 @@ interface ExportModalProps {
 
 export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { t } = useTranslation();
-  const { getNodes } = useReactFlow();
+  const stage = useStageStore((s) => s.stage);
 
   // Workspace
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
@@ -115,12 +115,14 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const getFile = useWorkspaceStore((s) => s.getFile);
   const legacyDiagramName = activeTabId ? getFile(activeTabId)?.name ?? "diagram" : "diagram";
 
-  // ── PNG / SVG export (captures live ReactFlow viewport) ─────────────────────
+  // ── PNG / SVG export (captures Konva stage) ─────────────────────────────────
 
   const executePngSvgExport = useCallback(async () => {
+    if (!stage) {
+      alert("Canvas not ready for export.");
+      return;
+    }
     setIsExporting(true);
-    const viewportEl = document.querySelector(".react-flow__viewport") as HTMLElement;
-    if (!viewportEl) { setIsExporting(false); return; }
 
     const computedStyle = getComputedStyle(document.documentElement);
     const bgColor = computedStyle.getPropertyValue("--canvas-base").trim();
@@ -136,7 +138,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
     try {
       const exportFileName = isVFSMode ? selectedFileName : legacyDiagramName;
-      await ExportService.downloadImage(viewportEl, getNodes(), {
+      await ExportService.downloadImage(stage, {
         fileName: exportFileName,
         format: format as "png" | "svg",
         scale,
@@ -160,12 +162,12 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       setIsExporting(false);
     }
   }, [
+    stage,
     format,
     scale,
     transparent,
     includeConnections,
     toggleShowAllEdges,
-    getNodes,
     onClose,
     t,
     dontShowAgain,

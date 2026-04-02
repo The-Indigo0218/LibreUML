@@ -1,20 +1,22 @@
-import type { ReactFlowJsonObject } from "reactflow";
 import { ExportService } from "./export.service";
+
+interface DiagramJsonObject {
+  nodes: unknown[];
+  edges: unknown[];
+  viewport: { x: number; y: number; zoom: number };
+}
 
 // PHASE 4: Remove UI type dependencies - storage works with generic React Flow objects
 export const StorageService = {
   // --- SAVE DIAGRAM ---
   saveDiagram: async (
-    flowObject: ReactFlowJsonObject,
+    flowObject: DiagramJsonObject,
     id: string,
     name: string,
     currentPath?: string 
   ): Promise<{ success: boolean; filePath?: string; canceled?: boolean }> => {
     
-    const cleanEdges = flowObject.edges.map((edge) => {
-      const { ...semanticEdge } = edge;
-      return semanticEdge;
-    });
+    const cleanEdges = flowObject.edges.map((edge) => edge);
 
     // PHASE 4: Use generic structure instead of casting to UI types
     const exportData = {

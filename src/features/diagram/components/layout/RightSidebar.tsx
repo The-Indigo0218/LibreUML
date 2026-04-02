@@ -20,7 +20,7 @@ import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useUiStore } from "../../../../store/uiStore";
 import { useToastStore } from "../../../../store/toast.store";
 import { standaloneModelOps } from "../../../../store/standaloneModelOps";
-import { DRAG_TYPE_EXISTING, getNextVFSName } from "../../hooks/useDiagramDnD";
+import { DRAG_TYPE_EXISTING, getNextVFSName } from "../../../../canvas/hooks/useKonvaDnD";
 import type {
   VFSFile,
   SemanticModel,

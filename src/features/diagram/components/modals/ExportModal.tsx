@@ -138,12 +138,28 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
     try {
       const exportFileName = isVFSMode ? selectedFileName : legacyDiagramName;
+      
+      // Get nodes for bounds calculation (MAG-01.14)
+      let nodes = selectedDiagramView?.nodes;
+      
+      // If not in VFS mode or no selected diagram, try to get from active tab
+      if (!nodes && activeTabId && project) {
+        const fileNode = project.nodes[activeTabId];
+        if (fileNode && fileNode.type === 'FILE') {
+          const content = (fileNode as VFSFile).content;
+          if (isDiagramView(content)) {
+            nodes = (content as DiagramView).nodes;
+          }
+        }
+      }
+      
       await ExportService.downloadImage(stage, {
         fileName: exportFileName,
         format: format as "png" | "svg",
         scale,
         transparent,
         backgroundColor: bgColor,
+        nodes, // Pass nodes for full diagram export
       });
 
       if (format === "svg" && dontShowAgain) {

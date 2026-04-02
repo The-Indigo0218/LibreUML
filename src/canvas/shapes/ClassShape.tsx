@@ -59,13 +59,13 @@ const FONT_MONO = '"Fira Code", monospace';
 
 // ─── Layout types ──────────────────────────────────────────────────────────────
 
-interface SectionLayout {
+export interface SectionLayout {
   top: number;
   height: number;
   itemsY: number; // y of the first item's text baseline area
 }
 
-interface ClassLayout {
+export interface ClassLayout {
   width: number;
   height: number;
   headerH: number;
@@ -149,6 +149,14 @@ function computeLayout(vm: NodeViewModel): ClassLayout {
 export function getClassShapeSize(vm: NodeViewModel): { width: number; height: number } {
   const { width, height } = computeLayout(vm);
   return { width, height };
+}
+
+/**
+ * Returns the full layout descriptor for a NodeViewModel.
+ * Used by diagramToSvg for vector SVG export (MAG-01.15).
+ */
+export function computeClassLayout(vm: NodeViewModel): ClassLayout {
+  return computeLayout(vm);
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

@@ -1,17 +1,16 @@
 /**
- * useKonvaExport — PNG/SVG export via Konva stage.toDataURL (MAG-01.13 + MAG-01.14)
+ * useKonvaExport — PNG/SVG export (MAG-01.13 + MAG-01.14 + MAG-01.15)
  *
- * Replaces html-to-image / ReactFlow export path.
- * PNG: stage.toDataURL({ pixelRatio, mimeType: 'image/png' })
- * SVG: raster image embedded in SVG envelope (true vector export deferred to future)
- *
- * MAG-01.14: Fixed to export entire diagram (all nodes) instead of viewport only.
+ * PNG: stage.toDataURL with full diagram bounds (MAG-01.14)
+ * SVG: true vector SVG via diagramToSvg (MAG-01.15)
  */
 
 import { useCallback } from 'react';
 import { useStageStore } from '../store/stageStore';
 import { useVFSStore } from '../../store/project-vfs.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
+import { useKonvaCanvasController } from './useKonvaCanvasController';
+import { diagramToSvg } from '../export/diagramToSvg';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 import type { VFSFile, ViewNode } from '../../core/domain/vfs/vfs.types';
 
@@ -90,6 +89,7 @@ async function triggerDownload(dataUrl: string, fileName: string, ext: string) {
 export function useKonvaExport() {
   const stage = useStageStore((s) => s.stage);
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const { shapes, edges } = useKonvaCanvasController();
 
   const exportDiagram = useCallback(
     async (options: KonvaExportOptions): Promise<void> => {
@@ -135,31 +135,18 @@ export function useKonvaExport() {
       }
 
       if (options.format === 'svg') {
-        // Raster PNG embedded in an SVG envelope.
-        // True vector SVG via canvas2svg can be added in a future sprint.
-        const pngDataUrl = stage.toDataURL({
-          x: bounds.x,
-          y: bounds.y,
-          width: bounds.width,
-          height: bounds.height,
-          pixelRatio,
-          mimeType: 'image/png',
+        // MAG-01.15: True vector SVG via programmatic generation.
+        const svgContent = diagramToSvg(shapes, edges, {
+          transparent: options.transparent,
+          backgroundColor: options.backgroundColor,
         });
-        const w = bounds.width * pixelRatio;
-        const h = bounds.height * pixelRatio;
-        const svgContent = [
-          `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`,
-          options.transparent ? '' : `<rect width="${w}" height="${h}" fill="${options.backgroundColor}"/>`,
-          `<image href="${pngDataUrl}" width="${w}" height="${h}"/>`,
-          '</svg>',
-        ].join('');
         const blob = new Blob([svgContent], { type: 'image/svg+xml' });
         const svgDataUrl = URL.createObjectURL(blob);
         await triggerDownload(svgDataUrl, options.fileName, 'svg');
         URL.revokeObjectURL(svgDataUrl);
       }
     },
-    [stage, activeTabId],
+    [stage, activeTabId, shapes, edges],
   );
 
   return { exportDiagram, hasStage: !!stage };

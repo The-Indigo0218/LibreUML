@@ -95,37 +95,19 @@ export default function KonvaCanvas() {
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
 
   // ── Highlighted edges (MAG-01.23 + MAG-01.24) ────────────────────────────
-  // Highlight mode + selection → connected edges show kind colors.
-  // Hover → that edge shows kind color (handled via isHovered prop directly).
+  // Highlight mode ON → ALL edges show with kind-specific colors (no dimming).
   const highlightedEdgeIds = useMemo((): Set<string> => {
-    if (!highlightConnections || selectedIds.size === 0) return new Set();
-    const selectedArray = Array.from(selectedIds);
-    const highlighted = new Set<string>();
-    edges.forEach((e) => {
-      if (selectedArray.includes(e.sourceId) || selectedArray.includes(e.targetId)) {
-        highlighted.add(e.id);
-      }
-    });
-    return highlighted;
-  }, [highlightConnections, selectedIds, edges]);
+    if (!highlightConnections) return new Set();
+    return new Set(edges.map((e) => e.id));
+  }, [highlightConnections, edges]);
 
   // ── Dimmed edges (MAG-01.24) ─────────────────────────────────────────────
-  // Hover: all edges except hovered are dimmed.
-  // Highlight mode + selection: non-connected edges are dimmed.
+  // Only dim when hovering a specific edge — all others go to 0.15 opacity.
+  // Highlight mode never dims edges.
   const dimmedEdgeIds = useMemo((): Set<string> => {
-    if (hoveredEdgeId) {
-      return new Set(edges.filter((e) => e.id !== hoveredEdgeId).map((e) => e.id));
-    }
-    if (highlightConnections && selectedIds.size > 0) {
-      const selectedArray = Array.from(selectedIds);
-      return new Set(
-        edges
-          .filter((e) => !selectedArray.includes(e.sourceId) && !selectedArray.includes(e.targetId))
-          .map((e) => e.id),
-      );
-    }
-    return new Set();
-  }, [hoveredEdgeId, highlightConnections, selectedIds, edges]);
+    if (!hoveredEdgeId) return new Set();
+    return new Set(edges.filter((e) => e.id !== hoveredEdgeId).map((e) => e.id));
+  }, [hoveredEdgeId, edges]);
 
   // ── onDragComplete → persist positions to VFSStore ────────────────────────
   const handleDragComplete = useCallback(
@@ -384,7 +366,7 @@ export default function KonvaCanvas() {
   );
 
   // ── Context Menu ──────────────────────────────────────────────────────────
-  const { menu, onPaneContextMenu, onNodeContextMenu, onEdgeContextMenu, closeMenu } = useContextMenu();
+  const { menu, onPaneContextMenu, onNodeContextMenu, closeMenu } = useContextMenu();
 
   const {
     openSSoTClassEditor,
@@ -492,11 +474,13 @@ export default function KonvaCanvas() {
     [onNodeContextMenu],
   );
 
+  // Edge right-click → open VfsEdgeActionModal directly (no context menu)
   const handleEdgeContextMenu = useCallback(
     (e: KonvaEventObject<PointerEvent>, edgeId: string) => {
-      onEdgeContextMenu(e.evt, { id: edgeId });
+      e.evt.preventDefault();
+      openVfsEdgeAction(edgeId);
     },
-    [onEdgeContextMenu],
+    [openVfsEdgeAction],
   );
 
   const handleStageContextMenu = useCallback(

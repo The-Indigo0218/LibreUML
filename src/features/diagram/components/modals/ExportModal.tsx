@@ -23,6 +23,7 @@ import {
   downloadVfsDiagramJson,
 } from "../../../../services/vfsExport.service";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
+import { useKonvaCanvasController } from "../../../../canvas/hooks/useKonvaCanvasController";
 import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
 
 type ExportFormat = "png" | "svg" | "xmi" | "json";
@@ -35,6 +36,9 @@ interface ExportModalProps {
 export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { t } = useTranslation();
   const stage = useStageStore((s) => s.stage);
+
+  // Shapes + edges for vector SVG export (MAG-01.15)
+  const { shapes, edges } = useKonvaCanvasController();
 
   // Workspace
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
@@ -159,7 +163,9 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
         scale,
         transparent,
         backgroundColor: bgColor,
-        nodes, // Pass nodes for full diagram export
+        nodes,  // PNG bounds calculation (MAG-01.14)
+        shapes, // Vector SVG export (MAG-01.15)
+        edges,  // Vector SVG export (MAG-01.15)
       });
 
       if (format === "svg" && dontShowAgain) {

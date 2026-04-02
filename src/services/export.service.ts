@@ -1,16 +1,19 @@
 /**
- * export.service.ts — Konva-native image export (MAG-01.13 + MAG-01.14)
+ * export.service.ts — Konva-native image export (MAG-01.13 + MAG-01.14 + MAG-01.15)
  *
  * Replaces html-to-image / ReactFlow DOM capture.
- * PNG/SVG are now produced via stage.toDataURL on the Konva canvas.
+ * PNG: stage.toDataURL with full diagram bounds.
+ * SVG: vector SVG via diagramToSvg (MAG-01.15) when shapes/edges are provided;
+ *      falls back to raster PNG-in-SVG otherwise (legacy path).
  * JSON export is unchanged (no canvas dependency).
  *
- * MAG-01.14: Updated to export entire diagram (all nodes) instead of viewport only.
  * Note: This service is legacy. New code should use useKonvaExport hook instead.
  */
 
 import type Konva from 'konva';
 import type { ViewNode } from '../core/domain/vfs/vfs.types';
+import type { ShapeDescriptor, EdgeDescriptor } from '../canvas/types/canvas.types';
+import { diagramToSvg } from '../canvas/export/diagramToSvg';
 
 export interface ExportImageOptions {
   fileName: string;
@@ -18,7 +21,9 @@ export interface ExportImageOptions {
   scale: number;
   transparent: boolean;
   backgroundColor: string;
-  nodes?: ViewNode[]; // Optional: if provided, calculates bounds from nodes
+  nodes?: ViewNode[];            // Optional: ViewNode positions for PNG bounds
+  shapes?: ShapeDescriptor[];   // Optional: full shape descriptors for vector SVG
+  edges?: EdgeDescriptor[];     // Optional: edge descriptors for vector SVG
 }
 
 // Node dimensions (matches ClassShape MIN_W and typical height)
@@ -127,36 +132,44 @@ export const ExportService = {
     }
 
     if (options.format === 'svg') {
-      // Raster PNG embedded in an SVG envelope — true vector SVG deferred to future.
-      let pngDataUrl: string;
-      let w: number;
-      let h: number;
+      let svgContent: string;
 
-      if (bounds) {
-        // Export full diagram with calculated bounds
-        pngDataUrl = stage.toDataURL({
-          x: bounds.x,
-          y: bounds.y,
-          width: bounds.width,
-          height: bounds.height,
-          pixelRatio,
-          mimeType: 'image/png',
+      if (options.shapes && options.edges) {
+        // MAG-01.15: True vector SVG — programmatic generation from diagram data.
+        svgContent = diagramToSvg(options.shapes, options.edges, {
+          transparent: options.transparent,
+          backgroundColor: options.backgroundColor,
         });
-        w = bounds.width * pixelRatio;
-        h = bounds.height * pixelRatio;
       } else {
-        // Fallback to viewport (legacy behavior)
-        pngDataUrl = stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
-        w = stage.width() * pixelRatio;
-        h = stage.height() * pixelRatio;
-      }
+        // Legacy fallback: raster PNG embedded in an SVG envelope.
+        let pngDataUrl: string;
+        let w: number;
+        let h: number;
 
-      const svgContent = [
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`,
-        options.transparent ? '' : `<rect width="${w}" height="${h}" fill="${options.backgroundColor}"/>`,
-        `<image href="${pngDataUrl}" width="${w}" height="${h}"/>`,
-        '</svg>',
-      ].join('');
+        if (bounds) {
+          pngDataUrl = stage.toDataURL({
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            pixelRatio,
+            mimeType: 'image/png',
+          });
+          w = bounds.width * pixelRatio;
+          h = bounds.height * pixelRatio;
+        } else {
+          pngDataUrl = stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
+          w = stage.width() * pixelRatio;
+          h = stage.height() * pixelRatio;
+        }
+
+        svgContent = [
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`,
+          options.transparent ? '' : `<rect width="${w}" height="${h}" fill="${options.backgroundColor}"/>`,
+          `<image href="${pngDataUrl}" width="${w}" height="${h}"/>`,
+          '</svg>',
+        ].join('');
+      }
 
       const blob = new Blob([svgContent], { type: 'image/svg+xml' });
       const svgDataUrl = URL.createObjectURL(blob);

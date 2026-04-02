@@ -271,6 +271,10 @@ export const useDiagramMenus = ({
 
         return [
           {
+            label: t("contextMenu.edge.defineMultiplicity"),
+            onClick: () => onEditEdgeMultiplicity(edgeId),
+          },
+          {
             label: t("contextMenu.edge.reverse"),
             onClick: () => onReverseEdge(edgeId),
           },

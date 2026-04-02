@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useVFSStore } from '../../store/project-vfs.store';
-import { useToastStore } from '../../store/toast.store';
 
 /**
  * VFS Auto-Save Hook (MAG-01.9 + MAG-01.22 Fix)
@@ -45,7 +44,6 @@ export function useVFSAutoSave(): UseVFSAutoSaveResult {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastUpdatedAtRef = useRef<number>(0);
 
-  const showToast = useToastStore((s) => s.show);
 
 
   const provideSaveFeedback = useCallback((): boolean => {

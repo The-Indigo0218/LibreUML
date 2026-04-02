@@ -3,11 +3,11 @@ import type { BaseDomainNode, Visibility, Packageable, Documentable } from './ba
 /**
  * Class Diagram Node Types (Discriminated Union)
  */
-export type ClassDiagramNodeType = 
-  | 'CLASS' 
-  | 'INTERFACE' 
-  | 'ABSTRACT_CLASS' 
-  | 'ENUM' 
+export type ClassDiagramNodeType =
+  | 'CLASS'
+  | 'INTERFACE'
+  | 'ABSTRACT_CLASS'
+  | 'ENUM'
   | 'NOTE';
 
 /**
@@ -20,6 +20,7 @@ export interface ClassAttribute {
   visibility: Visibility;
   isArray: boolean;
   isStatic?: boolean;
+  isReadOnly?: boolean;
   defaultValue?: string;
 }
 
@@ -40,12 +41,12 @@ export interface ClassMethod {
   id: string;
   name: string;
   returnType: string;
-  isReturnArray?: boolean;
   visibility: Visibility;
+  parameters: MethodParameter[];
+  isReturnArray?: boolean;
   isStatic?: boolean;
   isAbstract?: boolean;
   isConstructor?: boolean;
-  parameters: MethodParameter[];
 }
 
 /**
@@ -106,9 +107,9 @@ export interface NoteNode extends BaseDomainNode {
 /**
  * Discriminated Union of all Class Diagram nodes
  */
-export type ClassDiagramNode = 
-  | ClassNode 
-  | InterfaceNode 
-  | AbstractClassNode 
-  | EnumNode 
+export type ClassDiagramNode =
+  | ClassNode
+  | InterfaceNode
+  | AbstractClassNode
+  | EnumNode
   | NoteNode;

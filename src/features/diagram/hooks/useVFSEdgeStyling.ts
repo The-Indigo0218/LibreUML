@@ -30,10 +30,13 @@ const DIM_STYLE = {
   transition: 'opacity 0.2s ease',
 } as const;
 
-export function useVFSEdgeStyling(edges: VFSReactFlowEdge[]) {
+export function useVFSEdgeStyling(edges: VFSReactFlowEdge[], modalEdgeId?: string | null) {
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+
+  // Combine hover state with modal editing state
+  const effectiveHoveredEdgeId = hoveredEdgeId || modalEdgeId;
 
   const styledEdges = useMemo((): VFSReactFlowEdge[] => {
     if (showAllEdges) {
@@ -47,13 +50,13 @@ export function useVFSEdgeStyling(edges: VFSReactFlowEdge[]) {
       }));
     }
 
-    if (!hoveredNodeId && !hoveredEdgeId) return edges;
+    if (!hoveredNodeId && !effectiveHoveredEdgeId) return edges;
 
     return edges.map((edge) => {
       const connectedToNode = hoveredNodeId
         ? edge.source === hoveredNodeId || edge.target === hoveredNodeId
         : false;
-      const isHoveredEdge = hoveredEdgeId === edge.id;
+      const isHoveredEdge = effectiveHoveredEdgeId === edge.id;
       const highlight = connectedToNode || isHoveredEdge;
 
       if (highlight) {
@@ -73,7 +76,7 @@ export function useVFSEdgeStyling(edges: VFSReactFlowEdge[]) {
         style: DIM_STYLE,
       };
     });
-  }, [edges, hoveredNodeId, hoveredEdgeId, showAllEdges]);
+  }, [edges, hoveredNodeId, effectiveHoveredEdgeId, showAllEdges]);
 
   return { styledEdges, setHoveredNodeId, setHoveredEdgeId };
 }

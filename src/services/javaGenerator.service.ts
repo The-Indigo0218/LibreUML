@@ -134,6 +134,8 @@ export class JavaGeneratorService {
     return attributes
       .map((attr) => {
         const vis = this.mapVisibility(attr.visibility);
+        const staticPart = attr.isStatic ? "static " : "";
+        const finalPart = attr.isReadOnly ? "final " : "";
         const rawType = this.formatType(attr.type);
         const type = rawType + (attr.isArray ? "[]" : "");
 
@@ -146,7 +148,7 @@ export class JavaGeneratorService {
         }
 
         const visPrefix = vis ? `${vis} ` : '';
-        return `    ${visPrefix}${type} ${attr.name}${initialization};`;
+        return `    ${visPrefix}${staticPart}${finalPart}${type} ${attr.name}${initialization};`;
       })
       .join("\n");
   }
@@ -306,10 +308,13 @@ export class JavaGeneratorService {
       .map((method) => {
         const vis = this.mapVisibility(method.visibility);
         const visPrefix = vis ? `${vis} ` : '';
+        const isAbstract = method.isAbstract || isInterface;
+        const staticPart = method.isStatic ? "static " : "";
+        const abstractPart = (method.isAbstract && !isInterface) ? "abstract " : "";
 
         const params = (method.parameters || [])
           .map((p) => {
-            const paramType = this.formatType(p.type) + (p.isArray ? "[]" : "");
+            const paramType = this.formatType(p.type);
             return `${paramType} ${p.name}`;
           })
           .join(", ");
@@ -326,26 +331,32 @@ export class JavaGeneratorService {
         }
 
         const returnType =
-          this.formatType(method.returnType) +
-          (method.isReturnArray ? "[]" : "");
+          this.formatType(method.returnType);
 
-        const signature = `    ${visPrefix}${returnType} ${method.name}(${params})`;
+        const signature = `    ${visPrefix}${staticPart}${abstractPart}${returnType} ${method.name}(${params})`;
 
         if (isInterface) {
           return `${signature};`;
         }
 
         let body = "";
-        if (returnType === "void") body = "// TODO: Implement logic";
-        else if (
-          ["int", "double", "float", "long", "short", "byte"].includes(
-            this.formatType(method.returnType)
-          ) && !method.isReturnArray
-        )
+        const formattedReturnType = this.formatType(method.returnType);
+
+        if (formattedReturnType === "void") {
+          body = "// TODO: Implement logic";
+        } else if (
+          ["int", "double", "float", "long", "short", "byte"].includes(formattedReturnType)
+        ) {
           body = "return 0;";
-        else if (this.formatType(method.returnType) === "boolean" && !method.isReturnArray)
+        } else if (formattedReturnType === "boolean") {
           body = "return false;";
-        else body = "return null;";
+        } else {
+          body = "return null;";
+        }
+
+        if (isAbstract) {
+          return `${signature};`; // Los abstractos no llevan cuerpo
+        }
 
         return `${signature} {\n        ${body}\n    }`;
       })
@@ -371,7 +382,7 @@ export class JavaGeneratorService {
       case "-": return "private";
       case "#": return "protected";
       case "~": return "";        // package-private: no keyword in Java
-      default:  return "public";
+      default: return "public";
     }
   }
 }

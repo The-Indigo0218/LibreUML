@@ -160,12 +160,14 @@ export interface IRParameter {
   type: string;
   direction?: 'in' | 'out' | 'inout' | 'return';
   defaultValue?: string;
+  isArray?: boolean;
 }
 
 export interface IROperation extends IRElement {
   kind: 'OPERATION';
   returnType?: string;
   parameters: IRParameter[];
+  isReturnArray?: boolean;
   isQuery?: boolean;
   exceptions?: string[];
 }

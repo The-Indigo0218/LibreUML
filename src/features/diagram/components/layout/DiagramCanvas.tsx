@@ -104,7 +104,10 @@ export default function DiagramCanvas() {
   }, [nodes]);
 
   useKeyboardShortcuts();
-  const { styledEdges: vfsStyledEdges, setHoveredNodeId: setVFSHoveredNodeId, setHoveredEdgeId: setVFSHoveredEdgeId } = useVFSEdgeStyling(vfsController.edges);
+  
+  // Pass editingId to highlight the edge when modal is open
+  const modalEdgeId = activeModal === 'vfs-edge-action' ? editingId : null;
+  const { styledEdges: vfsStyledEdges, setHoveredNodeId: setVFSHoveredNodeId, setHoveredEdgeId: setVFSHoveredEdgeId } = useVFSEdgeStyling(vfsController.edges, modalEdgeId);
   const { onDragOver, onDrop } = useDiagramDnD();
 
   const setSelection = useSelectionStore((s) => s.setSelection);

@@ -89,6 +89,8 @@ interface KonvaEdgeProps {
   targetMultiplicity?: string;
   sourceRole?: string;
   targetRole?: string;
+  /** Highlight state (MAG-01.23) */
+  isHighlighted?: boolean;
   /** Context menu handler (MAG-01.12) */
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, edgeId: string) => void;
   /** Mouse enter handler for tooltip (MAG-01.12) */
@@ -109,11 +111,13 @@ export default function KonvaEdge({
   targetMultiplicity,
   sourceRole,
   targetRole,
+  isHighlighted = false,
   onContextMenu,
   onMouseEnter,
   onMouseLeave,
 }: KonvaEdgeProps) {
-  const stroke = getEdgeColor();
+  const stroke = isHighlighted ? '#3b82f6' : getEdgeColor(); // MAG-01.23: Blue when highlighted
+  const strokeWidth = isHighlighted ? 4 : 2; // MAG-01.23: Thicker when highlighted
   const dashed = DASHED_KINDS.has(kind);
   const retract = MARKER_RETRACT[kind] ?? 0;
 
@@ -211,7 +215,7 @@ export default function KonvaEdge({
         points={points}
         bezier={bezier}
         stroke={stroke}
-        strokeWidth={2}
+        strokeWidth={strokeWidth}
         dash={dashed ? [6, 4] : undefined}
         lineCap="round"
         lineJoin="round"

@@ -46,6 +46,7 @@ export default function KonvaCanvas() {
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   const showGrid = useSettingsStore((s) => s.showGrid);
+  const highlightConnections = useSettingsStore((s) => s.showAllEdges); // MAG-01.23
   const { stageRef, stageProps, viewport } = useViewport();
 
   // Register stage in global store so ExportModal can access it
@@ -89,6 +90,26 @@ export default function KonvaCanvas() {
     stageRef,
     boundsMapRef,
   });
+
+  // ── Highlight connected edges (MAG-01.23) ────────────────────────────────
+  // When highlightConnections is enabled and nodes are selected,
+  // determine which edges are connected to those nodes
+  const highlightedEdgeIds = useMemo((): Set<string> => {
+    if (!highlightConnections || selectedIds.size === 0) {
+      return new Set();
+    }
+
+    const highlighted = new Set<string>();
+    const selectedArray = Array.from(selectedIds);
+
+    edges.forEach((edge) => {
+      if (selectedArray.includes(edge.sourceId) || selectedArray.includes(edge.targetId)) {
+        highlighted.add(edge.id);
+      }
+    });
+
+    return highlighted;
+  }, [highlightConnections, selectedIds, edges]);
 
   // ── onDragComplete → persist positions to VFSStore ────────────────────────
   const handleDragComplete = useCallback(
@@ -616,6 +637,7 @@ export default function KonvaCanvas() {
                   targetMultiplicity={edge.targetMultiplicity}
                   sourceRole={edge.sourceRole}
                   targetRole={edge.targetRole}
+                  isHighlighted={highlightedEdgeIds.has(edge.id)}
                   onContextMenu={handleEdgeContextMenu}
                   onMouseEnter={handleEdgeMouseEnter}
                   onMouseLeave={handleEdgeMouseLeave}

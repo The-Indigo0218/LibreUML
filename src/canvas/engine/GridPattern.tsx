@@ -20,9 +20,9 @@ export default function GridPattern({
   viewport,
   stageWidth,
   stageHeight,
-  spacing = 24,
-  dotRadius = 1.5,
-  color = '#94a3b8',
+  spacing = 40,
+  dotRadius = 1,
+  color = '#cbd5e1',
 }: GridPatternProps) {
   const draw = useCallback(
     (ctx: Context, shape: KonvaShape) => {

@@ -23,6 +23,7 @@ import CodeExportConfigModal from "../modals/CodeExportConfigModal";
 import WikiModal from "../../../../components/Wiki/WikiModal";
 import { useUiStore } from "../../../../store/uiStore";
 import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
+import { useVFSAutoSave } from "../../../../hooks/actions/useVFSAutoSave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
 import { useVFSStore } from "../../../../store/project-vfs.store";
@@ -38,6 +39,7 @@ function EditorLogic() {
   const { activeModal, closeModals } = useUiStore();
 
   useAutoSave();
+  useVFSAutoSave();
   useAutoRestore();
   useThemeSystem();
 

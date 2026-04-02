@@ -161,6 +161,7 @@ interface ClassShapeProps {
   /** Render opacity — pass 0.3 for ghost shapes during drag. */
   opacity?: number;
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
+  onDblClick?: (e: KonvaEventObject<MouseEvent>) => void;
   draggable?: boolean;
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
@@ -174,6 +175,7 @@ export default function ClassShape({
   selected,
   opacity,
   onNodeClick,
+  onDblClick,
   draggable,
   onDragStart,
   onDragMove,
@@ -200,6 +202,10 @@ export default function ClassShape({
       onClick={(e) => {
         e.cancelBubble = true;
         onNodeClick?.(vm.id, e.evt.ctrlKey || e.evt.metaKey);
+      }}
+      onDblClick={(e) => {
+        e.cancelBubble = true;
+        onDblClick?.(e);
       }}
     >
       {/* ── Outer rect (fills bg + draws border) ───────────────────────── */}

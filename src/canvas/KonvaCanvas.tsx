@@ -13,6 +13,8 @@ import { useDragHandler } from './interactions/useDragHandler';
 import type { CanvasNode } from './interactions/useDragHandler';
 import { useConnectionDraw } from './interactions/useConnectionDraw';
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
+import CanvasOverlay from './CanvasOverlay';
+import { useInlineEditorStore } from './store/inlineEditorStore';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { KonvaNodeChange, KonvaEdgeChange } from './types/canvas.types';
 import {
@@ -173,6 +175,145 @@ export default function KonvaCanvas() {
     onSelectAll: selectAll,
   });
 
+  // ── Inline editor activation ───────────────────────────────────────────────
+  const startInlineEditing = useInlineEditorStore((s) => s.startEditing);
+  const updateEditorPosition = useInlineEditorStore((s) => s.updatePosition);
+  const isEditing = useInlineEditorStore((s) => s.isEditing);
+  const activeNodeId = useInlineEditorStore((s) => s.activeNodeId);
+
+  // Update editor position when viewport changes (pan/zoom)
+  useEffect(() => {
+    if (!isEditing || !activeNodeId) return;
+
+    const shape = shapes.find((s) => s.id === activeNodeId);
+    if (!shape) return;
+
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    // Recalculate screen position based on current viewport
+    const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
+    const transform = stage.getAbsoluteTransform().copy();
+
+    if (isNoteViewModel(shape.data)) {
+      const NOTE_H_PAD = 8;
+      const NOTE_V_PAD = 8;
+      const titleY = NOTE_V_PAD / 2 + 2;
+      const screenPos = transform.point({ x: pos.x + NOTE_H_PAD, y: pos.y + titleY });
+      updateEditorPosition({ x: screenPos.x, y: screenPos.y });
+    } else {
+      const H_PAD = 10;
+      const layout = getClassShapeSize(shape.data as NodeViewModel);
+      const nameY = layout.height * 0.15;
+      const screenPos = transform.point({ x: pos.x + H_PAD, y: pos.y + nameY });
+      updateEditorPosition({ x: screenPos.x, y: screenPos.y });
+    }
+  }, [viewport, isEditing, activeNodeId, shapes, positionOverrides, stageRef, updateEditorPosition]);
+
+  const handleClassDblClick = useCallback(
+    (shapeId: string, e: KonvaEventObject<MouseEvent>) => {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape || isNoteViewModel(shape.data)) return;
+
+      const vm = shape.data as NodeViewModel;
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      // Get the Group node that was double-clicked
+      const groupNode = e.target.findAncestor('Group');
+      if (!groupNode) return;
+
+      // Calculate screen-space position of the name text
+      // Name text is positioned at (H_PAD, nameY + 3) within the Group
+      const H_PAD = 10;
+      const NAME_FONT = 14;
+      const NAME_H = 22;
+      
+      // Get absolute position of the group in stage coordinates
+      const groupPos = groupNode.getAbsolutePosition();
+      
+      // Calculate name text position within the group
+      // This matches the layout in ClassShape.tsx
+      const layout = getClassShapeSize(vm);
+      const nameY = layout.height * 0.15; // Approximate header position
+      
+      // Transform to screen coordinates
+      const transform = stage.getAbsoluteTransform().copy();
+      const screenPos = transform.point({ x: groupPos.x + H_PAD, y: groupPos.y + nameY });
+      
+      // Calculate text dimensions
+      const nameText = vm.sublabel ? `${vm.label}${vm.sublabel}` : vm.label;
+      const textWidth = Math.min(layout.width - 2 * H_PAD, 400); // Max 400px
+      const textHeight = NAME_H;
+
+      // Get onRename callback from metadata (VFS path)
+      const onRename = vm.metadata?.onRename as ((name: string, generics?: string) => void) | undefined;
+      
+      if (onRename) {
+        startInlineEditing(
+          shapeId,
+          nameText,
+          'name',
+          { x: screenPos.x, y: screenPos.y },
+          { width: textWidth, height: textHeight },
+          onRename,
+        );
+      }
+    },
+    [shapes, stageRef, startInlineEditing],
+  );
+
+  const handleNoteDblClick = useCallback(
+    (shapeId: string, e: KonvaEventObject<MouseEvent>) => {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape || !isNoteViewModel(shape.data)) return;
+
+      const vm = shape.data;
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      // Get the Group node that was double-clicked
+      const groupNode = e.target.findAncestor('Group');
+      if (!groupNode) return;
+
+      // Calculate screen-space position of the title text
+      const NOTE_H_PAD = 8;
+      const NOTE_V_PAD = 8;
+      const NOTE_TITLE_FONT = 14;
+      const NOTE_TITLE_H = 32;
+      const NOTE_W = 224;
+
+      // Get absolute position of the group in stage coordinates
+      const groupPos = groupNode.getAbsolutePosition();
+      
+      // Title text position within the group
+      const titleY = NOTE_V_PAD / 2 + 2;
+      
+      // Transform to screen coordinates
+      const transform = stage.getAbsoluteTransform().copy();
+      const screenPos = transform.point({ x: groupPos.x + NOTE_H_PAD, y: groupPos.y + titleY });
+      
+      // Calculate text dimensions
+      const textWidth = NOTE_W - 2 * NOTE_H_PAD - 12; // Minus fold corner
+      const textHeight = NOTE_TITLE_H - NOTE_V_PAD;
+
+      // Get onSave callback from view model
+      const onSave = vm.onSave;
+      
+      if (onSave) {
+        startInlineEditing(
+          shapeId,
+          vm.title ?? '',
+          'title',
+          { x: screenPos.x, y: screenPos.y },
+          { width: textWidth, height: textHeight },
+          (newTitle) => onSave({ title: newTitle }),
+        );
+      }
+    },
+    [shapes, stageRef, startInlineEditing],
+  );
+
   // ── Merged stage event handlers ────────────────────────────────────────────
   // Connection draw has priority over lasso selection:
   //   onMouseDown: if near anchor → start connection draw (skip lasso)
@@ -226,7 +367,7 @@ export default function KonvaCanvas() {
   }, []);
 
   return (
-    <div ref={containerRef} className="w-full h-full overflow-hidden bg-canvas-base">
+    <div ref={containerRef} className="w-full h-full overflow-hidden bg-canvas-base relative">
       {size.width > 0 && size.height > 0 && (
         <Stage
           ref={stageRef}
@@ -297,6 +438,7 @@ export default function KonvaCanvas() {
                     onDragMove={dragHandlers.onDragMove}
                     onDragEnd={dragHandlers.onDragEnd}
                     onNodeClick={onNodeClick}
+                    onDblClick={(e) => handleNoteDblClick(shape.id, e)}
                   />
                 );
               }
@@ -312,6 +454,7 @@ export default function KonvaCanvas() {
                   onDragMove={dragHandlers.onDragMove}
                   onDragEnd={dragHandlers.onDragEnd}
                   onNodeClick={onNodeClick}
+                  onDblClick={(e) => handleClassDblClick(shape.id, e)}
                 />
               );
             })}
@@ -405,6 +548,9 @@ export default function KonvaCanvas() {
           </Layer>
         </Stage>
       )}
+
+      {/* HTML Overlay (Layer 0) — positioned above canvas */}
+      <CanvasOverlay />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import GridPattern from './engine/GridPattern';
 import { useViewport } from './engine/useViewport';
 import { useSettingsStore } from '../store/settingsStore';
 import { useKonvaCanvasController } from './hooks/useKonvaCanvasController';
+import { useKonvaDnD } from './hooks/useKonvaDnD';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
 import KonvaEdge from './edges/KonvaEdge';
@@ -174,6 +175,9 @@ export default function KonvaCanvas() {
     onDeleteEdges: handleDeleteEdges,
     onSelectAll: selectAll,
   });
+
+  // ── External drag & drop (sidebar/palette → canvas) ────────────────────────
+  const { onDragOver, onDrop } = useKonvaDnD({ stageRef });
 
   // ── Inline editor activation ───────────────────────────────────────────────
   const startInlineEditing = useInlineEditorStore((s) => s.startEditing);
@@ -367,7 +371,12 @@ export default function KonvaCanvas() {
   }, []);
 
   return (
-    <div ref={containerRef} className="w-full h-full overflow-hidden bg-canvas-base relative">
+    <div
+      ref={containerRef}
+      className="w-full h-full overflow-hidden bg-canvas-base relative"
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       {size.width > 0 && size.height > 0 && (
         <Stage
           ref={stageRef}

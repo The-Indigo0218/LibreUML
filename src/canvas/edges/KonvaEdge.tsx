@@ -28,7 +28,7 @@
  */
 
 import { useMemo } from 'react';
-import { Group, Line, Text } from 'react-konva';
+import { Group, Line, Text, Label, Tag } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 import {
@@ -119,8 +119,10 @@ interface KonvaEdgeProps {
   targetRole?: string;
   /** Highlight state (MAG-01.23) — edge is highlighted (show kind color + 3px stroke) */
   isHighlighted?: boolean;
-  /** Hover state (MAG-01.24) — edge is hovered (show kind color preview) */
+  /** Hover state (MAG-01.24) — edge is hovered (show kind color + badge tooltip) */
   isHovered?: boolean;
+  /** Dim state (MAG-01.24) — edge is dimmed when another edge/node is active */
+  isDimmed?: boolean;
   /** Context menu handler (MAG-01.12) */
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, edgeId: string) => void;
   /** Mouse enter handler for tooltip (MAG-01.12) */
@@ -143,6 +145,7 @@ export default function KonvaEdge({
   targetRole,
   isHighlighted = false,
   isHovered = false,
+  isDimmed = false,
   onContextMenu,
   onMouseEnter,
   onMouseLeave,
@@ -248,7 +251,7 @@ export default function KonvaEdge({
   }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract]);
 
   return (
-    <Group>
+    <Group opacity={isDimmed ? 0.15 : 1}>
       <Line
         points={points}
         bezier={bezier}
@@ -257,7 +260,7 @@ export default function KonvaEdge({
         dash={dashed ? [6, 4] : undefined}
         lineCap="round"
         lineJoin="round"
-        hitStrokeWidth={12} // Wider hit area for easier interaction
+        hitStrokeWidth={12}
         listening={true}
         perfectDrawEnabled={false}
         onContextMenu={(e) => onContextMenu?.(e, id)}
@@ -271,21 +274,32 @@ export default function KonvaEdge({
         face={markerFace}
         stroke={stroke}
       />
-      
-      {/* Center type label — visible when highlighted (MAG-01.24) */}
-      {isHighlighted && (
-        <Text
-          x={labelPositions.centerX - 60}
-          y={labelPositions.centerY}
-          width={120}
-          align="center"
-          text={formatKindLabel(kind)}
-          fontSize={11}
-          fill={stroke}
-          fontStyle="bold"
-          listening={false}
-          opacity={0.9}
-        />
+
+      {/* Hover badge — floating label above edge midpoint (MAG-01.24) */}
+      {isHovered && (
+        <Label
+          x={labelPositions.centerX}
+          y={labelPositions.centerY - 16}
+          offsetX={formatKindLabel(kind).length * 3.5 + 6}
+        >
+          <Tag
+            fill="#ffffff"
+            stroke="#e2e8f0"
+            strokeWidth={1}
+            cornerRadius={4}
+            shadowColor="rgba(0,0,0,0.2)"
+            shadowBlur={6}
+            shadowOffsetY={2}
+          />
+          <Text
+            text={formatKindLabel(kind)}
+            fontSize={12}
+            fontStyle="bold"
+            fill="#0f172a"
+            padding={5}
+            listening={false}
+          />
+        </Label>
       )}
 
       {/* Source multiplicity label */}

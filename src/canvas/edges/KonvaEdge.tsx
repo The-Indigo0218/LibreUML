@@ -55,10 +55,38 @@ const MARKER_RETRACT: Partial<Record<RelationKind, number>> = {
   COMPOSITION:    24,
 };
 
+// Maps RelationKind to CSS variable name (matches v1 useVFSEdgeStyling)
+const KIND_COLOR_VAR: Partial<Record<RelationKind, string>> = {
+  GENERALIZATION: '--edge-inheritance',
+  REALIZATION:    '--edge-implementation',
+  DEPENDENCY:     '--edge-dependency',
+  USAGE:          '--edge-dependency',
+  ASSOCIATION:    '--edge-association',
+  AGGREGATION:    '--edge-aggregation',
+  COMPOSITION:    '--edge-composition',
+  INCLUDE:        '--edge-implementation',
+  EXTEND:         '--edge-dependency',
+};
+
 function getEdgeColor(): string {
   return (
     getComputedStyle(document.documentElement).getPropertyValue('--edge-base').trim() || '#64748b'
   );
+}
+
+function getEdgeColorByKind(kind: RelationKind): string {
+  const varName = KIND_COLOR_VAR[kind];
+  if (!varName) return getEdgeColor();
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue(varName).trim() || getEdgeColor()
+  );
+}
+
+function formatKindLabel(kind: RelationKind): string {
+  return kind
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -89,8 +117,10 @@ interface KonvaEdgeProps {
   targetMultiplicity?: string;
   sourceRole?: string;
   targetRole?: string;
-  /** Highlight state (MAG-01.23) */
+  /** Highlight state (MAG-01.23) — edge is highlighted (show kind color + 3px stroke) */
   isHighlighted?: boolean;
+  /** Hover state (MAG-01.24) — edge is hovered (show kind color preview) */
+  isHovered?: boolean;
   /** Context menu handler (MAG-01.12) */
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, edgeId: string) => void;
   /** Mouse enter handler for tooltip (MAG-01.12) */
@@ -112,12 +142,15 @@ export default function KonvaEdge({
   sourceRole,
   targetRole,
   isHighlighted = false,
+  isHovered = false,
   onContextMenu,
   onMouseEnter,
   onMouseLeave,
 }: KonvaEdgeProps) {
-  const stroke = isHighlighted ? '#3b82f6' : getEdgeColor(); // MAG-01.23: Blue when highlighted
-  const strokeWidth = isHighlighted ? 4 : 2; // MAG-01.23: Thicker when highlighted
+  // When active (highlighted or hovered): use kind-specific color; else base gray
+  const isActive = isHighlighted || isHovered;
+  const stroke = isActive ? getEdgeColorByKind(kind) : getEdgeColor();
+  const strokeWidth = isActive ? 3 : 2;
   const dashed = DASHED_KINDS.has(kind);
   const retract = MARKER_RETRACT[kind] ?? 0;
 
@@ -147,6 +180,8 @@ export default function KonvaEdge({
           targetMultY: tgtY - 15,
           targetRoleX: tgtX,
           targetRoleY: tgtY + 5,
+          centerX: sourceBounds.x + sourceBounds.width + 15,
+          centerY: sourceBounds.y - 20,
         },
       };
     }
@@ -205,6 +240,9 @@ export default function KonvaEdge({
         targetMultY: tgtY + (isHorizontal ? -15 : -20),
         targetRoleX: tgtX + (isHorizontal ? -30 : 10),
         targetRoleY: tgtY + (isHorizontal ? 5 : 0),
+        // Center label (type name when highlighted)
+        centerX: (pts[0] + pts[pts.length - 2]) / 2,
+        centerY: (pts[1] + pts[pts.length - 1]) / 2 - 12,
       },
     };
   }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract]);
@@ -234,50 +272,70 @@ export default function KonvaEdge({
         stroke={stroke}
       />
       
+      {/* Center type label — visible when highlighted (MAG-01.24) */}
+      {isHighlighted && (
+        <Text
+          x={labelPositions.centerX - 60}
+          y={labelPositions.centerY}
+          width={120}
+          align="center"
+          text={formatKindLabel(kind)}
+          fontSize={11}
+          fill={stroke}
+          fontStyle="bold"
+          listening={false}
+          opacity={0.9}
+        />
+      )}
+
       {/* Source multiplicity label */}
       {sourceMultiplicity && (
         <Text
           x={labelPositions.sourceMultX}
           y={labelPositions.sourceMultY}
           text={sourceMultiplicity}
-          fontSize={12}
-          fill="#888"
+          fontSize={isHighlighted ? 13 : 12}
+          fontStyle={isHighlighted ? 'bold' : 'normal'}
+          fill={isHighlighted ? stroke : '#888'}
           listening={false}
         />
       )}
-      
+
       {/* Source role label */}
       {sourceRole && (
         <Text
           x={labelPositions.sourceRoleX}
           y={labelPositions.sourceRoleY}
           text={sourceRole}
-          fontSize={12}
-          fill="#888"
+          fontSize={isHighlighted ? 13 : 12}
+          fontStyle={isHighlighted ? 'bold' : 'normal'}
+          fill={isHighlighted ? stroke : '#888'}
           listening={false}
         />
       )}
-      
+
       {/* Target multiplicity label */}
       {targetMultiplicity && (
         <Text
           x={labelPositions.targetMultX}
           y={labelPositions.targetMultY}
           text={targetMultiplicity}
-          fontSize={12}
-          fill="#888"
+          fontSize={isHighlighted ? 13 : 12}
+          fontStyle={isHighlighted ? 'bold' : 'normal'}
+          fill={isHighlighted ? stroke : '#888'}
           listening={false}
         />
       )}
-      
+
       {/* Target role label */}
       {targetRole && (
         <Text
           x={labelPositions.targetRoleX}
           y={labelPositions.targetRoleY}
           text={targetRole}
-          fontSize={12}
-          fill="#888"
+          fontSize={isHighlighted ? 13 : 12}
+          fontStyle={isHighlighted ? 'bold' : 'normal'}
+          fill={isHighlighted ? stroke : '#888'}
           listening={false}
         />
       )}

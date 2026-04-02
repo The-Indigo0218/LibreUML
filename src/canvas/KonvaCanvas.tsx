@@ -612,6 +612,10 @@ export default function KonvaCanvas() {
                   targetBounds={targetBounds}
                   isSelfLoop={isSelfLoop}
                   obstacles={obstacles}
+                  sourceMultiplicity={edge.sourceMultiplicity}
+                  targetMultiplicity={edge.targetMultiplicity}
+                  sourceRole={edge.sourceRole}
+                  targetRole={edge.targetRole}
                   onContextMenu={handleEdgeContextMenu}
                   onMouseEnter={handleEdgeMouseEnter}
                   onMouseLeave={handleEdgeMouseLeave}

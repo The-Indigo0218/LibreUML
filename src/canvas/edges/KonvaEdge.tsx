@@ -28,7 +28,7 @@
  */
 
 import { useMemo } from 'react';
-import { Group, Line } from 'react-konva';
+import { Group, Line, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 import {
@@ -84,6 +84,11 @@ interface KonvaEdgeProps {
    * Only used for routingMode='orthogonal' (obstacle avoidance).
    */
   obstacles?: NodeBounds[];
+  /** Label data (MAG-01.28) */
+  sourceMultiplicity?: string;
+  targetMultiplicity?: string;
+  sourceRole?: string;
+  targetRole?: string;
   /** Context menu handler (MAG-01.12) */
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, edgeId: string) => void;
   /** Mouse enter handler for tooltip (MAG-01.12) */
@@ -100,6 +105,10 @@ export default function KonvaEdge({
   isSelfLoop = false,
   routingMode = 'orthogonal',
   obstacles,
+  sourceMultiplicity,
+  targetMultiplicity,
+  sourceRole,
+  targetRole,
   onContextMenu,
   onMouseEnter,
   onMouseLeave,
@@ -108,16 +117,33 @@ export default function KonvaEdge({
   const dashed = DASHED_KINDS.has(kind);
   const retract = MARKER_RETRACT[kind] ?? 0;
 
-  const { markerX, markerY, markerFace, points, bezier } = useMemo(() => {
+  const { markerX, markerY, markerFace, points, bezier, labelPositions } = useMemo(() => {
     // ── Self-loop ──────────────────────────────────────────────────────────
     if (isSelfLoop) {
       const loop = selfLoopPath(sourceBounds, retract);
+      
+      // Label positions for self-loop (near source node)
+      const srcX = sourceBounds.x + sourceBounds.width + 20;
+      const srcY = sourceBounds.y;
+      const tgtX = sourceBounds.x + sourceBounds.width + 20;
+      const tgtY = sourceBounds.y + 30;
+      
       return {
         points: loop.points,
         bezier: true,
         markerX: loop.markerX,
         markerY: loop.markerY,
         markerFace: loop.markerFace,
+        labelPositions: {
+          sourceMultX: srcX,
+          sourceMultY: srcY - 15,
+          sourceRoleX: srcX,
+          sourceRoleY: srcY + 5,
+          targetMultX: tgtX,
+          targetMultY: tgtY - 15,
+          targetRoleX: tgtX,
+          targetRoleY: tgtY + 5,
+        },
       };
     }
 
@@ -144,12 +170,38 @@ export default function KonvaEdge({
         break;
     }
 
+    // Calculate label positions
+    // Source labels: near start of edge
+    const srcX = pts[0];
+    const srcY = pts[1];
+    
+    // Target labels: near end of edge (before marker)
+    const tgtX = pts[pts.length - 2];
+    const tgtY = pts[pts.length - 1];
+    
+    // Offset labels based on edge direction
+    const dx = tgtX - srcX;
+    const dy = tgtY - srcY;
+    const isHorizontal = Math.abs(dx) > Math.abs(dy);
+    
     return {
       points: pts,
       bezier: isBezier,
       markerX: tgt.x,
       markerY: tgt.y,
       markerFace: tgt.face,
+      labelPositions: {
+        // Source end labels
+        sourceMultX: srcX + (isHorizontal ? 10 : -30),
+        sourceMultY: srcY + (isHorizontal ? -15 : 10),
+        sourceRoleX: srcX + (isHorizontal ? 10 : -30),
+        sourceRoleY: srcY + (isHorizontal ? 5 : 30),
+        // Target end labels
+        targetMultX: tgtX + (isHorizontal ? -30 : 10),
+        targetMultY: tgtY + (isHorizontal ? -15 : -20),
+        targetRoleX: tgtX + (isHorizontal ? -30 : 10),
+        targetRoleY: tgtY + (isHorizontal ? 5 : 0),
+      },
     };
   }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract]);
 
@@ -177,6 +229,54 @@ export default function KonvaEdge({
         face={markerFace}
         stroke={stroke}
       />
+      
+      {/* Source multiplicity label */}
+      {sourceMultiplicity && (
+        <Text
+          x={labelPositions.sourceMultX}
+          y={labelPositions.sourceMultY}
+          text={sourceMultiplicity}
+          fontSize={12}
+          fill="#888"
+          listening={false}
+        />
+      )}
+      
+      {/* Source role label */}
+      {sourceRole && (
+        <Text
+          x={labelPositions.sourceRoleX}
+          y={labelPositions.sourceRoleY}
+          text={sourceRole}
+          fontSize={12}
+          fill="#888"
+          listening={false}
+        />
+      )}
+      
+      {/* Target multiplicity label */}
+      {targetMultiplicity && (
+        <Text
+          x={labelPositions.targetMultX}
+          y={labelPositions.targetMultY}
+          text={targetMultiplicity}
+          fontSize={12}
+          fill="#888"
+          listening={false}
+        />
+      )}
+      
+      {/* Target role label */}
+      {targetRole && (
+        <Text
+          x={labelPositions.targetRoleX}
+          y={labelPositions.targetRoleY}
+          text={targetRole}
+          fontSize={12}
+          fill="#888"
+          listening={false}
+        />
+      )}
     </Group>
   );
 }

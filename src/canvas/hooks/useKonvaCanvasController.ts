@@ -73,6 +73,11 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
       sourceId: e.source,
       targetId: e.target,
       kind: e.data.kind,
+      // Label data (MAG-01.28)
+      sourceMultiplicity: e.data.sourceMultiplicity,
+      targetMultiplicity: e.data.targetMultiplicity,
+      sourceRole: e.data.sourceRole,
+      targetRole: e.data.targetRole,
     })),
     [edges],
   );

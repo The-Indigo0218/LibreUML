@@ -33,10 +33,12 @@ export interface UseViewportOptions {
   /** Stage dimensions for calculating min scale */
   stageWidth?: number;
   stageHeight?: number;
+  /** Whether stage is draggable (controlled externally, e.g., by Space key) */
+  draggable?: boolean;
 }
 
 export function useViewport(options: UseViewportOptions = {}) {
-  const { contentBounds, stageWidth = 0, stageHeight = 0 } = options;
+  const { contentBounds, stageWidth = 0, stageHeight = 0, draggable = false } = options;
   const stageRef = useRef<Konva.Stage>(null);
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
   const register = useViewportControlStore((s) => s.register);
@@ -170,7 +172,7 @@ export function useViewport(options: UseViewportOptions = {}) {
     zoomOut,
     constraints, // Expose for debugging/testing
     stageProps: {
-      draggable: true,
+      draggable, // Controlled by Space key (MAG-01.25)
       onWheel: handleWheel,
       onDragMove: handleDragMove,
       onDragEnd: handleDragEnd,

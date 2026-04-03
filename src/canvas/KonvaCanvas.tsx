@@ -4,6 +4,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import GridPattern from './engine/GridPattern';
 import { useViewport } from './engine/useViewport';
 import { useSpacePan } from './hooks/useSpacePan';
+import { useRightClickPan } from './hooks/useRightClickPan';
 import { useSettingsStore } from '../store/settingsStore';
 import { useKonvaCanvasController } from './hooks/useKonvaCanvasController';
 import { useKonvaDnD } from './hooks/useKonvaDnD';
@@ -114,29 +115,20 @@ export default function KonvaCanvas() {
     contentBounds,
     stageWidth: size.width,
     stageHeight: size.height,
-    draggable: false, // Will be controlled by Space pan hook
+    draggable: false, // Stage not draggable (right-click pan handles it)
   });
 
-  // Space pan mode (MAG-01.25)
-  const { isSpacePressed, onStageDragStart, onStageDragEnd } = useSpacePan({
+  // Space key state tracker (for Space + right-click lasso)
+  const { isSpacePressed } = useSpacePan({
+    enabled: true,
+  });
+
+  // Right-click pan mode (default pan behavior)
+  const rightClickPan = useRightClickPan({
     stageRef,
     containerRef,
     enabled: true,
   });
-
-  // Override draggable prop from viewport with Space pan state
-  const finalStageProps = {
-    ...stageProps,
-    draggable: isSpacePressed,
-    onDragStart: (e: KonvaEventObject<DragEvent>) => {
-      onStageDragStart();
-      stageProps.onDragMove?.(e);
-    },
-    onDragEnd: (e: KonvaEventObject<DragEvent>) => {
-      onStageDragEnd();
-      stageProps.onDragEnd?.(e);
-    },
-  };
 
   // ── Adapt shapes → CanvasNode[] for hooks that need position objects ────────
   // useDragHandler and the boundsMap computation use CanvasNode (position.x/y).
@@ -156,6 +148,7 @@ export default function KonvaCanvas() {
   const { selectedIds, lassoRect, onNodeClick, selectAll, stageHandlers } = useSelection({
     stageRef,
     boundsMapRef,
+    isSpacePressed, // Pass Space state for Space + right-click lasso
   });
 
   // ── Hovered edge ID (MAG-01.24) ──────────────────────────────────────────
@@ -573,39 +566,54 @@ export default function KonvaCanvas() {
   }, []);
 
   // ── Merged stage event handlers ────────────────────────────────────────────
-  // Connection draw has priority over lasso selection:
-  //   onMouseDown: if near anchor → start connection draw (skip lasso)
-  //   onMouseMove: if connecting → update temp line (skip lasso update)
-  //   onMouseUp: always run both — each handler guards its own state
+  // Priority order:
+  //   1. Connection draw (if near anchor)
+  //   2. Right-click pan (if right button)
+  //   3. Space + right-click lasso (if Space + right button)
+  //   4. Left-click lasso/selection (if left button on empty stage)
 
   const handleStageMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      // Connection draw has highest priority
       connectionDraw.stageHandlers.onMouseDown(e);
-      // Only let lasso start if we did NOT just enter connection-draw mode.
-      if (!connectionDraw.isConnectingRef.current) {
+      if (connectionDraw.isConnectingRef.current) return;
+
+      // Right-click pan (default behavior)
+      rightClickPan.stageHandlers.onMouseDown(e);
+
+      // Space + right-click lasso OR left-click selection
+      if (!rightClickPan.isRightDragging) {
         stageHandlers.onMouseDown(e);
       }
     },
-    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, stageHandlers],
+    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan, stageHandlers],
   );
 
   const handleStageMouseMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      // Connection draw
       connectionDraw.stageHandlers.onMouseMove(e);
-      if (!connectionDraw.isConnectingRef.current) {
+      if (connectionDraw.isConnectingRef.current) return;
+
+      // Right-click pan
+      rightClickPan.stageHandlers.onMouseMove(e);
+
+      // Lasso selection (only if not right-dragging)
+      if (!rightClickPan.isRightDragging) {
         stageHandlers.onMouseMove(e);
       }
     },
-    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, stageHandlers],
+    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan, stageHandlers],
   );
 
   const handleStageMouseUp = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
-      // Both handlers guard on their own state (isConnecting / isLassoing).
+      // All handlers guard on their own state
       connectionDraw.stageHandlers.onMouseUp(e);
+      rightClickPan.stageHandlers.onMouseUp(e);
       stageHandlers.onMouseUp(e);
     },
-    [connectionDraw.stageHandlers, stageHandlers],
+    [connectionDraw.stageHandlers, rightClickPan, stageHandlers],
   );
 
   // ── Container resize ──────────────────────────────────────────────────────
@@ -636,7 +644,7 @@ export default function KonvaCanvas() {
           ref={stageRef}
           width={size.width}
           height={size.height}
-          {...finalStageProps}
+          {...stageProps}
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}

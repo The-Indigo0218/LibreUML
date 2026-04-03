@@ -5,15 +5,16 @@
  *   - Single-click node: select one node (deselects others)
  *   - Ctrl/Meta+click node: toggle that node in/out of selection
  *   - Click on empty stage: clear selection
- *   - Lasso drag on empty stage: draw selection rect → select all intersecting nodes
+ *   - Space + right-click drag: draw selection rect → select all intersecting nodes
  *   - Escape key: clear selection
  *
+ * Lasso activation:
+ *   Lasso ONLY activates on Space + right-click drag (like Windows Desktop).
+ *   Right-click alone pans the canvas (handled by useRightClickPan).
+ *
  * Lasso ↔ pan conflict:
- *   The Stage is normally `draggable: true` (pan). When lasso starts, we call
- *   `stage.draggable(false)` imperatively to suppress panning. react-konva only
- *   re-applies props that change between renders, so `draggable: true` in stageProps
- *   will never be re-applied during the drag (it hasn't changed). We restore it in
- *   `onStageMouseUp`.
+ *   When lasso starts, we call `stage.draggable(false)` imperatively to suppress
+ *   panning. We restore it in `onStageMouseUp`.
  *
  * Click-after-lasso guard:
  *   Konva fires a `click` event after `mouseup` even when no drag happened.
@@ -45,6 +46,10 @@ interface UseSelectionOptions {
    * after calling useSelection without creating a circular hook dependency.
    */
   boundsMapRef: RefObject<Map<string, NodeBounds>>;
+  /**
+   * Whether Space key is currently pressed (for Space + right-click lasso).
+   */
+  isSpacePressed: boolean;
 }
 
 export interface UseSelectionReturn {
@@ -86,7 +91,7 @@ function rectsIntersect(
 /** Minimum lasso size (world-space px) before the drag is treated as a lasso. */
 const LASSO_THRESHOLD = 4;
 
-export function useSelection({ stageRef, boundsMapRef }: UseSelectionOptions): UseSelectionReturn {
+export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSelectionOptions): UseSelectionReturn {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [lassoRect, setLassoRect] = useState<LassoRect | null>(null);
 
@@ -136,13 +141,19 @@ export function useSelection({ stageRef, boundsMapRef }: UseSelectionOptions): U
     setSelectedIds(new Set(ids));
   }, []);
 
-  // ── Stage: lasso start ──────────────────────────────────────────────────
+  // ── Stage: lasso start (Space + right-click only) ──────────────────────
   const onStageMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
       const stage = stageRef.current;
       if (!stage) return;
+
+      // Only start lasso on Space + right-click (button 2)
+      if (!isSpacePressed || e.evt.button !== 2) return;
+
       // Only start lasso when clicking the stage background itself.
       if (e.target !== (stage as unknown)) return;
+
+      e.evt.preventDefault(); // Prevent context menu
 
       const pos = stage.getRelativePointerPosition();
       if (!pos) return;
@@ -153,7 +164,7 @@ export function useSelection({ stageRef, boundsMapRef }: UseSelectionOptions): U
       // Suppress stage pan while lassoing.
       stage.draggable(false);
     },
-    [stageRef],
+    [stageRef, isSpacePressed],
   );
 
   // ── Stage: lasso update ─────────────────────────────────────────────────

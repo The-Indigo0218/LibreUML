@@ -1,46 +1,23 @@
 /**
- * useSpacePan — Space + drag pan mode (MAG-01.25)
+ * useSpacePan — Space key state tracker
  *
- * Implements industry-standard pan interaction:
- * - Press Space → cursor = "grab", enable stage dragging
- * - Space + drag → cursor = "grabbing", pan canvas
- * - Release Space → cursor = normal, disable stage dragging
- * - Normal drag (no Space) → select/move nodes
+ * Tracks Space key press/release state for use with other interactions:
+ * - Space + right-click → lasso selection (handled by useSelection)
  *
- * Matches UX from Miro, Figma, FigJam, Excalidraw.
+ * Note: Space + left-click pan has been REMOVED. Use right-click pan instead.
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import type Konva from 'konva';
 
 export interface UseSpacePanOptions {
-  /** Stage ref to control draggable state */
-  stageRef: React.RefObject<Konva.Stage>;
-  /** Container ref to change cursor style */
-  containerRef: React.RefObject<HTMLDivElement>;
-  /** Whether pan mode is enabled (default: true) */
+  /** Whether Space tracking is enabled (default: true) */
   enabled?: boolean;
 }
 
-export function useSpacePan(options: UseSpacePanOptions) {
-  const { stageRef, containerRef, enabled = true } = options;
+export function useSpacePan(options: UseSpacePanOptions = {}) {
+  const { enabled = true } = options;
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const isSpacePressedRef = useRef(false); // For event handlers
-
-  // Update cursor based on state
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !enabled) return;
-
-    if (isSpacePressed && isDragging) {
-      container.style.cursor = 'grabbing';
-    } else if (isSpacePressed) {
-      container.style.cursor = 'grab';
-    } else {
-      container.style.cursor = 'default';
-    }
-  }, [isSpacePressed, isDragging, containerRef, enabled]);
 
   // Handle Space key press
   const handleKeyDown = useCallback(
@@ -62,15 +39,9 @@ export function useSpacePan(options: UseSpacePanOptions) {
         e.preventDefault(); // Prevent page scroll
         isSpacePressedRef.current = true;
         setIsSpacePressed(true);
-
-        // Enable stage dragging
-        const stage = stageRef.current;
-        if (stage) {
-          stage.draggable(true);
-        }
       }
     },
-    [enabled, stageRef],
+    [enabled],
   );
 
   // Handle Space key release
@@ -81,16 +52,9 @@ export function useSpacePan(options: UseSpacePanOptions) {
       if (e.code === 'Space' && isSpacePressedRef.current) {
         isSpacePressedRef.current = false;
         setIsSpacePressed(false);
-        setIsDragging(false);
-
-        // Disable stage dragging
-        const stage = stageRef.current;
-        if (stage) {
-          stage.draggable(false);
-        }
       }
     },
-    [enabled, stageRef],
+    [enabled],
   );
 
   // Handle window blur (user switches window while holding Space)
@@ -98,15 +62,8 @@ export function useSpacePan(options: UseSpacePanOptions) {
     if (isSpacePressedRef.current) {
       isSpacePressedRef.current = false;
       setIsSpacePressed(false);
-      setIsDragging(false);
-
-      // Disable stage dragging
-      const stage = stageRef.current;
-      if (stage) {
-        stage.draggable(false);
-      }
     }
-  }, [stageRef]);
+  }, []);
 
   // Register keyboard event listeners
   useEffect(() => {
@@ -123,21 +80,7 @@ export function useSpacePan(options: UseSpacePanOptions) {
     };
   }, [enabled, handleKeyDown, handleKeyUp, handleBlur]);
 
-  // Stage drag handlers to track dragging state
-  const onStageDragStart = useCallback(() => {
-    if (isSpacePressedRef.current) {
-      setIsDragging(true);
-    }
-  }, []);
-
-  const onStageDragEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
   return {
     isSpacePressed,
-    isDragging,
-    onStageDragStart,
-    onStageDragEnd,
   };
 }

@@ -1,3 +1,22 @@
+/**
+ * useViewport — Uncontrolled Stage viewport manager
+ *
+ * Architecture:
+ *   Konva is the source of truth for stage x, y, scaleX, scaleY.
+ *   The React `viewport` state is a READ-ONLY observer — it is updated AFTER
+ *   imperative Konva changes so that React consumers (GridPattern, inline editor
+ *   position effect) can re-render with the latest values.
+ *
+ *   The Stage is NEVER given x/y/scaleX/scaleY as controlled props.
+ *   This eliminates the entire class of snap-back bugs caused by React re-renders
+ *   re-applying stale viewport state on top of imperative Konva position changes.
+ *
+ * Consumers of `viewport`:
+ *   - GridPattern: uses x, y, scale to compute visible grid bounds
+ *   - KonvaCanvas inline editor useEffect: uses viewport as a dep to reposition the editor overlay
+ *   - useViewportCuller (unused): would use viewport for frustum culling
+ */
+
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -33,13 +52,14 @@ export interface UseViewportOptions {
   /** Stage dimensions for calculating min scale */
   stageWidth?: number;
   stageHeight?: number;
-  /** Whether stage is draggable (controlled externally, e.g., by Space key) */
-  draggable?: boolean;
 }
 
 export function useViewport(options: UseViewportOptions = {}) {
-  const { contentBounds, stageWidth = 0, stageHeight = 0, draggable = false } = options;
+  const { contentBounds, stageWidth = 0, stageHeight = 0 } = options;
   const stageRef = useRef<Konva.Stage>(null);
+
+  // Read-only observer of Konva's stage position/scale.
+  // Updated after every imperative change so React consumers can re-render.
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
   const register = useViewportControlStore((s) => s.register);
 
@@ -70,6 +90,10 @@ export function useViewport(options: UseViewportOptions = {}) {
     return { minScale, maxScale: MAX_SCALE, bounds };
   }, [contentBounds, stageWidth, stageHeight]);
 
+  /**
+   * Wheel zoom — imperatively updates the Konva stage, then syncs React state.
+   * Zoom is anchored to the pointer position (world-space point under cursor stays fixed).
+   */
   const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
     const stage = stageRef.current;
@@ -80,7 +104,7 @@ export function useViewport(options: UseViewportOptions = {}) {
     if (!pointer) return;
 
     const direction = e.evt.deltaY < 0 ? 1 : -1;
-    
+
     // Clamp zoom to dynamic constraints (MAG-01.21)
     const newScale = Math.max(
       constraints.minScale,
@@ -104,59 +128,56 @@ export function useViewport(options: UseViewportOptions = {}) {
     newX = Math.max(minX, Math.min(maxX, newX));
     newY = Math.max(minY, Math.min(maxY, newY));
 
-    setViewport({
-      scale: newScale,
-      x: newX,
-      y: newY,
-    });
+    // Imperatively update Konva — this is the source of truth.
+    stage.scaleX(newScale);
+    stage.scaleY(newScale);
+    stage.x(newX);
+    stage.y(newY);
+    stage.batchDraw();
+
+    // Sync React state so GridPattern and other observers re-render.
+    setViewport({ scale: newScale, x: newX, y: newY });
   }, [constraints]);
 
-  const handleDragMove = useCallback(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    setViewport((v) => ({ ...v, x: stage.x(), y: stage.y() }));
+  /**
+   * Sync an imperative pan position into React state.
+   * Called on pan-end by useRightClickPan so the grid and inline editor
+   * update to reflect the final position.  Does NOT move the Stage.
+   */
+  const commitPanPosition = useCallback((pos: { x: number; y: number }) => {
+    setViewport((v) => ({ ...v, x: pos.x, y: pos.y }));
   }, []);
 
-  const handleDragEnd = useCallback(() => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    // Constrain pan to bounds after drag (MAG-01.21)
-    const { bounds } = constraints;
-    const scale = stage.scaleX();
-    const maxX = 0;
-    const maxY = 0;
-    const minX = -(bounds.width * scale - stage.width());
-    const minY = -(bounds.height * scale - stage.height());
-
-    let newX = stage.x();
-    let newY = stage.y();
-
-    newX = Math.max(minX, Math.min(maxX, newX));
-    newY = Math.max(minY, Math.min(maxY, newY));
-
-    // Only update if position changed (avoid unnecessary re-render)
-    if (newX !== stage.x() || newY !== stage.y()) {
-      setViewport((v) => ({ ...v, x: newX, y: newY }));
-    }
-  }, [constraints]);
-
   const fitView = useCallback(() => {
+    const stage = stageRef.current;
+    if (stage) {
+      stage.x(0);
+      stage.y(0);
+      stage.scaleX(1);
+      stage.scaleY(1);
+      stage.batchDraw();
+    }
     setViewport({ x: 0, y: 0, scale: 1 });
   }, []);
 
   const zoomIn = useCallback(() => {
-    setViewport((v) => ({
-      ...v,
-      scale: Math.min(constraints.maxScale, v.scale * ZOOM_FACTOR),
-    }));
+    const stage = stageRef.current;
+    if (!stage) return;
+    const newScale = Math.min(constraints.maxScale, stage.scaleX() * ZOOM_FACTOR);
+    stage.scaleX(newScale);
+    stage.scaleY(newScale);
+    stage.batchDraw();
+    setViewport((v) => ({ ...v, scale: newScale }));
   }, [constraints.maxScale]);
 
   const zoomOut = useCallback(() => {
-    setViewport((v) => ({
-      ...v,
-      scale: Math.max(constraints.minScale, v.scale / ZOOM_FACTOR),
-    }));
+    const stage = stageRef.current;
+    if (!stage) return;
+    const newScale = Math.max(constraints.minScale, stage.scaleX() / ZOOM_FACTOR);
+    stage.scaleX(newScale);
+    stage.scaleY(newScale);
+    stage.batchDraw();
+    setViewport((v) => ({ ...v, scale: newScale }));
   }, [constraints.minScale]);
 
   // Register controls so ViewMenu / useEditorControls can trigger them
@@ -167,19 +188,11 @@ export function useViewport(options: UseViewportOptions = {}) {
   return {
     stageRef,
     viewport,
+    onWheel: handleWheel,
+    commitPanPosition,
     fitView,
     zoomIn,
     zoomOut,
     constraints, // Expose for debugging/testing
-    stageProps: {
-      draggable, // Controlled by Space key (MAG-01.25)
-      onWheel: handleWheel,
-      onDragMove: handleDragMove,
-      onDragEnd: handleDragEnd,
-      x: viewport.x,
-      y: viewport.y,
-      scaleX: viewport.scale,
-      scaleY: viewport.scale,
-    },
   };
 }

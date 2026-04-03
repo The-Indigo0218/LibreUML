@@ -3,6 +3,7 @@ import { Stage, Layer, Line, Circle } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import GridPattern from './engine/GridPattern';
 import { useViewport } from './engine/useViewport';
+import { useSpacePan } from './hooks/useSpacePan';
 import { useSettingsStore } from '../store/settingsStore';
 import { useKonvaCanvasController } from './hooks/useKonvaCanvasController';
 import { useKonvaDnD } from './hooks/useKonvaDnD';
@@ -113,7 +114,29 @@ export default function KonvaCanvas() {
     contentBounds,
     stageWidth: size.width,
     stageHeight: size.height,
+    draggable: false, // Will be controlled by Space pan hook
   });
+
+  // Space pan mode (MAG-01.25)
+  const { isSpacePressed, onStageDragStart, onStageDragEnd } = useSpacePan({
+    stageRef,
+    containerRef,
+    enabled: true,
+  });
+
+  // Override draggable prop from viewport with Space pan state
+  const finalStageProps = {
+    ...stageProps,
+    draggable: isSpacePressed,
+    onDragStart: (e: KonvaEventObject<DragEvent>) => {
+      onStageDragStart();
+      stageProps.onDragMove?.(e);
+    },
+    onDragEnd: (e: KonvaEventObject<DragEvent>) => {
+      onStageDragEnd();
+      stageProps.onDragEnd?.(e);
+    },
+  };
 
   // ── Adapt shapes → CanvasNode[] for hooks that need position objects ────────
   // useDragHandler and the boundsMap computation use CanvasNode (position.x/y).
@@ -613,7 +636,7 @@ export default function KonvaCanvas() {
           ref={stageRef}
           width={size.width}
           height={size.height}
-          {...stageProps}
+          {...finalStageProps}
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}

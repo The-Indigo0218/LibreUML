@@ -150,8 +150,10 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
       // Only start lasso on Space + right-click (button 2)
       if (!isSpacePressed || e.evt.button !== 2) return;
 
-      // Only start lasso when clicking the stage background itself.
-      if (e.target !== (stage as unknown)) return;
+      // Only start lasso when clicking the stage background, grid, or edges —
+      // not on node shapes (which live on the "nodes" layer).
+      const targetLayer = e.target.getLayer();
+      if (targetLayer && targetLayer.name() === 'nodes') return;
 
       e.evt.preventDefault(); // Prevent context menu
 
@@ -161,8 +163,6 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
       isLassoing.current = true;
       lassoCommitted.current = false;
       lassoStart.current = { x: pos.x, y: pos.y };
-      // Suppress stage pan while lassoing.
-      stage.draggable(false);
     },
     [stageRef, isSpacePressed],
   );
@@ -214,8 +214,6 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
           }
         }
 
-        // Re-enable stage panning.
-        stage.draggable(true);
       }
 
       isLassoing.current = false;

@@ -111,23 +111,27 @@ export default function KonvaCanvas() {
   }, [shapes]);
 
   // Initialize viewport with content bounds (MAG-01.21)
-  const { stageRef, stageProps, viewport } = useViewport({
+  // The Stage is UNCONTROLLED — useViewport does NOT return x/y/scale props.
+  // Konva holds the source of truth; viewport is a read-only observer for the grid.
+  const { stageRef, viewport, onWheel, commitPanPosition } = useViewport({
     contentBounds,
     stageWidth: size.width,
     stageHeight: size.height,
-    draggable: false, // Stage not draggable (right-click pan handles it)
   });
 
   // Space key state tracker (for Space + right-click lasso)
-  const { isSpacePressed } = useSpacePan({
+  const { isSpacePressed, isSpacePressedRef } = useSpacePan({
     enabled: true,
   });
 
   // Right-click pan mode (default pan behavior)
+  // - isSpacePressedRef: skip pan when Space held (Space+right-click = lasso)
+  // - onPanEnd: sync final position into React viewport state so grid redraws
   const rightClickPan = useRightClickPan({
     stageRef,
-    containerRef,
     enabled: true,
+    isSpacePressedRef,
+    onPanEnd: commitPanPosition,
   });
 
   // ── Adapt shapes → CanvasNode[] for hooks that need position objects ────────
@@ -581,8 +585,10 @@ export default function KonvaCanvas() {
       // Right-click pan (default behavior)
       rightClickPan.stageHandlers.onMouseDown(e);
 
-      // Space + right-click lasso OR left-click selection
-      if (!rightClickPan.isRightDragging) {
+      // Space + right-click lasso OR left-click selection.
+      // Use the ref (not state) — it was set synchronously inside onMouseDown above,
+      // so it already reflects whether pan was activated on this event.
+      if (!rightClickPan.isRightDraggingRef.current) {
         stageHandlers.onMouseDown(e);
       }
     },
@@ -591,15 +597,19 @@ export default function KonvaCanvas() {
 
   const handleStageMouseMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
-      // Connection draw
-      connectionDraw.stageHandlers.onMouseMove(e);
-      if (connectionDraw.isConnectingRef.current) return;
+      // Skip connection-draw hover logic during right-click pan.
+      // Anchor dots are irrelevant while panning, and skipping avoids unnecessary
+      // React state updates (setHoveredNodeAnchors) that would cause re-renders.
+      if (!rightClickPan.isRightDraggingRef.current) {
+        connectionDraw.stageHandlers.onMouseMove(e);
+        if (connectionDraw.isConnectingRef.current) return;
+      }
 
       // Right-click pan
       rightClickPan.stageHandlers.onMouseMove(e);
 
       // Lasso selection (only if not right-dragging)
-      if (!rightClickPan.isRightDragging) {
+      if (!rightClickPan.isRightDraggingRef.current) {
         stageHandlers.onMouseMove(e);
       }
     },
@@ -644,7 +654,8 @@ export default function KonvaCanvas() {
           ref={stageRef}
           width={size.width}
           height={size.height}
-          {...stageProps}
+          draggable={false}
+          onWheel={onWheel}
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}

@@ -82,5 +82,6 @@ export function useSpacePan(options: UseSpacePanOptions = {}) {
 
   return {
     isSpacePressed,
+    isSpacePressedRef,
   };
 }

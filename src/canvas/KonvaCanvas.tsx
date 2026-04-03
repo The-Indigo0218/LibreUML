@@ -47,7 +47,6 @@ export default function KonvaCanvas() {
 
   const showGrid = useSettingsStore((s) => s.showGrid);
   const highlightConnections = useSettingsStore((s) => s.showAllEdges); // MAG-01.23
-  const { stageRef, stageProps, viewport } = useViewport();
 
   // Register stage in global store so ExportModal can access it
   const setStage = useStageStore((s) => s.setStage);
@@ -70,6 +69,51 @@ export default function KonvaCanvas() {
     onEdgeChange,
     onConnect,
   } = useKonvaCanvasController();
+
+  // Calculate content bounds for viewport constraints (MAG-01.21)
+  const contentBounds = useMemo(() => {
+    if (shapes.length === 0) return null;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (const shape of shapes) {
+      const vm = shape.data;
+      let width: number;
+      let height: number;
+
+      if (isNoteViewModel(vm)) {
+        const size = getNoteShapeSize(vm);
+        width = size.width;
+        height = size.height;
+      } else {
+        const size = getClassShapeSize(vm as NodeViewModel);
+        width = size.width;
+        height = size.height;
+      }
+
+      minX = Math.min(minX, shape.x);
+      minY = Math.min(minY, shape.y);
+      maxX = Math.max(maxX, shape.x + width);
+      maxY = Math.max(maxY, shape.y + height);
+    }
+
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }, [shapes]);
+
+  // Initialize viewport with content bounds (MAG-01.21)
+  const { stageRef, stageProps, viewport } = useViewport({
+    contentBounds,
+    stageWidth: size.width,
+    stageHeight: size.height,
+  });
 
   // ── Adapt shapes → CanvasNode[] for hooks that need position objects ────────
   // useDragHandler and the boundsMap computation use CanvasNode (position.x/y).

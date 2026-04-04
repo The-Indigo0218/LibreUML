@@ -104,7 +104,8 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
         lastPosRef.current = { x: pos.x, y: pos.y };
       }
 
-      setCursor('grab');
+      // Bug 2 fix: Set cursor to 'grabbing' immediately (user is already dragging)
+      setCursor('grabbing');
     },
     [enabled, isSpacePressedRef, stageRef, setCursor],
   );
@@ -130,6 +131,10 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
 
       lastPosRef.current = { x: pos.x, y: pos.y };
 
+      // Bug 1 fix: Force Konva to repaint all layers (including grid)
+      // GridPattern now reads stage.x()/y() directly, so this triggers correct redraw
+      stage.batchDraw();
+
       setCursor('grabbing');
     },
     [enabled, stageRef, setCursor],
@@ -139,6 +144,9 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
     (e: KonvaEventObject<MouseEvent>) => {
       if (!enabled || !isRightDraggingRef.current) return;
       if (e.evt.button !== 2) return;
+
+      // Bug 4 fix: Prevent native context menu after panning
+      e.evt.preventDefault();
 
       endPan();
     },

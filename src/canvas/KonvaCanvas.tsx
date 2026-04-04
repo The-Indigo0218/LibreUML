@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { Stage, Layer, Line, Circle } from 'react-konva';
+import { Stage, Layer, Line, Circle, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import GridPattern from './engine/GridPattern';
 import { useViewport } from './engine/useViewport';
@@ -664,6 +664,15 @@ export default function KonvaCanvas() {
         >
           {/* ── Background layer — grid ───────────────────────────── */}
           <Layer>
+            {/* Bug 3 fix: Transparent event catcher for empty canvas */}
+            <Rect
+              x={0}
+              y={0}
+              width={size.width}
+              height={size.height}
+              fill="transparent"
+              listening={true}
+            />
             {showGrid && (
               <GridPattern
                 viewport={viewport}

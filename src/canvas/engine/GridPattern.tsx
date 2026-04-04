@@ -26,7 +26,14 @@ export default function GridPattern({
 }: GridPatternProps) {
   const draw = useCallback(
     (ctx: Context, shape: KonvaShape) => {
-      const { x, y, scale } = viewport;
+      // Read the Stage's imperative position directly (uncontrolled architecture)
+      // This ensures the grid repaints correctly during right-click pan
+      const stage = shape.getStage();
+      if (!stage) return;
+
+      const x = stage.x();
+      const y = stage.y();
+      const scale = stage.scaleX(); // Assuming uniform scale
 
       // Visible bounds in world space
       const worldLeft = -x / scale;
@@ -50,7 +57,7 @@ export default function GridPattern({
       }
       ctx.fillStrokeShape(shape);
     },
-    [viewport, stageWidth, stageHeight, spacing, dotRadius],
+    [stageWidth, stageHeight, spacing, dotRadius],
   );
 
   return (

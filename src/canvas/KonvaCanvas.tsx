@@ -48,9 +48,8 @@ export default function KonvaCanvas() {
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   const showGrid = useSettingsStore((s) => s.showGrid);
-  const highlightConnections = useSettingsStore((s) => s.showAllEdges); // MAG-01.23
+  const highlightConnections = useSettingsStore((s) => s.showAllEdges);
 
-  // Register stage in global store so ExportModal can access it
   const setStage = useStageStore((s) => s.setStage);
   useEffect(() => {
     const stage = stageRef.current;
@@ -60,7 +59,6 @@ export default function KonvaCanvas() {
     }
   });
 
-  // VFS controller — needed for context menu callbacks
   const vfsController = useVFSCanvasController();
 
   const {
@@ -72,7 +70,6 @@ export default function KonvaCanvas() {
     onConnect,
   } = useKonvaCanvasController();
 
-  // Calculate content bounds for viewport constraints (MAG-01.21)
   const contentBounds = useMemo(() => {
     if (shapes.length === 0) return null;
 
@@ -110,23 +107,14 @@ export default function KonvaCanvas() {
     };
   }, [shapes]);
 
-  // Initialize viewport with content bounds (MAG-01.21)
-  // The Stage is UNCONTROLLED — useViewport does NOT return x/y/scale props.
-  // Konva holds the source of truth; viewport is a read-only observer for the grid.
   const { stageRef, viewport, onWheel, commitPanPosition } = useViewport({
     contentBounds,
     stageWidth: size.width,
     stageHeight: size.height,
   });
 
-  // Space key state tracker (for Space + right-click lasso)
-  const { isSpacePressed, isSpacePressedRef } = useSpacePan({
-    enabled: true,
-  });
+  const { isSpacePressed, isSpacePressedRef } = useSpacePan({ enabled: true });
 
-  // Right-click pan mode (default pan behavior)
-  // - isSpacePressedRef: skip pan when Space held (Space+right-click = lasso)
-  // - onPanEnd: sync final position into React viewport state so grid redraws
   const rightClickPan = useRightClickPan({
     stageRef,
     enabled: true,
@@ -134,46 +122,43 @@ export default function KonvaCanvas() {
     onPanEnd: commitPanPosition,
   });
 
-  // ── Adapt shapes → CanvasNode[] for hooks that need position objects ────────
-  // useDragHandler and the boundsMap computation use CanvasNode (position.x/y).
-  // ShapeDescriptor uses flat x/y, so we adapt once per render cycle.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (stage) {
+      stage.x(viewport.x);
+      stage.y(viewport.y);
+      stage.scaleX(viewport.scale);
+      stage.scaleY(viewport.scale);
+      stage.batchDraw();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stageRef.current]);
+
   const canvasNodes = useMemo((): CanvasNode[] =>
     shapes.map((s) => ({ id: s.id, position: { x: s.x, y: s.y }, data: s.data })),
     [shapes],
   );
 
-  // ── Bounds map ref ────────────────────────────────────────────────────────
-  // useSelection reads this ref at event-handler time, so it always sees the
-  // latest drag-adjusted positions even though it is called before boundsMap
-  // is computed below.
   const boundsMapRef = useRef<Map<string, NodeBounds>>(new Map());
 
-  // ── Selection ─────────────────────────────────────────────────────────────
   const { selectedIds, lassoRect, onNodeClick, selectAll, stageHandlers } = useSelection({
     stageRef,
     boundsMapRef,
-    isSpacePressed, // Pass Space state for Space + right-click lasso
+    isSpacePressed,
   });
 
-  // ── Hovered edge ID (MAG-01.24) ──────────────────────────────────────────
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
 
-  // ── Highlighted edges (MAG-01.23 + MAG-01.24) ────────────────────────────
-  // Highlight mode ON → ALL edges show with kind-specific colors (no dimming).
   const highlightedEdgeIds = useMemo((): Set<string> => {
     if (!highlightConnections) return new Set();
     return new Set(edges.map((e) => e.id));
   }, [highlightConnections, edges]);
 
-  // ── Dimmed edges (MAG-01.24) ─────────────────────────────────────────────
-  // Only dim when hovering a specific edge — all others go to 0.15 opacity.
-  // Highlight mode never dims edges.
   const dimmedEdgeIds = useMemo((): Set<string> => {
     if (!hoveredEdgeId) return new Set();
     return new Set(edges.filter((e) => e.id !== hoveredEdgeId).map((e) => e.id));
   }, [hoveredEdgeId, edges]);
 
-  // ── onDragComplete → persist positions to VFSStore ────────────────────────
   const handleDragComplete = useCallback(
     (positions: Map<string, { x: number; y: number }>) => {
       const changes = Array.from(positions.entries()).map(
@@ -184,7 +169,6 @@ export default function KonvaCanvas() {
     [onNodeChange],
   );
 
-  // ── Drag handler ──────────────────────────────────────────────────────────
   const { positionOverrides, dragPositions, ghostNodes, dragHandlers } = useDragHandler({
     stageRef,
     selectedIds,
@@ -192,9 +176,6 @@ export default function KonvaCanvas() {
     onDragComplete: handleDragComplete,
   });
 
-  // ── onConnect bridge ──────────────────────────────────────────────────────
-  // useConnectionDraw uses plain (sourceNodeId, targetNodeId) to stay RF-free.
-  // We bridge it here to the KonvaConnection-typed onConnect.
   const handleConnectionCreated = useCallback(
     (sourceNodeId: string, targetNodeId: string) => {
       onConnect({
@@ -207,23 +188,14 @@ export default function KonvaCanvas() {
     [onConnect],
   );
 
-  // ── Connection draw ───────────────────────────────────────────────────────
   const connectionDraw = useConnectionDraw({
     stageRef,
     boundsMapRef,
-    nodes: shapes,        // ShapeDescriptor satisfies ConnectionNode (id + data)
+    nodes: shapes,
     activeTabId,
     onConnect: handleConnectionCreated,
   });
 
-  // ── Bounds map ────────────────────────────────────────────────────────────
-  // Priority: dragPositions (live, ~20 fps) > positionOverrides (post-drag) > shape position
-  //
-  // dragPositions is non-null only during active drags (50 ms debounced updates).
-  // This makes edges re-route in real-time while a node is being dragged.
-  //
-  // The map is also written into `boundsMapRef` every render so the lasso
-  // selection in useSelection always uses the most up-to-date positions.
   const boundsMap = useMemo((): Map<string, NodeBounds> => {
     const map = new Map<string, NodeBounds>();
     for (const shape of shapes) {
@@ -243,13 +215,8 @@ export default function KonvaCanvas() {
     return map;
   }, [shapes, positionOverrides, dragPositions]);
 
-  // Keep ref in sync so lasso and connection draw always use the latest positions.
   boundsMapRef.current = boundsMap;
 
-  // ── Guarded drag start ────────────────────────────────────────────────────
-  // When nearAnchorRef.current is true, the user is near an anchor and wants to
-  // draw a connection — NOT drag the node. stopDrag() cancels Konva's native drag
-  // before it starts, allowing useConnectionDraw to handle the interaction.
   const guardedDragStart = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
       if (connectionDraw.nearAnchorRef.current) {
@@ -260,11 +227,6 @@ export default function KonvaCanvas() {
     },
     [dragHandlers.onDragStart, connectionDraw.nearAnchorRef],
   );
-
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
-  // Delete: removes selected nodes (view-only) and edges (model cascade)
-  // Ctrl+A: selects all nodes on the diagram
-  // Escape: handled by useSelection (clears selection)
 
   const handleDeleteNodes = useCallback(
     (nodeIds: string[]) => {
@@ -289,16 +251,13 @@ export default function KonvaCanvas() {
     onSelectAll: selectAll,
   });
 
-  // ── External drag & drop (sidebar/palette → canvas) ────────────────────────
   const { onDragOver, onDrop } = useKonvaDnD({ stageRef });
 
-  // ── Inline editor activation ───────────────────────────────────────────────
   const startInlineEditing = useInlineEditorStore((s) => s.startEditing);
   const updateEditorPosition = useInlineEditorStore((s) => s.updatePosition);
   const isEditing = useInlineEditorStore((s) => s.isEditing);
   const activeNodeId = useInlineEditorStore((s) => s.activeNodeId);
 
-  // Update editor position when viewport changes (pan/zoom)
   useEffect(() => {
     if (!isEditing || !activeNodeId) return;
 
@@ -308,7 +267,6 @@ export default function KonvaCanvas() {
     const stage = stageRef.current;
     if (!stage) return;
 
-    // Recalculate screen position based on current viewport
     const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
     const transform = stage.getAbsoluteTransform().copy();
 
@@ -336,33 +294,23 @@ export default function KonvaCanvas() {
       const stage = stageRef.current;
       if (!stage) return;
 
-      // Get the Group node that was double-clicked
       const groupNode = e.target.findAncestor('Group');
       if (!groupNode) return;
 
-      // Calculate screen-space position of the name text
-      // Name text is positioned at (H_PAD, nameY + 3) within the Group
       const H_PAD = 10;
       const NAME_H = 22;
       
-      // Get absolute position of the group in stage coordinates
       const groupPos = groupNode.getAbsolutePosition();
-      
-      // Calculate name text position within the group
-      // This matches the layout in ClassShape.tsx
       const layout = getClassShapeSize(vm);
-      const nameY = layout.height * 0.15; // Approximate header position
+      const nameY = layout.height * 0.15;
       
-      // Transform to screen coordinates
       const transform = stage.getAbsoluteTransform().copy();
       const screenPos = transform.point({ x: groupPos.x + H_PAD, y: groupPos.y + nameY });
       
-      // Calculate text dimensions
       const nameText = vm.sublabel ? `${vm.label}${vm.sublabel}` : vm.label;
-      const textWidth = Math.min(layout.width - 2 * H_PAD, 400); // Max 400px
+      const textWidth = Math.min(layout.width - 2 * H_PAD, 400);
       const textHeight = NAME_H;
 
-      // Get onRename callback from metadata (VFS path)
       const onRename = vm.metadata?.onRename as ((name: string, generics?: string) => void) | undefined;
       
       if (onRename) {
@@ -388,31 +336,23 @@ export default function KonvaCanvas() {
       const stage = stageRef.current;
       if (!stage) return;
 
-      // Get the Group node that was double-clicked
       const groupNode = e.target.findAncestor('Group');
       if (!groupNode) return;
 
-      // Calculate screen-space position of the title text
       const NOTE_H_PAD = 8;
       const NOTE_V_PAD = 8;
       const NOTE_TITLE_H = 32;
       const NOTE_W = 224;
 
-      // Get absolute position of the group in stage coordinates
       const groupPos = groupNode.getAbsolutePosition();
-      
-      // Title text position within the group
       const titleY = NOTE_V_PAD / 2 + 2;
       
-      // Transform to screen coordinates
       const transform = stage.getAbsoluteTransform().copy();
       const screenPos = transform.point({ x: groupPos.x + NOTE_H_PAD, y: groupPos.y + titleY });
       
-      // Calculate text dimensions
-      const textWidth = NOTE_W - 2 * NOTE_H_PAD - 12; // Minus fold corner
+      const textWidth = NOTE_W - 2 * NOTE_H_PAD - 12;
       const textHeight = NOTE_TITLE_H - NOTE_V_PAD;
 
-      // Get onSave callback from view model
       const onSave = vm.onSave;
       
       if (onSave) {
@@ -429,7 +369,6 @@ export default function KonvaCanvas() {
     [shapes, stageRef, startInlineEditing],
   );
 
-  // ── Context Menu ──────────────────────────────────────────────────────────
   const { menu, onPaneContextMenu, onNodeContextMenu, closeMenu } = useContextMenu();
 
   const {
@@ -439,7 +378,6 @@ export default function KonvaCanvas() {
     openMethodGenerator,
   } = useUiStore();
 
-  // Screen → canvas coordinate conversion for context menu "Add" actions
   const screenToCanvas = useCallback(
     (screen: { x: number; y: number }) => {
       const stage = stageRef.current;
@@ -530,7 +468,6 @@ export default function KonvaCanvas() {
     [menu, getMenuOptions],
   );
 
-  // Context menu handlers for Konva shapes
   const handleNodeContextMenu = useCallback(
     (e: KonvaEventObject<PointerEvent>, nodeId: string) => {
       onNodeContextMenu(e.evt, { id: nodeId });
@@ -538,7 +475,6 @@ export default function KonvaCanvas() {
     [onNodeContextMenu],
   );
 
-  // Edge right-click → open VfsEdgeActionModal directly (no context menu)
   const handleEdgeContextMenu = useCallback(
     (e: KonvaEventObject<PointerEvent>, edgeId: string) => {
       e.evt.preventDefault();
@@ -549,15 +485,15 @@ export default function KonvaCanvas() {
 
   const handleStageContextMenu = useCallback(
     (e: KonvaEventObject<PointerEvent>) => {
-      if (e.target === e.target.getStage()) {
+      e.evt.preventDefault();
+      const isBackground = e.target === e.target.getStage() || e.target.name() === 'bg-rect';
+      if (isBackground) {
         onPaneContextMenu(e.evt);
       }
     },
     [onPaneContextMenu],
   );
 
-  // Edge hover handlers (MAG-01.24)
-  // Badge tooltip is rendered inline on the Konva layer via KonvaEdge's isHovered prop.
   const handleEdgeMouseEnter = useCallback(
     (_e: KonvaEventObject<MouseEvent>, edgeId: string) => {
       setHoveredEdgeId(edgeId);
@@ -569,25 +505,13 @@ export default function KonvaCanvas() {
     setHoveredEdgeId(null);
   }, []);
 
-  // ── Merged stage event handlers ────────────────────────────────────────────
-  // Priority order:
-  //   1. Connection draw (if near anchor)
-  //   2. Right-click pan (if right button)
-  //   3. Space + right-click lasso (if Space + right button)
-  //   4. Left-click lasso/selection (if left button on empty stage)
-
   const handleStageMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
-      // Connection draw has highest priority
       connectionDraw.stageHandlers.onMouseDown(e);
       if (connectionDraw.isConnectingRef.current) return;
 
-      // Right-click pan (default behavior)
       rightClickPan.stageHandlers.onMouseDown(e);
 
-      // Space + right-click lasso OR left-click selection.
-      // Use the ref (not state) — it was set synchronously inside onMouseDown above,
-      // so it already reflects whether pan was activated on this event.
       if (!rightClickPan.isRightDraggingRef.current) {
         stageHandlers.onMouseDown(e);
       }
@@ -597,18 +521,13 @@ export default function KonvaCanvas() {
 
   const handleStageMouseMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
-      // Skip connection-draw hover logic during right-click pan.
-      // Anchor dots are irrelevant while panning, and skipping avoids unnecessary
-      // React state updates (setHoveredNodeAnchors) that would cause re-renders.
       if (!rightClickPan.isRightDraggingRef.current) {
         connectionDraw.stageHandlers.onMouseMove(e);
         if (connectionDraw.isConnectingRef.current) return;
       }
 
-      // Right-click pan
       rightClickPan.stageHandlers.onMouseMove(e);
 
-      // Lasso selection (only if not right-dragging)
       if (!rightClickPan.isRightDraggingRef.current) {
         stageHandlers.onMouseMove(e);
       }
@@ -618,7 +537,6 @@ export default function KonvaCanvas() {
 
   const handleStageMouseUp = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
-      // All handlers guard on their own state
       connectionDraw.stageHandlers.onMouseUp(e);
       rightClickPan.stageHandlers.onMouseUp(e);
       stageHandlers.onMouseUp(e);
@@ -626,7 +544,6 @@ export default function KonvaCanvas() {
     [connectionDraw.stageHandlers, rightClickPan, stageHandlers],
   );
 
-  // ── Container resize ──────────────────────────────────────────────────────
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -662,14 +579,13 @@ export default function KonvaCanvas() {
           onClick={stageHandlers.onClick}
           onContextMenu={handleStageContextMenu}
         >
-          {/* ── Background layer — grid ───────────────────────────── */}
           <Layer>
-            {/* Bug 3 fix: Transparent event catcher for empty canvas */}
             <Rect
-              x={0}
-              y={0}
-              width={size.width}
-              height={size.height}
+              name="bg-rect"
+              x={-50000}
+              y={-50000}
+              width={100000}
+              height={100000}
               fill="transparent"
               listening={true}
             />
@@ -682,17 +598,15 @@ export default function KonvaCanvas() {
             )}
           </Layer>
 
-          {/* ── Edges layer ──────────────────────────────────────── */}
           <Layer name="edges">
             {edges.map((edge) => {
               const isSelfLoop = edge.sourceId === edge.targetId;
               const sourceBounds = boundsMap.get(edge.sourceId);
               const targetBounds = isSelfLoop
-                ? sourceBounds                         // same node
+                ? sourceBounds
                 : boundsMap.get(edge.targetId);
               if (!sourceBounds || !targetBounds) return null;
 
-              // Obstacles = every node except this edge's source and target.
               const obstacles = isSelfLoop
                 ? []
                 : [...boundsMap.entries()]
@@ -723,7 +637,6 @@ export default function KonvaCanvas() {
             })}
           </Layer>
 
-          {/* ── Nodes layer ──────────────────────────────────────── */}
           <Layer name="nodes">
             {shapes.map((shape) => {
               const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
@@ -765,7 +678,6 @@ export default function KonvaCanvas() {
             })}
           </Layer>
 
-          {/* ── Selection layer — lasso rect ─────────────────────── */}
           <Layer name="selection">
             {lassoRect && (
               <SelectionRect
@@ -777,9 +689,7 @@ export default function KonvaCanvas() {
             )}
           </Layer>
 
-          {/* ── Interaction layer — ghost shapes + connection draw ── */}
           <Layer name="interaction">
-            {/* Ghost shapes rendered at drag-start position (opacity 0.3) */}
             {ghostNodes.map((ghost) => {
               const vm = ghost.data;
               if (isNoteViewModel(vm)) {
@@ -804,7 +714,6 @@ export default function KonvaCanvas() {
               );
             })}
 
-            {/* Anchor dots: shown for hovered node when not connecting */}
             {!connectionDraw.isConnecting &&
               connectionDraw.hoveredNodeAnchors.map((dot, i) => (
                 <Circle
@@ -820,7 +729,6 @@ export default function KonvaCanvas() {
                 />
               ))}
 
-            {/* Snap target highlight: green circle on target anchor */}
             {connectionDraw.isConnecting && connectionDraw.snapTargetDot && (
               <Circle
                 x={connectionDraw.snapTargetDot.x}
@@ -834,7 +742,6 @@ export default function KonvaCanvas() {
               />
             )}
 
-            {/* Temporary connection line: dashed cyan line source → cursor */}
             {connectionDraw.tempLine && (
               <Line
                 points={[
@@ -854,7 +761,6 @@ export default function KonvaCanvas() {
         </Stage>
       )}
 
-      {/* HTML Overlay (Layer 0) — positioned above canvas */}
       <CanvasOverlay
         contextMenu={menu}
         contextMenuOptions={contextMenuOptions}

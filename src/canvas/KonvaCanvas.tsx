@@ -63,7 +63,7 @@ export default function KonvaCanvas() {
       setStage(stage);
       return () => setStage(null);
     }
-  });
+  }, [setStage]);
 
   const vfsController = useVFSCanvasController();
 

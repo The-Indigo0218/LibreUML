@@ -40,7 +40,8 @@
       "fileAssoc": "Associate .luml Files",
       "startup": "Startup: Restore Session",
       "language": "Language",
-      "theme": "Theme"
+      "theme": "Theme",
+      "modalPreferences": "Modal Preferences"
     },
     "view": {
       "title": "View",
@@ -181,6 +182,22 @@
       "reEnableHint": "You can re-enable this warning in Settings.",
       "cancel": "Cancel",
       "replace": "Replace"
+    },
+    "preferences": {
+      "title": "Modal Preferences",
+      "description": "Control which warning and confirmation modals are shown. Disabled modals will not appear again.",
+      "svgExportWarning": "SVG Export Warning",
+      "svgExportDesc": "Show warning when exporting to SVG format",
+      "duplicateFileWarning": "Duplicate File Warning",
+      "duplicateFileDesc": "Show warning when adding existing file to diagram",
+      "closeProjectWarning": "Close Project Warning",
+      "closeProjectDesc": "Show confirmation when closing a project",
+      "autoLayoutWarning": "Auto-Layout Warning",
+      "autoLayoutDesc": "Show warning before running auto-layout on locked nodes",
+      "resetAll": "Reset All Preferences",
+      "resetAllDesc": "Re-enable all warning and confirmation modals",
+      "reset": "Reset",
+      "close": "Close"
     },
     "classEditor": {
       "title": "Edit Class:",

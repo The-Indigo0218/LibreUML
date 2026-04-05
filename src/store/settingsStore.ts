@@ -10,6 +10,7 @@ interface SettingsState {
   theme: "light" | "dark" | "system"; 
   language: string;
   suppressSvgWarning: boolean;
+  hideDuplicateFileWarning: boolean;
   
   // --- canvas settings ---
   showMiniMap: boolean;
@@ -27,6 +28,7 @@ interface SettingsState {
   setLanguage: (lang: string) => void;
   setLastFilePath: (path: string | undefined) => void;
   setSuppressSvgWarning: (suppress: boolean) => void;
+  setHideDuplicateFileWarning: (hide: boolean) => void;
   toggleMiniMap: () => void;
   toggleGrid: () => void;
   toggleSnapToGrid: () => void;
@@ -41,6 +43,7 @@ export const useSettingsStore = create<SettingsState>()(
       theme: "dark", 
       language: "en",
       suppressSvgWarning: false,
+      hideDuplicateFileWarning: false,
       lastFilePath: undefined,
       
       // Canvas settings defaults
@@ -61,6 +64,8 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       setSuppressSvgWarning: (suppress) => set({ suppressSvgWarning: suppress }),
+
+      setHideDuplicateFileWarning: (hide) => set({ hideDuplicateFileWarning: hide }),
 
       setLastFilePath: (path) => set({ lastFilePath: path }),
       

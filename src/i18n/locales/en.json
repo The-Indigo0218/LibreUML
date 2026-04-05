@@ -170,6 +170,18 @@
       "back": "Back",
       "continue": "Continue"
     },
+    "duplicateFile": {
+      "title": "File Already in Diagram",
+      "message": "\"{{fileName}}\" is already present in this diagram.",
+      "replaceOption": "Replace",
+      "replaceDescription": "Remove the existing node and add a new one at the drop position.",
+      "cancelOption": "Cancel",
+      "cancelDescription": "Keep the existing node and ignore this drop.",
+      "dontShowAgain": "Don't show this warning again",
+      "reEnableHint": "You can re-enable this warning in Settings.",
+      "cancel": "Cancel",
+      "replace": "Replace"
+    },
     "classEditor": {
       "title": "Edit Class:",
       "className": "CLASS NAME",

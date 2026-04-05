@@ -17,7 +17,6 @@ interface GridPatternProps {
 }
 
 export default function GridPattern({
-  viewport,
   stageWidth,
   stageHeight,
   spacing = 40,

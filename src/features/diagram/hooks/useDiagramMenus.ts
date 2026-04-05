@@ -29,6 +29,7 @@ interface UseDiagramMenusProps {
   onReverseEdge: (edgeId: string) => void;
   onChangeEdgeKind: (edgeId: string, kind: string) => void;
   onAddToProject: (nodeId: string) => void;
+  onDuplicateNode: (nodeId: string) => void;
   /** Returns the semantic kind ('CLASS', 'INTERFACE', etc.) of a node by its ReactFlow ID. */
   getVFSNodeKind: (nodeId: string) => string | undefined;
   /** Returns true if the node's IR element has isExternal: true. */
@@ -52,6 +53,7 @@ export const useDiagramMenus = ({
   onReverseEdge,
   onChangeEdgeKind,
   onAddToProject,
+  onDuplicateNode,
   getVFSNodeKind,
   getIsNodeExternal,
   getElementId,
@@ -226,6 +228,10 @@ export const useDiagramMenus = ({
           label: t("contextMenu.node.removeFromDiagram"),
           onClick: () => onDeleteNode(nodeId),
         });
+        baseOptions.push({
+          label: t("contextMenu.node.duplicate") || "Duplicate",
+          onClick: () => onDuplicateNode(nodeId),
+        });
         if (!isStandalone) {
           baseOptions.push({
             label: isNodeExternal
@@ -299,6 +305,7 @@ export const useDiagramMenus = ({
       onClearCanvas,
       onEditNode,
       onEditEdgeMultiplicity,
+      onDuplicateNode,
       screenToCanvas,
       openSingleGenerator,
       onGenerateMethods,

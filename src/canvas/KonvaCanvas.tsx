@@ -3,6 +3,7 @@ import { Stage, Layer, Line, Circle, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import GridPattern from './engine/GridPattern';
 import { useViewport } from './engine/useViewport';
+import { useViewportCuller } from './engine/useViewportCuller';
 import { useSpacePan } from './hooks/useSpacePan';
 import { useRightClickPan } from './hooks/useRightClickPan';
 import { useSettingsStore } from '../store/settingsStore';
@@ -216,6 +217,10 @@ export default function KonvaCanvas() {
   }, [shapes, positionOverrides, dragPositions]);
 
   boundsMapRef.current = boundsMap;
+
+  // ─── Viewport Culling (MAG-01.16) ─────────────────────────────────────────
+  // Hide off-screen shapes to improve performance with large diagrams (500+ nodes)
+  const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap);
 
   const guardedDragStart = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
@@ -603,6 +608,9 @@ export default function KonvaCanvas() {
                 : boundsMap.get(edge.targetId);
               if (!sourceBounds || !targetBounds) return null;
 
+              // Culling: edge visible if source OR target is visible
+              const isVisible = visibleNodeIds.has(edge.sourceId) || visibleNodeIds.has(edge.targetId);
+
               const obstacles = isSelfLoop
                 ? []
                 : [...boundsMap.entries()]
@@ -628,6 +636,7 @@ export default function KonvaCanvas() {
                   onContextMenu={handleEdgeContextMenu}
                   onMouseEnter={handleEdgeMouseEnter}
                   onMouseLeave={handleEdgeMouseLeave}
+                  visible={isVisible}
                 />
               );
             })}
@@ -637,6 +646,8 @@ export default function KonvaCanvas() {
             {shapes.map((shape) => {
               const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
               const vm = shape.data;
+              const isVisible = visibleNodeIds.has(shape.id);
+              
               if (isNoteViewModel(vm)) {
                 return (
                   <NoteShape
@@ -652,6 +663,7 @@ export default function KonvaCanvas() {
                     onNodeClick={onNodeClick}
                     onDblClick={(e) => handleNoteDblClick(shape.id, e)}
                     onContextMenu={handleNodeContextMenu}
+                    visible={isVisible}
                   />
                 );
               }
@@ -669,6 +681,7 @@ export default function KonvaCanvas() {
                   onNodeClick={onNodeClick}
                   onDblClick={(e) => handleClassDblClick(shape.id, e)}
                   onContextMenu={handleNodeContextMenu}
+                  visible={isVisible}
                 />
               );
             })}

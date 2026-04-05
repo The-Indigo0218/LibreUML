@@ -123,6 +123,8 @@ interface KonvaEdgeProps {
   isHovered?: boolean;
   /** Dim state (MAG-01.24) — edge is dimmed when another edge/node is active */
   isDimmed?: boolean;
+  /** Viewport culling — set false to hide off-screen edges (MAG-01.16). */
+  visible?: boolean;
   /** Context menu handler (MAG-01.12) */
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, edgeId: string) => void;
   /** Mouse enter handler for tooltip (MAG-01.12) */
@@ -146,6 +148,7 @@ export default function KonvaEdge({
   isHighlighted = false,
   isHovered = false,
   isDimmed = false,
+  visible = true,
   onContextMenu,
   onMouseEnter,
   onMouseLeave,
@@ -251,7 +254,7 @@ export default function KonvaEdge({
   }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract]);
 
   return (
-    <Group opacity={isDimmed ? 0.15 : 1}>
+    <Group opacity={isDimmed ? 0.15 : 1} visible={visible}>
       <Line
         points={points}
         bezier={bezier}

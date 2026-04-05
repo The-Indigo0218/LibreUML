@@ -168,6 +168,8 @@ interface ClassShapeProps {
   selected?: boolean;
   /** Render opacity — pass 0.3 for ghost shapes during drag. */
   opacity?: number;
+  /** Viewport culling — set false to hide off-screen shapes (MAG-01.16). */
+  visible?: boolean;
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
   onDblClick?: (e: KonvaEventObject<MouseEvent>) => void;
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, nodeId: string) => void;
@@ -183,6 +185,7 @@ export default function ClassShape({
   y,
   selected,
   opacity,
+  visible = true,
   onNodeClick,
   onDblClick,
   onContextMenu,
@@ -204,6 +207,7 @@ export default function ClassShape({
       x={x}
       y={y}
       opacity={opacity}
+      visible={visible}
       listening={true}
       draggable={draggable}
       onDragStart={onDragStart}

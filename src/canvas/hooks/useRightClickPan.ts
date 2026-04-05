@@ -25,6 +25,7 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
   const isRightDraggingRef = useRef(false);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
   const onPanEndRef = useRef(onPanEnd);
+  const windowMouseMoveRef = useRef<((e: MouseEvent) => void) | null>(null);
 
   useEffect(() => {
     onPanEndRef.current = onPanEnd;
@@ -41,6 +42,10 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
   );
 
   const endPan = useCallback(() => {
+    if (windowMouseMoveRef.current) {
+      window.removeEventListener('mousemove', windowMouseMoveRef.current);
+      windowMouseMoveRef.current = null;
+    }
     const stage = stageRef.current;
     if (stage) {
       setCursor('default');
@@ -50,68 +55,94 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
     lastPosRef.current = null;
   }, [stageRef, setCursor]);
 
-  const onMouseDown = useCallback(
-    (e: KonvaEventObject<MouseEvent>) => {
-      if (!enabled || e.evt.button !== 2) return;
-      if (isSpacePressedRef?.current) return;
-
-      e.evt.preventDefault();
+  const startPan = useCallback(
+    (clientX: number, clientY: number) => {
+      if (isRightDraggingRef.current) return;
 
       const stage = stageRef.current;
       if (!stage) return;
 
       isRightDraggingRef.current = true;
-
-      const pos = stage.getPointerPosition();
-      if (pos) {
-        lastPosRef.current = { x: pos.x, y: pos.y };
-      }
-
+      lastPosRef.current = { x: clientX, y: clientY };
       setCursor('grabbing');
+
+      const handleWindowMouseMove = (ev: MouseEvent) => {
+        if (!isRightDraggingRef.current) return;
+        const s = stageRef.current;
+        if (!s || !lastPosRef.current) return;
+
+        const dx = ev.clientX - lastPosRef.current.x;
+        const dy = ev.clientY - lastPosRef.current.y;
+
+        s.x(s.x() + dx);
+        s.y(s.y() + dy);
+        lastPosRef.current = { x: ev.clientX, y: ev.clientY };
+        s.batchDraw();
+      };
+
+      windowMouseMoveRef.current = handleWindowMouseMove;
+      window.addEventListener('mousemove', handleWindowMouseMove);
     },
-    [enabled, isSpacePressedRef, stageRef, setCursor],
+    [stageRef, setCursor],
   );
 
-  const onMouseMove = useCallback(
-    (_e: KonvaEventObject<MouseEvent>) => {
-      if (!enabled || !isRightDraggingRef.current) return;
+  /**
+   * Capture-phase wake-up: fires BEFORE Konva's content listener so that
+   * stage.draw() populates all hit canvases before Konva runs hit detection.
+   * This is button-agnostic — wakes the canvas for every click (left, right, middle).
+   */
+  useEffect(() => {
+    if (!enabled) return;
 
+    const handleWakeUp = (e: MouseEvent) => {
       const stage = stageRef.current;
       if (!stage) return;
+      if (!stage.container().contains(e.target as Node)) return;
+      stage.draw();
+    };
 
-      const pos = stage.getPointerPosition();
-      if (!pos || !lastPosRef.current) return;
+    window.addEventListener('mousedown', handleWakeUp, true); // capture
+    return () => window.removeEventListener('mousedown', handleWakeUp, true);
+  }, [enabled, stageRef]);
 
-      const dx = pos.x - lastPosRef.current.x;
-      const dy = pos.y - lastPosRef.current.y;
+  /**
+   * Pan starts on left-click (button 0) on empty canvas only.
+   * The isBackground check ensures node clicks still do selection/drag.
+   * Space + left-click yields to lasso (isSpacePressedRef guard).
+   */
+  const onMouseDown = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      if (!enabled || e.evt.button !== 0) return;
+      if (isSpacePressedRef?.current) return;
 
-      stage.x(stage.x() + dx);
-      stage.y(stage.y() + dy);
+      const isBackground = e.target === e.target.getStage() || e.target.name() === 'bg-rect';
+      if (!isBackground) return;
 
-      lastPosRef.current = { x: pos.x, y: pos.y };
-      
-      stage.batchDraw();
-      setCursor('grabbing');
+      e.evt.preventDefault();
+      startPan(e.evt.clientX, e.evt.clientY);
     },
-    [enabled, stageRef, setCursor],
+    [enabled, isSpacePressedRef, startPan],
   );
+
+  // Pan movement is handled by native window mousemove in startPan.
+  const onMouseMove = useCallback((_e: KonvaEventObject<MouseEvent>) => {}, []);
 
   const onMouseUp = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
       if (!enabled || !isRightDraggingRef.current) return;
-      if (e.evt.button !== 2) return;
-
+      if (e.evt.button !== 0) return;
       e.evt.preventDefault();
       endPan();
     },
     [enabled, endPan],
   );
 
+  // Window mouseup fallback: ends pan if mouse is released outside the canvas.
   useEffect(() => {
     if (!enabled) return;
 
     const handleWindowMouseUp = (e: MouseEvent) => {
-      if (e.button !== 2) return;
+      if (e.button !== 0) return;
       if (!isRightDraggingRef.current) return;
       endPan();
     };

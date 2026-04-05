@@ -521,18 +521,14 @@ export default function KonvaCanvas() {
 
   const handleStageMouseMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
-      if (!rightClickPan.isRightDraggingRef.current) {
-        connectionDraw.stageHandlers.onMouseMove(e);
-        if (connectionDraw.isConnectingRef.current) return;
-      }
+      if (rightClickPan.isRightDraggingRef.current) return;
 
-      rightClickPan.stageHandlers.onMouseMove(e);
+      connectionDraw.stageHandlers.onMouseMove(e);
+      if (connectionDraw.isConnectingRef.current) return;
 
-      if (!rightClickPan.isRightDraggingRef.current) {
-        stageHandlers.onMouseMove(e);
-      }
+      stageHandlers.onMouseMove(e);
     },
-    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan, stageHandlers],
+    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan.isRightDraggingRef, stageHandlers],
   );
 
   const handleStageMouseUp = useCallback(

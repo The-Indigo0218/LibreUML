@@ -1,12 +1,14 @@
 /**
- * useKonvaDnD — Konva-native drag & drop hook (MAG-01.11)
+ * useKonvaDnD — Konva-native drag & drop hook (MAG-01.11, MAG-01.32)
  *
  * Replaces useDiagramDnD for Konva canvas. Handles two drop types:
  * 1. DRAG_TYPE_NEW: Tool palette → create IR element + ViewNode
  * 2. DRAG_TYPE_EXISTING: Model Explorer → create ViewNode only (no model change)
  *
  * Architecture:
- * - Screen → canvas coordinate conversion via stage.getPointerPosition()
+ * - Screen → canvas coordinate conversion via manual transform
+ * - Gets container rect, applies inverse viewport transform (scale + pan)
+ * - Formula: canvasX = (screenX - stageX) / scale
  * - Centers node under cursor (canvasX - width/2, canvasY - height/2)
  * - Auto-incremented names ("Class 1", "Class 2", etc.)
  * - Standalone file support (creates IR in localModel)
@@ -17,10 +19,11 @@
  * - Wire onDrop to Stage onDrop event
  * - Drop data format: { type, elementKind, elementId }
  *
- * Coordinate conversion:
- * - stage.getPointerPosition() returns canvas coords (accounts for pan/zoom)
- * - No manual transform needed (Konva handles it)
- * - Center node: canvasPos - (NODE_WIDTH / 2, NODE_HEIGHT / 2)
+ * Coordinate conversion (MAG-01.32 fix):
+ * - Cannot use stage.getPointerPosition() (not updated during React drag events)
+ * - Manual conversion: containerX = clientX - rect.left
+ * - Apply inverse transform: canvasX = (containerX - stage.x()) / stage.scaleX()
+ * - Works correctly at all zoom levels and pan positions
  */
 
 import { useCallback } from 'react';
@@ -170,18 +173,31 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
   // ─── Position helpers ─────────────────────────────────────────────────────
 
   const getCenteredPosition = useCallback(
-    (_clientX: number, _clientY: number) => {
+    (clientX: number, clientY: number) => {
       const stage = stageRef.current;
       if (!stage) return { x: 0, y: 0 };
 
-      // Get pointer position in canvas coordinates (accounts for pan/zoom)
-      const pointerPos = stage.getPointerPosition();
-      if (!pointerPos) return { x: 0, y: 0 };
+      // Get stage container position
+      const container = stage.container();
+      const rect = container.getBoundingClientRect();
+
+      // Convert screen coordinates to container-relative coordinates
+      const containerX = clientX - rect.left;
+      const containerY = clientY - rect.top;
+
+      // Apply inverse viewport transform to get canvas coordinates
+      const scale = stage.scaleX(); // Assumes uniform scaling
+      const stageX = stage.x();
+      const stageY = stage.y();
+
+      // Canvas coordinates: (screen - stageOffset) / scale
+      const canvasX = (containerX - stageX) / scale;
+      const canvasY = (containerY - stageY) / scale;
 
       // Center node under cursor
       return {
-        x: pointerPos.x - NODE_WIDTH / 2,
-        y: pointerPos.y - NODE_HEIGHT / 2,
+        x: canvasX - NODE_WIDTH / 2,
+        y: canvasY - NODE_HEIGHT / 2,
       };
     },
     [stageRef],

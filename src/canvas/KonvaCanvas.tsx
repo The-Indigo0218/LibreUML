@@ -410,6 +410,10 @@ export default function KonvaCanvas() {
       vfsController.deleteElementFromModel(nodeId);
       closeMenu();
     },
+    onDuplicateNode: (nodeId) => {
+      vfsController.duplicateNode(nodeId);
+      closeMenu();
+    },
     onDeleteEdge: (edgeId) => {
       vfsController.deleteEdgeById(edgeId);
       closeMenu();

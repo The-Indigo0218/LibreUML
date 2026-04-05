@@ -321,6 +321,8 @@ export interface VFSCanvasResult {
   removeNodeFromDiagram: (viewNodeId: string) => void;
   /** Full cascade: deletes semantic element from ModelStore + all diagrams. */
   deleteElementFromModel: (viewNodeId: string) => void;
+  /** Duplicates a node: creates a copy of the semantic element and ViewNode at +50px offset. */
+  duplicateNode: (viewNodeId: string) => void;
   /** Deletes a VFS edge by ViewEdge.id. */
   deleteEdgeById: (viewEdgeId: string) => void;
   /** Reverses a VFS edge by swapping source ↔ target. */
@@ -652,6 +654,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
     onKonvaEdgesChange: eventHandlers.onEdgesChange,
     removeNodeFromDiagram: nodeActions.removeNodeFromDiagram,
     deleteElementFromModel: nodeActions.deleteElementFromModel,
+    duplicateNode: nodeActions.duplicateNode,
     deleteEdgeById: edgeActions.deleteEdgeById,
     reverseEdgeById: edgeActions.reverseEdgeById,
     changeEdgeKind: edgeActions.changeEdgeKind,

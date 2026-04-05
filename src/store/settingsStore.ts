@@ -33,6 +33,9 @@ interface SettingsState {
   toggleGrid: () => void;
   toggleSnapToGrid: () => void;
   toggleShowAllEdges: () => void;
+  
+  // --- modal preferences ---
+  resetAllModalPreferences: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -76,6 +79,21 @@ export const useSettingsStore = create<SettingsState>()(
       toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
       
       toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
+      
+      // Reset all modal preferences
+      resetAllModalPreferences: () => {
+        set({ 
+          suppressSvgWarning: false,
+          hideDuplicateFileWarning: false,
+        });
+        // Clear localStorage keys for modals not in Zustand
+        try {
+          localStorage.removeItem('libreuml-suppress-close-project-warning');
+          localStorage.removeItem('libreuml-auto-layout-locked-warning');
+        } catch (e) {
+          console.error('Failed to clear modal preferences:', e);
+        }
+      },
     }),
     {
       name: "libreuml-settings",

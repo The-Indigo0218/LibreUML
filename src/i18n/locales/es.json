@@ -40,7 +40,8 @@
       "fileAssoc": "Asociar Archivos .luml",
       "startup": "Inicio: Restaurar Sesión",
       "language": "Idioma",
-      "theme": "Tema"
+      "theme": "Tema",
+      "modalPreferences": "Preferencias de Modales"
     },
     "view": {
       "title": "Ver",
@@ -189,6 +190,22 @@
       "reEnableHint": "Puedes volver a habilitar esta advertencia en Configuración.",
       "cancel": "Cancelar",
       "replace": "Reemplazar"
+    },
+    "preferences": {
+      "title": "Preferencias de Modales",
+      "description": "Controla qué modales de advertencia y confirmación se muestran. Los modales deshabilitados no aparecerán de nuevo.",
+      "svgExportWarning": "Advertencia de Exportación SVG",
+      "svgExportDesc": "Mostrar advertencia al exportar a formato SVG",
+      "duplicateFileWarning": "Advertencia de Archivo Duplicado",
+      "duplicateFileDesc": "Mostrar advertencia al agregar archivo existente al diagrama",
+      "closeProjectWarning": "Advertencia de Cerrar Proyecto",
+      "closeProjectDesc": "Mostrar confirmación al cerrar un proyecto",
+      "autoLayoutWarning": "Advertencia de Auto-Diseño",
+      "autoLayoutDesc": "Mostrar advertencia antes de ejecutar auto-diseño en nodos bloqueados",
+      "resetAll": "Restablecer Todas las Preferencias",
+      "resetAllDesc": "Volver a habilitar todos los modales de advertencia y confirmación",
+      "reset": "Restablecer",
+      "close": "Cerrar"
     },
     "classEditor": {
       "title": "Editar Clase:",

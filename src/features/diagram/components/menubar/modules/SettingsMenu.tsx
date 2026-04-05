@@ -5,12 +5,15 @@ import {
   Languages, 
   Moon,
   Sun,
-  Check
+  Check,
+  Bell
 } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
-import { useSettingsStore } from "../../../../../store/settingsStore"; 
+import { useSettingsStore } from "../../../../../store/settingsStore";
+import ModalPreferencesModal from "../../modals/ModalPreferencesModal"; 
 
 export function SettingsMenuContent() {
   const { t} = useTranslation();
@@ -21,6 +24,8 @@ export function SettingsMenuContent() {
     theme, setTheme,
     language, setLanguage
   } = useSettingsStore();
+
+  const [isModalPreferencesOpen, setIsModalPreferencesOpen] = useState(false);
 
   const toggleLanguage = () => {
     const newLang = language === 'en' ? 'es' : 'en';
@@ -76,6 +81,12 @@ export function SettingsMenuContent() {
         onClick={handleAssociateFiles}
       />
 
+      <MenubarItem
+        label={t("menubar.settings.modalPreferences") || "Modal Preferences"}
+        icon={<Bell className="w-4 h-4" />}
+        onClick={() => setIsModalPreferencesOpen(true)}
+      />
+
       <div className="h-px bg-surface-border my-1" />
 
       <MenubarItem
@@ -88,6 +99,11 @@ export function SettingsMenuContent() {
         label={theme === 'dark' ? "Theme: Dark" : "Theme: Light"}
         icon={theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
         onClick={toggleTheme}
+      />
+
+      <ModalPreferencesModal
+        isOpen={isModalPreferencesOpen}
+        onClose={() => setIsModalPreferencesOpen(false)}
       />
     </>
   );

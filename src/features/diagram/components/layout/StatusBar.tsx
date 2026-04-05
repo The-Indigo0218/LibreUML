@@ -1,7 +1,8 @@
-import { XCircle, AlertTriangle, Shield, Globe, Cloud, CloudOff } from "lucide-react";
+import { XCircle, AlertTriangle, Shield, Globe, Cloud, CloudOff, Undo2, Redo2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
+import { useModelStore } from "../../../../store/model.store";
 import { useModelValidation } from "../../hooks/useModelValidation";
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useCodeGenerationStore, LANGUAGE_OPTIONS } from "../../../../store/codeGeneration.store";
@@ -11,6 +12,26 @@ export default function StatusBar() {
   const { activeTabId } = useWorkspaceStore();
   const { project } = useVFSStore();
   const { openProblemsTab } = useLayoutStore();
+
+  // Undo/Redo state (MAG-01.17)
+  // Access temporal state directly via getState() since zundo v2 doesn't expose useTemporalStore
+  const vfsTemporalState = useVFSStore.temporal.getState();
+  const modelTemporalState = useModelStore.temporal.getState();
+  
+  // Can undo if EITHER store has past states
+  const canUndo = (vfsTemporalState.pastStates?.length ?? 0) > 0 || (modelTemporalState.pastStates?.length ?? 0) > 0;
+  // Can redo if EITHER store has future states
+  const canRedo = (vfsTemporalState.futureStates?.length ?? 0) > 0 || (modelTemporalState.futureStates?.length ?? 0) > 0;
+
+  const handleUndo = () => {
+    useVFSStore.temporal.getState().undo();
+    useModelStore.temporal.getState().undo();
+  };
+
+  const handleRedo = () => {
+    useVFSStore.temporal.getState().redo();
+    useModelStore.temporal.getState().redo();
+  };
 
   const activeNode = activeTabId && project?.nodes[activeTabId];
   const activeFile = activeNode && activeNode.type === "FILE" ? activeNode : null;
@@ -26,6 +47,30 @@ export default function StatusBar() {
   return (
     <footer className="h-8 w-full bg-surface-primary border-t border-surface-border flex justify-between items-center px-4 py-1 select-none shrink-0">
       <div className="flex items-center gap-4">
+        {/* Undo/Redo buttons (MAG-01.17) */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleUndo}
+            disabled={!canUndo}
+            className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95"
+            title={`Undo (${navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+Z)`}
+          >
+            <Undo2 className="w-3.5 h-3.5 text-text-primary" />
+            <span className="text-xs font-medium text-text-primary">Undo</span>
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={!canRedo}
+            className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95"
+            title={`Redo (${navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+Shift+Z)`}
+          >
+            <Redo2 className="w-3.5 h-3.5 text-text-primary" />
+            <span className="text-xs font-medium text-text-primary">Redo</span>
+          </button>
+        </div>
+
+        <div className="h-4 w-px bg-surface-border" />
+
         <div className="flex items-center gap-3">
           <button
             onClick={openProblemsTab}

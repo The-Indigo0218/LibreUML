@@ -4,6 +4,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import GridPattern from './engine/GridPattern';
 import { useViewport } from './engine/useViewport';
 import { useViewportCuller } from './engine/useViewportCuller';
+import { usePerformanceMonitor } from './engine/usePerformanceMonitor';
 import { useSpacePan } from './hooks/useSpacePan';
 import { useRightClickPan } from './hooks/useRightClickPan';
 import { useSettingsStore } from '../store/settingsStore';
@@ -51,6 +52,9 @@ export default function KonvaCanvas() {
 
   const showGrid = useSettingsStore((s) => s.showGrid);
   const highlightConnections = useSettingsStore((s) => s.showAllEdges);
+
+  const isDev = import.meta.env.DEV;
+  usePerformanceMonitor(isDev);
 
   const setStage = useStageStore((s) => s.setStage);
   useEffect(() => {
@@ -219,8 +223,7 @@ export default function KonvaCanvas() {
 
   boundsMapRef.current = boundsMap;
 
-  // ─── Viewport Culling (MAG-01.16) ─────────────────────────────────────────
-  // Hide off-screen shapes to improve performance with large diagrams (500+ nodes)
+
   const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap);
 
   const guardedDragStart = useCallback(
@@ -613,7 +616,6 @@ export default function KonvaCanvas() {
                 : boundsMap.get(edge.targetId);
               if (!sourceBounds || !targetBounds) return null;
 
-              // Culling: edge visible if source OR target is visible
               const isVisible = visibleNodeIds.has(edge.sourceId) || visibleNodeIds.has(edge.targetId);
 
               const obstacles = isSelfLoop

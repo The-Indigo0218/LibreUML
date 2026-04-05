@@ -26,11 +26,13 @@
  * - Works correctly at all zoom levels and pan positions
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import type Konva from 'konva';
 import { useWorkspaceStore } from '../../store/workspace.store';
 import { useVFSStore } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
+import { useSettingsStore } from '../../store/settingsStore';
+import { useToastStore } from '../../store/toast.store';
 import { standaloneModelOps, getLocalModel, ensureLocalModel } from '../../store/standaloneModelOps';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/domain/vfs/vfs.types';
@@ -164,11 +166,29 @@ export interface UseKonvaDnDParams {
 export interface UseKonvaDnDResult {
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
+  duplicateModal: {
+    isOpen: boolean;
+    fileName: string;
+    onReplace: () => void;
+    onCancel: () => void;
+    onDontShowAgain: (checked: boolean) => void;
+  };
 }
 
 export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
+  const hideDuplicateFileWarning = useSettingsStore((s) => s.hideDuplicateFileWarning);
+  const setHideDuplicateFileWarning = useSettingsStore((s) => s.setHideDuplicateFileWarning);
+  const showToast = useToastStore((s) => s.show);
+
+  // Modal state
+  const [duplicateModal, setDuplicateModal] = useState({
+    isOpen: false,
+    fileName: '',
+    elementId: '',
+    position: { x: 0, y: 0 },
+  });
 
   // ─── Position helpers ─────────────────────────────────────────────────────
 
@@ -203,6 +223,122 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     [stageRef],
   );
 
+  // ─── Helper: Get element name ─────────────────────────────────────────────
+
+  const getElementName = useCallback((elementId: string): string => {
+    if (!activeTabId) return 'Element';
+
+    const freshProject = useVFSStore.getState().project;
+    if (!freshProject) return 'Element';
+    const freshFileNode = freshProject.nodes[activeTabId];
+    if (!freshFileNode || freshFileNode.type !== 'FILE') return 'Element';
+
+    const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
+
+    if (isStandaloneFile) {
+      const localM = getLocalModel(activeTabId);
+      if (!localM) return 'Element';
+      return (
+        localM.classes[elementId]?.name ??
+        localM.interfaces[elementId]?.name ??
+        localM.enums[elementId]?.name ??
+        'Element'
+      );
+    } else {
+      const ms = useModelStore.getState();
+      if (!ms.model) return 'Element';
+      return (
+        ms.model.classes[elementId]?.name ??
+        ms.model.interfaces[elementId]?.name ??
+        ms.model.enums[elementId]?.name ??
+        'Element'
+      );
+    }
+  }, [activeTabId]);
+
+  // ─── Helper: Check if element exists in diagram ──────────────────────────
+
+  const checkDuplicateElement = useCallback(
+    (elementId: string): ViewNode | null => {
+      if (!activeTabId) return null;
+
+      const freshProject = useVFSStore.getState().project;
+      if (!freshProject) return null;
+      const freshFileNode = freshProject.nodes[activeTabId];
+      if (!freshFileNode || freshFileNode.type !== 'FILE') return null;
+      const freshContent = (freshFileNode as VFSFile).content;
+      if (!isDiagramView(freshContent)) return null;
+      const freshView = freshContent as DiagramView;
+
+      // Find existing ViewNode with same elementId
+      return freshView.nodes.find((vn) => vn.elementId === elementId) ?? null;
+    },
+    [activeTabId],
+  );
+
+  // ─── Helper: Add element to diagram ───────────────────────────────────────
+
+  const addElementToDiagram = useCallback(
+    (elementId: string, position: { x: number; y: number }, replaceNodeId?: string) => {
+      if (!activeTabId) return;
+
+      const freshProject = useVFSStore.getState().project;
+      if (!freshProject) return;
+      const freshFileNode = freshProject.nodes[activeTabId];
+      if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+      const freshContent = (freshFileNode as VFSFile).content;
+      if (!isDiagramView(freshContent)) return;
+      const freshView = freshContent as DiagramView;
+
+      const viewNode: ViewNode = {
+        id: crypto.randomUUID(),
+        elementId: elementId,
+        x: position.x,
+        y: position.y,
+      };
+
+      let updatedNodes = freshView.nodes;
+
+      // If replacing, remove old node
+      if (replaceNodeId) {
+        updatedNodes = updatedNodes.filter((vn) => vn.id !== replaceNodeId);
+      }
+
+      // Add new node
+      updatedNodes = [...updatedNodes, viewNode];
+
+      updateFileContent(activeTabId, {
+        ...freshView,
+        nodes: updatedNodes,
+      });
+    },
+    [activeTabId, updateFileContent],
+  );
+
+  // ─── Modal handlers ───────────────────────────────────────────────────────
+
+  const handleModalReplace = useCallback(() => {
+    const { elementId, position } = duplicateModal;
+    const existingNode = checkDuplicateElement(elementId);
+    if (existingNode) {
+      addElementToDiagram(elementId, position, existingNode.id);
+    }
+    setDuplicateModal({ isOpen: false, fileName: '', elementId: '', position: { x: 0, y: 0 } });
+  }, [duplicateModal, checkDuplicateElement, addElementToDiagram]);
+
+  const handleModalCancel = useCallback(() => {
+    setDuplicateModal({ isOpen: false, fileName: '', elementId: '', position: { x: 0, y: 0 } });
+  }, []);
+
+  const handleDontShowAgain = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        setHideDuplicateFileWarning(true);
+      }
+    },
+    [setHideDuplicateFileWarning],
+  );
+
   // ─── onDragOver ───────────────────────────────────────────────────────────
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -225,27 +361,30 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       // ===================================================================
       const existingElementId = event.dataTransfer.getData(DRAG_TYPE_EXISTING);
       if (existingElementId) {
-        if (!activeTabId) return;
+        // Check if element already exists in diagram
+        const existingNode = checkDuplicateElement(existingElementId);
+        
+        if (existingNode) {
+          const elementName = getElementName(existingElementId);
+          
+          // If warning is disabled, show toast and return
+          if (hideDuplicateFileWarning) {
+            showToast(`"${elementName}" is already in the diagram`);
+            return;
+          }
+          
+          // Show modal
+          setDuplicateModal({
+            isOpen: true,
+            fileName: elementName,
+            elementId: existingElementId,
+            position,
+          });
+          return;
+        }
 
-        const freshProject = useVFSStore.getState().project;
-        if (!freshProject) return;
-        const freshFileNode = freshProject.nodes[activeTabId];
-        if (!freshFileNode || freshFileNode.type !== 'FILE') return;
-        const freshContent = (freshFileNode as VFSFile).content;
-        if (!isDiagramView(freshContent)) return;
-        const freshView = freshContent as DiagramView;
-
-        const viewNode: ViewNode = {
-          id: crypto.randomUUID(),
-          elementId: existingElementId,
-          x: position.x,
-          y: position.y,
-        };
-
-        updateFileContent(activeTabId, {
-          ...freshView,
-          nodes: [...freshView.nodes, viewNode],
-        });
+        // Element not in diagram, add it
+        addElementToDiagram(existingElementId, position);
         return;
       }
 
@@ -348,8 +487,27 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       };
       updateFileContent(activeTabId, updatedView);
     },
-    [getCenteredPosition, activeTabId, updateFileContent],
+    [
+      getCenteredPosition,
+      activeTabId,
+      updateFileContent,
+      checkDuplicateElement,
+      getElementName,
+      hideDuplicateFileWarning,
+      showToast,
+      addElementToDiagram,
+    ],
   );
 
-  return { onDragOver, onDrop };
+  return {
+    onDragOver,
+    onDrop,
+    duplicateModal: {
+      isOpen: duplicateModal.isOpen,
+      fileName: duplicateModal.fileName,
+      onReplace: handleModalReplace,
+      onCancel: handleModalCancel,
+      onDontShowAgain: handleDontShowAgain,
+    },
+  };
 }

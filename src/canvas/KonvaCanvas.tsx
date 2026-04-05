@@ -19,6 +19,7 @@ import type { CanvasNode } from './interactions/useDragHandler';
 import { useConnectionDraw } from './interactions/useConnectionDraw';
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import CanvasOverlay from './CanvasOverlay';
+import DuplicateFileModal from '../components/shared/DuplicateFileModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
 import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
@@ -256,7 +257,7 @@ export default function KonvaCanvas() {
     onSelectAll: selectAll,
   });
 
-  const { onDragOver, onDrop } = useKonvaDnD({ stageRef });
+  const { onDragOver: handleDragOver, onDrop: handleDrop, duplicateModal } = useKonvaDnD({ stageRef });
 
   const startInlineEditing = useInlineEditorStore((s) => s.startEditing);
   const updateEditorPosition = useInlineEditorStore((s) => s.updatePosition);
@@ -568,8 +569,8 @@ export default function KonvaCanvas() {
     <div
       ref={containerRef}
       className="w-full h-full overflow-hidden bg-canvas-base relative"
-      onDragOver={onDragOver}
-      onDrop={onDrop}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       {size.width > 0 && size.height > 0 && (
         <Stage
@@ -778,6 +779,14 @@ export default function KonvaCanvas() {
         contextMenu={menu}
         contextMenuOptions={contextMenuOptions}
         onCloseContextMenu={closeMenu}
+      />
+
+      <DuplicateFileModal
+        isOpen={duplicateModal.isOpen}
+        fileName={duplicateModal.fileName}
+        onReplace={duplicateModal.onReplace}
+        onCancel={duplicateModal.onCancel}
+        onDontShowAgain={duplicateModal.onDontShowAgain}
       />
     </div>
   );

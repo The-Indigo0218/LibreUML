@@ -178,6 +178,18 @@
       "back": "Atrás",
       "continue": "Continuar"
     },
+    "duplicateFile": {
+      "title": "Archivo Ya en el Diagrama",
+      "message": "\"{{fileName}}\" ya está presente en este diagrama.",
+      "replaceOption": "Reemplazar",
+      "replaceDescription": "Eliminar el nodo existente y agregar uno nuevo en la posición de soltar.",
+      "cancelOption": "Cancelar",
+      "cancelDescription": "Mantener el nodo existente e ignorar esta acción.",
+      "dontShowAgain": "No mostrar esta advertencia de nuevo",
+      "reEnableHint": "Puedes volver a habilitar esta advertencia en Configuración.",
+      "cancel": "Cancelar",
+      "replace": "Reemplazar"
+    },
     "classEditor": {
       "title": "Editar Clase:",
       "className": "NOMBRE DE CLASE",

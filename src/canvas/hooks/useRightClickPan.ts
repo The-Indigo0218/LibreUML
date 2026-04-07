@@ -86,11 +86,7 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
     [stageRef, setCursor],
   );
 
-  /**
-   * Capture-phase wake-up: fires BEFORE Konva's content listener so that
-   * stage.draw() populates all hit canvases before Konva runs hit detection.
-   * This is button-agnostic — wakes the canvas for every click (left, right, middle).
-   */
+
   useEffect(() => {
     if (!enabled) return;
 
@@ -105,11 +101,6 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
     return () => window.removeEventListener('mousedown', handleWakeUp, true);
   }, [enabled, stageRef]);
 
-  /**
-   * Pan starts on left-click (button 0) on empty canvas only.
-   * The isBackground check ensures node clicks still do selection/drag.
-   * Space + left-click yields to lasso (isSpacePressedRef guard).
-   */
   const onMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
       if (!enabled || e.evt.button !== 0) return;
@@ -124,7 +115,6 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
     [enabled, isSpacePressedRef, startPan],
   );
 
-  // Pan movement is handled by native window mousemove in startPan.
   const onMouseMove = useCallback((_e: KonvaEventObject<MouseEvent>) => {}, []);
 
   const onMouseUp = useCallback(
@@ -137,7 +127,6 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
     [enabled, endPan],
   );
 
-  // Window mouseup fallback: ends pan if mouse is released outside the canvas.
   useEffect(() => {
     if (!enabled) return;
 

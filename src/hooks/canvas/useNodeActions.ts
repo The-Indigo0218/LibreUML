@@ -14,6 +14,8 @@ import type {
   IRClass,
   IRInterface,
   IREnum,
+  IRAttribute,
+  IROperation,
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 

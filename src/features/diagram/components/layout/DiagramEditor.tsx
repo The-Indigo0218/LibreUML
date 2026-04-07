@@ -93,8 +93,6 @@ function EditorLogic() {
 
       <div className="flex flex-1 overflow-hidden min-h-0">
         <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />
-
-        {/* ── Left panel (slides in/out) ─────────────────────────────── */}
         <div
           className={`h-full overflow-hidden transition-all duration-200 ease-in-out shrink-0 min-w-0 ${
             isLeftPanelOpen && activeTab ? "w-64" : "w-0"
@@ -103,17 +101,12 @@ function EditorLogic() {
           <PrimarySideBar activeTab={activeTab} />
         </div>
 
-        {/* ── Center column: tabs + canvas + bottom terminal ─────────── */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
           <TabBar />
-
-          {/* Canvas row: diagram + right sidebar */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
             <div className="flex-1 overflow-hidden">
               {activeTabId ? <KonvaCanvas /> : <SleepScreen />}
             </div>
-
-            {/* ── Right sidebar (slides in/out) ───────────────────────── */}
             <div
               className={`overflow-hidden transition-all duration-200 ease-in-out shrink-0 ${
                 isRightPanelOpen ? "w-64" : "w-0"
@@ -122,8 +115,6 @@ function EditorLogic() {
               <RightSidebar />
             </div>
           </div>
-
-          {/* ── Bottom terminal (slides in/out) ─────────────────────── */}
           <div
             className={`overflow-hidden transition-all duration-200 ease-in-out shrink-0 ${
               isBottomPanelOpen ? "h-72" : "h-0"
@@ -135,8 +126,6 @@ function EditorLogic() {
       </div>
 
       <StatusBar />
-
-      {/* ── VFS-native modals (portal-rendered, outside layout tree) ──── */}
       <OpenFileModal />
       <SSoTElementEditorModal />
       <SSoTClassEditorModal />
@@ -148,8 +137,6 @@ function EditorLogic() {
         onClose={closeModals}
       />
       <ToastContainer />
-
-      {/* ── Menubar-triggered modals (available regardless of canvas state) ── */}
       <KeyboardShortcutsModal
         isOpen={activeModal === 'keyboard-shortcuts'}
         onClose={closeModals}

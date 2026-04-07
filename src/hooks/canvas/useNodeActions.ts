@@ -11,9 +11,6 @@ import type {
   DiagramView,
   VFSFile,
   ViewNode,
-  IRClass,
-  IRInterface,
-  IREnum,
   IRAttribute,
   IROperation,
 } from '../../core/domain/vfs/vfs.types';
@@ -48,8 +45,6 @@ export function useNodeActions({
   isStandalone,
   updateFileContent,
 }: UseNodeActionsParams): UseNodeActionsResult {
-  // ── removeNodeFromDiagram: view-only removal (context menu "Remove from Diagram") ──
-
   const removeNodeFromDiagram = useCallback(
     (viewNodeId: string) => {
       if (!activeTabId) return;
@@ -65,7 +60,6 @@ export function useNodeActions({
 
       const updatedNodes = currentView.nodes.filter((vn) => vn.id !== viewNodeId);
 
-      // Prune ViewEdges involving this element — no cascade into any model store.
       let updatedEdges = currentView.edges;
       if (removedVN.elementId) {
         const activeModel = isStandalone && activeTabId
@@ -88,8 +82,6 @@ export function useNodeActions({
     [activeTabId, updateFileContent, isStandalone],
   );
 
-  // ── deleteElementFromModel: cascade delete + sweep all diagrams ─────────────
-
   const deleteElementFromModel = useCallback(
     (viewNodeId: string) => {
       if (!activeTabId) return;
@@ -106,7 +98,6 @@ export function useNodeActions({
       const elementId = removedVN.elementId;
 
       if (isStandalone) {
-        // Standalone path: delete from localModel only — no global cascade.
         const localM = getLocalModel(activeTabId);
         if (!localM) return;
 
@@ -123,7 +114,6 @@ export function useNodeActions({
 
         useToastStore.getState().show(`"${elementName}" deleted from standalone diagram`);
 
-        // Sweep this file's DiagramView only (relations cascade-deleted inside ops).
         const modelAfterDelete = getLocalModel(activeTabId);
         const updatedNodes = currentView.nodes.filter((vn) => vn.elementId !== elementId);
         const updatedEdges = currentView.edges.filter(
@@ -133,7 +123,6 @@ export function useNodeActions({
         return;
       }
 
-      // Cascade delete from ModelStore (removes IRRelation entries too).
       const ms = useModelStore.getState();
       if (ms.model) {
         const elementName =
@@ -149,7 +138,6 @@ export function useNodeActions({
         useToastStore.getState().show(`"${elementName}" deleted from model`);
       }
 
-      // Sweep ALL diagram files: remove the ViewNode and prune orphaned ViewEdges.
       const modelAfterDelete = useModelStore.getState().model;
       const projectAfterDelete = useVFSStore.getState().project;
       if (!projectAfterDelete) return;
@@ -172,8 +160,6 @@ export function useNodeActions({
     },
     [activeTabId, updateFileContent, isStandalone],
   );
-
-  // ── duplicateNode: create a copy of the semantic element + ViewNode ─────────
 
   const duplicateNode = useCallback(
     (viewNodeId: string): string | null => {
@@ -209,7 +195,6 @@ export function useNodeActions({
         return newViewNode.id;
       }
 
-      // Duplicate semantic element
       const elementId = sourceVN.elementId;
       let newElementId = '';
       let newElementName = '';
@@ -224,13 +209,11 @@ export function useNodeActions({
         const enm = localM.enums[elementId];
 
         if (cls) {
-          // Generate next name
           const existingNames = Object.values(localM.classes)
             .filter((c) => (cls.isAbstract ? !!c.isAbstract : !c.isAbstract))
             .map((c) => c.name);
           newElementName = getNextName(existingNames, cls.name);
 
-          // Deep clone attributes
           const newAttributeIds: string[] = [];
           const newAttributes: IRAttribute[] = [];
           for (const attrId of cls.attributeIds) {
@@ -242,7 +225,6 @@ export function useNodeActions({
             }
           }
 
-          // Deep clone operations
           const newOperationIds: string[] = [];
           const newOperations: IROperation[] = [];
           for (const opId of cls.operationIds) {

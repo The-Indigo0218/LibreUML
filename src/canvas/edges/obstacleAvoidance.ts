@@ -33,12 +33,8 @@
 import { orthogonalRoute } from './geometry';
 import type { AnchorPoint, NodeBounds, Point } from './geometry';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 /** Clearance added around each obstacle bounding box. */
 const AVOID_PAD = 20;
-
-// ─── Segment / AABB tests ─────────────────────────────────────────────────────
 
 /**
  * Returns true when the vertical segment at x = `segX`, spanning [y1, y2],
@@ -69,8 +65,6 @@ function horizSegHits(segY: number, x1: number, x2: number, obs: NodeBounds): bo
     minX < obs.x + obs.width
   );
 }
-
-// ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
  * Attempts to route around obstacles using a single elbow deflection.

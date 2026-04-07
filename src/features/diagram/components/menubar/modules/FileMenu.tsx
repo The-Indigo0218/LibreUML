@@ -121,17 +121,13 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
           icon={<FilePlus className="w-4 h-4" />}
           onClick={handleNew}
         />
-
         <MenubarItem
           label="Open File..."
           icon={<FolderOpen className="w-4 h-4" />}
           shortcut="Ctrl+O"
           onClick={openOpenFileModal}
         />
-
         <div className="h-px bg-surface-border my-1" />
-
-        {/* ── VFS Project I/O ─────────────────────────────────────────── */}
         <MenubarItem
           label="Save Project (.luml.zip)"
           icon={<Download className="w-4 h-4 text-emerald-400" />}

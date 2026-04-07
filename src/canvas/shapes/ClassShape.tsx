@@ -57,8 +57,6 @@ const MAX_W = 512;      // max-w-lg = 32rem
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const FONT_MONO = '"Fira Code", monospace';
 
-// ─── Layout types ──────────────────────────────────────────────────────────────
-
 export interface SectionLayout {
   top: number;
   height: number;
@@ -76,8 +74,6 @@ export interface ClassLayout {
   separators: number[];
   sections: SectionLayout[];
 }
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function parseFontStyle(labelFormat: string): string {
   const bold = labelFormat.includes('bold');

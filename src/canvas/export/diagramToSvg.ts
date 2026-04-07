@@ -41,7 +41,6 @@ import { avoidObstacles } from '../edges/obstacleAvoidance';
 import type { NodeBounds, AnchorFace } from '../edges/geometry';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 
-// ─── ClassShape layout constants (must match ClassShape.tsx) ──────────────────
 
 const H_PAD = 10;
 const BORDER_W = 2;
@@ -54,8 +53,6 @@ const ROW_H = 20;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const FONT_MONO = '"Fira Code", monospace';
 
-// ─── NoteShape layout constants (must match NoteShape.tsx) ───────────────────
-
 const NOTE_W = 224;
 const NOTE_FOLD = 12;
 const NOTE_H_PAD = 8;
@@ -64,8 +61,6 @@ const NOTE_TITLE_H = 32;
 const NOTE_TITLE_FONT = 14;
 const NOTE_SEC_FONT = 12;
 const NOTE_LINE_H = 1.5;
-
-// ─── Edge style constants (must match KonvaEdge.tsx / EdgeMarker.tsx) ─────────
 
 const DASHED_KINDS = new Set<RelationKind>([
   'REALIZATION', 'DEPENDENCY', 'USAGE', 'INCLUDE', 'EXTEND',
@@ -78,16 +73,12 @@ const MARKER_RETRACT: Partial<Record<RelationKind, number>> = {
   COMPOSITION: 24,
 };
 
-// ─── Export layout ────────────────────────────────────────────────────────────
-
 /**
  * Margin around the diagram bounding box.
  * 80px (vs 50px in PNG) to accommodate self-loop arcs that extend ~78px
  * beyond the source node's right edge.
  */
 const EXPORT_MARGIN = 80;
-
-// ─── Public API ───────────────────────────────────────────────────────────────
 
 export interface DiagramToSvgOptions {
   backgroundColor: string;
@@ -156,8 +147,6 @@ export function diagramToSvg(
   return parts.filter(Boolean).join('\n');
 }
 
-// ─── Helpers — XML / SVG primitives ──────────────────────────────────────────
-
 function escapeXml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -192,8 +181,6 @@ function getCanvasBg(): string {
   return getCSSVar('--canvas-base') || '#f8fafc';
 }
 
-// ─── Text wrapping for NoteShape content ─────────────────────────────────────
-
 /**
  * Simple word-wrap for monospace note content.
  * Matches the character-count estimate used by NoteShape.tsx (0.55 em/char).
@@ -222,8 +209,6 @@ function wrapNoteLines(text: string): string[] {
   }
   return result;
 }
-
-// ─── Bounds map + diagram bounds ─────────────────────────────────────────────
 
 function buildBoundsMap(shapes: ShapeDescriptor[]): Map<string, NodeBounds> {
   const map = new Map<string, NodeBounds>();
@@ -255,8 +240,6 @@ function calculateBounds(boundsMap: Map<string, NodeBounds>): DiagramBounds {
     height: maxY - minY + EXPORT_MARGIN * 2,
   };
 }
-
-// ─── ClassShape SVG renderer ──────────────────────────────────────────────────
 
 function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   const colors = resolveNodeColors(vm.style.containerClass);
@@ -339,8 +322,6 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   return lines.join('\n');
 }
 
-// ─── NoteShape SVG renderer ───────────────────────────────────────────────────
-
 function svgNoteShape(shape: ShapeDescriptor, vm: NoteViewModel): string {
   const colors = resolveNoteColors();
   const { height: H } = getNoteShapeSize(vm);
@@ -401,8 +382,6 @@ function svgNoteShape(shape: ShapeDescriptor, vm: NoteViewModel): string {
   lines.push('</g>');
   return lines.join('\n');
 }
-
-// ─── Edge + marker SVG renderers ─────────────────────────────────────────────
 
 function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): string {
   const isSelfLoop = edge.sourceId === edge.targetId;

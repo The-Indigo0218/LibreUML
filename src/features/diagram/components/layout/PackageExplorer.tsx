@@ -17,7 +17,6 @@ import type { UmlClassNode, UmlAttribute, UmlMethod, visibility as UmlVisibility
 import type { DeletePackageState, TreeNode } from "./packageExplorer/types";
 import type { SemanticModel, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
-// ── IR → UmlClassNode adapter ─────────────────────────────────────────────
 
 function irVisToSymbol(v: string | undefined): UmlVisibility {
   if (v === "private") return "-";
@@ -112,9 +111,6 @@ function irToUmlNodes(model: SemanticModel): UmlClassNode[] {
 
   return nodes;
 }
-
-// ── Local context menu type ───────────────────────────────────────────────
-
 interface LocalContextMenu {
   x: number;
   y: number;
@@ -199,17 +195,11 @@ export default function PackageExplorer() {
   }, [activeModel, transformedNodes]);
 
   const packageTree = useMemo(() => buildPackageTree(allPackages, transformedNodes), [allPackages, transformedNodes]);
-
-  // Strip root-level classes from the tree passed to PackageItem — they are
-  // already rendered in the explicit (default) folder above, so passing them
-  // to PackageItem would cause every unassigned element to appear twice.
   const packageTreeForItem = useMemo(() => ({ ...packageTree, classes: [] }), [packageTree]);
 
   const totalElements = transformedNodes.length;
   const unassignedCount = packageTree.classes.length;
   const displayedPackageCount = allPackages.length + (unassignedCount > 0 ? 1 : 0);
-
-  // ── UI state ───────────────────────────────────────────────────────────
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
@@ -231,8 +221,6 @@ export default function PackageExplorer() {
       return () => document.removeEventListener("click", handleClickOutside);
     }
   }, [contextMenu, pkgPicker]);
-
-  // ── Package mutations ──────────────────────────────────────────────────
 
   const addPackage = useCallback((name: string) => {
     const trimmed = name.trim();
@@ -342,8 +330,6 @@ export default function PackageExplorer() {
     }
     showToast(`Renamed to "${trimmed}".`);
   }, [activeModel, isStandalone, activeTabId, updateClass, updateInterface, updateEnum, showToast]);
-
-  // ── Handlers ───────────────────────────────────────────────────────────
 
   const handleToggle = (path: string) => {
     setExpandedPaths((prev) => {
@@ -678,8 +664,6 @@ export default function PackageExplorer() {
           )}
         </div>
       )}
-
-      {/* ── Package picker popup ─────────────────────────────────────────── */}
       {pkgPicker && (
         <div
           className="fixed z-50 bg-surface-primary border border-surface-border rounded shadow-lg py-1 min-w-[180px]"

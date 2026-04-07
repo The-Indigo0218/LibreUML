@@ -18,8 +18,6 @@
 import { useEffect } from 'react';
 import { useSelectionStore } from '../../store/selection.store';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface UseCanvasKeyboardOptions {
   /** All node IDs currently in the diagram (for Ctrl+A). */
   allNodeIds: string[];

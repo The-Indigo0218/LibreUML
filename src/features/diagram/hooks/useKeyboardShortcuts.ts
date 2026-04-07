@@ -18,14 +18,12 @@ export const useKeyboardShortcuts = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+N / Cmd+N — blocked by Chromium on web; kept for Electron build
       if ((e.ctrlKey || e.metaKey) && e.key === "n") {
         e.preventDefault();
         createNewDiagram();
         return;
       }
 
-      // Alt+N / Option+N — web-safe alternative
       if (e.altKey && !e.ctrlKey && !e.metaKey && e.key === "n") {
         e.preventDefault();
         createNewDiagram();
@@ -41,7 +39,6 @@ export const useKeyboardShortcuts = () => {
       // Ctrl+Shift+Z / Cmd+Shift+Z — redo (check before plain Ctrl+Z)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
-        // Redo on both stores to keep VFS and Model in sync
         useVFSStore.temporal.getState().redo();
         useModelStore.temporal.getState().redo();
         return;
@@ -49,7 +46,6 @@ export const useKeyboardShortcuts = () => {
 
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
-        // Undo on both stores to keep VFS and Model in sync
         useVFSStore.temporal.getState().undo();
         useModelStore.temporal.getState().undo();
         return;
@@ -57,7 +53,6 @@ export const useKeyboardShortcuts = () => {
 
       if ((e.ctrlKey || e.metaKey) && e.key === "y") {
         e.preventDefault();
-        // Redo on both stores to keep VFS and Model in sync
         useVFSStore.temporal.getState().redo();
         useModelStore.temporal.getState().redo();
         return;
@@ -97,7 +92,6 @@ export const useKeyboardShortcuts = () => {
             }
           });
         } else {
-          // Legacy project: use legacy save mechanism
           saveDiagram().then((success) => {
             if (success) {
               showToast("Saved");

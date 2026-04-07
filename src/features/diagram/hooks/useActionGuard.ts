@@ -14,7 +14,6 @@ export const useActionGuard = () => {
   const activeFile = activeFileId ? getFile(activeFileId) : undefined;
   const isDirty = activeFile?.isDirty ?? false;
   
-  // Estado Unificado de Modales
   const [modals, setModals] = useState({
     unsaved: {
       isOpen: false,
@@ -28,8 +27,6 @@ export const useActionGuard = () => {
       pendingAction: null as (() => void) | null,
     }
   });
-
-  // --- ACTIONS ---
 
   const closeAll = useCallback(() => {
     setModals(prev => ({

@@ -13,7 +13,6 @@ export function EmptyStateOverlay({ onStartFromScratch, onLoadTemplate }: EmptyS
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-surface-primary/80 backdrop-blur-sm">
       <div className="flex flex-col items-center gap-6 max-w-lg w-full px-8 py-10 text-center">
 
-        {/* Icon + Title */}
         <div className="flex flex-col items-center gap-3">
           <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20">
             <Sparkles className="w-8 h-8 text-purple-400" />
@@ -26,7 +25,6 @@ export function EmptyStateOverlay({ onStartFromScratch, onLoadTemplate }: EmptyS
           </p>
         </div>
 
-        {/* Video placeholder iframe */}
         <iframe
           width="480"
           height="270"
@@ -36,7 +34,6 @@ export function EmptyStateOverlay({ onStartFromScratch, onLoadTemplate }: EmptyS
           allowFullScreen
         />
 
-        {/* Action buttons */}
         <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
           <button
             onClick={onStartFromScratch}

@@ -6,12 +6,9 @@ const STORAGE_KEY = 'libreuml-backup';
 
 /**
  * Auto Restore Hook
- * 
+ *
  * Restores the last session backup if restoreSession is enabled.
- * Works with SSOT architecture by restoring both WorkspaceStore and ProjectStore.
- * 
- * Note: Zustand persist middleware handles automatic restoration of stores.
- * This hook is for additional backup/restore functionality beyond persist.
+ * Zustand persist middleware handles automatic restoration of stores.
  */
 export const useAutoRestore = () => {
   const restoreSessionEnabled = useSettingsStore((state) => state.restoreSession);
@@ -25,8 +22,6 @@ export const useAutoRestore = () => {
     try {
       const backupRaw = storageAdapter.getItem(STORAGE_KEY);
       if (backupRaw) {
-        // Zustand persist middleware already handles store restoration
-        // This backup is for emergency recovery only
         console.log("[AutoRestore] Backup found, Zustand persist handles restoration");
         hasRestoredRef.current = true;
       }

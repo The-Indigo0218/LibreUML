@@ -11,24 +11,19 @@ import { useAppLifecycle } from "./actions/useAppLifecycle";
 export const useDiagramActions = () => {
   const { t } = useTranslation();
   
-  // Reactive State from WorkspaceStore
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const getFile = useWorkspaceStore((s) => s.getFile);
-  
+
   const activeFile = activeFileId ? getFile(activeFileId) : undefined;
   const isDirty = activeFile?.isDirty ?? false;
   const currentFilePath = activeFile?.filePath;
   const hasFilePath = !!currentFilePath;
 
-  // Initialize Guard
   const { executeSafeAction, modalState } = useActionGuard();
-  
-  // Specialists
+
   const fileLifecycle = useFileLifecycle();
   const editorControls = useEditorControls();
   const appLifecycle = useAppLifecycle();
-
-  // --- ORCHESTRATION ---
 
   const handleNew = useCallback(() => {
     executeSafeAction(fileLifecycle.createNewDiagram);
@@ -44,7 +39,6 @@ export const useDiagramActions = () => {
     }
   }, [executeSafeAction, fileLifecycle]);
 
-  // --- SAFE EXIT LOGIC ---
   const handleExit = useCallback(() => {
     executeSafeAction(appLifecycle.quitApplication, { 
       requireConfirm: true,
@@ -53,7 +47,6 @@ export const useDiagramActions = () => {
     });
   }, [executeSafeAction, appLifecycle, t]);
 
-  // --- OS SYSTEM EVENT LISTENER (FIX LINUX/WINDOWS/MAC) ---
   useEffect(() => {
     if (!window.electronAPI?.isElectron()) return;
 

@@ -66,8 +66,6 @@ export interface UseSelectionReturn {
   };
 }
 
-// ─── Geometry helpers ─────────────────────────────────────────────────────────
-
 /** Normalize two drag corners into a positive-size rect. */
 function normalizeRect(x1: number, y1: number, x2: number, y2: number): LassoRect {
   return {
@@ -85,8 +83,6 @@ function rectsIntersect(
 ): boolean {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /** Minimum lasso size (world-space px) before the drag is treated as a lasso. */
 const LASSO_THRESHOLD = 4;

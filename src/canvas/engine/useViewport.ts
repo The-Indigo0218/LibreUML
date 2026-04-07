@@ -54,12 +54,12 @@ export interface UseViewportOptions {
   stageHeight?: number;
 }
 
+// Read-only observer of Konva's stage position/scale.
+// Updated after every imperative change so React consumers can re-render.
 export function useViewport(options: UseViewportOptions = {}) {
   const { contentBounds, stageWidth = 0, stageHeight = 0 } = options;
   const stageRef = useRef<Konva.Stage>(null);
 
-  // Read-only observer of Konva's stage position/scale.
-  // Updated after every imperative change so React consumers can re-render.
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
   const register = useViewportControlStore((s) => s.register);
 

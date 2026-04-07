@@ -42,8 +42,6 @@ import {
 import { avoidObstacles } from './obstacleAvoidance';
 import EdgeMarker from './EdgeMarker';
 
-// ─── Edge style tables ────────────────────────────────────────────────────────
-
 const DASHED_KINDS = new Set<RelationKind>([
   'REALIZATION', 'DEPENDENCY', 'USAGE', 'INCLUDE', 'EXTEND',
 ]);
@@ -88,8 +86,6 @@ function formatKindLabel(kind: RelationKind): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export type RoutingMode = 'orthogonal' | 'curved' | 'straight';
 

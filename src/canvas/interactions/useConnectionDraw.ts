@@ -48,16 +48,12 @@ import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 import { useToastStore } from '../../store/toast.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
 /** Cursor must be within this radius (world px) of an anchor to activate connection mode. */
 const ANCHOR_DETECT_R = 16;
 /** Cursor must be within this radius (world px) of an anchor to snap during drag. */
 const ANCHOR_SNAP_R = 24;
 /** Cursor must be within this padding (world px) of a node's bounding box to show anchors. */
 const NODE_HOVER_PAD = 20;
-
-// ─── Relation kind → validator type ──────────────────────────────────────────
 
 const RELATION_TO_UML: Partial<Record<RelationKind, UmlRelationType>> = {
   ASSOCIATION:    'association',
@@ -78,8 +74,6 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   GENERALIZATION: 'GENERALIZATION',
 };
 
-// ─── Stereotype resolution ────────────────────────────────────────────────────
-
 function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isNoteViewModel(vm)) return 'note';
   const nvm = vm as NodeViewModel;
@@ -87,8 +81,6 @@ function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (s === 'abstract' || s === 'interface' || s === 'enum') return s;
   return 'class';
 }
-
-// ─── Anchor geometry ──────────────────────────────────────────────────────────
 
 export interface AnchorDot {
   nodeId: string;

@@ -7,8 +7,6 @@
  * Flat `points` arrays follow the Konva convention: [x0, y0, x1, y1, …].
  */
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-
 export interface Point {
   x: number;
   y: number;
@@ -26,8 +24,6 @@ export type AnchorFace = 'Top' | 'Bottom' | 'Left' | 'Right';
 export interface AnchorPoint extends Point {
   face: AnchorFace;
 }
-
-// ─── Anchor geometry ──────────────────────────────────────────────────────────
 
 /** Returns 4 cardinal anchor points at the mid-edge of each side. */
 export function getAnchorPoints(b: NodeBounds): AnchorPoint[] {
@@ -102,8 +98,6 @@ export function faceToMarkerAngle(face: AnchorFace): number {
   }
 }
 
-// ─── Routing ──────────────────────────────────────────────────────────────────
-
 /**
  * Orthogonal route: two right-angle bends through a midpoint elbow.
  * Returns a flat Konva `points` array.
@@ -134,8 +128,6 @@ export function orthogonalRoute(src: AnchorPoint, tgt: Point): number[] {
 export function straightRoute(src: Point, tgt: Point): number[] {
   return [src.x, src.y, tgt.x, tgt.y];
 }
-
-// ─── Curved routing ───────────────────────────────────────────────────────────
 
 /** Outward unit direction for each face (away from the node body). */
 function faceOutward(face: AnchorFace): [number, number] {
@@ -173,8 +165,6 @@ export function curvedRoute(
     retractedTgt.x,               retractedTgt.y,
   ];
 }
-
-// ─── Self-loop routing ────────────────────────────────────────────────────────
 
 export interface SelfLoopResult {
   /** 8-element flat bezier array for Konva <Line bezier={true}>. */

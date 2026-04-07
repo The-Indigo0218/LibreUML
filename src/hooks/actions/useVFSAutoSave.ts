@@ -5,18 +5,7 @@ import { useVFSStore } from '../../store/project-vfs.store';
  * VFS Auto-Save Hook (MAG-01.9 + MAG-01.22 Fix)
  *
  * Monitors VFS project changes and provides save feedback.
- * 
- * IMPORTANT: Actual persistence is handled by Zustand's persist middleware
- * (configured in project-vfs.store.ts). This hook only provides:
- * - Debounced save notifications (optional toast)
- * - flushSave() for Ctrl+S feedback
- * - Save state tracking for UI indicators
- *
- * Architecture:
- * - Zustand persist middleware auto-saves to localStorage on every state change
- * - This hook monitors updatedAt changes for UI feedback only
- * - downloadProject() is ONLY called for explicit user downloads (File → Download)
- * - No "Save As" dialogs on auto-save (MAG-01.22 fix)
+ * Actual persistence is handled by Zustand's persist middleware.
  *
  * Usage:
  * - Call useVFSAutoSave() in DiagramEditor
@@ -44,8 +33,6 @@ export function useVFSAutoSave(): UseVFSAutoSaveResult {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastUpdatedAtRef = useRef<number>(0);
 
-
-
   const provideSaveFeedback = useCallback((): boolean => {
     const project = useVFSStore.getState().project;
     if (!project) {
@@ -63,7 +50,6 @@ export function useVFSAutoSave(): UseVFSAutoSaveResult {
     return true;
   }, []);
 
- 
   const debouncedSaveFeedback = useCallback(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -74,7 +60,6 @@ export function useVFSAutoSave(): UseVFSAutoSaveResult {
     }, DEBOUNCE_DELAY);
   }, [provideSaveFeedback]);
 
-
   const flushSave = useCallback(async (): Promise<boolean> => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -82,12 +67,8 @@ export function useVFSAutoSave(): UseVFSAutoSaveResult {
     }
 
     const success = provideSaveFeedback();
-    if (success) {
- 
-    }
     return success;
   }, [provideSaveFeedback]);
-
 
   useEffect(() => {
     globalFlushSave = flushSave;

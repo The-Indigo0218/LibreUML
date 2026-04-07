@@ -31,8 +31,6 @@ import type {
   IROperation,
 } from "../../../../core/domain/vfs/vfs.types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface CtxMenuState {
   id: string;
   x: number;
@@ -45,9 +43,6 @@ interface PkgPickerState {
   y: number;
   isStandalone?: boolean;
 }
-
-// ─── Badge ────────────────────────────────────────────────────────────────────
-
 function Badge({ label, className }: { label: string; className: string }) {
   return (
     <span
@@ -225,8 +220,6 @@ function PackageFolder({ name, count, isDefault = false, onCreate, children }: P
     </div>
   );
 }
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 
 type ElementKind = "class" | "abstract" | "interface" | "enum";
 
@@ -485,7 +478,6 @@ export default function RightSidebar() {
 
   return (
     <div className="w-64 h-full border-l border-surface-border bg-surface-primary flex flex-col">
-      {/* Header */}
       <div
         className="px-4 py-3 border-b border-surface-border shrink-0 flex items-center justify-between select-none cursor-default group"
         onDoubleClick={toggleRightPanel}
@@ -513,8 +505,6 @@ export default function RightSidebar() {
           </button>
         </div>
       </div>
-
-      {/* Body */}
       {isStandalone ? (
         <div className="flex-1 overflow-y-auto py-1">
           {!localModel || (
@@ -622,7 +612,6 @@ export default function RightSidebar() {
         </div>
       )}
 
-      {/* Context menu */}
       {ctxMenu && (
         <div
           className="fixed z-[9000] bg-[#1a2235] border border-[#2d3f5c] rounded-lg shadow-2xl py-1 min-w-[180px]"
@@ -679,7 +668,6 @@ export default function RightSidebar() {
         </div>
       )}
 
-      {/* Standalone element context menu */}
       {standaloneCtxMenu && activeTabId && (
         <div
           className="fixed z-[9000] bg-[#1a2235] border border-[#2d3f5c] rounded-lg shadow-2xl py-1 min-w-[180px]"
@@ -732,7 +720,6 @@ export default function RightSidebar() {
         </div>
       )}
 
-      {/* Package picker */}
       {pkgPicker && (
         <div
           className="fixed z-[9001] bg-[#1a2235] border border-[#2d3f5c] rounded-lg shadow-2xl py-1 min-w-[200px]"

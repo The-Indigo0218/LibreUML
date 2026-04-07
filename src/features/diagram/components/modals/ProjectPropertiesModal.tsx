@@ -77,7 +77,6 @@ export default function ProjectPropertiesModal({
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        {/* ── Header ────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-blue-400" />
@@ -94,7 +93,6 @@ export default function ProjectPropertiesModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Project Name — read-only (edited inline in header) */}
           <div>
             <span className="block text-xs font-medium text-[#64748b] mb-1 uppercase tracking-wide">
               Project Name
@@ -104,7 +102,6 @@ export default function ProjectPropertiesModal({
             </p>
           </div>
 
-          {/* Version + Author */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label
@@ -140,7 +137,6 @@ export default function ProjectPropertiesModal({
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label
               htmlFor="pp-description"
@@ -158,7 +154,6 @@ export default function ProjectPropertiesModal({
             />
           </div>
 
-          {/* Target Language + Base Package */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label
@@ -198,7 +193,6 @@ export default function ProjectPropertiesModal({
             </div>
           </div>
 
-          {/* Read-only timestamps */}
           <div className="grid grid-cols-2 gap-4 pt-1">
             <div>
               <span className="block text-xs font-medium text-[#64748b] mb-1 uppercase tracking-wide">
@@ -220,7 +214,6 @@ export default function ProjectPropertiesModal({
 
           <div className="h-px bg-[#1e2738]" />
 
-          {/* Actions */}
           <div className="flex items-center justify-end gap-3">
             <button
               type="button"

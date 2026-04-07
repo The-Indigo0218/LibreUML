@@ -16,8 +16,6 @@ import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types
 export const useEditActions = () => {
   const { openSSoTClassEditor } = useUiStore();
 
-  // ── Selection actions ────────────────────────────────────────────────────
-
   const selectAll = useCallback(() => {
     const activeTabId = useWorkspaceStore.getState().activeTabId;
     if (!activeTabId) return;
@@ -36,8 +34,6 @@ export const useEditActions = () => {
   const deselectAll = useCallback(() => {
     useSelectionStore.getState().clear();
   }, []);
-
-  // ── Edit selected ────────────────────────────────────────────────────────
 
   const editSelected = useCallback(() => {
     const { selectedNodeIds } = useSelectionStore.getState();
@@ -60,8 +56,6 @@ export const useEditActions = () => {
       openSSoTClassEditor(viewNode.elementId);
     }
   }, [openSSoTClassEditor]);
-
-  // ── Delete selected (VFS) ────────────────────────────────────────────────
 
   const deleteSelected = useCallback(() => {
     const { selectedNodeIds, selectedEdgeIds } = useSelectionStore.getState();
@@ -95,7 +89,6 @@ export const useEditActions = () => {
       updatedEdges = updatedEdges.filter((ve) => ve.id !== edgeId);
     }
 
-    // Remove selected nodes from view + prune their edges
     let updatedNodes = currentView.nodes;
     for (const nodeId of selectedNodeIds) {
       const removedVN = updatedNodes.find((vn) => vn.id === nodeId);
@@ -103,7 +96,6 @@ export const useEditActions = () => {
 
       updatedNodes = updatedNodes.filter((vn) => vn.id !== nodeId);
 
-      // Prune dangling edges whose relation involves this element
       if (removedVN.elementId) {
         const activeModel = isStandalone
           ? getLocalModel(activeTabId)
@@ -130,8 +122,6 @@ export const useEditActions = () => {
     useSelectionStore.getState().clear();
   }, []);
 
-  // ── Duplicate selected (TODO: VFS implementation) ────────────────────────
-
   const duplicateSelected = useCallback(() => {
     const { selectedNodeIds } = useSelectionStore.getState();
     if (selectedNodeIds.length === 0) return;
@@ -141,8 +131,6 @@ export const useEditActions = () => {
     // cloning their attributes/operations, and adding new ViewNodes.
     console.warn("TODO: VFS duplicate not yet implemented");
   }, []);
-
-  // ── Undo/Redo stubs ─────────────────────────────────────────────────────
 
   const undo = useCallback(() => {
     console.warn("TODO: SSOT - Undo not implemented. Requires history middleware (e.g., zundo)");

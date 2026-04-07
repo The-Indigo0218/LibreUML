@@ -36,8 +36,6 @@ import type { AnyNodeViewModel } from '../../adapters/react-flow/view-models/nod
 
 const GRID = 20;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 /** Ghost shape rendered on the Interaction layer during drag (at start position). */
 export interface DragGhostNode {
   id: string;
@@ -94,8 +92,6 @@ export interface UseDragHandlerReturn {
 function snapToGrid(v: number): number {
   return Math.round(v / GRID) * GRID;
 }
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useDragHandler({
   stageRef,

@@ -30,7 +30,6 @@ import type { VFSFolder, VFSFile, DiagramView, SemanticModel } from "../../../..
 
 type VFSNode = VFSFolder | VFSFile;
 
-// ─── Context menu state ───────────────────────────────────────────────────────
 
 interface ContextMenuState {
   x: number;
@@ -42,9 +41,6 @@ interface ContextMenuState {
   isStandalone?: boolean;
   isLuml?: boolean;
 }
-
-// ─── TreeItem ─────────────────────────────────────────────────────────────────
-
 interface TreeItemProps {
   node: VFSNode;
   level: number;
@@ -246,8 +242,6 @@ function TreeItem({
     </div>
   );
 }
-
-// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ProjectStructure() {
   const { t } = useTranslation();

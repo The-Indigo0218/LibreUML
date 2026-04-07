@@ -43,8 +43,6 @@ export function useEdgeActions({
   isStandalone,
   updateFileContent,
 }: UseEdgeActionsParams): UseEdgeActionsResult {
-  // ── deleteEdgeById: used by context menu "Delete" ─────────────────────────
-
   const deleteEdgeById = useCallback(
     (viewEdgeId: string) => {
       if (!activeTabId) return;
@@ -73,8 +71,6 @@ export function useEdgeActions({
     },
     [activeTabId, updateFileContent, isStandalone],
   );
-
-  // ── reverseEdgeById: used by context menu "Reverse" ───────────────────────
 
   const reverseEdgeById = useCallback(
     (viewEdgeId: string) => {
@@ -112,8 +108,6 @@ export function useEdgeActions({
     [activeTabId, isStandalone],
   );
 
-  // ── updateVFSEdgeProps: used by EditRelationModal ─────────────────────────
-
   const updateVFSEdgeProps = useCallback(
     (
       viewEdgeId: string,
@@ -140,8 +134,6 @@ export function useEdgeActions({
     },
     [activeTabId, updateFileContent],
   );
-
-  // ── changeEdgeKind: used by context menu "Change type" ────────────────────
 
   const changeEdgeKind = useCallback(
     (viewEdgeId: string, kind: RelationKind) => {

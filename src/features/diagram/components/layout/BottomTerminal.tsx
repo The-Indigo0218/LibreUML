@@ -57,8 +57,6 @@ export default function BottomPanel() {
 
   return (
     <div className="h-full border-t border-[#1e2738] bg-[#0d1117] flex flex-col">
-
-      {/* ── Tab bar ──────────────────────────────────────────────────── */}
       <div className="px-2 border-b border-[#1e2738] shrink-0 flex items-center justify-between select-none">
         <div className="flex items-center">
           <button
@@ -100,7 +98,6 @@ export default function BottomPanel() {
         </button>
       </div>
 
-      {/* ── Terminal tab ─────────────────────────────────────────────── */}
       {bottomPanelTab === 'terminal' && (
         <>
           <div
@@ -135,7 +132,6 @@ export default function BottomPanel() {
         </>
       )}
 
-      {/* ── Problems tab ─────────────────────────────────────────────── */}
       {bottomPanelTab === 'problems' && (
         <div className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2">
           {errors.length === 0 ? (

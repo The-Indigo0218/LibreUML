@@ -37,31 +37,22 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { t } = useTranslation();
   const stage = useStageStore((s) => s.stage);
 
-  // Shapes + edges for vector SVG export (MAG-01.15)
   const { shapes, edges } = useKonvaCanvasController();
-
-  // Workspace
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
-
-  // VFS state
   const project = useVFSStore((s) => s.project);
   const model = useModelStore((s) => s.model);
   const isVFSMode = !!project;
-
-  // Collect diagram files from VFS project
   const diagramFiles: VFSFile[] = isVFSMode
     ? (Object.values(project!.nodes).filter(
         (n) => n.type === "FILE" && (n as VFSFile).extension === ".luml",
       ) as VFSFile[])
     : [];
 
-  // Settings
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
   const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
   const suppressSvgWarning = useSettingsStore((s) => s.suppressSvgWarning);
   const setSuppressSvgWarning = useSettingsStore((s) => s.setSuppressSvgWarning);
 
-  // Local state
   const [format, setFormat] = useState<ExportFormat>("png");
   const [scale, setScale] = useState<number>(2);
   const [transparent, setTransparent] = useState(false);
@@ -70,12 +61,10 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
   const [isExporting, setIsExporting] = useState(false);
 
-  // Warning flow state (SVG only)
   const [view, setView] = useState<"config" | "warning">("config");
   const [countdown, setCountdown] = useState(3);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
-  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setView("config");
@@ -93,7 +82,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // SVG countdown
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     if (view === "warning" && countdown > 0) {
@@ -101,8 +89,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     }
     return () => clearTimeout(timer);
   }, [view, countdown]);
-
-  // ── Resolved VFS file ───────────────────────────────────────────────────────
 
   const selectedVFSFile = isVFSMode
     ? (project!.nodes[selectedFileId] as VFSFile | undefined)
@@ -115,11 +101,8 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
   const selectedFileName = selectedVFSFile?.name?.replace(/\.luml$/i, "") || "diagram";
 
-  // Legacy diagram name (non-VFS path)
   const getFile = useWorkspaceStore((s) => s.getFile);
   const legacyDiagramName = activeTabId ? getFile(activeTabId)?.name ?? "diagram" : "diagram";
-
-  // ── PNG / SVG export (captures Konva stage) ─────────────────────────────────
 
   const executePngSvgExport = useCallback(async () => {
     if (!stage) {
@@ -143,10 +126,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     try {
       const exportFileName = isVFSMode ? selectedFileName : legacyDiagramName;
       
-      // Get nodes for bounds calculation (MAG-01.14)
       let nodes = selectedDiagramView?.nodes;
-      
-      // If not in VFS mode or no selected diagram, try to get from active tab
       if (!nodes && activeTabId && project) {
         const fileNode = project.nodes[activeTabId];
         if (fileNode && fileNode.type === 'FILE') {
@@ -163,9 +143,9 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
         scale,
         transparent,
         backgroundColor: bgColor,
-        nodes,  // PNG bounds calculation (MAG-01.14)
-        shapes, // Vector SVG export (MAG-01.15)
-        edges,  // Vector SVG export (MAG-01.15)
+        nodes,
+        shapes,
+        edges,
       });
 
       if (format === "svg" && dontShowAgain) {
@@ -199,8 +179,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     legacyDiagramName,
   ]);
 
-  // ── XMI / JSON export ───────────────────────────────────────────────────────
-
   const executeVfsExport = () => {
     if (!model) {
       alert("No semantic model loaded. Cannot export.");
@@ -214,8 +192,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       onClose();
     }
   };
-
-  // ── Handler for Export button click ─────────────────────────────────────────
 
   const handleExportClick = () => {
     if (format === "xmi" || format === "json") {
@@ -240,7 +216,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-surface-primary border border-surface-border rounded-xl shadow-2xl w-96 overflow-hidden animate-in zoom-in-95 duration-200">
 
-        {/* === CONFIG VIEW === */}
         {view === "config" && (
           <>
             <div className="px-6 py-4 border-b border-surface-border bg-surface-secondary/50 flex items-center gap-3">
@@ -448,7 +423,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
           </>
         )}
 
-        {/* === SVG WARNING VIEW (unchanged) === */}
         {view === "warning" && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="px-6 py-4 border-b border-surface-border bg-amber-500/10 flex items-center gap-3">

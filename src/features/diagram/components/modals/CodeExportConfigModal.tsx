@@ -17,8 +17,6 @@ interface CodeExportConfigModalProps {
   onClose: () => void;
 }
 
-// ─── Helper: Check if current diagram is a Class Diagram ─────────────────────
-
 function useCurrentDiagramType(): { isClassDiagram: boolean; diagramType: string } {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const project = useVFSStore((s) => s.project);
@@ -35,8 +33,6 @@ function useCurrentDiagramType(): { isClassDiagram: boolean; diagramType: string
     diagramType,
   };
 }
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportConfigModalProps) {
   const { t } = useTranslation();
@@ -60,8 +56,6 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
   const { isClassDiagram, diagramType } = useCurrentDiagramType();
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-
-  // ── Extract non-external classes from the semantic model ─────────────────
 
   const availableClasses = useMemo(() => {
     if (!model) return [];
@@ -98,15 +92,11 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
 
   const allClassIds = useMemo(() => availableClasses.map((c) => c.id), [availableClasses]);
 
-  // ── Auto-select all classes when modal opens ─────────────────────────────
-
   useEffect(() => {
     if (isOpen && availableClasses.length > 0 && selectedClassIds.size === 0) {
       selectAllClasses(allClassIds);
     }
   }, [isOpen, availableClasses.length, selectedClassIds.size, allClassIds, selectAllClasses]);
-
-  // ── Close dropdown when clicking outside ─────────────────────────────────
 
   useEffect(() => {
     const handleClickOutside = () => setShowLanguageDropdown(false);
@@ -118,14 +108,10 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
 
   if (!isOpen) return null;
 
-  // ── Derived state ─────────────────────────────────────────────────────────
-
   const hasValidationErrors = errorCount > 0;
   const selectedLanguage = LANGUAGE_OPTIONS.find((opt) => opt.value === config.targetLanguage);
   const allSelected = selectedClassIds.size === allClassIds.length && allClassIds.length > 0;
   const canExport = isClassDiagram && selectedClassIds.size > 0 && !hasValidationErrors && !isExporting;
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleSelectAll = () => {
     if (selectedClassIds.size === allClassIds.length) {
@@ -176,8 +162,6 @@ export default function CodeExportConfigModal({ isOpen, onClose }: CodeExportCon
       setIsExporting(false);
     }
   };
-
-  // ── Render ────────────────────────────────────────────────────────────────
 
   return createPortal(
     <div

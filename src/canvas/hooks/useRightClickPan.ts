@@ -86,7 +86,6 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
     [stageRef, setCursor],
   );
 
-
   useEffect(() => {
     if (!enabled) return;
 
@@ -115,8 +114,6 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
     [enabled, isSpacePressedRef, startPan],
   );
 
-  const onMouseMove = useCallback((_e: KonvaEventObject<MouseEvent>) => {}, []);
-
   const onMouseUp = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
       if (!enabled || !isRightDraggingRef.current) return;
@@ -144,7 +141,7 @@ export function useRightClickPan(options: UseRightClickPanOptions): UseRightClic
     isRightDraggingRef,
     stageHandlers: {
       onMouseDown,
-      onMouseMove,
+      onMouseMove: useCallback((_e: KonvaEventObject<MouseEvent>) => {}, []),
       onMouseUp,
     },
   };

@@ -26,7 +26,6 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // SSOT store hooks
   const modelStore = useModelStore();
   const addProjectNode = useProjectStore((s) => s.addNode);
   const getActiveFile = useWorkspaceStore((s) => s.getActiveFile);
@@ -36,8 +35,6 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
-
-  // --- Handlers ---
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,7 +81,6 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
       const now = Date.now();
       const nodeId = crypto.randomUUID();
 
-      // Helper: map UML symbol visibility to VFS string visibility
       const symToVis = (sym: string): 'public' | 'private' | 'protected' | 'package' => {
         switch (sym) {
           case '+': return 'public';
@@ -94,7 +90,6 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
         }
       };
 
-      // 1. Write semantic elements to useModelStore (if a model is active)
       if (modelStore.model) {
         if (parsed.stereotype === 'enum') {
           modelStore.createEnum({
@@ -149,7 +144,6 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
         }
       }
 
-      // 2. Create visual DomainNode in useProjectStore
       let domainNode: DomainNode;
       if (parsed.stereotype === 'enum') {
         domainNode = {
@@ -188,7 +182,6 @@ export default function ImportCodeModal({ isOpen, onClose }: Props) {
       }
       addProjectNode(domainNode);
 
-      // 3. Register node to the active diagram file and set its initial position
       const activeFile = getActiveFile();
       if (activeFile) {
         addNodeToFile(activeFile.id, nodeId);

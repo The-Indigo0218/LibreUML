@@ -17,16 +17,13 @@ export default function ActivityBar({ activeTab, onTabChange }: ActivityBarProps
   const { isLeftPanelOpen, toggleLeftPanel } = useLayoutStore();
 
   const handleTabClick = (tab: ActivityTab) => {
-    // Si se hace click en el mismo tab que está activo, cerrar el panel
     if (activeTab === tab) {
       onTabChange(null);
       if (isLeftPanelOpen) {
         toggleLeftPanel();
       }
     } else {
-      // Si se hace click en un tab diferente
       onTabChange(tab);
-      // Si el panel está cerrado, abrirlo
       if (!isLeftPanelOpen) {
         toggleLeftPanel();
       }

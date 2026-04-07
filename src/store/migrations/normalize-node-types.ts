@@ -1,18 +1,12 @@
 /**
  * Migration Utility: Normalize Node Types
- * 
- * This utility fixes nodes that were created with lowercase types (e.g., "class", "interface")
- * and converts them to the correct uppercase domain types (e.g., "CLASS", "INTERFACE").
- * 
- * This issue occurred when XMI imports or other node creation paths didn't properly
- * convert stereotypes to uppercase domain types.
+ *
+ * Fixes nodes with lowercase types (e.g., "class", "interface") by converting them
+ * to uppercase domain types (e.g., "CLASS", "INTERFACE").
  */
 
 import type { DomainNode } from '../../core/domain/models/nodes';
 
-/**
- * Mapping from lowercase/mixed-case types to correct uppercase domain types
- */
 const TYPE_NORMALIZATION_MAP: Record<string, string> = {
   'class': 'CLASS',
   'Class': 'CLASS',
@@ -36,13 +30,10 @@ const TYPE_NORMALIZATION_MAP: Record<string, string> = {
   'system_boundary': 'SYSTEM_BOUNDARY',
 };
 
-/**
- * Normalizes a single node's type to uppercase domain type
- */
 export function normalizeNodeType(node: DomainNode): DomainNode {
   const currentType = node.type as string;
   const normalizedType = TYPE_NORMALIZATION_MAP[currentType] || currentType;
-  
+
   if (normalizedType !== currentType) {
     console.log(`[Migration] Normalizing node ${node.id}: "${currentType}" -> "${normalizedType}"`);
     return {
@@ -51,13 +42,10 @@ export function normalizeNodeType(node: DomainNode): DomainNode {
       updatedAt: Date.now(),
     };
   }
-  
+
   return node;
 }
 
-/**
- * Normalizes all nodes in a dictionary
- */
 export function normalizeAllNodeTypes(
   nodes: Record<string, DomainNode>
 ): Record<string, DomainNode> {
@@ -67,22 +55,19 @@ export function normalizeAllNodeTypes(
   for (const [id, node] of Object.entries(nodes)) {
     const normalizedNode = normalizeNodeType(node);
     normalizedNodes[id] = normalizedNode;
-    
+
     if (normalizedNode !== node) {
       changeCount++;
     }
   }
-  
+
   if (changeCount > 0) {
     console.log(`[Migration] Normalized ${changeCount} node(s) with incorrect types`);
   }
-  
+
   return normalizedNodes;
 }
 
-/**
- * Checks if a node type needs normalization
- */
 export function needsTypeNormalization(node: DomainNode): boolean {
   const currentType = node.type as string;
   const normalizedType = TYPE_NORMALIZATION_MAP[currentType];

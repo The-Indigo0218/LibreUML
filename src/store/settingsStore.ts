@@ -4,24 +4,18 @@ import i18n from "../i18n/config";
 import { storageAdapter } from "../adapters/storage/storage.adapter";
 
 interface SettingsState {
-  // --- preferences ---
   autoSave: boolean;
   restoreSession: boolean;
-  theme: "light" | "dark" | "system"; 
+  theme: "light" | "dark" | "system";
   language: string;
   suppressSvgWarning: boolean;
   hideDuplicateFileWarning: boolean;
-  
-  // --- canvas settings ---
   showMiniMap: boolean;
   showGrid: boolean;
   snapToGrid: boolean;
   showAllEdges: boolean;
-  
-  // --- inside state  ---
-  lastFilePath?: string; 
-  
-  // --- actions ---
+  lastFilePath?: string;
+
   toggleAutoSave: () => void;
   toggleRestoreSession: () => void;
   setTheme: (theme: "light" | "dark") => void;
@@ -33,60 +27,43 @@ interface SettingsState {
   toggleGrid: () => void;
   toggleSnapToGrid: () => void;
   toggleShowAllEdges: () => void;
-  
-  // --- modal preferences ---
   resetAllModalPreferences: () => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      autoSave: false, 
+      autoSave: false,
       restoreSession: false,
-      theme: "dark", 
+      theme: "dark",
       language: "en",
       suppressSvgWarning: false,
       hideDuplicateFileWarning: false,
       lastFilePath: undefined,
-      
-      // Canvas settings defaults
       showMiniMap: false,
       showGrid: true,
       snapToGrid: true,
       showAllEdges: false,
 
       toggleAutoSave: () => set((s) => ({ autoSave: !s.autoSave })),
-      
       toggleRestoreSession: () => set((s) => ({ restoreSession: !s.restoreSession })),
-      
       setTheme: (theme) => set({ theme }),
-      
       setLanguage: (lang) => {
-        i18n.changeLanguage(lang); 
+        i18n.changeLanguage(lang);
         set({ language: lang });
       },
-
       setSuppressSvgWarning: (suppress) => set({ suppressSvgWarning: suppress }),
-
       setHideDuplicateFileWarning: (hide) => set({ hideDuplicateFileWarning: hide }),
-
       setLastFilePath: (path) => set({ lastFilePath: path }),
-      
       toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
-      
       toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
-      
       toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
-      
       toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
-      
-      // Reset all modal preferences
       resetAllModalPreferences: () => {
-        set({ 
+        set({
           suppressSvgWarning: false,
           hideDuplicateFileWarning: false,
         });
-        // Clear localStorage keys for modals not in Zustand
         try {
           localStorage.removeItem('libreuml-suppress-close-project-warning');
           localStorage.removeItem('libreuml-auto-layout-locked-warning');

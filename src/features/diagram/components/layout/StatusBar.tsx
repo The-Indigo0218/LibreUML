@@ -13,14 +13,10 @@ export default function StatusBar() {
   const { project } = useVFSStore();
   const { openProblemsTab } = useLayoutStore();
 
-  // Undo/Redo state (MAG-01.17)
-  // Access temporal state directly via getState() since zundo v2 doesn't expose useTemporalStore
   const vfsTemporalState = useVFSStore.temporal.getState();
   const modelTemporalState = useModelStore.temporal.getState();
-  
-  // Can undo if EITHER store has past states
+
   const canUndo = (vfsTemporalState.pastStates?.length ?? 0) > 0 || (modelTemporalState.pastStates?.length ?? 0) > 0;
-  // Can redo if EITHER store has future states
   const canRedo = (vfsTemporalState.futureStates?.length ?? 0) > 0 || (modelTemporalState.futureStates?.length ?? 0) > 0;
 
   const handleUndo = () => {
@@ -47,7 +43,6 @@ export default function StatusBar() {
   return (
     <footer className="h-8 w-full bg-surface-primary border-t border-surface-border flex justify-between items-center px-4 py-1 select-none shrink-0">
       <div className="flex items-center gap-4">
-        {/* Undo/Redo buttons (MAG-01.17) */}
         <div className="flex items-center gap-1">
           <button
             onClick={handleUndo}

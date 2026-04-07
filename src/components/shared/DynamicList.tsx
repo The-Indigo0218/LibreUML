@@ -18,12 +18,7 @@ export default function DynamicList({ label, items, onItemChange, onAddItem, onR
             onChange={(e) => onItemChange(index, e.target.value)}
             className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 focus:outline-none focus:border-blue-500"
           />
-          {item.trim() === "" && (
-            <p className="text-red-500 text-xs mt-1">
-              {label.slice(0, -1)} cannot be empty.
-            </p>
-          )}
-          <button  onClick={() => onRemoveItem(index)} className="ml-2 text-red-500 hover:text-red-400">
+          <button onClick={() => onRemoveItem(index)} className="ml-2 text-red-500 hover:text-red-400">
             &times;
           </button>
         </div>

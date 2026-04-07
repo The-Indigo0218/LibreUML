@@ -16,9 +16,6 @@ import type {
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 
-// ─── Tool → RelationKind mapping ─────────────────────────────────────────────
-// Mirrors the palette tool IDs (stored uppercase in file metadata) to semantic kinds.
-
 const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   ASSOCIATION:    'ASSOCIATION',
   INHERITANCE:    'GENERALIZATION',
@@ -62,8 +59,6 @@ export function useCanvasEventHandlers({
   isStandalone,
   updateFileContent,
 }: UseCanvasEventHandlersParams): UseCanvasEventHandlersResult {
-  // ── onNodesChange: position drag-save + node removal ──────────────────────
-
   const onNodesChange = useCallback(
     (changes: KonvaNodeChange[]) => {
       if (!activeTabId) return;
@@ -82,7 +77,6 @@ export function useCanvasEventHandlers({
 
       for (const change of changes) {
         if (change.type === 'position') {
-          // Strict separation: x, y belong to the VFS DiagramView.
           updatedViewNodes = updatedViewNodes.map((vn) =>
             vn.id === change.id
               ? { ...vn, x: change.position.x, y: change.position.y }
@@ -90,15 +84,10 @@ export function useCanvasEventHandlers({
           );
           dirty = true;
         } else if (change.type === 'remove') {
-          // Find the ViewNode before removing it.
           const removedVN = currentView.nodes.find((vn) => vn.id === change.id);
           if (removedVN) {
-            // View-only removal: delete the ViewNode from this diagram only.
-            // The semantic element stays in ModelStore — it can still appear in other diagrams.
             updatedViewNodes = updatedViewNodes.filter((vn) => vn.id !== change.id);
 
-            // Prune ViewEdges whose relation involves the removed element.
-            // (No ModelStore cascade — use "Delete from Model" for that.)
             if (removedVN.elementId) {
               const activeModel = isStandalone && activeTabId
                 ? getLocalModel(activeTabId)
@@ -137,8 +126,6 @@ export function useCanvasEventHandlers({
     },
     [activeTabId, updateFileContent, isStandalone],
   );
-
-  // ── onEdgesChange: edge deletion (keyboard Delete / context menu) ──────────
 
   const onEdgesChange = useCallback(
     (changes: KonvaEdgeChange[]) => {
@@ -179,8 +166,6 @@ export function useCanvasEventHandlers({
     [activeTabId, updateFileContent, isStandalone],
   );
 
-  // ── onConnect: create edge from handle drag ────────────────────────────────
-
   const onConnect = useCallback(
     (connection: KonvaConnection) => {
       if (!activeTabId || !connection.source || !connection.target) return;
@@ -193,15 +178,12 @@ export function useCanvasEventHandlers({
 
       const currentView = (fileNode as VFSFile).content as DiagramView;
 
-      // Resolve ReactFlow node IDs (ViewNode.id) → semantic element IDs.
       const sourceVN = currentView.nodes.find((vn) => vn.id === connection.source);
       const targetVN = currentView.nodes.find((vn) => vn.id === connection.target);
       if (!sourceVN || !targetVN) return;
 
-      // Skip connections involving notes — they have no IR backing.
       if (!sourceVN.elementId || !targetVN.elementId) return;
 
-      // Block self-inheritance and self-realization — UML forbids these.
       const wsState = useWorkspaceStore.getState();
       const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
       const kind: RelationKind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
@@ -212,7 +194,6 @@ export function useCanvasEventHandlers({
         return;
       }
 
-      // Block bidirectional aggregation/composition — UML ISO forbids two-way whole-part.
       const BIDIR_FORBIDDEN = new Set<RelationKind>(['AGGREGATION', 'COMPOSITION']);
       if (BIDIR_FORBIDDEN.has(kind)) {
         const activeModel = isStandalone && activeTabId

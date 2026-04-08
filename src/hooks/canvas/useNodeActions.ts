@@ -77,6 +77,7 @@ export function useNodeActions({
         }
       }
 
+      // This only updates VFS store (view-only removal), so normal tracking is fine
       updateFileContent(activeTabId, { ...currentView, nodes: updatedNodes, edges: updatedEdges });
     },
     [activeTabId, updateFileContent, isStandalone],
@@ -97,65 +98,79 @@ export function useNodeActions({
 
       const elementId = removedVN.elementId;
 
-      if (isStandalone) {
-        const localM = getLocalModel(activeTabId);
-        if (!localM) return;
+      // CRITICAL FIX: Pause temporal tracking on BOTH stores before making changes
+      // This ensures all updates are treated as a single atomic operation for undo/redo
+      const vfsTemporalStore = useVFSStore.temporal.getState();
+      const modelTemporalStore = useModelStore.temporal.getState();
+      
+      vfsTemporalStore.pause();
+      modelTemporalStore.pause();
 
-        const elementName =
-          localM.classes[elementId]?.name ??
-          localM.interfaces[elementId]?.name ??
-          localM.enums[elementId]?.name ??
-          'Element';
+      try {
+        if (isStandalone) {
+          const localM = getLocalModel(activeTabId);
+          if (!localM) return;
 
-        const ops = standaloneModelOps(activeTabId);
-        if (localM.classes[elementId])         ops.deleteClass(elementId);
-        else if (localM.interfaces[elementId]) ops.deleteInterface(elementId);
-        else if (localM.enums[elementId])      ops.deleteEnum(elementId);
+          const elementName =
+            localM.classes[elementId]?.name ??
+            localM.interfaces[elementId]?.name ??
+            localM.enums[elementId]?.name ??
+            'Element';
 
-        useToastStore.getState().show(`"${elementName}" deleted from standalone diagram`);
+          const ops = standaloneModelOps(activeTabId);
+          if (localM.classes[elementId])         ops.deleteClass(elementId);
+          else if (localM.interfaces[elementId]) ops.deleteInterface(elementId);
+          else if (localM.enums[elementId])      ops.deleteEnum(elementId);
 
-        const modelAfterDelete = getLocalModel(activeTabId);
-        const updatedNodes = currentView.nodes.filter((vn) => vn.elementId !== elementId);
-        const updatedEdges = currentView.edges.filter(
-          (ve) => modelAfterDelete && !!modelAfterDelete.relations[ve.relationId],
-        );
-        updateFileContent(activeTabId, { ...currentView, nodes: updatedNodes, edges: updatedEdges });
-        return;
-      }
+          useToastStore.getState().show(`"${elementName}" deleted from standalone diagram`);
 
-      const ms = useModelStore.getState();
-      if (ms.model) {
-        const elementName =
-          ms.model.classes[elementId]?.name ??
-          ms.model.interfaces[elementId]?.name ??
-          ms.model.enums[elementId]?.name ??
-          'Element';
+          const modelAfterDelete = getLocalModel(activeTabId);
+          const updatedNodes = currentView.nodes.filter((vn) => vn.elementId !== elementId);
+          const updatedEdges = currentView.edges.filter(
+            (ve) => modelAfterDelete && !!modelAfterDelete.relations[ve.relationId],
+          );
+          updateFileContent(activeTabId, { ...currentView, nodes: updatedNodes, edges: updatedEdges });
+        } else {
+          const ms = useModelStore.getState();
+          if (ms.model) {
+            const elementName =
+              ms.model.classes[elementId]?.name ??
+              ms.model.interfaces[elementId]?.name ??
+              ms.model.enums[elementId]?.name ??
+              'Element';
 
-        if (ms.model.classes[elementId])         ms.deleteClass(elementId);
-        else if (ms.model.interfaces[elementId]) ms.deleteInterface(elementId);
-        else if (ms.model.enums[elementId])      ms.deleteEnum(elementId);
+            if (ms.model.classes[elementId])         ms.deleteClass(elementId);
+            else if (ms.model.interfaces[elementId]) ms.deleteInterface(elementId);
+            else if (ms.model.enums[elementId])      ms.deleteEnum(elementId);
 
-        useToastStore.getState().show(`"${elementName}" deleted from model`);
-      }
+            useToastStore.getState().show(`"${elementName}" deleted from model`);
+          }
 
-      const modelAfterDelete = useModelStore.getState().model;
-      const projectAfterDelete = useVFSStore.getState().project;
-      if (!projectAfterDelete) return;
+          const modelAfterDelete = useModelStore.getState().model;
+          const projectAfterDelete = useVFSStore.getState().project;
+          if (!projectAfterDelete) return;
 
-      for (const [nodeId, node] of Object.entries(projectAfterDelete.nodes)) {
-        if (node.type !== 'FILE') continue;
-        const content = (node as VFSFile).content;
-        if (!isDiagramView(content)) continue;
+          for (const [nodeId, node] of Object.entries(projectAfterDelete.nodes)) {
+            if (node.type !== 'FILE') continue;
+            const content = (node as VFSFile).content;
+            if (!isDiagramView(content)) continue;
 
-        const view = content as DiagramView;
-        const hasElement = view.nodes.some((vn) => vn.elementId === elementId);
-        if (!hasElement) continue;
+            const view = content as DiagramView;
+            const hasElement = view.nodes.some((vn) => vn.elementId === elementId);
+            if (!hasElement) continue;
 
-        const updatedNodes = view.nodes.filter((vn) => vn.elementId !== elementId);
-        const updatedEdges = view.edges.filter(
-          (ve) => modelAfterDelete && !!modelAfterDelete.relations[ve.relationId],
-        );
-        useVFSStore.getState().updateFileContent(nodeId, { ...view, nodes: updatedNodes, edges: updatedEdges });
+            const updatedNodes = view.nodes.filter((vn) => vn.elementId !== elementId);
+            const updatedEdges = view.edges.filter(
+              (ve) => modelAfterDelete && !!modelAfterDelete.relations[ve.relationId],
+            );
+            useVFSStore.getState().updateFileContent(nodeId, { ...view, nodes: updatedNodes, edges: updatedEdges });
+          }
+        }
+      } finally {
+        // CRITICAL: Resume tracking and create a single undo checkpoint
+        // Resume must happen in finally block to ensure it runs even if errors occur
+        vfsTemporalStore.resume();
+        modelTemporalStore.resume();
       }
     },
     [activeTabId, updateFileContent, isStandalone],
@@ -174,15 +189,238 @@ export function useNodeActions({
       const sourceVN = currentView.nodes.find((vn) => vn.id === viewNodeId);
       if (!sourceVN) return null;
 
-      // Handle NOTE duplication (no semantic element)
-      if (!sourceVN.elementId) {
+      // CRITICAL FIX: Pause temporal tracking on BOTH stores before making changes
+      // This ensures all updates are treated as a single atomic operation for undo/redo
+      const vfsTemporalStore = useVFSStore.temporal.getState();
+      const modelTemporalStore = useModelStore.temporal.getState();
+      
+      vfsTemporalStore.pause();
+      modelTemporalStore.pause();
+
+      let newViewNodeId: string | null = null;
+
+      try {
+        // Handle NOTE duplication (no semantic element)
+        if (!sourceVN.elementId) {
+          const newViewNode: ViewNode = {
+            id: crypto.randomUUID(),
+            elementId: '',
+            x: sourceVN.x + 50,
+            y: sourceVN.y + 50,
+            content: sourceVN.content,
+            noteTitle: sourceVN.noteTitle ? `${sourceVN.noteTitle} 2` : 'Note 2',
+          };
+
+          updateFileContent(activeTabId, {
+            ...currentView,
+            nodes: [...currentView.nodes, newViewNode],
+          });
+
+          // Select the new node
+          useSelectionStore.getState().setSelectedNodes([newViewNode.id]);
+          newViewNodeId = newViewNode.id;
+          return newViewNodeId;
+        }
+
+        const elementId = sourceVN.elementId;
+        let newElementId = '';
+        let newElementName = '';
+
+        if (isStandalone) {
+          const localM = getLocalModel(activeTabId);
+          if (!localM) return null;
+
+          const ops = standaloneModelOps(activeTabId);
+          const cls = localM.classes[elementId];
+          const iface = localM.interfaces[elementId];
+          const enm = localM.enums[elementId];
+
+          if (cls) {
+            const existingNames = Object.values(localM.classes)
+              .filter((c) => (cls.isAbstract ? !!c.isAbstract : !c.isAbstract))
+              .map((c) => c.name);
+            newElementName = getNextName(existingNames, cls.name);
+
+            const newAttributeIds: string[] = [];
+            const newAttributes: IRAttribute[] = [];
+            for (const attrId of cls.attributeIds) {
+              const attr = localM.attributes[attrId];
+              if (attr) {
+                const newAttrId = crypto.randomUUID();
+                newAttributes.push({ ...attr, id: newAttrId });
+                newAttributeIds.push(newAttrId);
+              }
+            }
+
+            const newOperationIds: string[] = [];
+            const newOperations: IROperation[] = [];
+            for (const opId of cls.operationIds) {
+              const op = localM.operations[opId];
+              if (op) {
+                const newOpId = crypto.randomUUID();
+                newOperations.push({ ...op, id: newOpId });
+                newOperationIds.push(newOpId);
+              }
+            }
+
+            newElementId = cls.isAbstract
+              ? ops.createAbstractClass({
+                  name: newElementName,
+                  attributeIds: newAttributeIds,
+                  operationIds: newOperationIds,
+                  stereotypes: cls.stereotypes,
+                  packageName: cls.packageName,
+                })
+              : ops.createClass({
+                  name: newElementName,
+                  attributeIds: newAttributeIds,
+                  operationIds: newOperationIds,
+                  stereotypes: cls.stereotypes,
+                  packageName: cls.packageName,
+                });
+
+            // Add attributes and operations to model
+            ops.setElementMembers(newElementId, newAttributes, newOperations);
+          } else if (iface) {
+            const existingNames = Object.values(localM.interfaces).map((i) => i.name);
+            newElementName = getNextName(existingNames, iface.name);
+
+            // Deep clone operations
+            const newOperationIds: string[] = [];
+            const newOperations: IROperation[] = [];
+            for (const opId of iface.operationIds) {
+              const op = localM.operations[opId];
+              if (op) {
+                const newOpId = crypto.randomUUID();
+                newOperations.push({ ...op, id: newOpId });
+                newOperationIds.push(newOpId);
+              }
+            }
+
+            newElementId = ops.createInterface({
+              name: newElementName,
+              operationIds: newOperationIds,
+              stereotypes: iface.stereotypes,
+              packageName: iface.packageName,
+            });
+
+            // Add operations to model
+            ops.setElementMembers(newElementId, [], newOperations);
+          } else if (enm) {
+            const existingNames = Object.values(localM.enums).map((e) => e.name);
+            newElementName = getNextName(existingNames, enm.name);
+
+            newElementId = ops.createEnum({
+              name: newElementName,
+              literals: [...enm.literals],
+              packageName: enm.packageName,
+            });
+          }
+        } else {
+          const ms = useModelStore.getState();
+          if (!ms.model) return null;
+
+          const cls = ms.model.classes[elementId];
+          const iface = ms.model.interfaces[elementId];
+          const enm = ms.model.enums[elementId];
+
+          if (cls) {
+            const existingNames = Object.values(ms.model.classes)
+              .filter((c) => (cls.isAbstract ? !!c.isAbstract : !c.isAbstract))
+              .map((c) => c.name);
+            newElementName = getNextName(existingNames, cls.name);
+
+            // Deep clone attributes
+            const newAttributeIds: string[] = [];
+            const newAttributes: IRAttribute[] = [];
+            for (const attrId of cls.attributeIds) {
+              const attr = ms.model.attributes[attrId];
+              if (attr) {
+                const newAttrId = crypto.randomUUID();
+                newAttributes.push({ ...attr, id: newAttrId });
+                newAttributeIds.push(newAttrId);
+              }
+            }
+
+            // Deep clone operations
+            const newOperationIds: string[] = [];
+            const newOperations: IROperation[] = [];
+            for (const opId of cls.operationIds) {
+              const op = ms.model.operations[opId];
+              if (op) {
+                const newOpId = crypto.randomUUID();
+                newOperations.push({ ...op, id: newOpId });
+                newOperationIds.push(newOpId);
+              }
+            }
+
+            newElementId = cls.isAbstract
+              ? ms.createAbstractClass({
+                  name: newElementName,
+                  attributeIds: newAttributeIds,
+                  operationIds: newOperationIds,
+                  stereotypes: cls.stereotypes,
+                  packageName: cls.packageName,
+                  isExternal: cls.isExternal,
+                })
+              : ms.createClass({
+                  name: newElementName,
+                  attributeIds: newAttributeIds,
+                  operationIds: newOperationIds,
+                  stereotypes: cls.stereotypes,
+                  packageName: cls.packageName,
+                  isExternal: cls.isExternal,
+                });
+
+            // Add attributes and operations to model
+            ms.setElementMembers(newElementId, newAttributes, newOperations);
+          } else if (iface) {
+            const existingNames = Object.values(ms.model.interfaces).map((i) => i.name);
+            newElementName = getNextName(existingNames, iface.name);
+
+            // Deep clone operations
+            const newOperationIds: string[] = [];
+            const newOperations: IROperation[] = [];
+            for (const opId of iface.operationIds) {
+              const op = ms.model.operations[opId];
+              if (op) {
+                const newOpId = crypto.randomUUID();
+                newOperations.push({ ...op, id: newOpId });
+                newOperationIds.push(newOpId);
+              }
+            }
+
+            newElementId = ms.createInterface({
+              name: newElementName,
+              operationIds: newOperationIds,
+              stereotypes: iface.stereotypes,
+              packageName: iface.packageName,
+              isExternal: iface.isExternal,
+            });
+
+            // Add operations to model
+            ms.setElementMembers(newElementId, [], newOperations);
+          } else if (enm) {
+            const existingNames = Object.values(ms.model.enums).map((e) => e.name);
+            newElementName = getNextName(existingNames, enm.name);
+
+            newElementId = ms.createEnum({
+              name: newElementName,
+              literals: [...enm.literals],
+              packageName: enm.packageName,
+              isExternal: enm.isExternal,
+            });
+          }
+        }
+
+        if (!newElementId) return null;
+
+        // Create new ViewNode at +50px offset
         const newViewNode: ViewNode = {
           id: crypto.randomUUID(),
-          elementId: '',
+          elementId: newElementId,
           x: sourceVN.x + 50,
           y: sourceVN.y + 50,
-          content: sourceVN.content,
-          noteTitle: sourceVN.noteTitle ? `${sourceVN.noteTitle} 2` : 'Note 2',
         };
 
         updateFileContent(activeTabId, {
@@ -192,219 +430,15 @@ export function useNodeActions({
 
         // Select the new node
         useSelectionStore.getState().setSelectedNodes([newViewNode.id]);
-        return newViewNode.id;
+
+        newViewNodeId = newViewNode.id;
+        return newViewNodeId;
+      } finally {
+        // CRITICAL: Resume tracking and create a single undo checkpoint
+        // Resume must happen in finally block to ensure it runs even if errors occur
+        vfsTemporalStore.resume();
+        modelTemporalStore.resume();
       }
-
-      const elementId = sourceVN.elementId;
-      let newElementId = '';
-      let newElementName = '';
-
-      if (isStandalone) {
-        const localM = getLocalModel(activeTabId);
-        if (!localM) return null;
-
-        const ops = standaloneModelOps(activeTabId);
-        const cls = localM.classes[elementId];
-        const iface = localM.interfaces[elementId];
-        const enm = localM.enums[elementId];
-
-        if (cls) {
-          const existingNames = Object.values(localM.classes)
-            .filter((c) => (cls.isAbstract ? !!c.isAbstract : !c.isAbstract))
-            .map((c) => c.name);
-          newElementName = getNextName(existingNames, cls.name);
-
-          const newAttributeIds: string[] = [];
-          const newAttributes: IRAttribute[] = [];
-          for (const attrId of cls.attributeIds) {
-            const attr = localM.attributes[attrId];
-            if (attr) {
-              const newAttrId = crypto.randomUUID();
-              newAttributes.push({ ...attr, id: newAttrId });
-              newAttributeIds.push(newAttrId);
-            }
-          }
-
-          const newOperationIds: string[] = [];
-          const newOperations: IROperation[] = [];
-          for (const opId of cls.operationIds) {
-            const op = localM.operations[opId];
-            if (op) {
-              const newOpId = crypto.randomUUID();
-              newOperations.push({ ...op, id: newOpId });
-              newOperationIds.push(newOpId);
-            }
-          }
-
-          newElementId = cls.isAbstract
-            ? ops.createAbstractClass({
-                name: newElementName,
-                attributeIds: newAttributeIds,
-                operationIds: newOperationIds,
-                stereotypes: cls.stereotypes,
-                packageName: cls.packageName,
-              })
-            : ops.createClass({
-                name: newElementName,
-                attributeIds: newAttributeIds,
-                operationIds: newOperationIds,
-                stereotypes: cls.stereotypes,
-                packageName: cls.packageName,
-              });
-
-          // Add attributes and operations to model
-          ops.setElementMembers(newElementId, newAttributes, newOperations);
-        } else if (iface) {
-          const existingNames = Object.values(localM.interfaces).map((i) => i.name);
-          newElementName = getNextName(existingNames, iface.name);
-
-          // Deep clone operations
-          const newOperationIds: string[] = [];
-          const newOperations: IROperation[] = [];
-          for (const opId of iface.operationIds) {
-            const op = localM.operations[opId];
-            if (op) {
-              const newOpId = crypto.randomUUID();
-              newOperations.push({ ...op, id: newOpId });
-              newOperationIds.push(newOpId);
-            }
-          }
-
-          newElementId = ops.createInterface({
-            name: newElementName,
-            operationIds: newOperationIds,
-            stereotypes: iface.stereotypes,
-            packageName: iface.packageName,
-          });
-
-          // Add operations to model
-          ops.setElementMembers(newElementId, [], newOperations);
-        } else if (enm) {
-          const existingNames = Object.values(localM.enums).map((e) => e.name);
-          newElementName = getNextName(existingNames, enm.name);
-
-          newElementId = ops.createEnum({
-            name: newElementName,
-            literals: [...enm.literals],
-            packageName: enm.packageName,
-          });
-        }
-      } else {
-        const ms = useModelStore.getState();
-        if (!ms.model) return null;
-
-        const cls = ms.model.classes[elementId];
-        const iface = ms.model.interfaces[elementId];
-        const enm = ms.model.enums[elementId];
-
-        if (cls) {
-          const existingNames = Object.values(ms.model.classes)
-            .filter((c) => (cls.isAbstract ? !!c.isAbstract : !c.isAbstract))
-            .map((c) => c.name);
-          newElementName = getNextName(existingNames, cls.name);
-
-          // Deep clone attributes
-          const newAttributeIds: string[] = [];
-          const newAttributes: IRAttribute[] = [];
-          for (const attrId of cls.attributeIds) {
-            const attr = ms.model.attributes[attrId];
-            if (attr) {
-              const newAttrId = crypto.randomUUID();
-              newAttributes.push({ ...attr, id: newAttrId });
-              newAttributeIds.push(newAttrId);
-            }
-          }
-
-          // Deep clone operations
-          const newOperationIds: string[] = [];
-          const newOperations: IROperation[] = [];
-          for (const opId of cls.operationIds) {
-            const op = ms.model.operations[opId];
-            if (op) {
-              const newOpId = crypto.randomUUID();
-              newOperations.push({ ...op, id: newOpId });
-              newOperationIds.push(newOpId);
-            }
-          }
-
-          newElementId = cls.isAbstract
-            ? ms.createAbstractClass({
-                name: newElementName,
-                attributeIds: newAttributeIds,
-                operationIds: newOperationIds,
-                stereotypes: cls.stereotypes,
-                packageName: cls.packageName,
-                isExternal: cls.isExternal,
-              })
-            : ms.createClass({
-                name: newElementName,
-                attributeIds: newAttributeIds,
-                operationIds: newOperationIds,
-                stereotypes: cls.stereotypes,
-                packageName: cls.packageName,
-                isExternal: cls.isExternal,
-              });
-
-          // Add attributes and operations to model
-          ms.setElementMembers(newElementId, newAttributes, newOperations);
-        } else if (iface) {
-          const existingNames = Object.values(ms.model.interfaces).map((i) => i.name);
-          newElementName = getNextName(existingNames, iface.name);
-
-          // Deep clone operations
-          const newOperationIds: string[] = [];
-          const newOperations: IROperation[] = [];
-          for (const opId of iface.operationIds) {
-            const op = ms.model.operations[opId];
-            if (op) {
-              const newOpId = crypto.randomUUID();
-              newOperations.push({ ...op, id: newOpId });
-              newOperationIds.push(newOpId);
-            }
-          }
-
-          newElementId = ms.createInterface({
-            name: newElementName,
-            operationIds: newOperationIds,
-            stereotypes: iface.stereotypes,
-            packageName: iface.packageName,
-            isExternal: iface.isExternal,
-          });
-
-          // Add operations to model
-          ms.setElementMembers(newElementId, [], newOperations);
-        } else if (enm) {
-          const existingNames = Object.values(ms.model.enums).map((e) => e.name);
-          newElementName = getNextName(existingNames, enm.name);
-
-          newElementId = ms.createEnum({
-            name: newElementName,
-            literals: [...enm.literals],
-            packageName: enm.packageName,
-            isExternal: enm.isExternal,
-          });
-        }
-      }
-
-      if (!newElementId) return null;
-
-      // Create new ViewNode at +50px offset
-      const newViewNode: ViewNode = {
-        id: crypto.randomUUID(),
-        elementId: newElementId,
-        x: sourceVN.x + 50,
-        y: sourceVN.y + 50,
-      };
-
-      updateFileContent(activeTabId, {
-        ...currentView,
-        nodes: [...currentView.nodes, newViewNode],
-      });
-
-      // Select the new node
-      useSelectionStore.getState().setSelectedNodes([newViewNode.id]);
-
-      return newViewNode.id;
     },
     [activeTabId, updateFileContent, isStandalone],
   );

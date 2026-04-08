@@ -56,18 +56,32 @@ export function useEdgeActions({
       const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
       if (!viewEdge) return;
 
-      if (isStandalone) {
-        standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
-      } else {
-        const ms = useModelStore.getState();
-        if (ms.model && ms.model.relations[viewEdge.relationId]) {
-          ms.deleteRelation(viewEdge.relationId);
+      // CRITICAL FIX: Pause temporal tracking on BOTH stores before making changes
+      // This ensures all updates are treated as a single atomic operation for undo/redo
+      const vfsTemporalStore = useVFSStore.temporal.getState();
+      const modelTemporalStore = useModelStore.temporal.getState();
+      
+      vfsTemporalStore.pause();
+      modelTemporalStore.pause();
+
+      try {
+        if (isStandalone) {
+          standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
+        } else {
+          const ms = useModelStore.getState();
+          if (ms.model && ms.model.relations[viewEdge.relationId]) {
+            ms.deleteRelation(viewEdge.relationId);
+          }
         }
+        updateFileContent(activeTabId, {
+          ...currentView,
+          edges: currentView.edges.filter((ve) => ve.id !== viewEdgeId),
+        });
+      } finally {
+        // CRITICAL: Resume tracking and create a single undo checkpoint
+        vfsTemporalStore.resume();
+        modelTemporalStore.resume();
       }
-      updateFileContent(activeTabId, {
-        ...currentView,
-        edges: currentView.edges.filter((ve) => ve.id !== viewEdgeId),
-      });
     },
     [activeTabId, updateFileContent, isStandalone],
   );
@@ -85,24 +99,33 @@ export function useEdgeActions({
       const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
       if (!viewEdge) return;
 
-      if (isStandalone) {
-        const localM = getLocalModel(activeTabId);
-        if (!localM) return;
-        const relation = localM.relations[viewEdge.relationId];
-        if (!relation) return;
-        standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, {
-          sourceId: relation.targetId,
-          targetId: relation.sourceId,
-        });
-      } else {
-        const ms = useModelStore.getState();
-        if (!ms.model) return;
-        const relation = ms.model.relations[viewEdge.relationId];
-        if (!relation) return;
-        ms.updateRelation(viewEdge.relationId, {
-          sourceId: relation.targetId,
-          targetId: relation.sourceId,
-        });
+      // CRITICAL FIX: Pause temporal tracking on model store (only model changes)
+      const modelTemporalStore = useModelStore.temporal.getState();
+      modelTemporalStore.pause();
+
+      try {
+        if (isStandalone) {
+          const localM = getLocalModel(activeTabId);
+          if (!localM) return;
+          const relation = localM.relations[viewEdge.relationId];
+          if (!relation) return;
+          standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, {
+            sourceId: relation.targetId,
+            targetId: relation.sourceId,
+          });
+        } else {
+          const ms = useModelStore.getState();
+          if (!ms.model) return;
+          const relation = ms.model.relations[viewEdge.relationId];
+          if (!relation) return;
+          ms.updateRelation(viewEdge.relationId, {
+            sourceId: relation.targetId,
+            targetId: relation.sourceId,
+          });
+        }
+      } finally {
+        // CRITICAL: Resume tracking and create a single undo checkpoint
+        modelTemporalStore.resume();
       }
     },
     [activeTabId, isStandalone],
@@ -148,12 +171,21 @@ export function useEdgeActions({
       const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
       if (!viewEdge) return;
 
-      if (isStandalone) {
-        standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, { kind });
-      } else {
-        const ms = useModelStore.getState();
-        if (!ms.model) return;
-        ms.updateRelation(viewEdge.relationId, { kind });
+      // CRITICAL FIX: Pause temporal tracking on model store (only model changes)
+      const modelTemporalStore = useModelStore.temporal.getState();
+      modelTemporalStore.pause();
+
+      try {
+        if (isStandalone) {
+          standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, { kind });
+        } else {
+          const ms = useModelStore.getState();
+          if (!ms.model) return;
+          ms.updateRelation(viewEdge.relationId, { kind });
+        }
+      } finally {
+        // CRITICAL: Resume tracking and create a single undo checkpoint
+        modelTemporalStore.resume();
       }
     },
     [activeTabId, isStandalone],

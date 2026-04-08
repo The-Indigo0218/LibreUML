@@ -141,26 +141,39 @@ export function useCanvasEventHandlers({
       let updatedEdges = currentView.edges;
       let dirty = false;
 
-      for (const change of changes) {
-        if (change.type === 'remove') {
-          const viewEdge = currentView.edges.find((ve) => ve.id === change.id);
-          if (viewEdge) {
-            if (isStandalone) {
-              standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
-            } else {
-              const ms = useModelStore.getState();
-              if (ms.model && ms.model.relations[viewEdge.relationId]) {
-                ms.deleteRelation(viewEdge.relationId);
+      // CRITICAL FIX: Pause temporal tracking on BOTH stores before making changes
+      const vfsTemporalStore = useVFSStore.temporal.getState();
+      const modelTemporalStore = useModelStore.temporal.getState();
+      
+      vfsTemporalStore.pause();
+      modelTemporalStore.pause();
+
+      try {
+        for (const change of changes) {
+          if (change.type === 'remove') {
+            const viewEdge = currentView.edges.find((ve) => ve.id === change.id);
+            if (viewEdge) {
+              if (isStandalone) {
+                standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
+              } else {
+                const ms = useModelStore.getState();
+                if (ms.model && ms.model.relations[viewEdge.relationId]) {
+                  ms.deleteRelation(viewEdge.relationId);
+                }
               }
+              updatedEdges = updatedEdges.filter((ve) => ve.id !== change.id);
+              dirty = true;
             }
-            updatedEdges = updatedEdges.filter((ve) => ve.id !== change.id);
-            dirty = true;
           }
         }
-      }
 
-      if (dirty) {
-        updateFileContent(activeTabId, { ...currentView, edges: updatedEdges });
+        if (dirty) {
+          updateFileContent(activeTabId, { ...currentView, edges: updatedEdges });
+        }
+      } finally {
+        // CRITICAL: Resume tracking and create a single undo checkpoint
+        vfsTemporalStore.resume();
+        modelTemporalStore.resume();
       }
     },
     [activeTabId, updateFileContent, isStandalone],
@@ -213,38 +226,51 @@ export function useCanvasEventHandlers({
         }
       }
 
-      let relationId: string;
-      if (isStandalone) {
-        relationId = standaloneModelOps(activeTabId).createRelation({
-          kind,
-          sourceId: sourceVN.elementId,
-          targetId: targetVN.elementId,
+      // CRITICAL FIX: Pause temporal tracking on BOTH stores before making changes
+      const vfsTemporalStore = useVFSStore.temporal.getState();
+      const modelTemporalStore = useModelStore.temporal.getState();
+      
+      vfsTemporalStore.pause();
+      modelTemporalStore.pause();
+
+      try {
+        let relationId: string;
+        if (isStandalone) {
+          relationId = standaloneModelOps(activeTabId).createRelation({
+            kind,
+            sourceId: sourceVN.elementId,
+            targetId: targetVN.elementId,
+          });
+        } else {
+          const ms = useModelStore.getState();
+          if (!ms.model) return;
+          const isExternalFile = !!(fileNode as VFSFile).isExternal;
+          relationId = ms.createRelation({
+            kind,
+            sourceId: sourceVN.elementId,
+            targetId: targetVN.elementId,
+            ...(isExternalFile ? { isExternal: true } : {}),
+          });
+        }
+
+        // Create visual ViewEdge linked to the new relation.
+        const viewEdge: ViewEdge = {
+          id: crypto.randomUUID(),
+          relationId,
+          waypoints: [],
+          sourceHandle: connection.sourceHandle ?? undefined,
+          targetHandle: connection.targetHandle ?? undefined,
+        };
+
+        updateFileContent(activeTabId, {
+          ...currentView,
+          edges: [...currentView.edges, viewEdge],
         });
-      } else {
-        const ms = useModelStore.getState();
-        if (!ms.model) return;
-        const isExternalFile = !!(fileNode as VFSFile).isExternal;
-        relationId = ms.createRelation({
-          kind,
-          sourceId: sourceVN.elementId,
-          targetId: targetVN.elementId,
-          ...(isExternalFile ? { isExternal: true } : {}),
-        });
+      } finally {
+        // CRITICAL: Resume tracking and create a single undo checkpoint
+        vfsTemporalStore.resume();
+        modelTemporalStore.resume();
       }
-
-      // Create visual ViewEdge linked to the new relation.
-      const viewEdge: ViewEdge = {
-        id: crypto.randomUUID(),
-        relationId,
-        waypoints: [],
-        sourceHandle: connection.sourceHandle ?? undefined,
-        targetHandle: connection.targetHandle ?? undefined,
-      };
-
-      updateFileContent(activeTabId, {
-        ...currentView,
-        edges: [...currentView.edges, viewEdge],
-      });
     },
     [activeTabId, updateFileContent, isStandalone],
   );

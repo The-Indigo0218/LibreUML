@@ -28,6 +28,7 @@ import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
 import { useVFSAutoSave } from "../../../../hooks/actions/useVFSAutoSave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useLayoutStore } from "../../../../store/layout.store";
@@ -44,6 +45,7 @@ function EditorLogic() {
   useVFSAutoSave();
   useAutoRestore();
   useThemeSystem();
+  useKeyboardShortcuts(); // CRITICAL FIX: Enable keyboard shortcuts (Ctrl+Z, Ctrl+Y, etc.)
 
   useEffect(() => {
     const handleDragOver = (e: DragEvent) => {

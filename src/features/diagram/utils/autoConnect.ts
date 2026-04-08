@@ -4,6 +4,7 @@ import { useVFSStore } from '../../../store/project-vfs.store';
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import { isDiagramView } from '../hooks/useVFSCanvasController';
 import { parseAttributeType } from './typeParser';
+import { undoTransaction } from '../../../core/undo/undoBridge';
 
 function normalize(name: string): string {
   return name.trim().toLowerCase();
@@ -25,13 +26,11 @@ export function autoConnectByAttributeType(
   }
 
   const seenTargets = new Set<string>();
+  const activeTabId = useWorkspaceStore.getState().activeTabId;
 
-  const vfsTemporalStore = useVFSStore.temporal.getState();
-  const modelTemporalStore = useModelStore.temporal.getState();
-  vfsTemporalStore.pause();
-  modelTemporalStore.pause();
+  // Pre-compute all new relation IDs so they're stable across mutations
+  const newRelations: Array<{ relationId: string; kind: RelationKind; targetElementId: string; viewEdge: ViewEdge }> = [];
 
-  try {
   for (const attr of attributes) {
     const { baseName, isCollection } = parseAttributeType(attr.type);
     const effectiveIsCollection = isCollection || attr.multiplicity === '*';
@@ -40,51 +39,61 @@ export function autoConnectByAttributeType(
     if (!targetElementId || seenTargets.has(targetElementId)) continue;
     seenTargets.add(targetElementId);
 
-    const currentModel = useModelStore.getState().model;
-    if (!currentModel) continue;
-
-    const alreadyConnected = Object.values(currentModel.relations).some(
+    const alreadyConnected = Object.values(initialModel.relations).some(
       (rel) => rel.sourceId === sourceElementId && rel.targetId === targetElementId,
     );
     if (alreadyConnected) continue;
 
     const kind: RelationKind = effectiveIsCollection ? 'AGGREGATION' : 'ASSOCIATION';
+    const relationId = crypto.randomUUID();
 
-    const relationId = useModelStore.getState().createRelation({
-      kind,
-      sourceId: sourceElementId,
-      targetId: targetElementId,
-    });
-
-    const activeTabId = useWorkspaceStore.getState().activeTabId;
     if (!activeTabId) continue;
-
     const project = useVFSStore.getState().project;
     if (!project) continue;
-
     const fileNode = (project.nodes as Record<string, VFSFile | VFSFolder>)[activeTabId];
     if (!fileNode || fileNode.type !== 'FILE') continue;
-
     const fileContent = fileNode.content;
     if (!isDiagramView(fileContent)) continue;
-
     const sourceVN = fileContent.nodes.find((vn) => vn.elementId === sourceElementId);
     const targetVN = fileContent.nodes.find((vn) => vn.elementId === targetElementId);
     if (!sourceVN || !targetVN) continue;
 
-    const viewEdge: ViewEdge = {
-      id: crypto.randomUUID(),
+    newRelations.push({
       relationId,
-      waypoints: [],
-    };
-
-    useVFSStore.getState().updateFileContent(activeTabId, {
-      ...fileContent,
-      edges: [...fileContent.edges, viewEdge],
+      kind,
+      targetElementId,
+      viewEdge: { id: crypto.randomUUID(), relationId, waypoints: [] },
     });
   }
-  } finally {
-    vfsTemporalStore.resume();
-    modelTemporalStore.resume();
-  }
+
+  if (newRelations.length === 0 || !activeTabId) return;
+
+  undoTransaction({
+    label: 'Auto-connect Relations',
+    scope: 'global',
+    mutations: [
+      {
+        store: 'model',
+        mutate: (draft: any) => {
+          if (!draft.model) return;
+          for (const { relationId, kind, targetElementId } of newRelations) {
+            draft.model.relations[relationId] = {
+              id: relationId, kind, sourceId: sourceElementId, targetId: targetElementId,
+            };
+          }
+          draft.model.updatedAt = Date.now();
+        },
+      },
+      {
+        store: 'vfs',
+        mutate: (draft: any) => {
+          const node = draft.project?.nodes[activeTabId];
+          if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+          for (const { viewEdge } of newRelations) {
+            node.content.edges.push(viewEdge);
+          }
+        },
+      },
+    ],
+  });
 }

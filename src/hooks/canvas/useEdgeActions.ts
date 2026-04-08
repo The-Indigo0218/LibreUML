@@ -1,10 +1,8 @@
 import { useCallback } from 'react';
 import { useVFSStore } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
-import {
-  standaloneModelOps,
-  getLocalModel,
-} from '../../store/standaloneModelOps';
+import { getLocalModel } from '../../store/standaloneModelOps';
+import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type {
   DiagramView,
   VFSFile,
@@ -19,13 +17,9 @@ export interface UseEdgeActionsParams {
 }
 
 export interface UseEdgeActionsResult {
-  /** Deletes a VFS edge by ViewEdge.id (removes IRRelation + ViewEdge). */
   deleteEdgeById: (viewEdgeId: string) => void;
-  /** Reverses a VFS edge by swapping IRRelation.sourceId ↔ targetId. */
   reverseEdgeById: (viewEdgeId: string) => void;
-  /** Updates a VFS edge's IRRelation.kind (e.g. ASSOCIATION → GENERALIZATION). */
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;
-  /** Updates display properties (multiplicity, roles, anchor) stored on ViewEdge. */
   updateVFSEdgeProps: (
     viewEdgeId: string,
     props: {
@@ -56,31 +50,51 @@ export function useEdgeActions({
       const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
       if (!viewEdge) return;
 
-      // CRITICAL FIX: Pause temporal tracking on BOTH stores before making changes
-      // This ensures all updates are treated as a single atomic operation for undo/redo
-      const vfsTemporalStore = useVFSStore.temporal.getState();
-      const modelTemporalStore = useModelStore.temporal.getState();
-      
-      vfsTemporalStore.pause();
-      modelTemporalStore.pause();
+      const { relationId } = viewEdge;
 
-      try {
-        if (isStandalone) {
-          standaloneModelOps(activeTabId).deleteRelation(viewEdge.relationId);
-        } else {
-          const ms = useModelStore.getState();
-          if (ms.model && ms.model.relations[viewEdge.relationId]) {
-            ms.deleteRelation(viewEdge.relationId);
-          }
-        }
-        updateFileContent(activeTabId, {
-          ...currentView,
-          edges: currentView.edges.filter((ve) => ve.id !== viewEdgeId),
+      if (isStandalone) {
+        undoTransaction({
+          label: 'Delete Relation',
+          scope: activeTabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE') return;
+              if (node.localModel?.relations[relationId]) {
+                delete node.localModel.relations[relationId];
+                node.localModel.updatedAt = Date.now();
+              }
+              if (isDiagramView(node.content)) {
+                node.content.edges = node.content.edges.filter((ve: any) => ve.id !== viewEdgeId);
+              }
+            },
+          }],
         });
-      } finally {
-        // CRITICAL: Resume tracking and create a single undo checkpoint
-        vfsTemporalStore.resume();
-        modelTemporalStore.resume();
+      } else {
+        const modelHasRelation = !!(useModelStore.getState().model?.relations[relationId]);
+        undoTransaction({
+          label: 'Delete Relation',
+          scope: 'global',
+          mutations: [
+            ...(modelHasRelation ? [{
+              store: 'model' as const,
+              mutate: (draft: any) => {
+                if (!draft.model?.relations[relationId]) return;
+                delete draft.model.relations[relationId];
+                draft.model.updatedAt = Date.now();
+              },
+            }] : []),
+            {
+              store: 'vfs' as const,
+              mutate: (draft: any) => {
+                const node = draft.project?.nodes[activeTabId];
+                if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+                node.content.edges = node.content.edges.filter((ve: any) => ve.id !== viewEdgeId);
+              },
+            },
+          ],
+        });
       }
     },
     [activeTabId, updateFileContent, isStandalone],
@@ -99,33 +113,33 @@ export function useEdgeActions({
       const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
       if (!viewEdge) return;
 
-      // CRITICAL FIX: Pause temporal tracking on model store (only model changes)
-      const modelTemporalStore = useModelStore.temporal.getState();
-      modelTemporalStore.pause();
+      const { relationId } = viewEdge;
 
-      try {
-        if (isStandalone) {
-          const localM = getLocalModel(activeTabId);
-          if (!localM) return;
-          const relation = localM.relations[viewEdge.relationId];
-          if (!relation) return;
-          standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, {
-            sourceId: relation.targetId,
-            targetId: relation.sourceId,
-          });
-        } else {
-          const ms = useModelStore.getState();
-          if (!ms.model) return;
-          const relation = ms.model.relations[viewEdge.relationId];
-          if (!relation) return;
-          ms.updateRelation(viewEdge.relationId, {
-            sourceId: relation.targetId,
-            targetId: relation.sourceId,
-          });
-        }
-      } finally {
-        // CRITICAL: Resume tracking and create a single undo checkpoint
-        modelTemporalStore.resume();
+      if (isStandalone) {
+        const localM = getLocalModel(activeTabId);
+        if (!localM) return;
+        const relation = localM.relations[relationId];
+        if (!relation) return;
+        withUndo('vfs', 'Reverse Relation', activeTabId, (draft: any) => {
+          const node = draft.project?.nodes[activeTabId];
+          if (!node?.localModel?.relations[relationId]) return;
+          const rel = node.localModel.relations[relationId];
+          const tmp = rel.sourceId;
+          rel.sourceId = rel.targetId;
+          rel.targetId = tmp;
+          node.localModel.updatedAt = Date.now();
+        });
+      } else {
+        const ms = useModelStore.getState();
+        if (!ms.model?.relations[relationId]) return;
+        withUndo('model', 'Reverse Relation', 'global', (draft: any) => {
+          if (!draft.model?.relations[relationId]) return;
+          const rel = draft.model.relations[relationId];
+          const tmp = rel.sourceId;
+          rel.sourceId = rel.targetId;
+          rel.targetId = tmp;
+          draft.model.updatedAt = Date.now();
+        });
       }
     },
     [activeTabId, isStandalone],
@@ -143,17 +157,13 @@ export function useEdgeActions({
       },
     ) => {
       if (!activeTabId) return;
-      const currentProject = useVFSStore.getState().project;
-      if (!currentProject) return;
-      const fileNode = currentProject.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      if (!isDiagramView((fileNode as VFSFile).content)) return;
-
-      const currentView = (fileNode as VFSFile).content as DiagramView;
-      const updatedEdges = currentView.edges.map((ve) =>
-        ve.id === viewEdgeId ? { ...ve, ...props } : ve,
-      );
-      updateFileContent(activeTabId, { ...currentView, edges: updatedEdges });
+      withUndo('vfs', 'Update Edge Props', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        const idx = node.content.edges.findIndex((ve: any) => ve.id === viewEdgeId);
+        if (idx === -1) return;
+        node.content.edges[idx] = { ...node.content.edges[idx], ...props };
+      });
     },
     [activeTabId, updateFileContent],
   );
@@ -171,30 +181,25 @@ export function useEdgeActions({
       const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
       if (!viewEdge) return;
 
-      // CRITICAL FIX: Pause temporal tracking on model store (only model changes)
-      const modelTemporalStore = useModelStore.temporal.getState();
-      modelTemporalStore.pause();
+      const { relationId } = viewEdge;
 
-      try {
-        if (isStandalone) {
-          standaloneModelOps(activeTabId).updateRelation(viewEdge.relationId, { kind });
-        } else {
-          const ms = useModelStore.getState();
-          if (!ms.model) return;
-          ms.updateRelation(viewEdge.relationId, { kind });
-        }
-      } finally {
-        // CRITICAL: Resume tracking and create a single undo checkpoint
-        modelTemporalStore.resume();
+      if (isStandalone) {
+        withUndo('vfs', 'Change Relation Kind', activeTabId, (draft: any) => {
+          const node = draft.project?.nodes[activeTabId];
+          if (!node?.localModel?.relations[relationId]) return;
+          node.localModel.relations[relationId].kind = kind;
+          node.localModel.updatedAt = Date.now();
+        });
+      } else {
+        withUndo('model', 'Change Relation Kind', 'global', (draft: any) => {
+          if (!draft.model?.relations[relationId]) return;
+          draft.model.relations[relationId].kind = kind;
+          draft.model.updatedAt = Date.now();
+        });
       }
     },
     [activeTabId, isStandalone],
   );
 
-  return {
-    deleteEdgeById,
-    reverseEdgeById,
-    changeEdgeKind,
-    updateVFSEdgeProps,
-  };
+  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps };
 }

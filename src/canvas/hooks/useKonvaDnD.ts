@@ -33,8 +33,9 @@ import { useVFSStore } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useToastStore } from '../../store/toast.store';
-import { standaloneModelOps, getLocalModel, ensureLocalModel } from '../../store/standaloneModelOps';
+import { getLocalModel } from '../../store/standaloneModelOps';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/domain/vfs/vfs.types';
 import type { stereotype } from '../../features/diagram/types/diagram.types';
 
@@ -83,77 +84,65 @@ export function getNextVFSName(existingNames: string[], prefix: string): string 
  * - `create(name)`       : Calls the appropriate ModelStore factory and returns
  *                          the new semantic element's stable ID.
  */
-const VFS_DROP_CONFIG: Partial<
-  Record<
-    stereotype,
-    {
-      getNextName: (model: SemanticModel) => string;
-      create: (name: string, isExternal?: boolean) => string;
-    }
-  >
-> = {
+interface DropConfig {
+  getNextName: (model: SemanticModel) => string;
+  applyToModelDraft: (modelDraft: any, id: string, name: string, isExternal?: boolean) => void;
+  applyToLocalModelDraft: (lm: any, id: string, name: string) => void;
+  isVisualOnly?: boolean;
+}
+
+const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
   class: {
     getNextName: (model) =>
-      getNextVFSName(
-        Object.values(model.classes)
-          .filter((c) => !c.isAbstract)
-          .map((c) => c.name),
-        'Class',
-      ),
-    create: (name, isExternal) =>
-      useModelStore.getState().createClass({
-        name,
-        attributeIds: [],
-        operationIds: [],
-        ...(isExternal ? { isExternal: true } : {}),
-      }),
+      getNextVFSName(Object.values(model.classes).filter((c) => !c.isAbstract).map((c) => c.name), 'Class'),
+    applyToModelDraft: (m, id, name, isExternal) => {
+      m.classes[id] = { id, name, kind: 'CLASS', attributeIds: [], operationIds: [], ...(isExternal ? { isExternal: true } : {}) };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.classes[id] = { id, name, kind: 'CLASS', attributeIds: [], operationIds: [] };
+      lm.updatedAt = Date.now();
+    },
   },
   interface: {
-    getNextName: (model) =>
-      getNextVFSName(
-        Object.values(model.interfaces).map((i) => i.name),
-        'Interface',
-      ),
-    create: (name, isExternal) =>
-      useModelStore.getState().createInterface({
-        name,
-        operationIds: [],
-        ...(isExternal ? { isExternal: true } : {}),
-      }),
+    getNextName: (model) => getNextVFSName(Object.values(model.interfaces).map((i) => i.name), 'Interface'),
+    applyToModelDraft: (m, id, name, isExternal) => {
+      m.interfaces[id] = { id, name, kind: 'INTERFACE', operationIds: [], ...(isExternal ? { isExternal: true } : {}) };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.interfaces[id] = { id, name, kind: 'INTERFACE', operationIds: [] };
+      lm.updatedAt = Date.now();
+    },
   },
   abstract: {
     getNextName: (model) =>
-      getNextVFSName(
-        Object.values(model.classes)
-          .filter((c) => !!c.isAbstract)
-          .map((c) => c.name),
-        'Abstract',
-      ),
-    create: (name, isExternal) =>
-      useModelStore.getState().createAbstractClass({
-        name,
-        attributeIds: [],
-        operationIds: [],
-        ...(isExternal ? { isExternal: true } : {}),
-      }),
+      getNextVFSName(Object.values(model.classes).filter((c) => !!c.isAbstract).map((c) => c.name), 'Abstract'),
+    applyToModelDraft: (m, id, name, isExternal) => {
+      m.classes[id] = { id, name, kind: 'CLASS', isAbstract: true, attributeIds: [], operationIds: [], ...(isExternal ? { isExternal: true } : {}) };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.classes[id] = { id, name, kind: 'CLASS', isAbstract: true, attributeIds: [], operationIds: [] };
+      lm.updatedAt = Date.now();
+    },
   },
   enum: {
-    getNextName: (model) =>
-      getNextVFSName(
-        Object.values(model.enums).map((e) => e.name),
-        'Enum',
-      ),
-    create: (name, isExternal) =>
-      useModelStore.getState().createEnum({
-        name,
-        literals: [],
-        ...(isExternal ? { isExternal: true } : {}),
-      }),
+    getNextName: (model) => getNextVFSName(Object.values(model.enums).map((e) => e.name), 'Enum'),
+    applyToModelDraft: (m, id, name, isExternal) => {
+      m.enums[id] = { id, name, kind: 'ENUM', literals: [], ...(isExternal ? { isExternal: true } : {}) };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.enums[id] = { id, name, kind: 'ENUM', literals: [] };
+      lm.updatedAt = Date.now();
+    },
   },
-  // Notes are visual-only — no IR element, no auto-increment needed.
   note: {
     getNextName: () => 'Note',
-    create: () => '',
+    applyToModelDraft: () => {},
+    applyToLocalModelDraft: () => {},
+    isVisualOnly: true,
   },
 };
 
@@ -281,35 +270,19 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
   const addElementToDiagram = useCallback(
     (elementId: string, position: { x: number; y: number }, replaceNodeId?: string) => {
       if (!activeTabId) return;
-
-      const freshProject = useVFSStore.getState().project;
-      if (!freshProject) return;
-      const freshFileNode = freshProject.nodes[activeTabId];
-      if (!freshFileNode || freshFileNode.type !== 'FILE') return;
-      const freshContent = (freshFileNode as VFSFile).content;
-      if (!isDiagramView(freshContent)) return;
-      const freshView = freshContent as DiagramView;
-
-      const viewNode: ViewNode = {
+      const newViewNode: ViewNode = {
         id: crypto.randomUUID(),
-        elementId: elementId,
+        elementId,
         x: position.x,
         y: position.y,
       };
-
-      let updatedNodes = freshView.nodes;
-
-      // If replacing, remove old node
-      if (replaceNodeId) {
-        updatedNodes = updatedNodes.filter((vn) => vn.id !== replaceNodeId);
-      }
-
-      // Add new node
-      updatedNodes = [...updatedNodes, viewNode];
-
-      updateFileContent(activeTabId, {
-        ...freshView,
-        nodes: updatedNodes,
+      withUndo('vfs', 'Add to Diagram', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        if (replaceNodeId) {
+          node.content.nodes = node.content.nodes.filter((vn: ViewNode) => vn.id !== replaceNodeId);
+        }
+        node.content.nodes.push(newViewNode);
       });
     },
     [activeTabId, updateFileContent],
@@ -416,102 +389,94 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       const freshView = freshContent as DiagramView;
 
       const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
-
-      let semanticId: string;
+      const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
+      const newElementId = crypto.randomUUID();
+      const newViewNodeId = crypto.randomUUID();
 
       if (isStandaloneFile) {
-        // Standalone path: create IR element in localModel, never touch ModelStore.
-        ensureLocalModel(activeTabId);
-        const localM = getLocalModel(activeTabId);
-        if (!localM && stereotype !== 'note') return;
+        const currentLocalModel = getLocalModel(activeTabId);
+        const elementName = (currentLocalModel && !dropConfig.isVisualOnly)
+          ? dropConfig.getNextName(currentLocalModel)
+          : 'Note';
 
-        const elementName = localM ? dropConfig.getNextName(localM) : 'Note';
-        const ops = standaloneModelOps(activeTabId);
-
-        switch (stereotype) {
-          case 'class':
-            semanticId = ops.createClass({
-              name: elementName,
-              attributeIds: [],
-              operationIds: [],
-            });
-            break;
-          case 'abstract':
-            semanticId = ops.createAbstractClass({
-              name: elementName,
-              attributeIds: [],
-              operationIds: [],
-            });
-            break;
-          case 'interface':
-            semanticId = ops.createInterface({
-              name: elementName,
-              operationIds: [],
-            });
-            break;
-          case 'enum':
-            semanticId = ops.createEnum({ name: elementName, literals: [] });
-            break;
-          case 'note':
-            semanticId = '';
-            break;
-          default:
-            return;
-        }
+        undoTransaction({
+          label: `Create ${stereotype}`,
+          scope: activeTabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE') return;
+              if (!dropConfig.isVisualOnly) {
+                if (!node.localModel) {
+                  const now = Date.now();
+                  node.localModel = {
+                    id: crypto.randomUUID(), name: `${node.name} (standalone)`, version: '1.0.0',
+                    packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                    attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                    objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                    createdAt: now, updatedAt: now,
+                  };
+                }
+                dropConfig.applyToLocalModelDraft(node.localModel, newElementId, elementName);
+              }
+              if (isDiagramView(node.content)) {
+                node.content.nodes.push({
+                  id: newViewNodeId,
+                  elementId: dropConfig.isVisualOnly ? '' : newElementId,
+                  x: position.x, y: position.y,
+                });
+              }
+            },
+          }],
+        });
       } else {
-        const vfsTemporalStore = useVFSStore.temporal.getState();
-        const modelTemporalStore = useModelStore.temporal.getState();
-        vfsTemporalStore.pause();
-        modelTemporalStore.pause();
+        const modelState = useModelStore.getState();
+        const currentModel = modelState.model;
+        const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
+        const elementName = (currentModel && !dropConfig.isVisualOnly)
+          ? dropConfig.getNextName(currentModel)
+          : 'Note';
 
-        try {
-          // a) Ensure SemanticModel is initialized (may be null on first drop).
-          const modelState = useModelStore.getState();
-          if (!modelState.model) {
-            modelState.initModel(freshProject.domainModelId ?? crypto.randomUUID());
-          }
-
-          // b) Compute auto-incremented name, then create the semantic IR element.
-          const currentModel = useModelStore.getState().model!;
-          const elementName = dropConfig.getNextName(currentModel);
-          const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
-          semanticId = dropConfig.create(elementName, isExternalFile || undefined);
-
-          // c) Create the visual ViewNode linked to the semantic element.
-          const viewNode: ViewNode = {
-            id: crypto.randomUUID(),
-            elementId: semanticId,
-            x: position.x,
-            y: position.y,
-          };
-
-          // d) Persist the updated DiagramView to VFSStore.
-          const updatedView: DiagramView = {
-            ...freshView,
-            nodes: [...freshView.nodes, viewNode],
-          };
-          updateFileContent(activeTabId, updatedView);
-        } finally {
-          vfsTemporalStore.resume();
-          modelTemporalStore.resume();
+        if (dropConfig.isVisualOnly) {
+          withUndo('vfs', 'Add Note', activeTabId, (draft: any) => {
+            const node = draft.project?.nodes[activeTabId];
+            if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+            node.content.nodes.push({ id: newViewNodeId, elementId: '', x: position.x, y: position.y });
+          });
+        } else {
+          undoTransaction({
+            label: `Create ${stereotype}`,
+            scope: 'global',
+            mutations: [
+              {
+                store: 'model',
+                mutate: (draft: any) => {
+                  if (!draft.model) {
+                    const now = Date.now();
+                    draft.model = {
+                      id: domainModelId, name: 'Domain Model', version: '1.0.0',
+                      packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                      attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                      objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                      packageNames: [], createdAt: now, updatedAt: now,
+                    };
+                  }
+                  dropConfig.applyToModelDraft(draft.model, newElementId, elementName, isExternalFile || undefined);
+                },
+              },
+              {
+                store: 'vfs',
+                mutate: (draft: any) => {
+                  const node = draft.project?.nodes[activeTabId];
+                  if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+                  node.content.nodes.push({ id: newViewNodeId, elementId: newElementId, x: position.x, y: position.y });
+                },
+              },
+            ],
+          });
         }
-        return;
       }
-
-      // c) Create the visual ViewNode linked to the semantic element.
-      const viewNode: ViewNode = {
-        id: crypto.randomUUID(),
-        elementId: semanticId,
-        x: position.x,
-        y: position.y,
-      };
-
-      // d) Persist the updated DiagramView to VFSStore.
-      const updatedView: DiagramView = {
-        ...freshView,
-        nodes: [...freshView.nodes, viewNode],
-      };
-      updateFileContent(activeTabId, updatedView);
     },
     [
       getCenteredPosition,

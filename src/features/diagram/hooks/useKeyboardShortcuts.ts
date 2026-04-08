@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useKonvaAutoLayout } from "../../../canvas/hooks/useKonvaAutoLayout";
 import { useUiStore } from "../../../store/uiStore";
 import { useVFSStore } from "../../../store/project-vfs.store";
-import { useModelStore } from "../../../store/model.store";
+import { getUndoManager } from "../../../core/undo/undoBridge";
 import { useFileLifecycle } from "./actions/useFileLifecycle";
 import { useToastStore } from "../../../store/toast.store";
 import { flushVFSSave } from "../../../hooks/actions/useVFSAutoSave";
@@ -36,25 +36,21 @@ export const useKeyboardShortcuts = () => {
       )
         return;
 
-      // Ctrl+Shift+Z / Cmd+Shift+Z — redo (check before plain Ctrl+Z)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
-        useVFSStore.temporal.getState().redo();
-        useModelStore.temporal.getState().redo();
+        getUndoManager()?.redo();
         return;
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
-        useVFSStore.temporal.getState().undo();
-        useModelStore.temporal.getState().undo();
+        getUndoManager()?.undo();
         return;
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === "y") {
         e.preventDefault();
-        useVFSStore.temporal.getState().redo();
-        useModelStore.temporal.getState().redo();
+        getUndoManager()?.redo();
         return;
       }
 
@@ -68,7 +64,6 @@ export const useKeyboardShortcuts = () => {
         openOpenFileModal();
       }
 
-      // Ctrl+H / Cmd+H — Open Wiki
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "h") {
         e.preventDefault();
         openWiki();
@@ -79,13 +74,10 @@ export const useKeyboardShortcuts = () => {
         openExportModal();
       }
 
-      // Ctrl+S / Cmd+S — Save current diagram
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        
-        // Route to appropriate save mechanism based on project type
+
         if (hasVFSProject) {
-          // VFS project: use auto-save flush for immediate save
           flushVFSSave().then((success) => {
             if (success) {
               showToast("Saved");

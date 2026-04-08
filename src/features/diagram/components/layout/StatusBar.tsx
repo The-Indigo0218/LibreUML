@@ -2,32 +2,18 @@ import { XCircle, AlertTriangle, Shield, Globe, Cloud, CloudOff, Undo2, Redo2 } 
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
-import { useModelStore } from "../../../../store/model.store";
 import { useModelValidation } from "../../hooks/useModelValidation";
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useCodeGenerationStore, LANGUAGE_OPTIONS } from "../../../../store/codeGeneration.store";
+import { useUndoManager } from "../../../../core/undo/useUndoManager";
+import { undoManager } from "../../../../core/undo/instance";
 
 export default function StatusBar() {
   const { t } = useTranslation();
   const { activeTabId } = useWorkspaceStore();
   const { project } = useVFSStore();
   const { openProblemsTab } = useLayoutStore();
-
-  const vfsTemporalState = useVFSStore.temporal.getState();
-  const modelTemporalState = useModelStore.temporal.getState();
-
-  const canUndo = (vfsTemporalState.pastStates?.length ?? 0) > 0 || (modelTemporalState.pastStates?.length ?? 0) > 0;
-  const canRedo = (vfsTemporalState.futureStates?.length ?? 0) > 0 || (modelTemporalState.futureStates?.length ?? 0) > 0;
-
-  const handleUndo = () => {
-    useVFSStore.temporal.getState().undo();
-    useModelStore.temporal.getState().undo();
-  };
-
-  const handleRedo = () => {
-    useVFSStore.temporal.getState().redo();
-    useModelStore.temporal.getState().redo();
-  };
+  const { canUndo, canRedo, undo: handleUndo, redo: handleRedo } = useUndoManager(undoManager);
 
   const activeNode = activeTabId && project?.nodes[activeTabId];
   const activeFile = activeNode && activeNode.type === "FILE" ? activeNode : null;

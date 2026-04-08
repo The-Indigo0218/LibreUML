@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import { temporal } from 'zundo';
+import { withUndo } from '../core/undo/undoBridge';
 import type {
   SemanticModel,
   IRClass,
@@ -15,7 +15,6 @@ import { storageAdapter } from '../adapters/storage/storage.adapter';
 
 const newId = () => crypto.randomUUID();
 
-/** Cascade-delete all relations that reference a given element ID. */
 function cascadeDeleteRelations(model: SemanticModel, elementId: string) {
   Object.keys(model.relations).forEach((relationId) => {
     const rel = model.relations[relationId];
@@ -28,55 +27,41 @@ function cascadeDeleteRelations(model: SemanticModel, elementId: string) {
 interface ModelStoreState {
   model: SemanticModel | null;
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
   initModel: (domainModelId: string) => void;
   loadModel: (model: SemanticModel) => void;
 
-  // ── Class CRUD ─────────────────────────────────────────────────────────────
   createClass: (data: Omit<IRClass, 'id' | 'kind'>) => string;
-  /** Convenience helper: same as createClass but always sets isAbstract: true. */
   createAbstractClass: (data: Omit<IRClass, 'id' | 'kind' | 'isAbstract'>) => string;
   updateClass: (id: string, patch: Partial<IRClass>) => void;
   deleteClass: (id: string) => void;
 
-  // ── Interface CRUD ─────────────────────────────────────────────────────────
   createInterface: (data: Omit<IRInterface, 'id' | 'kind'>) => string;
   updateInterface: (id: string, patch: Partial<IRInterface>) => void;
   deleteInterface: (id: string) => void;
 
-  // ── Enum CRUD ──────────────────────────────────────────────────────────────
   createEnum: (data: Omit<IREnum, 'id' | 'kind'>) => string;
   updateEnum: (id: string, patch: Partial<IREnum>) => void;
   deleteEnum: (id: string) => void;
 
-  // ── Member management ──────────────────────────────────────────────────────
   setElementMembers: (elementId: string, attributes: IRAttribute[], operations: IROperation[]) => void;
 
-  // ── Relation CRUD ──────────────────────────────────────────────────────────
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
 
-  // ── External integration ───────────────────────────────────────────────────
   integrateExternalElement: (elementId: string) => void;
-  /** Sets isExternal: true on an element so it is hidden from the ModelExplorer. */
   untrackElement: (elementId: string) => void;
-  /** Clears the entire model (used when a project is closed). */
   resetModel: () => void;
 
-  // ── Package management ─────────────────────────────────────────────────────
   addPackageName: (name: string) => void;
   removePackageName: (name: string) => void;
   setElementPackage: (elementId: string, packageName: string | undefined) => void;
 }
 
 export const useModelStore = create<ModelStoreState>()(
-  temporal(
   persist(
     immer((set) => ({
     model: null,
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     initModel: (domainModelId) =>
       set((state) => {
@@ -111,184 +96,174 @@ export const useModelStore = create<ModelStoreState>()(
         state.model = model;
       }),
 
-    // ── Class ─────────────────────────────────────────────────────────────────
-
     createClass: (data) => {
       const id = newId();
-      set((state) => {
-        if (!state.model) return;
-        state.model.classes[id] = { ...data, id, kind: 'CLASS' };
-        state.model.updatedAt = Date.now();
+      withUndo('model', `Create Class: ${data.name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.classes[id] = { ...data, id, kind: 'CLASS' };
+        draft.model.updatedAt = Date.now();
       });
       return id;
     },
 
     createAbstractClass: (data) => {
       const id = newId();
-      set((state) => {
-        if (!state.model) return;
-        state.model.classes[id] = { ...data, id, kind: 'CLASS', isAbstract: true };
-        state.model.updatedAt = Date.now();
+      withUndo('model', `Create Abstract Class: ${data.name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.classes[id] = { ...data, id, kind: 'CLASS', isAbstract: true };
+        draft.model.updatedAt = Date.now();
       });
       return id;
     },
 
     updateClass: (id, patch) =>
-      set((state) => {
-        if (!state.model || !state.model.classes[id]) return;
-        state.model.classes[id] = { ...state.model.classes[id], ...patch };
-        state.model.updatedAt = Date.now();
+      withUndo('model', 'Update Class', 'global', (draft) => {
+        if (!draft.model || !draft.model.classes[id]) return;
+        draft.model.classes[id] = { ...draft.model.classes[id], ...patch };
+        draft.model.updatedAt = Date.now();
       }),
 
     deleteClass: (id) =>
-      set((state) => {
-        if (!state.model) return;
-        delete state.model.classes[id];
-        cascadeDeleteRelations(state.model, id);
-        state.model.updatedAt = Date.now();
+      withUndo('model', 'Delete Class', 'global', (draft) => {
+        if (!draft.model) return;
+        delete draft.model.classes[id];
+        cascadeDeleteRelations(draft.model, id);
+        draft.model.updatedAt = Date.now();
       }),
-
-    // ── Interface ─────────────────────────────────────────────────────────────
 
     createInterface: (data) => {
       const id = newId();
-      set((state) => {
-        if (!state.model) return;
-        state.model.interfaces[id] = { ...data, id, kind: 'INTERFACE' };
-        state.model.updatedAt = Date.now();
+      withUndo('model', `Create Interface: ${data.name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.interfaces[id] = { ...data, id, kind: 'INTERFACE' };
+        draft.model.updatedAt = Date.now();
       });
       return id;
     },
 
     updateInterface: (id, patch) =>
-      set((state) => {
-        if (!state.model || !state.model.interfaces[id]) return;
-        state.model.interfaces[id] = { ...state.model.interfaces[id], ...patch };
-        state.model.updatedAt = Date.now();
+      withUndo('model', 'Update Interface', 'global', (draft) => {
+        if (!draft.model || !draft.model.interfaces[id]) return;
+        draft.model.interfaces[id] = { ...draft.model.interfaces[id], ...patch };
+        draft.model.updatedAt = Date.now();
       }),
 
     deleteInterface: (id) =>
-      set((state) => {
-        if (!state.model) return;
-        delete state.model.interfaces[id];
-        cascadeDeleteRelations(state.model, id);
-        state.model.updatedAt = Date.now();
+      withUndo('model', 'Delete Interface', 'global', (draft) => {
+        if (!draft.model) return;
+        delete draft.model.interfaces[id];
+        cascadeDeleteRelations(draft.model, id);
+        draft.model.updatedAt = Date.now();
       }),
-
-    // ── Enum ──────────────────────────────────────────────────────────────────
 
     createEnum: (data) => {
       const id = newId();
-      set((state) => {
-        if (!state.model) return;
-        state.model.enums[id] = { ...data, id, kind: 'ENUM' };
-        state.model.updatedAt = Date.now();
+      withUndo('model', `Create Enum: ${data.name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.enums[id] = { ...data, id, kind: 'ENUM' };
+        draft.model.updatedAt = Date.now();
       });
       return id;
     },
 
     updateEnum: (id, patch) =>
-      set((state) => {
-        if (!state.model || !state.model.enums[id]) return;
-        state.model.enums[id] = { ...state.model.enums[id], ...patch };
-        state.model.updatedAt = Date.now();
+      withUndo('model', 'Update Enum', 'global', (draft) => {
+        if (!draft.model || !draft.model.enums[id]) return;
+        draft.model.enums[id] = { ...draft.model.enums[id], ...patch };
+        draft.model.updatedAt = Date.now();
       }),
 
     deleteEnum: (id) =>
-      set((state) => {
-        if (!state.model) return;
-        delete state.model.enums[id];
-        cascadeDeleteRelations(state.model, id);
-        state.model.updatedAt = Date.now();
+      withUndo('model', 'Delete Enum', 'global', (draft) => {
+        if (!draft.model) return;
+        delete draft.model.enums[id];
+        cascadeDeleteRelations(draft.model, id);
+        draft.model.updatedAt = Date.now();
       }),
-
-    // ── Member management ─────────────────────────────────────────────────────
 
     setElementMembers: (elementId, attributes, operations) =>
-      set((state) => {
-        if (!state.model) return;
-        const cls = state.model.classes[elementId];
-        const iface = state.model.interfaces[elementId];
+      withUndo('model', 'Update Members', 'global', (draft) => {
+        if (!draft.model) return;
+        const cls = draft.model.classes[elementId];
+        const iface = draft.model.interfaces[elementId];
         if (cls) {
-          cls.attributeIds.forEach((id) => { delete state.model!.attributes[id]; });
-          cls.operationIds.forEach((id) => { delete state.model!.operations[id]; });
-          attributes.forEach((a) => { state.model!.attributes[a.id] = a; });
-          operations.forEach((o) => { state.model!.operations[o.id] = o; });
-          state.model.classes[elementId].attributeIds = attributes.map((a) => a.id);
-          state.model.classes[elementId].operationIds = operations.map((o) => o.id);
+          cls.attributeIds.forEach((id: string) => { delete draft.model.attributes[id]; });
+          cls.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
+          attributes.forEach((a: IRAttribute) => { draft.model.attributes[a.id] = a; });
+          operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
+          draft.model.classes[elementId].attributeIds = attributes.map((a: IRAttribute) => a.id);
+          draft.model.classes[elementId].operationIds = operations.map((o: IROperation) => o.id);
         } else if (iface) {
-          iface.operationIds.forEach((id) => { delete state.model!.operations[id]; });
-          operations.forEach((o) => { state.model!.operations[o.id] = o; });
-          state.model.interfaces[elementId].operationIds = operations.map((o) => o.id);
+          iface.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
+          operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
+          draft.model.interfaces[elementId].operationIds = operations.map((o: IROperation) => o.id);
         }
-        state.model.updatedAt = Date.now();
+        draft.model.updatedAt = Date.now();
       }),
-
-    // ── Relations ─────────────────────────────────────────────────────────────
 
     createRelation: (data) => {
       const id = newId();
-      set((state) => {
-        if (!state.model) return;
-        state.model.relations[id] = { ...data, id };
-        state.model.updatedAt = Date.now();
+      withUndo('model', 'Create Relation', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.relations[id] = { ...data, id };
+        draft.model.updatedAt = Date.now();
       });
       return id;
     },
 
     updateRelation: (id, patch) =>
-      set((state) => {
-        if (!state.model || !state.model.relations[id]) return;
-        state.model.relations[id] = { ...state.model.relations[id], ...patch };
-        state.model.updatedAt = Date.now();
+      withUndo('model', 'Update Relation', 'global', (draft) => {
+        if (!draft.model || !draft.model.relations[id]) return;
+        draft.model.relations[id] = { ...draft.model.relations[id], ...patch };
+        draft.model.updatedAt = Date.now();
       }),
 
     deleteRelation: (id) =>
-      set((state) => {
-        if (!state.model) return;
-        delete state.model.relations[id];
-        state.model.updatedAt = Date.now();
+      withUndo('model', 'Delete Relation', 'global', (draft) => {
+        if (!draft.model) return;
+        delete draft.model.relations[id];
+        draft.model.updatedAt = Date.now();
       }),
 
     integrateExternalElement: (elementId) =>
-      set((state) => {
-        if (!state.model) return;
-        const cls = state.model.classes[elementId];
-        const iface = state.model.interfaces[elementId];
-        const enm = state.model.enums[elementId];
+      withUndo('model', 'Integrate External Element', 'global', (draft) => {
+        if (!draft.model) return;
+        const cls = draft.model.classes[elementId];
+        const iface = draft.model.interfaces[elementId];
+        const enm = draft.model.enums[elementId];
         if (cls) {
-          state.model.classes[elementId].isExternal = undefined;
+          draft.model.classes[elementId].isExternal = undefined;
         } else if (iface) {
-          state.model.interfaces[elementId].isExternal = undefined;
+          draft.model.interfaces[elementId].isExternal = undefined;
         } else if (enm) {
-          state.model.enums[elementId].isExternal = undefined;
+          draft.model.enums[elementId].isExternal = undefined;
         } else {
           return;
         }
-        for (const rel of Object.values(state.model.relations)) {
+        for (const rel of Object.values(draft.model.relations) as IRRelation[]) {
           if (rel.sourceId === elementId || rel.targetId === elementId) {
-            state.model.relations[rel.id].isExternal = undefined;
+            draft.model.relations[rel.id].isExternal = undefined;
           }
         }
-        state.model.updatedAt = Date.now();
+        draft.model.updatedAt = Date.now();
       }),
 
     untrackElement: (elementId) =>
-      set((state) => {
-        if (!state.model) return;
-        const cls = state.model.classes[elementId];
-        const iface = state.model.interfaces[elementId];
-        const enm = state.model.enums[elementId];
+      withUndo('model', 'Untrack Element', 'global', (draft) => {
+        if (!draft.model) return;
+        const cls = draft.model.classes[elementId];
+        const iface = draft.model.interfaces[elementId];
+        const enm = draft.model.enums[elementId];
         if (cls) {
-          state.model.classes[elementId].isExternal = true;
+          draft.model.classes[elementId].isExternal = true;
         } else if (iface) {
-          state.model.interfaces[elementId].isExternal = true;
+          draft.model.interfaces[elementId].isExternal = true;
         } else if (enm) {
-          state.model.enums[elementId].isExternal = true;
+          draft.model.enums[elementId].isExternal = true;
         } else {
           return;
         }
-        state.model.updatedAt = Date.now();
+        draft.model.updatedAt = Date.now();
       }),
 
     resetModel: () =>
@@ -297,44 +272,37 @@ export const useModelStore = create<ModelStoreState>()(
       }),
 
     addPackageName: (name) =>
-      set((state) => {
-        if (!state.model) return;
-        if (!state.model.packageNames) state.model.packageNames = [];
-        if (!state.model.packageNames.includes(name)) {
-          state.model.packageNames.push(name);
-          state.model.updatedAt = Date.now();
+      withUndo('model', `Add Package: ${name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        if (!draft.model.packageNames) draft.model.packageNames = [];
+        if (!draft.model.packageNames.includes(name)) {
+          draft.model.packageNames.push(name);
+          draft.model.updatedAt = Date.now();
         }
       }),
 
     removePackageName: (name) =>
-      set((state) => {
-        if (!state.model || !state.model.packageNames) return;
-        state.model.packageNames = state.model.packageNames.filter((n) => n !== name);
-        state.model.updatedAt = Date.now();
+      withUndo('model', `Remove Package: ${name}`, 'global', (draft) => {
+        if (!draft.model || !draft.model.packageNames) return;
+        draft.model.packageNames = draft.model.packageNames.filter((n: string) => n !== name);
+        draft.model.updatedAt = Date.now();
       }),
 
     setElementPackage: (elementId, packageName) =>
-      set((state) => {
-        if (!state.model) return;
-        const cls = state.model.classes[elementId];
-        const iface = state.model.interfaces[elementId];
-        const enm = state.model.enums[elementId];
-        if (cls) {
-          state.model.classes[elementId].packageName = packageName;
-        } else if (iface) {
-          state.model.interfaces[elementId].packageName = packageName;
-        } else if (enm) {
-          state.model.enums[elementId].packageName = packageName;
+      withUndo('model', 'Set Element Package', 'global', (draft) => {
+        if (!draft.model) return;
+        if (draft.model.classes[elementId]) {
+          draft.model.classes[elementId].packageName = packageName;
+        } else if (draft.model.interfaces[elementId]) {
+          draft.model.interfaces[elementId].packageName = packageName;
+        } else if (draft.model.enums[elementId]) {
+          draft.model.enums[elementId].packageName = packageName;
         } else return;
-        state.model.updatedAt = Date.now();
+        draft.model.updatedAt = Date.now();
       }),
   })),
   {
     name: 'libreuml-model-storage',
-    // v0 → v1: SemanticModel gained enums, dataTypes, actors, useCases, activityNodes,
-    // objectInstances, components, nodes, artifacts, and packageNames. Returning users
-    // whose localStorage was written before these fields existed would otherwise crash
-    // on any code path that assumes a non-undefined dictionary (e.g. model.enums[id]).
     version: 1,
     migrate: (persistedState: unknown, version: number): { model: SemanticModel | null } => {
       const typed = persistedState as { model: SemanticModel | null };
@@ -353,7 +321,6 @@ export const useModelStore = create<ModelStoreState>()(
       }
       return typed;
     },
-    // Persist only the model data — actions are reconstructed from the store definition.
     partialize: (state) => ({ model: state.model }),
     storage: {
       getItem: (name) => {
@@ -369,17 +336,13 @@ export const useModelStore = create<ModelStoreState>()(
     },
     onRehydrateStorage: () => {
       return () => {
-        // Clear undo history created by persist rehydration —
-        // loading from storage is not a user action.
-        // Wrapped in setTimeout to avoid TDZ (Temporal Dead Zone) issue:
-        // onRehydrateStorage fires during create(), before useModelStore is assigned.
         setTimeout(() => {
-          useModelStore.temporal.getState().clear();
+          import('../core/undo/instance').then(({ undoManager }) => {
+            undoManager.clear();
+          });
         }, 0);
       };
     },
   }
-  ),
-  { limit: 50, equality: (a, b) => JSON.stringify(a) === JSON.stringify(b) },
   )
 );

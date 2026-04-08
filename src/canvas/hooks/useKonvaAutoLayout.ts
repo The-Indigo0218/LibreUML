@@ -8,7 +8,7 @@
 
 import dagre from 'dagre';
 import { useCallback } from 'react';
-import { useVFSStore, withoutUndo } from '../../store/project-vfs.store';
+import { useVFSStore } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
 import { useUiStore } from '../../store/uiStore';
@@ -93,9 +93,7 @@ export function useKonvaAutoLayout() {
       };
     });
 
-    withoutUndo(() => {
-      updateFileContent(activeTabId, { ...view, nodes: updatedNodes });
-    });
+    updateFileContent(activeTabId, { ...view, nodes: updatedNodes });
 
     requestAnimationFrame(() => {
       fitView();

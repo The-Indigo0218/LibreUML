@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import { useWorkspaceStore } from "../../../store/workspace.store";
-import { useVFSStore, withoutUndo } from "../../../store/project-vfs.store";
+import { useVFSStore } from "../../../store/project-vfs.store";
 import { isDiagramView } from "./useVFSCanvasController";
 import type { VFSFile, DiagramView } from "../../../core/domain/vfs/vfs.types";
 
@@ -80,11 +80,9 @@ export const useNodeDragging = () => {
         return pos ? { ...vn, x: pos.x, y: pos.y } : vn;
       });
 
-      withoutUndo(() => {
-        useVFSStore.getState().updateFileContent(tabId, {
-          ...currentView,
-          nodes: updatedNodes,
-        });
+      useVFSStore.getState().updateFileContent(tabId, {
+        ...currentView,
+        nodes: updatedNodes,
       });
 
       dragSnapshotRef.current = null;

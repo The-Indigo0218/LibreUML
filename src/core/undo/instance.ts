@@ -1,5 +1,6 @@
 import { UndoManager } from './UndoManager';
 import { undoTransaction as _undoTransaction, withUndo as _withUndo } from './undoTransaction';
+import { _registerUndoBridge } from './undoBridge';
 import type { TransactionSpec } from './undoTransaction';
 import type { StoreKey } from './types';
 import { useModelStore } from '../../store/model.store';
@@ -31,3 +32,5 @@ export function withUndo(
 ): void {
   _withUndo(store, label, scope, mutate, undoManager, undoManager.getStores());
 }
+
+_registerUndoBridge(undoManager, withUndo, undoTransaction);

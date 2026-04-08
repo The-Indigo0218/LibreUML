@@ -5,6 +5,7 @@ import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
 import { standaloneModelOps, getLocalModel } from "../../../../store/standaloneModelOps";
+import { getUndoManager } from "../../../../core/undo/undoBridge";
 import { isDiagramView } from "../useVFSCanvasController";
 import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
 
@@ -133,11 +134,13 @@ export const useEditActions = () => {
   }, []);
 
   const undo = useCallback(() => {
-    console.warn("TODO: SSOT - Undo not implemented. Requires history middleware (e.g., zundo)");
+    const activeTabId = useWorkspaceStore.getState().activeTabId;
+    getUndoManager()?.undo(activeTabId ?? undefined);
   }, []);
 
   const redo = useCallback(() => {
-    console.warn("TODO: SSOT - Redo not implemented. Requires history middleware (e.g., zundo)");
+    const activeTabId = useWorkspaceStore.getState().activeTabId;
+    getUndoManager()?.redo(activeTabId ?? undefined);
   }, []);
 
   return {

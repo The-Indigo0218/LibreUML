@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useKonvaAutoLayout } from "../../../canvas/hooks/useKonvaAutoLayout";
 import { useUiStore } from "../../../store/uiStore";
 import { useVFSStore } from "../../../store/project-vfs.store";
+import { useWorkspaceStore } from "../../../store/workspace.store";
 import { getUndoManager } from "../../../core/undo/undoBridge";
 import { useFileLifecycle } from "./actions/useFileLifecycle";
 import { useToastStore } from "../../../store/toast.store";
@@ -38,19 +39,22 @@ export const useKeyboardShortcuts = () => {
 
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
-        getUndoManager()?.redo();
+        const activeTabId = useWorkspaceStore.getState().activeTabId;
+        getUndoManager()?.redo(activeTabId ?? undefined);
         return;
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
-        getUndoManager()?.undo();
+        const activeTabId = useWorkspaceStore.getState().activeTabId;
+        getUndoManager()?.undo(activeTabId ?? undefined);
         return;
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key === "y") {
         e.preventDefault();
-        getUndoManager()?.redo();
+        const activeTabId = useWorkspaceStore.getState().activeTabId;
+        getUndoManager()?.redo(activeTabId ?? undefined);
         return;
       }
 

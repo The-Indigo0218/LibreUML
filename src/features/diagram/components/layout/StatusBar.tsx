@@ -13,7 +13,7 @@ export default function StatusBar() {
   const { activeTabId } = useWorkspaceStore();
   const { project } = useVFSStore();
   const { openProblemsTab } = useLayoutStore();
-  const { canUndo, canRedo, undo: handleUndo, redo: handleRedo } = useUndoManager(undoManager);
+  const { canUndo, canRedo, undo: handleUndo, redo: handleRedo } = useUndoManager(undoManager, activeTabId ?? undefined);
 
   const activeNode = activeTabId && project?.nodes[activeTabId];
   const activeFile = activeNode && activeNode.type === "FILE" ? activeNode : null;

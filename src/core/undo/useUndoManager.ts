@@ -13,7 +13,7 @@ export interface UseUndoManagerResult {
 }
 
 export function useUndoManager(manager: UndoManager, scope?: string): UseUndoManagerResult {
-  const snapshot = useSyncExternalStore(
+  useSyncExternalStore(
     (listener) => manager.subscribe(listener),
     () => manager.getSnapshot(),
   );
@@ -23,8 +23,8 @@ export function useUndoManager(manager: UndoManager, scope?: string): UseUndoMan
   const clear = useCallback(() => manager.clear(), [manager]);
 
   return {
-    canUndo: snapshot.canUndo,
-    canRedo: snapshot.canRedo,
+    canUndo: manager.canUndo(scope),
+    canRedo: manager.canRedo(scope),
     undo,
     redo,
     undoStack: manager.getUndoStack(scope),

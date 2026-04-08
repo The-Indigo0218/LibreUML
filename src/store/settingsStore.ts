@@ -10,6 +10,7 @@ interface SettingsState {
   language: string;
   suppressSvgWarning: boolean;
   hideDuplicateFileWarning: boolean;
+  javaImportPreference: 'model' | 'canvas' | 'both' | null;
   showMiniMap: boolean;
   showGrid: boolean;
   snapToGrid: boolean;
@@ -23,6 +24,7 @@ interface SettingsState {
   setLastFilePath: (path: string | undefined) => void;
   setSuppressSvgWarning: (suppress: boolean) => void;
   setHideDuplicateFileWarning: (hide: boolean) => void;
+  setJavaImportPreference: (preference: 'model' | 'canvas' | 'both' | null) => void;
   toggleMiniMap: () => void;
   toggleGrid: () => void;
   toggleSnapToGrid: () => void;
@@ -39,6 +41,7 @@ export const useSettingsStore = create<SettingsState>()(
       language: "en",
       suppressSvgWarning: false,
       hideDuplicateFileWarning: false,
+      javaImportPreference: null,
       lastFilePath: undefined,
       showMiniMap: false,
       showGrid: true,
@@ -54,6 +57,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setSuppressSvgWarning: (suppress) => set({ suppressSvgWarning: suppress }),
       setHideDuplicateFileWarning: (hide) => set({ hideDuplicateFileWarning: hide }),
+      setJavaImportPreference: (preference) => set({ javaImportPreference: preference }),
       setLastFilePath: (path) => set({ lastFilePath: path }),
       toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
       toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
@@ -63,6 +67,7 @@ export const useSettingsStore = create<SettingsState>()(
         set({
           suppressSvgWarning: false,
           hideDuplicateFileWarning: false,
+          javaImportPreference: null,
         });
         try {
           localStorage.removeItem('libreuml-suppress-close-project-warning');

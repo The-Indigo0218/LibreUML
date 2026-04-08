@@ -298,6 +298,19 @@
       "errorExt": "Por favor sube un archivo .java válido",
       "errorEmpty": "No hay código para importar"
     },
+    "javaImportPreference": {
+      "title": "Importar Archivo Java",
+      "question": "¿Dónde te gustaría importar este archivo Java?",
+      "toModel": "Importar al Modelo (SSOT)",
+      "toModelDesc": "Agregar al modelo semántico. La clase estará disponible en todos los diagramas.",
+      "toCanvas": "Importar Solo al Canvas Actual",
+      "toCanvasDesc": "Agregar solo a la vista del diagrama actual. No afectará el modelo global.",
+      "toBoth": "Importar a Ambos",
+      "toBothDesc": "Agregar al modelo y mostrar en el canvas actual.",
+      "dontShowAgain": "No mostrar esto de nuevo (usar esta preferencia para todas las importaciones Java)",
+      "cancel": "Cancelar",
+      "import": "Importar"
+    },
     "projectGenerator": {
       "title": "Generar Proyecto",
       "subtitle": "Exportar estructura lista para IDEs",

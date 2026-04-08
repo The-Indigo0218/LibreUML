@@ -284,6 +284,19 @@
       "errorExt": "Please upload a valid .java file",
       "errorEmpty": "No code to import"
     },
+    "javaImportPreference": {
+      "title": "Import Java File",
+      "question": "Where would you like to import this Java file?",
+      "toModel": "Import to Model (SSOT)",
+      "toModelDesc": "Add to the semantic model. The class will be available across all diagrams.",
+      "toCanvas": "Import to Current Canvas Only",
+      "toCanvasDesc": "Add to the current diagram view only. Won't affect the global model.",
+      "toBoth": "Import to Both",
+      "toBothDesc": "Add to the model and show in the current canvas.",
+      "dontShowAgain": "Don't show this again (use this preference for all Java imports)",
+      "cancel": "Cancel",
+      "import": "Import"
+    },
     "projectGenerator": {
       "title": "Generate Project",
       "subtitle": "Export structure ready for IDEs",

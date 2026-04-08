@@ -51,7 +51,8 @@ const NAME_FONT = 14;
 const SEC_FONT = 12;
 const ROW_H = 20;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
-const FONT_MONO = '"Fira Code", monospace';
+// Single-quoted font name so the value is valid inside an SVG double-quoted attribute
+const FONT_MONO = "'Fira Code', monospace";
 
 const NOTE_W = 224;
 const NOTE_FOLD = 12;

@@ -63,7 +63,9 @@ export default function KonvaCanvas() {
       setStage(stage);
       return () => setStage(null);
     }
-  }, [setStage]);
+  // size.width/height trigger after the Stage renders conditionally (requires size > 0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setStage, size.width, size.height]);
 
   const vfsController = useVFSCanvasController();
 

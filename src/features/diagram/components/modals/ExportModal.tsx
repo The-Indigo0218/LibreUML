@@ -383,7 +383,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
                   {/* PNG/SVG note in VFS mode */}
                   {isVFSMode && (
                     <p className="text-xs text-text-muted">
-                      PNG / SVG captures the current canvas view. Switch to the desired diagram tab first.
+                      PNG / SVG captures the entire diagram (all nodes). Switch to the desired diagram tab first.
                     </p>
                   )}
                 </>

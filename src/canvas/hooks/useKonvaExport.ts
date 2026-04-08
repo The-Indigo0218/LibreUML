@@ -1,18 +1,20 @@
 /**
  * useKonvaExport — PNG/SVG export (MAG-01.13 + MAG-01.14 + MAG-01.15)
  *
- * PNG: stage.toDataURL with full diagram bounds (MAG-01.14)
+ * PNG: captures ALL nodes by temporarily resetting the stage transform so
+ *      all content maps to screen (0,0), regardless of current pan/zoom.
  * SVG: true vector SVG via diagramToSvg (MAG-01.15)
  */
 
 import { useCallback } from 'react';
 import { useStageStore } from '../store/stageStore';
-import { useVFSStore } from '../../store/project-vfs.store';
-import { useWorkspaceStore } from '../../store/workspace.store';
 import { useKonvaCanvasController } from './useKonvaCanvasController';
 import { diagramToSvg } from '../export/diagramToSvg';
-import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
-import type { VFSFile, ViewNode } from '../../core/domain/vfs/vfs.types';
+import type { ShapeDescriptor } from '../types/canvas.types';
+import type { NodeViewModel, NoteViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import { getClassShapeSize } from '../shapes/ClassShape';
+import { getNoteShapeSize } from '../shapes/NoteShape';
+import type Konva from 'konva';
 
 export interface KonvaExportOptions {
   fileName: string;
@@ -22,10 +24,7 @@ export interface KonvaExportOptions {
   backgroundColor: string;
 }
 
-// Node dimensions (matches ClassShape MIN_W and typical height)
-const NODE_WIDTH = 256;
-const NODE_HEIGHT = 120;
-const EXPORT_MARGIN = 50; // Padding around diagram bounds
+const EXPORT_MARGIN = 50;
 
 interface DiagramBounds {
   x: number;
@@ -34,44 +33,80 @@ interface DiagramBounds {
   height: number;
 }
 
-/**
- * Calculate bounding box for all nodes in the diagram.
- * Returns bounds with margin padding, or default bounds if no nodes.
- */
-function calculateDiagramBounds(nodes: ViewNode[]): DiagramBounds {
-  // Empty diagram: return default bounds
-  if (nodes.length === 0) {
-    return {
-      x: 0,
-      y: 0,
-      width: 800,
-      height: 600,
-    };
-  }
+function calculateBoundsFromShapes(shapes: ShapeDescriptor[]): DiagramBounds | null {
+  if (shapes.length === 0) return null;
 
-  // Find min/max coordinates across all nodes
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
 
-  for (const node of nodes) {
-    const nodeWidth = node.width ?? NODE_WIDTH;
-    const nodeHeight = node.height ?? NODE_HEIGHT;
+  for (const shape of shapes) {
+    const { width, height } =
+      shape.type === 'note'
+        ? getNoteShapeSize(shape.data as NoteViewModel)
+        : getClassShapeSize(shape.data as NodeViewModel);
 
-    minX = Math.min(minX, node.x);
-    minY = Math.min(minY, node.y);
-    maxX = Math.max(maxX, node.x + nodeWidth);
-    maxY = Math.max(maxY, node.y + nodeHeight);
+    minX = Math.min(minX, shape.x);
+    minY = Math.min(minY, shape.y);
+    maxX = Math.max(maxX, shape.x + width);
+    maxY = Math.max(maxY, shape.y + height);
   }
 
-  // Add margin padding
   return {
     x: minX - EXPORT_MARGIN,
     y: minY - EXPORT_MARGIN,
     width: maxX - minX + EXPORT_MARGIN * 2,
     height: maxY - minY + EXPORT_MARGIN * 2,
   };
+}
+
+function exportWithTemporaryTransform(
+  stage: Konva.Stage,
+  bounds: DiagramBounds,
+  pixelRatio: number,
+  mimeType: string,
+  bgColor?: string,
+): string {
+  const savedX = stage.x();
+  const savedY = stage.y();
+  const savedScaleX = stage.scaleX();
+  const savedScaleY = stage.scaleY();
+  const savedWidth = stage.width();
+  const savedHeight = stage.height();
+
+  // Bypass viewport culling: force-show hidden direct children of all layers
+  const culledNodes: Konva.Node[] = [];
+  for (const layer of stage.getLayers()) {
+    for (const child of layer.children ?? []) {
+      if (!child.visible()) {
+        culledNodes.push(child);
+        child.show();
+      }
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bgRect = stage.findOne('.bg-rect') as any;
+  const savedBgFill: string | null = bgRect ? bgRect.fill() as string : null;
+  if (bgRect && bgColor) bgRect.fill(bgColor);
+
+  try {
+    stage.position({ x: -bounds.x, y: -bounds.y });
+    stage.scale({ x: 1, y: 1 });
+    stage.width(bounds.width);
+    stage.height(bounds.height);
+    stage.draw();
+    return stage.toDataURL({ pixelRatio, mimeType });
+  } finally {
+    if (bgRect && savedBgFill !== null) bgRect.fill(savedBgFill);
+    for (const node of culledNodes) node.hide();
+    stage.position({ x: savedX, y: savedY });
+    stage.scale({ x: savedScaleX, y: savedScaleY });
+    stage.width(savedWidth);
+    stage.height(savedHeight);
+    stage.batchDraw();
+  }
 }
 
 async function triggerDownload(dataUrl: string, fileName: string, ext: string) {
@@ -88,7 +123,6 @@ async function triggerDownload(dataUrl: string, fileName: string, ext: string) {
 
 export function useKonvaExport() {
   const stage = useStageStore((s) => s.stage);
-  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const { shapes, edges } = useKonvaCanvasController();
 
   const exportDiagram = useCallback(
@@ -98,38 +132,14 @@ export function useKonvaExport() {
         return;
       }
 
-      // Get current diagram nodes to calculate bounds
-      const project = useVFSStore.getState().project;
-      if (!activeTabId || !project) {
-        console.error('[useKonvaExport] No active diagram');
-        return;
-      }
-
-      const fileNode = project.nodes[activeTabId];
-      if (!fileNode || fileNode.type !== 'FILE') {
-        console.error('[useKonvaExport] Active tab is not a file');
-        return;
-      }
-
-      const content = (fileNode as VFSFile).content;
-      if (!isDiagramView(content)) {
-        console.error('[useKonvaExport] File content is not a diagram view');
-        return;
-      }
-
-      // Calculate bounds from all nodes (visible + off-screen)
-      const bounds = calculateDiagramBounds(content.nodes);
+      const bounds = calculateBoundsFromShapes(shapes);
       const pixelRatio = options.scale;
 
       if (options.format === 'png') {
-        const dataUrl = stage.toDataURL({
-          x: bounds.x,
-          y: bounds.y,
-          width: bounds.width,
-          height: bounds.height,
-          pixelRatio,
-          mimeType: 'image/png',
-        });
+        const bgColor = options.transparent ? undefined : options.backgroundColor;
+      const dataUrl = bounds
+          ? exportWithTemporaryTransform(stage, bounds, pixelRatio, 'image/png', bgColor)
+          : stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
         await triggerDownload(dataUrl, options.fileName, 'png');
         return;
       }
@@ -146,7 +156,7 @@ export function useKonvaExport() {
         URL.revokeObjectURL(svgDataUrl);
       }
     },
-    [stage, activeTabId, shapes, edges],
+    [stage, shapes, edges],
   );
 
   return { exportDiagram, hasStage: !!stage };

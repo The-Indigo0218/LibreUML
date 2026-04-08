@@ -461,7 +461,11 @@ export const useVFSStore = create<VFSStoreState>()(
       },
     }
   ),
-  { limit: 50 },
+  {
+    limit: 50,
+    equality: (a, b) => JSON.stringify(a) === JSON.stringify(b),
+    partialize: (state) => ({ project: state.project }),
+  },
   )
 );
 

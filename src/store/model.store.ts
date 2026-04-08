@@ -380,6 +380,6 @@ export const useModelStore = create<ModelStoreState>()(
     },
   }
   ),
-  { limit: 50 },
+  { limit: 50, equality: (a, b) => JSON.stringify(a) === JSON.stringify(b) },
   )
 );

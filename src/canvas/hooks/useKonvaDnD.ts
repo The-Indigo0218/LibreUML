@@ -459,17 +459,43 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
             return;
         }
       } else {
-        // a) Ensure SemanticModel is initialized (may be null on first drop).
-        const modelState = useModelStore.getState();
-        if (!modelState.model) {
-          modelState.initModel(freshProject.domainModelId ?? crypto.randomUUID());
-        }
+        const vfsTemporalStore = useVFSStore.temporal.getState();
+        const modelTemporalStore = useModelStore.temporal.getState();
+        vfsTemporalStore.pause();
+        modelTemporalStore.pause();
 
-        // b) Compute auto-incremented name, then create the semantic IR element.
-        const currentModel = useModelStore.getState().model!;
-        const elementName = dropConfig.getNextName(currentModel);
-        const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
-        semanticId = dropConfig.create(elementName, isExternalFile || undefined);
+        try {
+          // a) Ensure SemanticModel is initialized (may be null on first drop).
+          const modelState = useModelStore.getState();
+          if (!modelState.model) {
+            modelState.initModel(freshProject.domainModelId ?? crypto.randomUUID());
+          }
+
+          // b) Compute auto-incremented name, then create the semantic IR element.
+          const currentModel = useModelStore.getState().model!;
+          const elementName = dropConfig.getNextName(currentModel);
+          const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
+          semanticId = dropConfig.create(elementName, isExternalFile || undefined);
+
+          // c) Create the visual ViewNode linked to the semantic element.
+          const viewNode: ViewNode = {
+            id: crypto.randomUUID(),
+            elementId: semanticId,
+            x: position.x,
+            y: position.y,
+          };
+
+          // d) Persist the updated DiagramView to VFSStore.
+          const updatedView: DiagramView = {
+            ...freshView,
+            nodes: [...freshView.nodes, viewNode],
+          };
+          updateFileContent(activeTabId, updatedView);
+        } finally {
+          vfsTemporalStore.resume();
+          modelTemporalStore.resume();
+        }
+        return;
       }
 
       // c) Create the visual ViewNode linked to the semantic element.

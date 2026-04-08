@@ -26,6 +26,12 @@ export function autoConnectByAttributeType(
 
   const seenTargets = new Set<string>();
 
+  const vfsTemporalStore = useVFSStore.temporal.getState();
+  const modelTemporalStore = useModelStore.temporal.getState();
+  vfsTemporalStore.pause();
+  modelTemporalStore.pause();
+
+  try {
   for (const attr of attributes) {
     const { baseName, isCollection } = parseAttributeType(attr.type);
     const effectiveIsCollection = isCollection || attr.multiplicity === '*';
@@ -76,5 +82,9 @@ export function autoConnectByAttributeType(
       ...fileContent,
       edges: [...fileContent.edges, viewEdge],
     });
+  }
+  } finally {
+    vfsTemporalStore.resume();
+    modelTemporalStore.resume();
   }
 }

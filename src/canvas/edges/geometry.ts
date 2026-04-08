@@ -23,23 +23,54 @@ export type AnchorFace = 'Top' | 'Bottom' | 'Left' | 'Right';
 
 export interface AnchorPoint extends Point {
   face: AnchorFace;
+  /** True for corner anchors — face is assigned dynamically by selectAnchors. */
+  isCorner?: boolean;
 }
 
-/** Returns 4 cardinal anchor points at the mid-edge of each side. */
+/**
+ * Returns 8 anchor points: 4 cardinal midpoints + 4 corners.
+ * Corner faces are placeholder values; selectAnchors reassigns them dynamically
+ * based on the direction toward the opposing anchor.
+ */
 export function getAnchorPoints(b: NodeBounds): AnchorPoint[] {
   const cx = b.x + b.width / 2;
   const cy = b.y + b.height / 2;
   return [
+    // Cardinal midpoints
     { x: cx,            y: b.y,            face: 'Top'    },
     { x: cx,            y: b.y + b.height, face: 'Bottom' },
     { x: b.x,           y: cy,             face: 'Left'   },
     { x: b.x + b.width, y: cy,             face: 'Right'  },
+    // Corners (face assigned in selectAnchors)
+    { x: b.x,           y: b.y,            face: 'Top',    isCorner: true },
+    { x: b.x + b.width, y: b.y,            face: 'Top',    isCorner: true },
+    { x: b.x,           y: b.y + b.height, face: 'Bottom', isCorner: true },
+    { x: b.x + b.width, y: b.y + b.height, face: 'Bottom', isCorner: true },
   ];
 }
 
 /**
+ * Assigns a cardinal face to a corner anchor based on the direction from the
+ * corner toward the other endpoint.
+ *
+ * For a SOURCE corner: face points toward the target → determines first-segment
+ * direction in orthogonalRoute / outward control-point in curvedRoute.
+ *
+ * For a TARGET corner: face points toward the source → gives the arrival
+ * direction used by faceToMarkerAngle (marker rotation) and retractAnchor.
+ */
+function assignCornerFace(corner: Point, other: Point): AnchorFace {
+  const dx = other.x - corner.x;
+  const dy = other.y - corner.y;
+  return Math.abs(dx) >= Math.abs(dy)
+    ? (dx >= 0 ? 'Right' : 'Left')
+    : (dy >= 0 ? 'Bottom' : 'Top');
+}
+
+/**
  * Selects the closest pair of anchor points, one from each node.
- * Brute-force O(16) — acceptable for 4-anchor sets.
+ * Considers all 8 anchors (4 cardinal + 4 corners) — O(64).
+ * Corner anchors get a dynamically computed face after selection.
  */
 export function selectAnchors(
   source: NodeBounds,
@@ -62,7 +93,16 @@ export function selectAnchors(
       }
     }
   }
-  return { src: bestSrc, tgt: bestTgt };
+
+  // Assign dynamic faces to any corner anchor in the winning pair
+  const src = bestSrc.isCorner
+    ? { ...bestSrc, face: assignCornerFace(bestSrc, bestTgt) }
+    : bestSrc;
+  const tgt = bestTgt.isCorner
+    ? { ...bestTgt, face: assignCornerFace(bestTgt, bestSrc) }
+    : bestTgt;
+
+  return { src, tgt };
 }
 
 /**

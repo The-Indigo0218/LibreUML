@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { immer } from 'zustand/middleware/immer';
 import { temporal } from 'zundo';
 import { useModelStore } from './model.store';
 import type {
@@ -63,7 +64,7 @@ interface VFSStoreState {
 export const useVFSStore = create<VFSStoreState>()(
   temporal(
   persist(
-    (set) => ({
+    immer((set) => ({
       project: null,
       isLoading: false,
 
@@ -432,7 +433,7 @@ export const useVFSStore = create<VFSStoreState>()(
           };
         });
       },
-    }),
+    })),
     {
       name: 'libreuml-vfs-storage',
       version: 1,

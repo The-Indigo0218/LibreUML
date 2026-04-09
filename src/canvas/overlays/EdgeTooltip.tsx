@@ -45,6 +45,9 @@ const RELATION_LABELS: Record<RelationKind, string> = {
   OBJECT_FLOW: 'Object Flow',
   DEPLOYMENT: 'Deployment',
   MANIFESTATION: 'Manifestation',
+  PACKAGE_IMPORT: 'Package Import',
+  PACKAGE_MERGE: 'Package Merge',
+  PACKAGE_ACCESS: 'Package Access',
 };
 
 export default function EdgeTooltip({ kind, x, y, visible }: EdgeTooltipProps) {

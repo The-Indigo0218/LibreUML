@@ -20,6 +20,7 @@ import { useDragHandler } from './interactions/useDragHandler';
 import type { CanvasNode } from './interactions/useDragHandler';
 import { useConnectionDraw } from './interactions/useConnectionDraw';
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
+import { usePackageDrop } from './interactions/usePackageDrop';
 import CanvasOverlay from './CanvasOverlay';
 import DuplicateFileModal from '../components/shared/DuplicateFileModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -163,6 +164,8 @@ export default function KonvaCanvas() {
   });
 
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+  const [hoveredPackageId, setHoveredPackageId] = useState<string | null>(null);
+  const [isHoverValid, setIsHoverValid] = useState<boolean>(true);
 
   const highlightedEdgeIds = useMemo((): Set<string> => {
     if (!highlightConnections) return new Set();
@@ -183,6 +186,21 @@ export default function KonvaCanvas() {
     },
     [onNodeChange],
   );
+
+  const collectDescendantIds = useCallback((nodeId: string): Set<string> => {
+    const result = new Set<string>([nodeId]);
+    const queue = [nodeId];
+    while (queue.length > 0) {
+      const parentId = queue.shift()!;
+      for (const shape of shapes) {
+        if (shape.parentPackageId === parentId && !result.has(shape.id)) {
+          result.add(shape.id);
+          queue.push(shape.id);
+        }
+      }
+    }
+    return result;
+  }, [shapes]);
 
   const { positionOverrides, dragPositions, ghostNodes, dragHandlers } = useDragHandler({
     stageRef,
@@ -236,6 +254,15 @@ export default function KonvaCanvas() {
 
   boundsMapRef.current = boundsMap;
 
+  const {
+    pendingDrop,
+    onDragEndWithPackageDetection,
+    PackageDropPicker,
+  } = usePackageDrop({
+    shapes,
+    boundsMap,
+    activeTabId,
+  });
 
   const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap);
 
@@ -248,6 +275,63 @@ export default function KonvaCanvas() {
       dragHandlers.onDragStart(e);
     },
     [dragHandlers.onDragStart, connectionDraw.nearAnchorRef],
+  );
+
+  const handleDragEnd = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      dragHandlers.onDragEnd(e);
+      onDragEndWithPackageDetection(e);
+      setHoveredPackageId(null);
+      setIsHoverValid(true);
+    },
+    [dragHandlers, onDragEndWithPackageDetection],
+  );
+
+  const handleDragMove = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      dragHandlers.onDragMove(e);
+
+      const nodeId = e.target.id();
+      if (!nodeId) return;
+
+      const nodeBounds = boundsMap.get(nodeId);
+      const dropPoint = {
+        x: e.target.x() + (nodeBounds ? nodeBounds.width / 2 : 0),
+        y: e.target.y() + (nodeBounds ? nodeBounds.height / 2 : 0),
+      };
+
+      const excludeIds = collectDescendantIds(nodeId);
+      let foundPackage: string | null = null;
+      let maxDepth = -1;
+
+      for (const shape of shapes) {
+        if (shape.type !== 'package') continue;
+        if (excludeIds.has(shape.id)) continue;
+        if (!isPackageViewModel(shape.data)) continue;
+
+        const pkgBounds = boundsMap.get(shape.id);
+        if (!pkgBounds) continue;
+
+        const { x, y, width, height } = pkgBounds;
+        if (
+          dropPoint.x >= x &&
+          dropPoint.x <= x + width &&
+          dropPoint.y >= y &&
+          dropPoint.y <= y + height
+        ) {
+          if (shape.data.depth > maxDepth) {
+            maxDepth = shape.data.depth;
+            foundPackage = shape.id;
+          }
+        }
+      }
+
+      if (foundPackage !== hoveredPackageId) {
+        setHoveredPackageId(foundPackage);
+        setIsHoverValid(!excludeIds.has(foundPackage ?? ''));
+      }
+    },
+    [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId],
   );
 
   const handleDeleteNodes = useCallback(
@@ -681,6 +765,10 @@ export default function KonvaCanvas() {
               const isVisible = visibleNodeIds.has(shape.id);
               
               if (isPackageViewModel(vm)) {
+                const dropHighlight = 
+                  hoveredPackageId === shape.id 
+                    ? (isHoverValid ? 'valid' : 'invalid')
+                    : null;
                 return (
                   <PackageShape
                     key={shape.id}
@@ -688,10 +776,11 @@ export default function KonvaCanvas() {
                     x={pos.x}
                     y={pos.y}
                     selected={selectedIds.has(shape.id)}
+                    dropHighlight={dropHighlight}
                     draggable
                     onDragStart={guardedDragStart}
-                    onDragMove={dragHandlers.onDragMove}
-                    onDragEnd={dragHandlers.onDragEnd}
+                    onDragMove={handleDragMove}
+                    onDragEnd={handleDragEnd}
                     onNodeClick={onNodeClick}
                     onContextMenu={handleNodeContextMenu}
                     visible={isVisible}
@@ -709,8 +798,8 @@ export default function KonvaCanvas() {
                     selected={selectedIds.has(shape.id)}
                     draggable
                     onDragStart={guardedDragStart}
-                    onDragMove={dragHandlers.onDragMove}
-                    onDragEnd={dragHandlers.onDragEnd}
+                    onDragMove={handleDragMove}
+                    onDragEnd={handleDragEnd}
                     onNodeClick={onNodeClick}
                     onDblClick={(e) => handleNoteDblClick(shape.id, e)}
                     onContextMenu={handleNodeContextMenu}
@@ -727,8 +816,8 @@ export default function KonvaCanvas() {
                   selected={selectedIds.has(shape.id)}
                   draggable
                   onDragStart={guardedDragStart}
-                  onDragMove={dragHandlers.onDragMove}
-                  onDragEnd={dragHandlers.onDragEnd}
+                  onDragMove={handleDragMove}
+                  onDragEnd={handleDragEnd}
                   onNodeClick={onNodeClick}
                   onDblClick={(e) => handleClassDblClick(shape.id, e)}
                   onContextMenu={handleNodeContextMenu}
@@ -837,6 +926,8 @@ export default function KonvaCanvas() {
         contextMenuOptions={contextMenuOptions}
         onCloseContextMenu={closeMenu}
       />
+
+      {PackageDropPicker}
 
       <DuplicateFileModal
         isOpen={duplicateModal.isOpen}

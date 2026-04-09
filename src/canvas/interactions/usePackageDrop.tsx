@@ -1,5 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { isPackageViewModel } from '../../adapters/react-flow/view-models/node.view-model';
@@ -7,20 +6,9 @@ import type { NodeBounds } from '../edges/geometry';
 import type { ShapeDescriptor } from '../types/canvas.types';
 import { undoTransaction } from '../../core/undo/undoBridge';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import PackageDropPicker, { type PackageCandidate } from '../overlays/PackageDropPicker';
 
 const AMBIGUOUS_THRESHOLD = 50;
-const PICKER_W = 224;
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface PackageCandidate {
-  viewNodeId: string;
-  packageName: string;
-  depth: number;
-  distanceToBorder: number;
-}
 
 interface PendingDrop {
   droppedNodeId: string;
@@ -88,70 +76,6 @@ function detectOverlappingPackages(
   candidates.sort((a, b) => b.depth - a.depth);
   return candidates;
 }
-
-// ─── Picker component ─────────────────────────────────────────────────────────
-
-interface PickerProps {
-  candidates: PackageCandidate[];
-  screenPos: { x: number; y: number };
-  onSelect: (viewNodeId: string | null) => void;
-  onCancel: () => void;
-}
-
-function PackageDropPickerUI({ candidates, screenPos, onSelect, onCancel }: PickerProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onCancel();
-      }
-    };
-    const t = setTimeout(() => document.addEventListener('mousedown', handler), 0);
-    return () => {
-      clearTimeout(t);
-      document.removeEventListener('mousedown', handler);
-    };
-  }, [onCancel]);
-
-  const rowH = 36;
-  const left = Math.min(screenPos.x, window.innerWidth - PICKER_W - 8);
-  const top = Math.min(screenPos.y, window.innerHeight - (candidates.length + 2) * rowH - 16);
-
-  return createPortal(
-    <div
-      ref={ref}
-      style={{ position: 'fixed', left, top, width: PICKER_W, zIndex: 9999 }}
-      className="bg-surface-primary border border-surface-border rounded-md shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100 flex flex-col overflow-hidden"
-    >
-      <div className="px-3 py-1.5 text-text-secondary text-xs font-medium border-b border-surface-border">
-        Nest in package
-      </div>
-      {candidates.map((c) => (
-        <button
-          key={c.viewNodeId}
-          className="w-full text-left px-4 py-2.5 text-sm flex items-center gap-2 text-text-secondary hover:bg-surface-hover hover:text-text-primary border-l-2 border-transparent hover:border-uml-class-border transition-colors"
-          onClick={() => onSelect(c.viewNodeId)}
-        >
-          <span className="opacity-50 text-xs select-none shrink-0">
-            {'›'.repeat(c.depth + 1)}
-          </span>
-          <span className="truncate">{c.packageName}</span>
-        </button>
-      ))}
-      <div className="border-t border-surface-border mt-1" />
-      <button
-        className="w-full text-left px-4 py-2.5 text-sm text-text-secondary hover:bg-surface-hover hover:text-text-primary border-l-2 border-transparent hover:border-uml-class-border transition-colors italic"
-        onClick={() => onSelect(null)}
-      >
-        None (free-floating)
-      </button>
-    </div>,
-    document.body,
-  );
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function usePackageDrop({
   shapes,
@@ -270,8 +194,8 @@ export function usePackageDrop({
     return () => window.removeEventListener('keydown', onKey);
   }, [pendingDrop, handleCancel]);
 
-  const PackageDropPicker = pendingDrop ? (
-    <PackageDropPickerUI
+  const PickerComponent = pendingDrop ? (
+    <PackageDropPicker
       candidates={pendingDrop.candidates}
       screenPos={pendingDrop.screenPos}
       onSelect={handleSelect}
@@ -279,5 +203,5 @@ export function usePackageDrop({
     />
   ) : null;
 
-  return { pendingDrop, onDragEndWithPackageDetection, PackageDropPicker };
+  return { pendingDrop, onDragEndWithPackageDetection, PackageDropPicker: PickerComponent };
 }

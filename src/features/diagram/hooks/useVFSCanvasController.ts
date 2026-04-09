@@ -26,12 +26,14 @@ import type {
   IRClass,
   IRInterface,
   IREnum,
+  IRPackage,
   SemanticModel,
   RelationKind,
 } from '../../../core/domain/vfs/vfs.types';
 import type {
   NodeViewModel,
   NoteViewModel,
+  PackageViewModel,
   NodeStyleConfig,
   NodeSection,
 } from '../../../adapters/react-flow/view-models/node.view-model';
@@ -181,10 +183,10 @@ function buildSections(
 
 // ─── Semantic resolution ──────────────────────────────────────────────────────
 
-type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE' | 'UNKNOWN';
+type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'UNKNOWN';
 
 interface ResolvedElement {
-  element: IRClass | IRInterface | IREnum | null;
+  element: IRClass | IRInterface | IREnum | IRPackage | null;
   kind: SemanticKind;
 }
 
@@ -193,7 +195,6 @@ interface ResolvedElement {
  * An empty elementId is the sentinel for visual-only elements (notes).
  */
 function resolveSemanticElement(model: SemanticModel, elementId: string): ResolvedElement {
-  // Empty elementId = visual-only element (note), no IR backing.
   if (!elementId) return { element: null, kind: 'NOTE' };
 
   const cls = model.classes[elementId];
@@ -205,6 +206,9 @@ function resolveSemanticElement(model: SemanticModel, elementId: string): Resolv
 
   const enm = model.enums[elementId];
   if (enm) return { element: enm, kind: 'ENUM' };
+
+  const pkg = model.packages[elementId];
+  if (pkg) return { element: pkg, kind: 'PACKAGE' };
 
   return { element: null, kind: 'UNKNOWN' };
 }
@@ -266,9 +270,48 @@ function makeReactFlowNoteNode(
   };
 }
 
+function makeReactFlowPackageNode(
+  viewNode: ViewNode,
+  pkg: IRPackage,
+  allViewNodes: ViewNode[],
+) {
+  const childCount = allViewNodes.filter(vn => vn.parentPackageId === viewNode.id).length;
+  
+  const depth = (() => {
+    let d = 0;
+    let currentId = viewNode.parentPackageId;
+    while (currentId && d < 10) {
+      const parent = allViewNodes.find(vn => vn.id === currentId);
+      if (!parent) break;
+      d++;
+      currentId = parent.parentPackageId;
+    }
+    return d;
+  })();
+
+  const viewModel: PackageViewModel = {
+    __brand: 'package',
+    id: viewNode.id,
+    name: pkg.name,
+    collapsed: viewNode.collapsed ?? false,
+    color: viewNode.color,
+    childCount,
+    depth,
+  };
+
+  return {
+    id: viewNode.id,
+    type: 'umlPackage',
+    position: { x: viewNode.x, y: viewNode.y },
+    data: viewModel,
+    domainId: viewNode.elementId,
+  };
+}
+
 export type VFSReactFlowNode =
   | ReturnType<typeof makeReactFlowNode>
-  | ReturnType<typeof makeReactFlowNoteNode>;
+  | ReturnType<typeof makeReactFlowNoteNode>
+  | ReturnType<typeof makeReactFlowPackageNode>;
 
 // ─── Edge type ────────────────────────────────────────────────────────────────
 
@@ -515,17 +558,18 @@ export function useVFSCanvasController(): VFSCanvasResult {
     [activeTabId, diagramView],
   );
 
-  // Map ViewNodes → ReactFlow nodes.
-  // Each node's onRename closure captures elementId and kind for targeted ModelStore updates.
   const nodes = useMemo((): VFSReactFlowNode[] => {
     if (!diagramView || !model) return [];
 
     return diagramView.nodes.map((viewNode: ViewNode) => {
       const { element, kind } = resolveSemanticElement(model, viewNode.elementId);
 
-      // NOTE nodes are visual-only — no semantic IR backing, no rename callback needed.
       if (kind === 'NOTE') {
         return makeReactFlowNoteNode(viewNode, handleNoteUpdate);
+      }
+
+      if (kind === 'PACKAGE') {
+        return makeReactFlowPackageNode(viewNode, element as IRPackage, diagramView.nodes);
       }
 
       const label = element?.name ?? 'NewClass';
@@ -574,7 +618,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
       return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename, badge);
     });
-  }, [diagramView, model, isStandalone, activeTabId]);
+  }, [diagramView, model, isStandalone, activeTabId, handleNoteUpdate]);
 
   // Map ViewEdges → ReactFlow edges.
   // Requires a reverse lookup from semantic elementId → ReactFlow node ID (ViewNode.id).

@@ -16,7 +16,7 @@
 
 import { useMemo } from 'react';
 import { useVFSCanvasController } from '../../features/diagram/hooks/useVFSCanvasController';
-import { isNoteViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import { isNoteViewModel, isPackageViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import type {
   ShapeDescriptor,
   EdgeDescriptor,
@@ -49,31 +49,47 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
     nodes,
     edges,
     activeTabId,
+    diagramView,
     onKonvaNodesChange,
     onKonvaEdgesChange,
     onConnect,
   } = useVFSCanvasController();
 
-  // VFSReactFlowNode[] → ShapeDescriptor[]
-  const shapes = useMemo((): ShapeDescriptor[] =>
-    nodes.map((n) => ({
-      id: n.id,
-      type: isNoteViewModel(n.data) ? 'note' as const : 'class' as const,
-      x: n.position.x,
-      y: n.position.y,
-      data: n.data,
-    })),
-    [nodes],
-  );
+  const shapes = useMemo((): ShapeDescriptor[] => {
+    const viewNodeMap = new Map(diagramView?.nodes.map(vn => [vn.id, vn]) ?? []);
+    
+    return nodes.map((n) => {
+      const viewNode = viewNodeMap.get(n.id);
+      const parentPackageId = viewNode?.parentPackageId ?? null;
+      
+      if (isPackageViewModel(n.data)) {
+        return {
+          id: n.id,
+          type: 'package' as const,
+          x: n.position.x,
+          y: n.position.y,
+          data: n.data,
+          parentPackageId,
+        };
+      }
+      
+      return {
+        id: n.id,
+        type: isNoteViewModel(n.data) ? 'note' as const : 'class' as const,
+        x: n.position.x,
+        y: n.position.y,
+        data: n.data,
+        parentPackageId,
+      };
+    });
+  }, [nodes, diagramView]);
 
-  // VFSReactFlowEdge[] → EdgeDescriptor[]
   const konvaEdges = useMemo((): EdgeDescriptor[] =>
     edges.map((e) => ({
       id: e.id,
       sourceId: e.source,
       targetId: e.target,
       kind: e.data.kind,
-      // Label data (MAG-01.28)
       sourceMultiplicity: e.data.sourceMultiplicity,
       targetMultiplicity: e.data.targetMultiplicity,
       sourceRole: e.data.sourceRole,

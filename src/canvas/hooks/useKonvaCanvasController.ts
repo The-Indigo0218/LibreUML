@@ -70,6 +70,8 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
           y: n.position.y,
           data: n.data,
           parentPackageId,
+          width: viewNode?.width,
+          height: viewNode?.height,
         };
       }
       

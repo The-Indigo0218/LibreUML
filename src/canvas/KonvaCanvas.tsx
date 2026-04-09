@@ -13,6 +13,7 @@ import { useKonvaDnD } from './hooks/useKonvaDnD';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
 import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
+import { computePackageSize } from './engine/packageLayout';
 import KonvaEdge from './edges/KonvaEdge';
 import SelectionRect from './selection/SelectionRect';
 import { useSelection } from './interactions/useSelection';
@@ -69,7 +70,6 @@ export default function KonvaCanvas() {
       setStage(stage);
       return () => setStage(null);
     }
-  // size.width/height trigger after the Stage renders conditionally (requires size > 0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setStage, size.width, size.height]);
 
@@ -116,6 +116,8 @@ export default function KonvaCanvas() {
       maxX = Math.max(maxX, shape.x + width);
       maxY = Math.max(maxY, shape.y + height);
     }
+
+    if (minX === Infinity) return null;
 
     return {
       x: minX,
@@ -235,15 +237,13 @@ export default function KonvaCanvas() {
   const boundsMap = useMemo((): Map<string, NodeBounds> => {
     const map = new Map<string, NodeBounds>();
     for (const shape of shapes) {
+      if (shape.type === 'package') continue;
       const pos =
         dragPositions?.get(shape.id) ??
         positionOverrides.get(shape.id) ??
         { x: shape.x, y: shape.y };
       const vm = shape.data;
-      if (isPackageViewModel(vm)) {
-        const { width, height } = getPackageShapeSize(vm);
-        map.set(shape.id, { x: pos.x, y: pos.y, width, height });
-      } else if (isNoteViewModel(vm)) {
+      if (isNoteViewModel(vm)) {
         const { width, height } = getNoteShapeSize(vm);
         map.set(shape.id, { x: pos.x, y: pos.y, width, height });
       } else {
@@ -251,8 +251,53 @@ export default function KonvaCanvas() {
         map.set(shape.id, { x: pos.x, y: pos.y, width, height });
       }
     }
+
+    const pkgShapes = shapes
+      .filter((s) => s.type === 'package')
+      .sort((a, b) => (b.data as PackageViewModel).depth - (a.data as PackageViewModel).depth);
+
+    for (const shape of pkgShapes) {
+      const pos =
+        dragPositions?.get(shape.id) ??
+        positionOverrides.get(shape.id) ??
+        { x: shape.x, y: shape.y };
+      const vm = shape.data as PackageViewModel;
+
+      const childBounds: NodeBounds[] = [];
+      for (const child of shapes) {
+        if (child.parentPackageId !== shape.id) continue;
+        const cb = map.get(child.id);
+        if (cb) childBounds.push(cb);
+      }
+
+      const { width, height } = computePackageSize(
+        shape.id,
+        childBounds,
+        vm.collapsed ?? false,
+        shape.width,
+        shape.height,
+      );
+      map.set(shape.id, { x: pos.x, y: pos.y, width, height });
+    }
+
     return map;
   }, [shapes, positionOverrides, dragPositions]);
+
+  const packageChildBoundsMap = useMemo((): Map<string, NodeBounds[]> => {
+    const map = new Map<string, NodeBounds[]>();
+    for (const shape of shapes) {
+      if (!shape.parentPackageId) continue;
+      const cb = boundsMap.get(shape.id);
+      if (!cb) continue;
+      const existing = map.get(shape.parentPackageId);
+      if (existing) {
+        existing.push(cb);
+      } else {
+        map.set(shape.parentPackageId, [cb]);
+      }
+    }
+    return map;
+  }, [shapes, boundsMap]);
 
   boundsMapRef.current = boundsMap;
 
@@ -348,6 +393,24 @@ export default function KonvaCanvas() {
         if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
         const viewNode = file.content.nodes.find((vn: any) => vn.id === packageId);
         if (viewNode) viewNode.collapsed = newState;
+      });
+    },
+    [shapes, activeTabId],
+  );
+
+  const handlePackageResizeEnd = useCallback(
+    (packageId: string, newWidth: number, newHeight: number) => {
+      const shape = shapes.find((s) => s.id === packageId);
+      if (!shape || !isPackageViewModel(shape.data)) return;
+      const packageName = shape.data.name;
+      withUndo('vfs', `Resize: ${packageName}`, activeTabId ?? '', (draft: any) => {
+        const file = draft.project?.nodes[activeTabId!];
+        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+        const viewNode = file.content.nodes.find((vn: any) => vn.id === packageId);
+        if (viewNode) {
+          viewNode.width = newWidth;
+          viewNode.height = newHeight;
+        }
       });
     },
     [shapes, activeTabId],
@@ -735,8 +798,64 @@ export default function KonvaCanvas() {
             )}
           </Layer>
 
+          <Layer name="packages">
+            {sortedShapes
+              .filter((shape) => isPackageViewModel(shape.data))
+              .map((shape) => {
+                const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
+                const vm = shape.data as PackageViewModel;
+                const isVisible = visibleNodeIds.has(shape.id);
+                
+                let isDescendantOfCollapsed = false;
+                if (shape.parentPackageId) {
+                  let parentId: string | null | undefined = shape.parentPackageId;
+                  while (parentId) {
+                    const parentShape = shapes.find((s) => s.id === parentId);
+                    if (parentShape && isPackageViewModel(parentShape.data) && parentShape.data.collapsed) {
+                      isDescendantOfCollapsed = true;
+                      break;
+                    }
+                    parentId = parentShape?.parentPackageId;
+                  }
+                }
+                
+                const dropHighlight = 
+                  hoveredPackageId === shape.id 
+                    ? (isHoverValid ? 'valid' : 'invalid')
+                    : null;
+                const pkgBounds = boundsMap.get(shape.id);
+                
+                return (
+                  <PackageShape
+                    key={shape.id}
+                    viewModel={vm}
+                    x={pos.x}
+                    y={pos.y}
+                    width={pkgBounds?.width}
+                    height={pkgBounds?.height}
+                    childBounds={packageChildBoundsMap.get(shape.id)}
+                    selected={selectedIds.has(shape.id)}
+                    dropHighlight={dropHighlight}
+                    onToggleCollapse={handleToggleCollapse}
+                    onResizeEnd={handlePackageResizeEnd}
+                    draggable
+                    onDragStart={guardedDragStart}
+                    onDragMove={handleDragMove}
+                    onDragEnd={handleDragEnd}
+                    onNodeClick={onNodeClick}
+                    onContextMenu={handleNodeContextMenu}
+                    visible={isVisible && !isDescendantOfCollapsed}
+                  />
+                );
+              })}
+          </Layer>
+
           <Layer name="edges">
-            {edges.map((edge) => {
+            {(() => {
+              const nonPackageIds = new Set(
+                shapes.filter((s) => s.type !== 'package').map((s) => s.id),
+              );
+              return edges.map((edge) => {
               const isSelfLoop = edge.sourceId === edge.targetId;
               const sourceBounds = boundsMap.get(edge.sourceId);
               const targetBounds = isSelfLoop
@@ -749,7 +868,7 @@ export default function KonvaCanvas() {
               const obstacles = isSelfLoop
                 ? []
                 : [...boundsMap.entries()]
-                    .filter(([id]) => id !== edge.sourceId && id !== edge.targetId)
+                    .filter(([id]) => id !== edge.sourceId && id !== edge.targetId && nonPackageIds.has(id))
                     .map(([, b]) => b);
 
               return (
@@ -774,58 +893,54 @@ export default function KonvaCanvas() {
                   visible={isVisible}
                 />
               );
-            })}
+            });
+            })()}
           </Layer>
 
           <Layer name="nodes">
-            {sortedShapes.map((shape) => {
-              const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
-              const vm = shape.data;
-              const isVisible = visibleNodeIds.has(shape.id);
-              
-              let isDescendantOfCollapsed = false;
-              if (shape.parentPackageId) {
-                let parentId: string | null | undefined = shape.parentPackageId;
-                while (parentId) {
-                  const parentShape = shapes.find((s) => s.id === parentId);
-                  if (parentShape && isPackageViewModel(parentShape.data) && parentShape.data.collapsed) {
-                    isDescendantOfCollapsed = true;
-                    break;
+            {sortedShapes
+              .filter((shape) => !isPackageViewModel(shape.data))
+              .map((shape) => {
+                const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
+                const vm = shape.data;
+                const isVisible = visibleNodeIds.has(shape.id);
+                
+                let isDescendantOfCollapsed = false;
+                if (shape.parentPackageId) {
+                  let parentId: string | null | undefined = shape.parentPackageId;
+                  while (parentId) {
+                    const parentShape = shapes.find((s) => s.id === parentId);
+                    if (parentShape && isPackageViewModel(parentShape.data) && parentShape.data.collapsed) {
+                      isDescendantOfCollapsed = true;
+                      break;
+                    }
+                    parentId = parentShape?.parentPackageId;
                   }
-                  parentId = parentShape?.parentPackageId;
                 }
-              }
-              
-              if (isPackageViewModel(vm)) {
-                const dropHighlight = 
-                  hoveredPackageId === shape.id 
-                    ? (isHoverValid ? 'valid' : 'invalid')
-                    : null;
+                
+                if (isNoteViewModel(vm)) {
+                  return (
+                    <NoteShape
+                      key={shape.id}
+                      viewModel={vm}
+                      x={pos.x}
+                      y={pos.y}
+                      selected={selectedIds.has(shape.id)}
+                      draggable
+                      onDragStart={guardedDragStart}
+                      onDragMove={handleDragMove}
+                      onDragEnd={handleDragEnd}
+                      onNodeClick={onNodeClick}
+                      onDblClick={(e) => handleNoteDblClick(shape.id, e)}
+                      onContextMenu={handleNodeContextMenu}
+                      visible={isVisible && !isDescendantOfCollapsed}
+                    />
+                  );
+                }
                 return (
-                  <PackageShape
+                  <ClassShape
                     key={shape.id}
-                    viewModel={vm}
-                    x={pos.x}
-                    y={pos.y}
-                    selected={selectedIds.has(shape.id)}
-                    dropHighlight={dropHighlight}
-                    onToggleCollapse={handleToggleCollapse}
-                    draggable
-                    onDragStart={guardedDragStart}
-                    onDragMove={handleDragMove}
-                    onDragEnd={handleDragEnd}
-                    onNodeClick={onNodeClick}
-                    onContextMenu={handleNodeContextMenu}
-                    visible={isVisible && !isDescendantOfCollapsed}
-                  />
-                );
-              }
-              
-              if (isNoteViewModel(vm)) {
-                return (
-                  <NoteShape
-                    key={shape.id}
-                    viewModel={vm}
+                    viewModel={vm as NodeViewModel}
                     x={pos.x}
                     y={pos.y}
                     selected={selectedIds.has(shape.id)}
@@ -834,30 +949,12 @@ export default function KonvaCanvas() {
                     onDragMove={handleDragMove}
                     onDragEnd={handleDragEnd}
                     onNodeClick={onNodeClick}
-                    onDblClick={(e) => handleNoteDblClick(shape.id, e)}
+                    onDblClick={(e) => handleClassDblClick(shape.id, e)}
                     onContextMenu={handleNodeContextMenu}
                     visible={isVisible && !isDescendantOfCollapsed}
                   />
                 );
-              }
-              return (
-                <ClassShape
-                  key={shape.id}
-                  viewModel={vm as NodeViewModel}
-                  x={pos.x}
-                  y={pos.y}
-                  selected={selectedIds.has(shape.id)}
-                  draggable
-                  onDragStart={guardedDragStart}
-                  onDragMove={handleDragMove}
-                  onDragEnd={handleDragEnd}
-                  onNodeClick={onNodeClick}
-                  onDblClick={(e) => handleClassDblClick(shape.id, e)}
-                  onContextMenu={handleNodeContextMenu}
-                  visible={isVisible && !isDescendantOfCollapsed}
-                />
-              );
-            })}
+              })}
           </Layer>
 
           <Layer name="selection">

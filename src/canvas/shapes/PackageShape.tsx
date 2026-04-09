@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { Group, Rect, Text, Shape } from 'react-konva';
+import { useMemo, useRef, useEffect } from 'react';
+import { Group, Rect, Text, Shape, Transformer } from 'react-konva';
+import type Konva from 'konva';
 import type { Context } from 'konva/lib/Context';
 import type { Shape as KonvaShape } from 'konva/lib/Shape';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -43,7 +44,7 @@ export function getPackageShapeSize(
     return { width: MIN_BODY_W, height: MIN_BODY_H };
   }
 
-  const padding = 16;
+  const padding = 32;
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -64,12 +65,13 @@ export function getPackageShapeSize(
   return { width, height };
 }
 
-interface PackageShapeProps {
+export interface PackageShapeProps {
   viewModel: PackageViewModel;
   x: number;
   y: number;
   width?: number;
   height?: number;
+  childBounds?: Array<{ x: number; y: number; width: number; height: number }>;
   selected?: boolean;
   opacity?: number;
   visible?: boolean;
@@ -82,6 +84,7 @@ interface PackageShapeProps {
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
+  onResizeEnd?: (id: string, width: number, height: number) => void;
 }
 
 export default function PackageShape({
@@ -90,6 +93,7 @@ export default function PackageShape({
   y,
   width: providedWidth,
   height: providedHeight,
+  childBounds,
   selected,
   opacity,
   visible = true,
@@ -102,6 +106,7 @@ export default function PackageShape({
   onDragStart,
   onDragMove,
   onDragEnd,
+  onResizeEnd,
 }: PackageShapeProps) {
   const colors = resolvePackageColors(vm.color);
 
@@ -109,8 +114,29 @@ export default function PackageShape({
     if (providedWidth !== undefined && providedHeight !== undefined) {
       return { width: providedWidth, height: providedHeight };
     }
-    return getPackageShapeSize(vm);
-  }, [vm, providedWidth, providedHeight]);
+    return getPackageShapeSize(vm, childBounds);
+  }, [vm, providedWidth, providedHeight, childBounds]);
+
+  // Minimum dimensions enforced during resize (child bounds + padding, ignoring stored user size)
+  const { width: minW, height: minH } = useMemo(
+    () => getPackageShapeSize(vm, childBounds),
+    [vm, childBounds],
+  );
+
+  const groupRef = useRef<Konva.Group>(null);
+  const trRef = useRef<Konva.Transformer>(null);
+
+  const showTransformer = selected && !vm.collapsed && !!onResizeEnd;
+
+  useEffect(() => {
+    if (!showTransformer) return;
+    const tr = trRef.current;
+    const group = groupRef.current;
+    if (!tr || !group) return;
+    tr.nodes([group]);
+    tr.getLayer()?.batchDraw();
+    return () => { tr.nodes([]); };
+  }, [showTransformer]);
 
   const tabW = useMemo(() => {
     const textW = measureTextWidth(vm.name, `${FONT_SIZE}px ${FONT_FAMILY}`);
@@ -121,7 +147,9 @@ export default function PackageShape({
   const dropStrokeWidth = dropHighlight ? 3 : 0;
 
   return (
+    <>
     <Group
+      ref={groupRef}
       id={vm.id}
       x={x}
       y={y}
@@ -257,5 +285,32 @@ export default function PackageShape({
         />
       )}
     </Group>
+
+    {showTransformer && (
+      <Transformer
+        ref={trRef}
+        rotateEnabled={false}
+        keepRatio={false}
+        borderEnabled={false}
+        anchorSize={8}
+        boundBoxFunc={(oldBox, newBox) => {
+          const stageScale = groupRef.current?.getStage()?.scaleX() ?? 1;
+          if (newBox.width < minW * stageScale || newBox.height < minH * stageScale) {
+            return oldBox;
+          }
+          return newBox;
+        }}
+        onTransformEnd={() => {
+          const node = groupRef.current;
+          if (!node) return;
+          const sx = node.scaleX();
+          const sy = node.scaleY();
+          node.scaleX(1);
+          node.scaleY(1);
+          onResizeEnd?.(vm.id, Math.max(minW, W * sx), Math.max(minH, H * sy));
+        }}
+      />
+    )}
+    </>
   );
 }

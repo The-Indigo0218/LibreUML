@@ -38,7 +38,7 @@ export interface LassoRect {
   height: number;
 }
 
-interface UseSelectionOptions {
+export interface UseSelectionOptions {
   stageRef: RefObject<Konva.Stage | null>;
   /**
    * Ref to the current bounds map (read at event time, not at render time).

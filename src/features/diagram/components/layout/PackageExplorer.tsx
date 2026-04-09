@@ -552,39 +552,87 @@ export default function PackageExplorer() {
     if (!activeTabId || !activeModel) return;
 
     const irPkg = Object.values(activeModel.packages ?? {}).find((p) => p.name === pkgPath);
-    if (!irPkg) {
-      showToast('No canvas representation found for this package.');
-      return;
+
+    if (irPkg) {
+      if (viewNodes.some((vn) => vn.elementId === irPkg.id)) {
+        showToast(`"${pkgPath}" is already on canvas.`);
+        setContextMenu(null);
+        return;
+      }
+      const newVNId = crypto.randomUUID();
+      undoTransaction({
+        label: `Add to canvas: ${pkgPath}`,
+        scope: activeTabId,
+        mutations: [{
+          store: 'vfs',
+          mutate: (draft: any) => {
+            const file = draft.project?.nodes[activeTabId];
+            if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+            file.content.nodes.push({ id: newVNId, elementId: irPkg.id, x: 200, y: 200, collapsed: false });
+          },
+        }],
+        affectedElementIds: [irPkg.id],
+      });
+    } else {
+      // String-based semantic package — create IRPackage + ViewNode
+      const newPkgId = crypto.randomUUID();
+      const newVNId = crypto.randomUUID();
+
+      if (isStandalone && activeTabId) {
+        undoTransaction({
+          label: `Add to canvas: ${pkgPath}`,
+          scope: activeTabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE') return;
+              if (!node.localModel) return;
+              node.localModel.packages[newPkgId] = {
+                id: newPkgId, name: pkgPath, kind: 'PACKAGE',
+                packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+              };
+              node.localModel.updatedAt = Date.now();
+              if (isDiagramView(node.content)) {
+                node.content.nodes.push({ id: newVNId, elementId: newPkgId, x: 200, y: 200, collapsed: false });
+              }
+            },
+          }],
+          affectedElementIds: [newPkgId],
+        });
+      } else {
+        undoTransaction({
+          label: `Add to canvas: ${pkgPath}`,
+          scope: 'global',
+          mutations: [
+            {
+              store: 'model',
+              mutate: (draft: any) => {
+                if (!draft.model) return;
+                draft.model.packages[newPkgId] = {
+                  id: newPkgId, name: pkgPath, kind: 'PACKAGE',
+                  packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+                };
+                draft.model.updatedAt = Date.now();
+              },
+            },
+            {
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const file = draft.project?.nodes[activeTabId];
+                if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+                file.content.nodes.push({ id: newVNId, elementId: newPkgId, x: 200, y: 200, collapsed: false });
+              },
+            },
+          ],
+          affectedElementIds: [newPkgId],
+        });
+      }
     }
 
-    if (viewNodes.some((vn) => vn.elementId === irPkg.id)) {
-      showToast(`"${pkgPath}" is already on canvas.`);
-      return;
-    }
-
-    const newVNId = crypto.randomUUID();
-    undoTransaction({
-      label: `Add to canvas: ${pkgPath}`,
-      scope: activeTabId,
-      mutations: [{
-        store: 'vfs',
-        mutate: (draft: any) => {
-          const file = draft.project?.nodes[activeTabId];
-          if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
-          file.content.nodes.push({
-            id: newVNId,
-            elementId: irPkg.id,
-            x: 200,
-            y: 200,
-            collapsed: false,
-          });
-        },
-      }],
-      affectedElementIds: [irPkg.id],
-    });
     showToast(`"${pkgPath}" added to canvas.`);
     setContextMenu(null);
-  }, [activeTabId, activeModel, viewNodes, showToast]);
+  }, [activeTabId, activeModel, isStandalone, viewNodes, showToast]);
 
   return (
     <div className="flex flex-col h-full bg-surface-primary border-r border-surface-border">
@@ -751,7 +799,7 @@ export default function PackageExplorer() {
               >
                 Rename
               </button>
-              {activeTabId && Object.values(activeModel?.packages ?? {}).some((p) => p.name === contextMenu.packagePath) && (
+              {activeTabId && (
                 <button
                   className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-hover"
                   onClick={() => handleAddToCanvas(contextMenu.packagePath!)}

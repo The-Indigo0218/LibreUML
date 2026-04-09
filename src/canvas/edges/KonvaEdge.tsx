@@ -89,7 +89,7 @@ function formatKindLabel(kind: RelationKind): string {
 
 export type RoutingMode = 'orthogonal' | 'curved' | 'straight';
 
-interface KonvaEdgeProps {
+export interface KonvaEdgeProps {
   /** Unique edge ID */
   id: string;
   kind: RelationKind;

@@ -18,6 +18,9 @@ export interface ShapeDescriptor {
   y: number;
   data: AnyNodeViewModel;
   parentPackageId?: string | null;
+  /** Stored user-defined dimensions (packages only). Used for hybrid manual+minimum sizing. */
+  width?: number;
+  height?: number;
 }
 
 /** Flat Konva-native edge descriptor — replaces VFSReactFlowEdge for the Konva canvas. */

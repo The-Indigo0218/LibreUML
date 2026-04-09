@@ -50,6 +50,8 @@ export const DRAG_TYPE_NEW = 'application/libreuml-node' as const;
  */
 export const DRAG_TYPE_EXISTING = 'application/libreuml-existing-node' as const;
 
+export const DRAG_TYPE_PACKAGE = 'application/libreuml-package' as const;
+
 // ─── Node dimensions (for centering) ──────────────────────────────────────────
 
 const NODE_WIDTH = 256;  // Matches ClassShape MIN_W
@@ -143,6 +145,36 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
     applyToModelDraft: () => {},
     applyToLocalModelDraft: () => {},
     isVisualOnly: true,
+  },
+  package: {
+    getNextName: (model) => getNextVFSName(Object.values(model.packages).map((p) => p.name), 'Package'),
+    applyToModelDraft: (m, id, name, isExternal) => {
+      m.packages[id] = {
+        id,
+        name,
+        kind: 'PACKAGE',
+        packageIds: [],
+        classIds: [],
+        interfaceIds: [],
+        enumIds: [],
+        dataTypeIds: [],
+        ...(isExternal ? { isExternal: true } : {}),
+      };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.packages[id] = {
+        id,
+        name,
+        kind: 'PACKAGE',
+        packageIds: [],
+        classIds: [],
+        interfaceIds: [],
+        enumIds: [],
+        dataTypeIds: [],
+      };
+      lm.updatedAt = Date.now();
+    },
   },
 };
 
@@ -327,11 +359,126 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
 
       const position = getCenteredPosition(event.clientX, event.clientY);
 
-      // ===================================================================
-      // EXISTING ELEMENT DROP (Model Explorer SSOT sidebar)
-      // The semantic element already lives in ModelStore. Only create a
-      // ViewNode — do NOT touch ModelStore.
-      // ===================================================================
+      const packageData = event.dataTransfer.getData(DRAG_TYPE_PACKAGE);
+      if (packageData) {
+        if (!activeTabId) return;
+
+        const freshProject = useVFSStore.getState().project;
+        if (!freshProject) return;
+        const freshFileNode = freshProject.nodes[activeTabId];
+        if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+        const freshContent = (freshFileNode as VFSFile).content;
+        if (!isDiagramView(freshContent)) return;
+
+        const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
+        const newElementId = crypto.randomUUID();
+        const newViewNodeId = crypto.randomUUID();
+
+        if (isStandaloneFile) {
+          const currentLocalModel = getLocalModel(activeTabId);
+          const packageName = currentLocalModel
+            ? getNextVFSName(Object.values(currentLocalModel.packages).map((p) => p.name), 'Package')
+            : 'Package 1';
+
+          undoTransaction({
+            label: `Create Package: ${packageName}`,
+            scope: activeTabId,
+            mutations: [{
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const node = draft.project?.nodes[activeTabId];
+                if (!node || node.type !== 'FILE') return;
+                if (!node.localModel) {
+                  const now = Date.now();
+                  node.localModel = {
+                    id: crypto.randomUUID(), name: `${node.name} (standalone)`, version: '1.0.0',
+                    packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                    attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                    objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                    createdAt: now, updatedAt: now,
+                  };
+                }
+                node.localModel.packages[newElementId] = {
+                  id: newElementId,
+                  name: packageName,
+                  kind: 'PACKAGE',
+                  packageIds: [],
+                  classIds: [],
+                  interfaceIds: [],
+                  enumIds: [],
+                  dataTypeIds: [],
+                };
+                node.localModel.updatedAt = Date.now();
+                if (isDiagramView(node.content)) {
+                  node.content.nodes.push({
+                    id: newViewNodeId,
+                    elementId: newElementId,
+                    x: position.x,
+                    y: position.y,
+                    collapsed: false,
+                  });
+                }
+              },
+            }],
+          });
+        } else {
+          const modelState = useModelStore.getState();
+          const currentModel = modelState.model;
+          const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
+          const packageName = currentModel
+            ? getNextVFSName(Object.values(currentModel.packages).map((p) => p.name), 'Package')
+            : 'Package 1';
+
+          undoTransaction({
+            label: `Create Package: ${packageName}`,
+            scope: 'global',
+            mutations: [
+              {
+                store: 'model',
+                mutate: (draft: any) => {
+                  if (!draft.model) {
+                    const now = Date.now();
+                    draft.model = {
+                      id: domainModelId, name: 'Domain Model', version: '1.0.0',
+                      packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                      attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                      objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                      packageNames: [], createdAt: now, updatedAt: now,
+                    };
+                  }
+                  draft.model.packages[newElementId] = {
+                    id: newElementId,
+                    name: packageName,
+                    kind: 'PACKAGE',
+                    packageIds: [],
+                    classIds: [],
+                    interfaceIds: [],
+                    enumIds: [],
+                    dataTypeIds: [],
+                  };
+                  draft.model.updatedAt = Date.now();
+                },
+              },
+              {
+                store: 'vfs',
+                mutate: (draft: any) => {
+                  const node = draft.project?.nodes[activeTabId];
+                  if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+                  node.content.nodes.push({
+                    id: newViewNodeId,
+                    elementId: newElementId,
+                    x: position.x,
+                    y: position.y,
+                    collapsed: false,
+                  });
+                },
+              },
+            ],
+          });
+        }
+        return;
+      }
+
       const existingElementId = event.dataTransfer.getData(DRAG_TYPE_EXISTING);
       if (existingElementId) {
         // Check if element already exists in diagram

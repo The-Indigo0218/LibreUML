@@ -31,6 +31,7 @@ import type { RefObject } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { AnyNodeViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { ShapeDescriptor } from '../types/canvas.types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,7 @@ interface UseDragHandlerOptions {
   stageRef: RefObject<Konva.Stage | null>;
   selectedIds: Set<string>;
   nodes: CanvasNode[];
+  shapes: ShapeDescriptor[];
   /**
    * Called with the final snapped positions of all dragged nodes when a drag
    * completes (both normal dragEnd and window-mouseup fallback).
@@ -93,10 +95,34 @@ function snapToGrid(v: number): number {
   return Math.round(v / GRID) * GRID;
 }
 
+function expandDragGroupWithChildren(
+  initialIds: string[],
+  shapes: ShapeDescriptor[],
+): string[] {
+  const result = new Set<string>(initialIds);
+  const shapeMap = new Map(shapes.map(s => [s.id, s]));
+  
+  const addDescendants = (parentId: string) => {
+    for (const shape of shapes) {
+      if (shape.parentPackageId === parentId && !result.has(shape.id)) {
+        result.add(shape.id);
+        addDescendants(shape.id);
+      }
+    }
+  };
+  
+  for (const id of initialIds) {
+    addDescendants(id);
+  }
+  
+  return Array.from(result);
+}
+
 export function useDragHandler({
   stageRef,
   selectedIds,
   nodes,
+  shapes,
   onDragComplete,
 }: UseDragHandlerOptions): UseDragHandlerReturn {
   // Keep onDragComplete in a ref so event handlers never go stale.
@@ -136,7 +162,6 @@ export function useDragHandler({
 
   const onDragStart = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
-      // Stop the event from reaching the Stage so it doesn't pan.
       e.cancelBubble = true;
 
       const stage = stageRef.current;
@@ -145,37 +170,31 @@ export function useDragHandler({
       const id = e.target.id();
       if (!id) return;
 
-      // Suppress stage pan while dragging a node.
       stage.draggable(false);
 
-      // Determine drag group: if the node is part of the selection → move all
-      // selected nodes together; otherwise, just move this one node.
       const ids: string[] = selectedIds.has(id) ? [...selectedIds] : [id];
-      draggingIds.current = ids;
+      const expandedIds = expandDragGroupWithChildren(ids, shapes);
+      draggingIds.current = expandedIds;
       primaryId.current = id;
       isDragging.current = true;
 
-      // Record start position for each dragging node (overrides take priority).
       const startMap = new Map<string, { x: number; y: number }>();
-      for (const nodeId of ids) {
+      for (const nodeId of expandedIds) {
         const override = positionOverrides.get(nodeId);
         const original = nodes.find((n) => n.id === nodeId)?.position ?? { x: 0, y: 0 };
         startMap.set(nodeId, override ?? original);
       }
       startPositions.current = startMap;
 
-      // Build ghost nodes (render at start positions, opacity 0.3).
       const ghosts: DragGhostNode[] = [];
       for (const node of nodes) {
-        if (!ids.includes(node.id)) continue;
+        if (!expandedIds.includes(node.id)) continue;
         const pos = startMap.get(node.id)!;
         ghosts.push({ id: node.id, x: pos.x, y: pos.y, data: node.data });
       }
       setGhostNodes(ghosts);
     },
-    // selectedIds and nodes are captured at render time — correct for a drag
-    // that begins during this render cycle.
-    [stageRef, selectedIds, positionOverrides, nodes],
+    [stageRef, selectedIds, positionOverrides, nodes, shapes],
   );
 
   // ── dragMove ──────────────────────────────────────────────────────────────

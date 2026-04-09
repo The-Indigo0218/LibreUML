@@ -188,6 +188,7 @@ export default function KonvaCanvas() {
     stageRef,
     selectedIds,
     nodes: canvasNodes,
+    shapes,
     onDragComplete: handleDragComplete,
   });
 

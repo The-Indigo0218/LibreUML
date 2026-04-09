@@ -91,10 +91,20 @@ export interface NoteViewModel {
   onSave?: (update: { content?: string; title?: string }) => void;
 }
 
+export interface PackageViewModel {
+  __brand: 'package';
+  id: string;
+  name: string;
+  collapsed: boolean;
+  color?: string;
+  childCount: number;
+  depth: number;
+}
+
 /**
  * Union type for all node view models
  */
-export type AnyNodeViewModel = NodeViewModel | NoteViewModel;
+export type AnyNodeViewModel = NodeViewModel | NoteViewModel | PackageViewModel;
 
 /**
  * Type guard for NodeViewModel
@@ -108,4 +118,8 @@ export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
  */
 export function isNoteViewModel(vm: AnyNodeViewModel): vm is NoteViewModel {
   return 'content' in vm && !('sections' in vm);
+}
+
+export function isPackageViewModel(vm: AnyNodeViewModel): vm is PackageViewModel {
+  return '__brand' in vm && vm.__brand === 'package';
 }

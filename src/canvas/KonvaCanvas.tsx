@@ -21,6 +21,8 @@ import type { CanvasNode } from './interactions/useDragHandler';
 import { useConnectionDraw } from './interactions/useConnectionDraw';
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import { usePackageDrop } from './interactions/usePackageDrop';
+import { withUndo } from '../core/undo/undoBridge';
+import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
 import DuplicateFileModal from '../components/shared/DuplicateFileModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -332,6 +334,24 @@ export default function KonvaCanvas() {
       }
     },
     [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId],
+  );
+
+  const handleToggleCollapse = useCallback(
+    (packageId: string) => {
+      const shape = shapes.find((s) => s.id === packageId);
+      if (!shape || !isPackageViewModel(shape.data)) return;
+
+      const packageName = shape.data.name;
+      const newState = !shape.data.collapsed;
+
+      withUndo('vfs', `${newState ? 'Collapse' : 'Expand'}: ${packageName}`, activeTabId, (draft: any) => {
+        const file = draft.project?.nodes[activeTabId];
+        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+        const viewNode = file.content.nodes.find((vn: any) => vn.id === packageId);
+        if (viewNode) viewNode.collapsed = newState;
+      });
+    },
+    [shapes, activeTabId],
   );
 
   const handleDeleteNodes = useCallback(
@@ -764,6 +784,19 @@ export default function KonvaCanvas() {
               const vm = shape.data;
               const isVisible = visibleNodeIds.has(shape.id);
               
+              let isDescendantOfCollapsed = false;
+              if (shape.parentPackageId) {
+                let parentId: string | null | undefined = shape.parentPackageId;
+                while (parentId) {
+                  const parentShape = shapes.find((s) => s.id === parentId);
+                  if (parentShape && isPackageViewModel(parentShape.data) && parentShape.data.collapsed) {
+                    isDescendantOfCollapsed = true;
+                    break;
+                  }
+                  parentId = parentShape?.parentPackageId;
+                }
+              }
+              
               if (isPackageViewModel(vm)) {
                 const dropHighlight = 
                   hoveredPackageId === shape.id 
@@ -777,13 +810,14 @@ export default function KonvaCanvas() {
                     y={pos.y}
                     selected={selectedIds.has(shape.id)}
                     dropHighlight={dropHighlight}
+                    onToggleCollapse={handleToggleCollapse}
                     draggable
                     onDragStart={guardedDragStart}
                     onDragMove={handleDragMove}
                     onDragEnd={handleDragEnd}
                     onNodeClick={onNodeClick}
                     onContextMenu={handleNodeContextMenu}
-                    visible={isVisible}
+                    visible={isVisible && !isDescendantOfCollapsed}
                   />
                 );
               }
@@ -803,7 +837,7 @@ export default function KonvaCanvas() {
                     onNodeClick={onNodeClick}
                     onDblClick={(e) => handleNoteDblClick(shape.id, e)}
                     onContextMenu={handleNodeContextMenu}
-                    visible={isVisible}
+                    visible={isVisible && !isDescendantOfCollapsed}
                   />
                 );
               }
@@ -821,7 +855,7 @@ export default function KonvaCanvas() {
                   onNodeClick={onNodeClick}
                   onDblClick={(e) => handleClassDblClick(shape.id, e)}
                   onContextMenu={handleNodeContextMenu}
-                  visible={isVisible}
+                  visible={isVisible && !isDescendantOfCollapsed}
                 />
               );
             })}

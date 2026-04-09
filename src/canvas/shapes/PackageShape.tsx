@@ -77,6 +77,7 @@ interface PackageShapeProps {
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
   onDblClick?: (e: KonvaEventObject<MouseEvent>) => void;
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, nodeId: string) => void;
+  onToggleCollapse?: (id: string) => void;
   draggable?: boolean;
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
@@ -96,6 +97,7 @@ export default function PackageShape({
   onNodeClick,
   onDblClick,
   onContextMenu,
+  onToggleCollapse,
   draggable,
   onDragStart,
   onDragMove,
@@ -183,7 +185,22 @@ export default function PackageShape({
           ctx.fillStrokeShape(shape);
         }}
         fill={colors.text}
-        listening={false}
+        listening={true}
+        onClick={(e) => {
+          e.cancelBubble = true;
+          onToggleCollapse?.(vm.id);
+        }}
+        hitFunc={(ctx: Context, shape: KonvaShape) => {
+          ctx.beginPath();
+          ctx.rect(
+            tabW - TEXT_PAD - ICON_SIZE - 4,
+            TAB_H / 2 - 8,
+            ICON_SIZE + 8,
+            16
+          );
+          ctx.closePath();
+          ctx.fillStrokeShape(shape);
+        }}
         perfectDrawEnabled={false}
       />
 

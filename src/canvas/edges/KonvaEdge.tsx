@@ -44,6 +44,7 @@ import EdgeMarker from './EdgeMarker';
 
 const DASHED_KINDS = new Set<RelationKind>([
   'REALIZATION', 'DEPENDENCY', 'USAGE', 'INCLUDE', 'EXTEND',
+  'PACKAGE_IMPORT', 'PACKAGE_MERGE', 'PACKAGE_ACCESS',
 ]);
 
 const MARKER_RETRACT: Partial<Record<RelationKind, number>> = {
@@ -64,6 +65,9 @@ const KIND_COLOR_VAR: Partial<Record<RelationKind, string>> = {
   COMPOSITION:    '--edge-composition',
   INCLUDE:        '--edge-implementation',
   EXTEND:         '--edge-dependency',
+  PACKAGE_IMPORT: '--edge-dependency',
+  PACKAGE_MERGE:  '--edge-dependency',
+  PACKAGE_ACCESS: '--edge-dependency',
 };
 
 function getEdgeColor(): string {
@@ -85,6 +89,19 @@ function formatKindLabel(kind: RelationKind): string {
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(' ');
+}
+
+function getStereotypeLabel(kind: RelationKind): string | null {
+  switch (kind) {
+    case 'PACKAGE_IMPORT':
+      return '<<import>>';
+    case 'PACKAGE_MERGE':
+      return '<<merge>>';
+    case 'PACKAGE_ACCESS':
+      return '<<access>>';
+    default:
+      return null;
+  }
 }
 
 export type RoutingMode = 'orthogonal' | 'curved' | 'straight';
@@ -155,6 +172,7 @@ export default function KonvaEdge({
   const strokeWidth = isActive ? 3 : 2;
   const dashed = DASHED_KINDS.has(kind);
   const retract = MARKER_RETRACT[kind] ?? 0;
+  const stereotypeLabel = getStereotypeLabel(kind);
 
   const { markerX, markerY, markerFace, points, bezier, labelPositions } = useMemo(() => {
     // ── Self-loop ──────────────────────────────────────────────────────────
@@ -349,6 +367,20 @@ export default function KonvaEdge({
           fontSize={isHighlighted ? 13 : 12}
           fontStyle={isHighlighted ? 'bold' : 'normal'}
           fill={isHighlighted ? stroke : '#888'}
+          listening={false}
+        />
+      )}
+
+      {stereotypeLabel && (
+        <Text
+          x={labelPositions.centerX}
+          y={labelPositions.centerY}
+          text={stereotypeLabel}
+          fontSize={12}
+          fontStyle="italic"
+          fill={stroke}
+          align="center"
+          offsetX={stereotypeLabel.length * 3}
           listening={false}
         />
       )}

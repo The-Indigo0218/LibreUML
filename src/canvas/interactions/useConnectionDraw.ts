@@ -42,6 +42,7 @@ import type { NodeBounds } from '../edges/geometry';
 import type { AnyNodeViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import { isNoteViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import type { NodeViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import { isPackageViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import { validateConnection } from '../../util/connectionValidator';
 import type { stereotype, UmlRelationType } from '../../features/diagram/types/diagram.types';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
@@ -72,10 +73,14 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   AGGREGATION:    'AGGREGATION',
   COMPOSITION:    'COMPOSITION',
   GENERALIZATION: 'GENERALIZATION',
+  PACKAGE_IMPORT: 'PACKAGE_IMPORT',
+  PACKAGE_MERGE:  'PACKAGE_MERGE',
+  PACKAGE_ACCESS: 'PACKAGE_ACCESS',
 };
 
 function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isNoteViewModel(vm)) return 'note';
+  if (isPackageViewModel(vm)) return 'package';
   const nvm = vm as NodeViewModel;
   const s = nvm.stereotype;
   if (s === 'abstract' || s === 'interface' || s === 'enum') return s;

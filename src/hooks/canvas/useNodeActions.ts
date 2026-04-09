@@ -169,7 +169,7 @@ export function useNodeActions({
                   Object.keys(projectSnapshot.nodes).flatMap((nid) => {
                     const n = projectSnapshot.nodes[nid];
                     if (n.type !== 'FILE' || !isDiagramView((n as VFSFile).content)) return [];
-                    return (n as VFSFile).content!.edges.map((e: any) => e.relationId);
+                    return ((n as VFSFile).content as DiagramView).edges.map((e: any) => e.relationId);
                   }),
                 );
                 for (const [nid, node] of Object.entries(draft.project.nodes) as [string, any][]) {

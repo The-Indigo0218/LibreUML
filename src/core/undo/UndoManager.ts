@@ -7,6 +7,7 @@ export class UndoManager {
   private config: UndoManagerConfig;
   private listeners: Set<() => void> = new Set();
   private recording: boolean = true;
+  private cachedSnapshot: UndoSnapshot | null = null;
 
   constructor(config: UndoManagerConfig) {
     this.config = config;
@@ -37,7 +38,7 @@ export class UndoManager {
     for (let i = entry.patchSets.length - 1; i >= 0; i--) {
       const ps = entry.patchSets[i];
       const store = this.config.stores[ps.store];
-      const nextState = applyPatches(store.getState(), ps.inversePatches);
+      const nextState = applyPatches(store.getState() as object, ps.inversePatches);
       this.recording = false;
       store.setState(nextState);
       this.recording = true;
@@ -55,7 +56,7 @@ export class UndoManager {
 
     for (const ps of entry.patchSets) {
       const store = this.config.stores[ps.store];
-      const nextState = applyPatches(store.getState(), ps.patches);
+      const nextState = applyPatches(store.getState() as object, ps.patches);
       this.recording = false;
       store.setState(nextState);
       this.recording = true;
@@ -105,12 +106,15 @@ export class UndoManager {
   }
 
   getSnapshot(): UndoSnapshot {
-    return {
-      canUndo: this.canUndo(),
-      canRedo: this.canRedo(),
-      cursor: this.cursor,
-      length: this.timeline.length,
-    };
+    if (this.cachedSnapshot === null) {
+      this.cachedSnapshot = {
+        canUndo: this.canUndo(),
+        canRedo: this.canRedo(),
+        cursor: this.cursor,
+        length: this.timeline.length,
+      };
+    }
+    return this.cachedSnapshot;
   }
 
   getStores(): UndoManagerConfig['stores'] {
@@ -138,6 +142,7 @@ export class UndoManager {
   }
 
   private notify(): void {
+    this.cachedSnapshot = null;
     for (const listener of this.listeners) {
       listener();
     }

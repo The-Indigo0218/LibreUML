@@ -386,7 +386,6 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       if (!freshFileNode || freshFileNode.type !== 'FILE') return;
       const freshContent = (freshFileNode as VFSFile).content;
       if (!isDiagramView(freshContent)) return;
-      const freshView = freshContent as DiagramView;
 
       const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
       const isExternalFile = !!(freshFileNode as VFSFile).isExternal;

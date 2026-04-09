@@ -157,7 +157,7 @@ export function useEdgeActions({
       },
     ) => {
       if (!activeTabId) return;
-      withUndo('vfs', 'Update Edge Props', activeTabId, (draft: any) => {
+      withUndo('vfs', 'Update Edge Properties', activeTabId, (draft: any) => {
         const node = draft.project?.nodes[activeTabId];
         if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
         const idx = node.content.edges.findIndex((ve: any) => ve.id === viewEdgeId);

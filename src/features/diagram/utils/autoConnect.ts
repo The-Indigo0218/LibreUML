@@ -10,12 +10,24 @@ function normalize(name: string): string {
   return name.trim().toLowerCase();
 }
 
-export function autoConnectByAttributeType(
+export interface NewRelation {
+  relationId: string;
+  kind: RelationKind;
+  targetElementId: string;
+  viewEdge: ViewEdge;
+}
+
+/**
+ * Pure read — computes which new relations should be created when a class's
+ * attributes reference other elements by type name. Does NOT mutate any store.
+ * Call this before a transaction so the snapshot reflects pre-mutation state.
+ */
+export function computeNewRelations(
   sourceElementId: string,
   attributes: IRAttribute[],
-): void {
+): NewRelation[] {
   const initialModel = useModelStore.getState().model;
-  if (!initialModel) return;
+  if (!initialModel) return [];
 
   const nameToElementId = new Map<string, string>();
   for (const [id, cls] of Object.entries(initialModel.classes)) {
@@ -27,9 +39,7 @@ export function autoConnectByAttributeType(
 
   const seenTargets = new Set<string>();
   const activeTabId = useWorkspaceStore.getState().activeTabId;
-
-  // Pre-compute all new relation IDs so they're stable across mutations
-  const newRelations: Array<{ relationId: string; kind: RelationKind; targetElementId: string; viewEdge: ViewEdge }> = [];
+  const results: NewRelation[] = [];
 
   for (const attr of attributes) {
     const { baseName, isCollection } = parseAttributeType(attr.type);
@@ -58,13 +68,23 @@ export function autoConnectByAttributeType(
     const targetVN = fileContent.nodes.find((vn) => vn.elementId === targetElementId);
     if (!sourceVN || !targetVN) continue;
 
-    newRelations.push({
+    results.push({
       relationId,
       kind,
       targetElementId,
       viewEdge: { id: crypto.randomUUID(), relationId, waypoints: [] },
     });
   }
+
+  return results;
+}
+
+export function autoConnectByAttributeType(
+  sourceElementId: string,
+  attributes: IRAttribute[],
+): void {
+  const activeTabId = useWorkspaceStore.getState().activeTabId;
+  const newRelations = computeNewRelations(sourceElementId, attributes);
 
   if (newRelations.length === 0 || !activeTabId) return;
 

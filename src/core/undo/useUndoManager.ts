@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useCallback } from 'react';
+import { useSyncExternalStore, useCallback, useMemo } from 'react';
 import type { UndoEntry } from './types';
 import type { UndoManager } from './UndoManager';
 
@@ -13,7 +13,7 @@ export interface UseUndoManagerResult {
 }
 
 export function useUndoManager(manager: UndoManager, scope?: string): UseUndoManagerResult {
-  useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     (listener) => manager.subscribe(listener),
     () => manager.getSnapshot(),
   );
@@ -22,13 +22,12 @@ export function useUndoManager(manager: UndoManager, scope?: string): UseUndoMan
   const redo = useCallback(() => manager.redo(scope), [manager, scope]);
   const clear = useCallback(() => manager.clear(), [manager]);
 
-  return {
-    canUndo: manager.canUndo(scope),
-    canRedo: manager.canRedo(scope),
-    undo,
-    redo,
-    undoStack: manager.getUndoStack(scope),
-    redoStack: manager.getRedoStack(scope),
-    clear,
-  };
+  // Derive scoped values from the stable snapshot so they only recompute when
+  // the timeline actually changes (snapshot reference changes after notify()).
+  const canUndo = useMemo(() => manager.canUndo(scope), [snapshot, manager, scope]);
+  const canRedo = useMemo(() => manager.canRedo(scope), [snapshot, manager, scope]);
+  const undoStack = useMemo(() => manager.getUndoStack(scope), [snapshot, manager, scope]);
+  const redoStack = useMemo(() => manager.getRedoStack(scope), [snapshot, manager, scope]);
+
+  return { canUndo, canRedo, undo, redo, undoStack, redoStack, clear };
 }

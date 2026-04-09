@@ -23,6 +23,7 @@ import {
 } from "../../../../../services/projectIO.service";
 import { useVFSStore } from "../../../../../store/project-vfs.store";
 import { useUiStore } from "../../../../../store/uiStore";
+import { undoManager } from "../../../../../core/undo/instance";
 import type { VFSFile } from "../../../../../core/domain/vfs/vfs.types";
 import CloseProjectModal, {
   isCloseProjectWarningSuppressed,
@@ -102,6 +103,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
 
   const handleCloseProject = () => {
     if (isCloseProjectWarningSuppressed()) {
+      undoManager.clear();
       closeProject();
       closeAllFiles();
     } else {
@@ -202,6 +204,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
         isOpen={isCloseProjectModalOpen}
         onClose={() => setIsCloseProjectModalOpen(false)}
         onConfirm={() => {
+          undoManager.clear();
           closeProject();
           closeAllFiles();
         }}

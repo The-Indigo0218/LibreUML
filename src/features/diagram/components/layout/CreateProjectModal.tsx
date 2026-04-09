@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useVFSStore } from "../../../../store/project-vfs.store";
+import { undoManager } from "../../../../core/undo/instance";
 import type { LibreUMLProject, VFSFolder, VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
 interface CreateProjectModalProps {
@@ -71,6 +72,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
       updatedAt: now,
     };
 
+    undoManager.clear();
     loadProject(project);
     setProjectName("");
     setDescription("");

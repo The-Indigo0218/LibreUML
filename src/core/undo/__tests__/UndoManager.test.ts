@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { enablePatches } from 'immer';
 import { UndoManager } from '../UndoManager';
 import { undoTransaction, withUndo } from '../undoTransaction';

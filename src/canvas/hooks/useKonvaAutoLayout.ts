@@ -15,6 +15,7 @@ import { useUiStore } from '../../store/uiStore';
 import { useToastStore } from '../../store/toast.store';
 import { useViewportControlStore } from '../store/viewportControlStore';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+import { withUndo } from '../../core/undo/undoBridge';
 import type { VFSFile, RelationKind } from '../../core/domain/vfs/vfs.types';
 
 const NODE_WIDTH = 180;
@@ -30,7 +31,6 @@ export const LOCKED_WARNING_KEY = 'libreuml.autoLayout.skipLockedWarning';
 export function useKonvaAutoLayout() {
   const fitView = useViewportControlStore((s) => s.fitView);
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
-  const updateFileContent = useVFSStore((s) => s.updateFileContent);
   const openAutoLayoutLockedWarning = useUiStore((s) => s.openAutoLayoutLockedWarning);
 
   const executeLayout = useCallback(() => {
@@ -93,12 +93,16 @@ export function useKonvaAutoLayout() {
       };
     });
 
-    updateFileContent(activeTabId, { ...view, nodes: updatedNodes });
+    withUndo('vfs', 'Auto-layout', activeTabId, (draft: any) => {
+      const node = draft.project?.nodes[activeTabId];
+      if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+      node.content.nodes = updatedNodes;
+    });
 
     requestAnimationFrame(() => {
       fitView();
     });
-  }, [activeTabId, updateFileContent, fitView]);
+  }, [activeTabId, fitView]);
 
   const runLayout = useCallback(() => {
     const project = useVFSStore.getState().project;

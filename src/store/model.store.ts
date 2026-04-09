@@ -116,20 +116,24 @@ export const useModelStore = create<ModelStoreState>()(
       return id;
     },
 
-    updateClass: (id, patch) =>
-      withUndo('model', 'Update Class', 'global', (draft) => {
+    updateClass: (id, patch) => {
+      const name = useModelStore.getState().model?.classes[id]?.name ?? id;
+      withUndo('model', `Update Class: ${name}`, 'global', (draft) => {
         if (!draft.model || !draft.model.classes[id]) return;
         draft.model.classes[id] = { ...draft.model.classes[id], ...patch };
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
 
-    deleteClass: (id) =>
-      withUndo('model', 'Delete Class', 'global', (draft) => {
+    deleteClass: (id) => {
+      const name = useModelStore.getState().model?.classes[id]?.name ?? id;
+      withUndo('model', `Delete Class: ${name}`, 'global', (draft) => {
         if (!draft.model) return;
         delete draft.model.classes[id];
         cascadeDeleteRelations(draft.model, id);
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
 
     createInterface: (data) => {
       const id = newId();
@@ -141,20 +145,24 @@ export const useModelStore = create<ModelStoreState>()(
       return id;
     },
 
-    updateInterface: (id, patch) =>
-      withUndo('model', 'Update Interface', 'global', (draft) => {
+    updateInterface: (id, patch) => {
+      const name = useModelStore.getState().model?.interfaces[id]?.name ?? id;
+      withUndo('model', `Update Interface: ${name}`, 'global', (draft) => {
         if (!draft.model || !draft.model.interfaces[id]) return;
         draft.model.interfaces[id] = { ...draft.model.interfaces[id], ...patch };
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
 
-    deleteInterface: (id) =>
-      withUndo('model', 'Delete Interface', 'global', (draft) => {
+    deleteInterface: (id) => {
+      const name = useModelStore.getState().model?.interfaces[id]?.name ?? id;
+      withUndo('model', `Delete Interface: ${name}`, 'global', (draft) => {
         if (!draft.model) return;
         delete draft.model.interfaces[id];
         cascadeDeleteRelations(draft.model, id);
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
 
     createEnum: (data) => {
       const id = newId();
@@ -166,23 +174,29 @@ export const useModelStore = create<ModelStoreState>()(
       return id;
     },
 
-    updateEnum: (id, patch) =>
-      withUndo('model', 'Update Enum', 'global', (draft) => {
+    updateEnum: (id, patch) => {
+      const name = useModelStore.getState().model?.enums[id]?.name ?? id;
+      withUndo('model', `Update Enum: ${name}`, 'global', (draft) => {
         if (!draft.model || !draft.model.enums[id]) return;
         draft.model.enums[id] = { ...draft.model.enums[id], ...patch };
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
 
-    deleteEnum: (id) =>
-      withUndo('model', 'Delete Enum', 'global', (draft) => {
+    deleteEnum: (id) => {
+      const name = useModelStore.getState().model?.enums[id]?.name ?? id;
+      withUndo('model', `Delete Enum: ${name}`, 'global', (draft) => {
         if (!draft.model) return;
         delete draft.model.enums[id];
         cascadeDeleteRelations(draft.model, id);
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
 
-    setElementMembers: (elementId, attributes, operations) =>
-      withUndo('model', 'Update Members', 'global', (draft) => {
+    setElementMembers: (elementId, attributes, operations) => {
+      const m = useModelStore.getState().model;
+      const name = m?.classes[elementId]?.name ?? m?.interfaces[elementId]?.name ?? elementId;
+      withUndo('model', `Update Members: ${name}`, 'global', (draft) => {
         if (!draft.model) return;
         const cls = draft.model.classes[elementId];
         const iface = draft.model.interfaces[elementId];
@@ -199,11 +213,12 @@ export const useModelStore = create<ModelStoreState>()(
           draft.model.interfaces[elementId].operationIds = operations.map((o: IROperation) => o.id);
         }
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
 
     createRelation: (data) => {
       const id = newId();
-      withUndo('model', 'Create Relation', 'global', (draft) => {
+      withUndo('model', `Create Relation: ${data.kind}`, 'global', (draft) => {
         if (!draft.model) return;
         draft.model.relations[id] = { ...data, id };
         draft.model.updatedAt = Date.now();
@@ -211,19 +226,25 @@ export const useModelStore = create<ModelStoreState>()(
       return id;
     },
 
-    updateRelation: (id, patch) =>
-      withUndo('model', 'Update Relation', 'global', (draft) => {
+    updateRelation: (id, patch) => {
+      const rel = useModelStore.getState().model?.relations[id];
+      const label = rel ? `Update Relation: ${rel.kind}` : 'Update Relation';
+      withUndo('model', label, 'global', (draft) => {
         if (!draft.model || !draft.model.relations[id]) return;
         draft.model.relations[id] = { ...draft.model.relations[id], ...patch };
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
 
-    deleteRelation: (id) =>
-      withUndo('model', 'Delete Relation', 'global', (draft) => {
+    deleteRelation: (id) => {
+      const rel = useModelStore.getState().model?.relations[id];
+      const label = rel ? `Delete Relation: ${rel.kind}` : 'Delete Relation';
+      withUndo('model', label, 'global', (draft) => {
         if (!draft.model) return;
         delete draft.model.relations[id];
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
 
     integrateExternalElement: (elementId) =>
       withUndo('model', 'Integrate External Element', 'global', (draft) => {
@@ -288,8 +309,11 @@ export const useModelStore = create<ModelStoreState>()(
         draft.model.updatedAt = Date.now();
       }),
 
-    setElementPackage: (elementId, packageName) =>
-      withUndo('model', 'Set Element Package', 'global', (draft) => {
+    setElementPackage: (elementId, packageName) => {
+      const m = useModelStore.getState().model;
+      const elName = m?.classes[elementId]?.name ?? m?.interfaces[elementId]?.name ?? m?.enums[elementId]?.name ?? elementId;
+      const dest = packageName ?? 'default';
+      withUndo('model', `Move ${elName} to Package: ${dest}`, 'global', (draft) => {
         if (!draft.model) return;
         if (draft.model.classes[elementId]) {
           draft.model.classes[elementId].packageName = packageName;
@@ -299,7 +323,8 @@ export const useModelStore = create<ModelStoreState>()(
           draft.model.enums[elementId].packageName = packageName;
         } else return;
         draft.model.updatedAt = Date.now();
-      }),
+      });
+    },
   })),
   {
     name: 'libreuml-model-storage',

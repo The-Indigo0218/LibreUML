@@ -12,6 +12,7 @@ import { useKonvaCanvasController } from './hooks/useKonvaCanvasController';
 import { useKonvaDnD } from './hooks/useKonvaDnD';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
+import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
 import KonvaEdge from './edges/KonvaEdge';
 import SelectionRect from './selection/SelectionRect';
 import { useSelection } from './interactions/useSelection';
@@ -32,7 +33,9 @@ import { useStageStore } from './store/stageStore';
 import type { KonvaNodeChange, KonvaEdgeChange } from './types/canvas.types';
 import {
   isNoteViewModel,
+  isPackageViewModel,
   type NodeViewModel,
+  type PackageViewModel,
 } from '../adapters/react-flow/view-models/node.view-model';
 import type { NodeBounds } from './edges/geometry';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
@@ -91,7 +94,11 @@ export default function KonvaCanvas() {
       let width: number;
       let height: number;
 
-      if (isNoteViewModel(vm)) {
+      if (isPackageViewModel(vm)) {
+        const size = getPackageShapeSize(vm);
+        width = size.width;
+        height = size.height;
+      } else if (isNoteViewModel(vm)) {
         const size = getNoteShapeSize(vm);
         width = size.width;
         height = size.height;
@@ -212,7 +219,10 @@ export default function KonvaCanvas() {
         positionOverrides.get(shape.id) ??
         { x: shape.x, y: shape.y };
       const vm = shape.data;
-      if (isNoteViewModel(vm)) {
+      if (isPackageViewModel(vm)) {
+        const { width, height } = getPackageShapeSize(vm);
+        map.set(shape.id, { x: pos.x, y: pos.y, width, height });
+      } else if (isNoteViewModel(vm)) {
         const { width, height } = getNoteShapeSize(vm);
         map.set(shape.id, { x: pos.x, y: pos.y, width, height });
       } else {
@@ -478,6 +488,18 @@ export default function KonvaCanvas() {
     screenToCanvas,
   });
 
+  const sortedShapes = useMemo(() =>
+    [...shapes].sort((a, b) => {
+      if (a.type === 'package' && b.type !== 'package') return -1;
+      if (a.type !== 'package' && b.type === 'package') return 1;
+      if (a.type === 'package' && b.type === 'package') {
+        return (a.data as PackageViewModel).depth - (b.data as PackageViewModel).depth;
+      }
+      return 0;
+    }),
+    [shapes],
+  );
+
   const contextMenuOptions = useMemo(
     () => (menu ? getMenuOptions(menu) : []),
     [menu, getMenuOptions],
@@ -652,10 +674,29 @@ export default function KonvaCanvas() {
           </Layer>
 
           <Layer name="nodes">
-            {shapes.map((shape) => {
+            {sortedShapes.map((shape) => {
               const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
               const vm = shape.data;
               const isVisible = visibleNodeIds.has(shape.id);
+              
+              if (isPackageViewModel(vm)) {
+                return (
+                  <PackageShape
+                    key={shape.id}
+                    viewModel={vm}
+                    x={pos.x}
+                    y={pos.y}
+                    selected={selectedIds.has(shape.id)}
+                    draggable
+                    onDragStart={guardedDragStart}
+                    onDragMove={dragHandlers.onDragMove}
+                    onDragEnd={dragHandlers.onDragEnd}
+                    onNodeClick={onNodeClick}
+                    onContextMenu={handleNodeContextMenu}
+                    visible={isVisible}
+                  />
+                );
+              }
               
               if (isNoteViewModel(vm)) {
                 return (
@@ -710,6 +751,17 @@ export default function KonvaCanvas() {
           <Layer name="interaction">
             {ghostNodes.map((ghost) => {
               const vm = ghost.data;
+              if (isPackageViewModel(vm)) {
+                return (
+                  <PackageShape
+                    key={'ghost-' + ghost.id}
+                    viewModel={vm}
+                    x={ghost.x}
+                    y={ghost.y}
+                    opacity={0.3}
+                  />
+                );
+              }
               if (isNoteViewModel(vm)) {
                 return (
                   <NoteShape

@@ -3,6 +3,7 @@ import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ClassItem } from "./ClassItem";
 import { InlinePackageInput } from "./InlinePackageInput";
+import { DRAG_TYPE_PACKAGE } from "../../../../../canvas/hooks/useKonvaDnD";
 import type { PackageItemProps } from "./types";
 
 export function PackageItem({
@@ -126,6 +127,16 @@ export function PackageItem({
     onDropOnPackage(e, node.fullPath);
   }, [onDropOnPackage, node.name, node.fullPath]);
 
+  const handlePackageDragStart = useCallback((e: React.DragEvent) => {
+    if (node.name === 'root') {
+      e.preventDefault();
+      return;
+    }
+    e.stopPropagation();
+    e.dataTransfer.setData(DRAG_TYPE_PACKAGE, node.fullPath);
+    e.dataTransfer.effectAllowed = 'move';
+  }, [node.name, node.fullPath]);
+
   return (
     <div>
       {node.name !== "root" && (
@@ -133,8 +144,10 @@ export function PackageItem({
           <div
             className={`flex items-center gap-1.5 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors ${isDragOver ? 'ring-1 ring-uml-class-border bg-surface-hover' : ''}`}
             style={{ paddingLeft: `${level * 12 + 8}px` }}
+            draggable={node.name !== 'root'}
             onClick={() => !isRenaming && onToggle(node.fullPath)}
             onContextMenu={(e) => onPackageContextMenu(e, node.fullPath, node.name)}
+            onDragStart={handlePackageDragStart}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}

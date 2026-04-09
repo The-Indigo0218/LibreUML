@@ -13,7 +13,7 @@
  *
  * Consumers of `viewport`:
  *   - GridPattern: uses x, y, scale to compute visible grid bounds
- *   - KonvaCanvas inline editor useEffect: uses viewport as a dep to reposition the editor overlay
+ *   - KonvaCanvas inline edp0: { contentBounds: { x: number; y: number; width: number; height: number; } | null; stageWidth: number; stageHeight: number; }itor useEffect: uses viewport as a dep to reposition the editor overlay
  *   - useViewportCuller (unused): would use viewport for frustum culling
  */
 
@@ -54,8 +54,6 @@ export interface UseViewportOptions {
   stageHeight?: number;
 }
 
-// Read-only observer of Konva's stage position/scale.
-// Updated after every imperative change so React consumers can re-render.
 export function useViewport(options: UseViewportOptions = {}) {
   const { contentBounds, stageWidth = 0, stageHeight = 0 } = options;
   const stageRef = useRef<Konva.Stage>(null);
@@ -63,7 +61,6 @@ export function useViewport(options: UseViewportOptions = {}) {
   const [viewport, setViewport] = useState<Viewport>({ x: 0, y: 0, scale: 1 });
   const register = useViewportControlStore((s) => s.register);
 
-  // Calculate dynamic constraints based on content bounds (MAG-01.21)
   const constraints = useMemo((): ViewportConstraints => {
     // No content or stage not ready → use defaults
     if (!contentBounds || stageWidth === 0 || stageHeight === 0) {
@@ -74,12 +71,10 @@ export function useViewport(options: UseViewportOptions = {}) {
       };
     }
 
-    // Calculate MIN_SCALE to fit all content in viewport
     const scaleX = stageWidth / contentBounds.width;
     const scaleY = stageHeight / contentBounds.height;
     const minScale = Math.min(scaleX, scaleY, 1); // Don't zoom in beyond 1:1
 
-    // Expand bounds with margin
     const bounds: ViewportBounds = {
       x: contentBounds.x - BOUNDS_MARGIN,
       y: contentBounds.y - BOUNDS_MARGIN,
@@ -105,13 +100,11 @@ export function useViewport(options: UseViewportOptions = {}) {
 
     const direction = e.evt.deltaY < 0 ? 1 : -1;
 
-    // Clamp zoom to dynamic constraints (MAG-01.21)
     const newScale = Math.max(
       constraints.minScale,
       Math.min(constraints.maxScale, oldScale * Math.pow(ZOOM_FACTOR, direction)),
     );
 
-    // World-space point under cursor stays fixed
     const pointerWorldX = (pointer.x - stage.x()) / oldScale;
     const pointerWorldY = (pointer.y - stage.y()) / oldScale;
 

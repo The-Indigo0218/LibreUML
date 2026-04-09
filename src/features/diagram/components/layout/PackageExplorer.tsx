@@ -13,9 +13,13 @@ import { PackageItem } from "./packageExplorer/PackageItem";
 import { ClassItem } from "./packageExplorer/ClassItem";
 import { InlinePackageInput } from "./packageExplorer/InlinePackageInput";
 import { DeletePackageModal } from "./packageExplorer/DeletePackageModal";
+import { isDiagramView } from "../../hooks/useVFSCanvasController";
+import { undoTransaction } from "../../../../core/undo/undoBridge";
 import type { UmlClassNode, UmlAttribute, UmlMethod, visibility as UmlVisibility } from "../../types/diagram.types";
 import type { DeletePackageState, TreeNode } from "./packageExplorer/types";
-import type { SemanticModel, VFSFile } from "../../../../core/domain/vfs/vfs.types";
+import type { SemanticModel, VFSFile, ViewNode } from "../../../../core/domain/vfs/vfs.types";
+
+const SIDEBAR_DND_TYPE = 'application/libreuml-sidebar-class';
 
 
 function irVisToSymbol(v: string | undefined): UmlVisibility {
@@ -161,6 +165,15 @@ export default function PackageExplorer() {
 
   const activeModel = isStandalone ? localModel : model;
 
+  const viewNodes = useVFSStore((s): ViewNode[] => {
+    if (!activeTabId || !s.project) return [];
+    const node = s.project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return [];
+    const content = (node as VFSFile).content;
+    if (!isDiagramView(content)) return [];
+    return content.nodes;
+  });
+
   // ── Derived data ───────────────────────────────────────────────────────
 
   const transformedNodes: UmlClassNode[] = useMemo(() => {
@@ -168,13 +181,26 @@ export default function PackageExplorer() {
     return irToUmlNodes(activeModel);
   }, [activeModel]);
 
+  const elementViewNodeMap = useMemo(() => {
+    const map = new Map<string, ViewNode>();
+    for (const vn of viewNodes) map.set(vn.elementId, vn);
+    return map;
+  }, [viewNodes]);
+
   const allPackages: Array<{ id: string; name: string }> = useMemo(() => {
     if (!activeModel) return [];
     const pkgSet = new Map<string, { id: string; name: string }>();
 
-    // Explicit packages from model
+    // Visual packages from IR model (canvas packages — real IRPackage entries)
+    Object.values(activeModel.packages ?? {}).forEach((pkg) => {
+      if (pkg.name && pkg.name.trim() !== "") {
+        pkgSet.set(pkg.name, { id: pkg.id, name: pkg.name });
+      }
+    });
+
+    // Explicit semantic packages from model
     (activeModel.packageNames ?? []).forEach((name) => {
-      pkgSet.set(name, { id: `pkg-${name}`, name });
+      if (!pkgSet.has(name)) pkgSet.set(name, { id: `pkg-${name}`, name });
     });
 
     // Auto-discover implicit packages from element packageName fields
@@ -194,10 +220,30 @@ export default function PackageExplorer() {
     return Array.from(pkgSet.values());
   }, [activeModel, transformedNodes]);
 
-  const packageTree = useMemo(() => buildPackageTree(allPackages, transformedNodes), [allPackages, transformedNodes]);
+  // Resolve visual containment: if a node's ViewNode has parentPackageId,
+  // override its package field with the visual parent's IRPackage name.
+  const resolvedNodes = useMemo(() => {
+    if (!viewNodes.length || !activeModel?.packages) return transformedNodes;
+
+    const pkgViewNodeToPkgName = new Map<string, string>();
+    for (const vn of viewNodes) {
+      const pkg = activeModel.packages[vn.elementId];
+      if (pkg) pkgViewNodeToPkgName.set(vn.id, pkg.name);
+    }
+
+    return transformedNodes.map((node) => {
+      const vn = elementViewNodeMap.get(node.id);
+      if (!vn?.parentPackageId) return node;
+      const parentPkgName = pkgViewNodeToPkgName.get(vn.parentPackageId);
+      if (!parentPkgName) return node;
+      return { ...node, data: { ...node.data, package: parentPkgName } };
+    });
+  }, [transformedNodes, viewNodes, elementViewNodeMap, activeModel]);
+
+  const packageTree = useMemo(() => buildPackageTree(allPackages, resolvedNodes), [allPackages, resolvedNodes]);
   const packageTreeForItem = useMemo(() => ({ ...packageTree, classes: [] }), [packageTree]);
 
-  const totalElements = transformedNodes.length;
+  const totalElements = resolvedNodes.length;
   const unassignedCount = packageTree.classes.length;
   const displayedPackageCount = allPackages.length + (unassignedCount > 0 ? 1 : 0);
 
@@ -412,7 +458,7 @@ export default function PackageExplorer() {
   const handleDeleteClick = () => {
     if (!contextMenu) return;
     if (contextMenu.type === "package") {
-      const classesInPackage = transformedNodes.filter((n) => n.data.package === contextMenu.packagePath);
+      const classesInPackage = resolvedNodes.filter((n) => n.data.package === contextMenu.packagePath);
       setDeletePackageState({
         id: contextMenu.packagePath!,
         name: contextMenu.name,
@@ -446,7 +492,7 @@ export default function PackageExplorer() {
 
   const handleCancelRename = () => setRenamingId(null);
 
-  const handleMoveToPackage = (elementId: string, targetPkg: string | undefined) => {
+  const handleMoveToPackage = useCallback((elementId: string, targetPkg: string | undefined) => {
     if (isStandalone && activeTabId) {
       standaloneModelOps(activeTabId).setElementPackage(elementId, targetPkg);
     } else {
@@ -454,7 +500,91 @@ export default function PackageExplorer() {
     }
     showToast(targetPkg ? `Moved to "${targetPkg}".` : "Removed from package.");
     setPkgPicker(null);
-  };
+  }, [isStandalone, activeTabId, setElementPackage, showToast]);
+
+  const getViewNodeId = useCallback((elementId: string): string | undefined => {
+    return elementViewNodeMap.get(elementId)?.id;
+  }, [elementViewNodeMap]);
+
+  const handleClassDragStart = useCallback((e: React.DragEvent, elementId: string, viewNodeId: string | undefined) => {
+    e.dataTransfer.setData(SIDEBAR_DND_TYPE, JSON.stringify({ elementId, viewNodeId }));
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDropOnPackage = useCallback((e: React.DragEvent, targetPkgPath: string) => {
+    e.preventDefault();
+    const raw = e.dataTransfer.getData(SIDEBAR_DND_TYPE);
+    if (!raw) return;
+
+    let payload: { elementId: string; viewNodeId?: string };
+    try { payload = JSON.parse(raw); } catch { return; }
+    const { elementId, viewNodeId } = payload;
+
+    if (viewNodeId && activeTabId && activeModel?.packages) {
+      const targetPkg = Object.values(activeModel.packages).find((p) => p.name === targetPkgPath);
+      if (targetPkg) {
+        const targetViewNode = viewNodes.find((vn) => vn.elementId === targetPkg.id);
+        if (targetViewNode) {
+          undoTransaction({
+            label: `Move to package: ${targetPkgPath}`,
+            scope: activeTabId,
+            mutations: [{
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const file = draft.project?.nodes[activeTabId];
+                if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+                const vn = file.content.nodes.find((n: ViewNode) => n.id === viewNodeId);
+                if (vn) vn.parentPackageId = targetViewNode.id;
+              },
+            }],
+            affectedElementIds: [elementId],
+          });
+          showToast(`Moved to "${targetPkgPath}".`);
+          return;
+        }
+      }
+    }
+
+    handleMoveToPackage(elementId, targetPkgPath);
+  }, [activeTabId, activeModel, viewNodes, showToast, handleMoveToPackage]);
+
+  const handleAddToCanvas = useCallback((pkgPath: string) => {
+    if (!activeTabId || !activeModel) return;
+
+    const irPkg = Object.values(activeModel.packages ?? {}).find((p) => p.name === pkgPath);
+    if (!irPkg) {
+      showToast('No canvas representation found for this package.');
+      return;
+    }
+
+    if (viewNodes.some((vn) => vn.elementId === irPkg.id)) {
+      showToast(`"${pkgPath}" is already on canvas.`);
+      return;
+    }
+
+    const newVNId = crypto.randomUUID();
+    undoTransaction({
+      label: `Add to canvas: ${pkgPath}`,
+      scope: activeTabId,
+      mutations: [{
+        store: 'vfs',
+        mutate: (draft: any) => {
+          const file = draft.project?.nodes[activeTabId];
+          if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+          file.content.nodes.push({
+            id: newVNId,
+            elementId: irPkg.id,
+            x: 200,
+            y: 200,
+            collapsed: false,
+          });
+        },
+      }],
+      affectedElementIds: [irPkg.id],
+    });
+    showToast(`"${pkgPath}" added to canvas.`);
+    setContextMenu(null);
+  }, [activeTabId, activeModel, viewNodes, showToast]);
 
   return (
     <div className="flex flex-col h-full bg-surface-primary border-r border-surface-border">
@@ -543,6 +673,8 @@ export default function PackageExplorer() {
                       onContextMenu={handleClassContextMenu}
                       onRename={handleRenameClass}
                       onCancelRename={handleCancelRename}
+                      viewNodeId={getViewNodeId(classNode.id)}
+                      onDragStart={handleClassDragStart}
                     />
                   ))}
               </div>
@@ -566,6 +698,9 @@ export default function PackageExplorer() {
               onRenamePackage={handleRenamePackage}
               onAddChildPackage={handleAddChildPackage}
               onCancelAddChild={handleCancelAddChild}
+              getViewNodeId={getViewNodeId}
+              onClassDragStart={handleClassDragStart}
+              onDropOnPackage={handleDropOnPackage}
             />
           </>
         )}
@@ -616,6 +751,14 @@ export default function PackageExplorer() {
               >
                 Rename
               </button>
+              {activeTabId && Object.values(activeModel?.packages ?? {}).some((p) => p.name === contextMenu.packagePath) && (
+                <button
+                  className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-hover"
+                  onClick={() => handleAddToCanvas(contextMenu.packagePath!)}
+                >
+                  Add to Canvas
+                </button>
+              )}
               <hr className="border-surface-border my-1" />
               <button
                 className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-surface-hover"

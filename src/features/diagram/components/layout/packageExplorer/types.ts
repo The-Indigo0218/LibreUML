@@ -56,6 +56,9 @@ export interface PackageItemProps {
   onRenamePackage: (packagePath: string, newName: string) => void;
   onAddChildPackage: (parentPath: string, childName: string) => void;
   onCancelAddChild: () => void;
+  getViewNodeId?: (elementId: string) => string | undefined;
+  onClassDragStart?: (e: React.DragEvent, elementId: string, viewNodeId: string | undefined) => void;
+  onDropOnPackage?: (e: React.DragEvent, packagePath: string) => void;
 }
 
 export interface ClassItemProps {
@@ -69,4 +72,6 @@ export interface ClassItemProps {
   onContextMenu: (e: React.MouseEvent, classId: string, className: string) => void;
   onRename: (classId: string, newName: string) => void;
   onCancelRename: () => void;
+  viewNodeId?: string;
+  onDragStart?: (e: React.DragEvent, elementId: string, viewNodeId: string | undefined) => void;
 }

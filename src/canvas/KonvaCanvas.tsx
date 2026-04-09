@@ -257,13 +257,12 @@ export default function KonvaCanvas() {
   boundsMapRef.current = boundsMap;
 
   const {
-    pendingDrop,
     onDragEndWithPackageDetection,
     PackageDropPicker,
   } = usePackageDrop({
     shapes,
     boundsMap,
-    activeTabId,
+    activeTabId: activeTabId ?? '',
   });
 
   const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap);
@@ -344,8 +343,8 @@ export default function KonvaCanvas() {
       const packageName = shape.data.name;
       const newState = !shape.data.collapsed;
 
-      withUndo('vfs', `${newState ? 'Collapse' : 'Expand'}: ${packageName}`, activeTabId, (draft: any) => {
-        const file = draft.project?.nodes[activeTabId];
+      withUndo('vfs', `${newState ? 'Collapse' : 'Expand'}: ${packageName}`, activeTabId ?? '', (draft: any) => {
+        const file = draft.project?.nodes[activeTabId!];
         if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
         const viewNode = file.content.nodes.find((vn: any) => vn.id === packageId);
         if (viewNode) viewNode.collapsed = newState;

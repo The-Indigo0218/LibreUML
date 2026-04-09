@@ -574,7 +574,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
       const label = element?.name ?? 'NewClass';
       const displayConfig = VFS_DISPLAY[kind] ?? VFS_DISPLAY.CLASS;
-      const sections = element ? buildSections(model, element, kind) : [];
+      const sections = element ? buildSections(model, element as IRClass | IRInterface | IREnum, kind) : [];
       const badge = (element as IRClass | IRInterface | IREnum | null)?.packageName ?? undefined;
 
       const onRename = (name: string, generics?: string) => {

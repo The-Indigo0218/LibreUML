@@ -100,8 +100,7 @@ function expandDragGroupWithChildren(
   shapes: ShapeDescriptor[],
 ): string[] {
   const result = new Set<string>(initialIds);
-  const shapeMap = new Map(shapes.map(s => [s.id, s]));
-  
+
   const addDescendants = (parentId: string) => {
     for (const shape of shapes) {
       if (shape.parentPackageId === parentId && !result.has(shape.id)) {

@@ -59,6 +59,8 @@ export interface ViewNode {
   content?: string;
   /** Persisted title for Note nodes. */
   noteTitle?: string;
+  parentPackageId?: string | null;
+  collapsed?: boolean;
 }
 
 export interface ViewEdge {
@@ -261,7 +263,10 @@ export type RelationKind =
   | 'CONTROL_FLOW'
   | 'OBJECT_FLOW'
   | 'DEPLOYMENT'
-  | 'MANIFESTATION';
+  | 'MANIFESTATION'
+  | 'PACKAGE_IMPORT'
+  | 'PACKAGE_MERGE'
+  | 'PACKAGE_ACCESS';
 
 export interface IRAssociationEnd {
   elementId: string;

@@ -13,10 +13,11 @@ import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 /** Flat Konva-native node descriptor — replaces VFSReactFlowNode for the Konva canvas. */
 export interface ShapeDescriptor {
   id: string;
-  type: 'class' | 'note';
+  type: 'class' | 'note' | 'package';
   x: number;
   y: number;
   data: AnyNodeViewModel;
+  parentPackageId?: string | null;
 }
 
 /** Flat Konva-native edge descriptor — replaces VFSReactFlowEdge for the Konva canvas. */

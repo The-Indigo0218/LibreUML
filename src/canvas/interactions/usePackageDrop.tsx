@@ -119,7 +119,7 @@ export function usePackageDrop({
       const currentParentId = droppedShape?.parentPackageId ?? null;
       if (currentParentId === targetPackageId) return;
 
-      const isPackageDrop = isPackageViewModel(droppedShape?.data);
+      const isPackageDrop = droppedShape?.data && isPackageViewModel(droppedShape.data);
 
       // Pre-compute the effective package path (walks ViewNode hierarchy) so we can
       // write element.packageName and keep the Model Explorer in sync.
@@ -173,7 +173,7 @@ export function usePackageDrop({
         });
       } else {
         // Global: VFS mutation for parentPackageId, model mutation for packageName.
-        const mutations: Array<{ store: string; mutate: (draft: any) => void }> = [
+        const mutations: Array<{ store: 'vfs' | 'model'; mutate: (draft: any) => void }> = [
           {
             store: 'vfs',
             mutate: (draft: any) => {

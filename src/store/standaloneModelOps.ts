@@ -74,7 +74,7 @@ export function standaloneModelOps(fileId: string) {
           const hierarchy = getPackageHierarchy(data.packageName);
           if (!m.packageNames) m.packageNames = [];
           hierarchy.forEach(pkg => {
-            if (!m.packageNames.includes(pkg)) {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
               m.packageNames.push(pkg);
             }
           });
@@ -94,7 +94,7 @@ export function standaloneModelOps(fileId: string) {
           const hierarchy = getPackageHierarchy(data.packageName);
           if (!m.packageNames) m.packageNames = [];
           hierarchy.forEach(pkg => {
-            if (!m.packageNames.includes(pkg)) {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
               m.packageNames.push(pkg);
             }
           });
@@ -132,7 +132,7 @@ export function standaloneModelOps(fileId: string) {
           const hierarchy = getPackageHierarchy(data.packageName);
           if (!m.packageNames) m.packageNames = [];
           hierarchy.forEach(pkg => {
-            if (!m.packageNames.includes(pkg)) {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
               m.packageNames.push(pkg);
             }
           });
@@ -170,7 +170,7 @@ export function standaloneModelOps(fileId: string) {
           const hierarchy = getPackageHierarchy(data.packageName);
           if (!m.packageNames) m.packageNames = [];
           hierarchy.forEach(pkg => {
-            if (!m.packageNames.includes(pkg)) {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
               m.packageNames.push(pkg);
             }
           });
@@ -274,7 +274,7 @@ export function standaloneModelOps(fileId: string) {
           const hierarchy = getPackageHierarchy(packageName);
           if (!m.packageNames) m.packageNames = [];
           hierarchy.forEach(pkg => {
-            if (!m.packageNames.includes(pkg)) {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
               m.packageNames.push(pkg);
             }
           });

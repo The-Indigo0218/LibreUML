@@ -14,9 +14,10 @@
 import type Konva from 'konva';
 import type { ViewNode } from '../core/domain/vfs/vfs.types';
 import type { ShapeDescriptor, EdgeDescriptor } from '../canvas/types/canvas.types';
-import type { NodeViewModel, NoteViewModel } from '../adapters/react-flow/view-models/node.view-model';
+import type { NodeViewModel, NoteViewModel, PackageViewModel } from '../adapters/react-flow/view-models/node.view-model';
 import { getClassShapeSize } from '../canvas/shapes/ClassShape';
 import { getNoteShapeSize } from '../canvas/shapes/NoteShape';
+import { getPackageShapeSize } from '../canvas/shapes/PackageShape';
 import { diagramToSvg } from '../canvas/export/diagramToSvg';
 
 export interface ExportImageOptions {
@@ -56,10 +57,29 @@ function calculateBoundsFromShapes(shapes: ShapeDescriptor[]): DiagramBounds | n
   let maxY = -Infinity;
 
   for (const shape of shapes) {
-    const { width, height } =
-      shape.type === 'note'
-        ? getNoteShapeSize(shape.data as NoteViewModel)
-        : getClassShapeSize(shape.data as NodeViewModel);
+    let width: number;
+    let height: number;
+    
+    if (shape.type === 'note') {
+      const size = getNoteShapeSize(shape.data as NoteViewModel);
+      width = size.width;
+      height = size.height;
+    } else if (shape.type === 'package') {
+      // For packages, use stored dimensions if available, otherwise calculate
+      if (shape.width !== undefined && shape.height !== undefined) {
+        width = shape.width;
+        height = shape.height;
+      } else {
+        const size = getPackageShapeSize(shape.data as PackageViewModel);
+        width = size.width;
+        height = size.height;
+      }
+    } else {
+      // class type
+      const size = getClassShapeSize(shape.data as NodeViewModel);
+      width = size.width;
+      height = size.height;
+    }
 
     minX = Math.min(minX, shape.x);
     minY = Math.min(minY, shape.y);

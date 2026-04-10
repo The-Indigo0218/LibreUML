@@ -36,7 +36,7 @@ import { useVFSCanvasController } from '../features/diagram/hooks/useVFSCanvasCo
 import { useUiStore } from '../store/uiStore';
 import { useModelStore } from '../store/model.store';
 import { useToastStore } from '../store/toast.store';
-import { useVFSStore } from '../store/project-vfs.store';
+
 import { useStageStore } from './store/stageStore';
 import type { KonvaNodeChange, KonvaEdgeChange } from './types/canvas.types';
 import type { ViewNode } from '../core/domain/vfs/vfs.types';

@@ -25,19 +25,11 @@ export const useLayoutStore = create<LayoutStoreState>()(
       isBottomPanelOpen: false,
       bottomPanelTab: 'terminal',
 
-      toggleLeftPanel: () =>
-        set((s) => ({ isLeftPanelOpen: !s.isLeftPanelOpen })),
-
-      toggleRightPanel: () =>
-        set((s) => ({ isRightPanelOpen: !s.isRightPanelOpen })),
-
-      toggleBottomPanel: () =>
-        set((s) => ({ isBottomPanelOpen: !s.isBottomPanelOpen })),
-
+      toggleLeftPanel: () => set((s) => ({ isLeftPanelOpen: !s.isLeftPanelOpen })),
+      toggleRightPanel: () => set((s) => ({ isRightPanelOpen: !s.isRightPanelOpen })),
+      toggleBottomPanel: () => set((s) => ({ isBottomPanelOpen: !s.isBottomPanelOpen })),
       setBottomPanelTab: (tab) => set({ bottomPanelTab: tab }),
-
-      openProblemsTab: () =>
-        set({ isBottomPanelOpen: true, bottomPanelTab: 'problems' }),
+      openProblemsTab: () => set({ isBottomPanelOpen: true, bottomPanelTab: 'problems' }),
     }),
     {
       name: 'libreuml-layout',

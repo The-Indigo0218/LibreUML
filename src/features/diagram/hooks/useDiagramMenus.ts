@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { useReactFlow } from "reactflow";
 import { useTranslation } from "react-i18next";
 import { useUiStore } from "../../../store/uiStore";
 import { useWorkspaceStore } from "../../../store/workspace.store";
@@ -7,7 +6,7 @@ import { useVFSStore } from "../../../store/project-vfs.store";
 import { useModelStore } from "../../../store/model.store";
 import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../store/standaloneModelOps";
 import { isDiagramView } from "./useVFSCanvasController";
-import { getNextVFSName } from "./useDiagramDnD";
+import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
 import type { DiagramView, ViewNode, VFSFile } from "../../../core/domain/vfs/vfs.types";
 
 export type ContextMenuType = "pane" | "node" | "edge";
@@ -30,6 +29,7 @@ interface UseDiagramMenusProps {
   onReverseEdge: (edgeId: string) => void;
   onChangeEdgeKind: (edgeId: string, kind: string) => void;
   onAddToProject: (nodeId: string) => void;
+  onDuplicateNode: (nodeId: string) => void;
   /** Returns the semantic kind ('CLASS', 'INTERFACE', etc.) of a node by its ReactFlow ID. */
   getVFSNodeKind: (nodeId: string) => string | undefined;
   /** Returns true if the node's IR element has isExternal: true. */
@@ -38,6 +38,8 @@ interface UseDiagramMenusProps {
   getElementId: (nodeId: string) => string | undefined;
   /** True when the active diagram is a standalone .luml file (no project). */
   isStandalone?: boolean;
+  /** Converts screen-space {x,y} to canvas/world-space coordinates. */
+  screenToCanvas: (screen: { x: number; y: number }) => { x: number; y: number };
 }
 
 export const useDiagramMenus = ({
@@ -51,12 +53,13 @@ export const useDiagramMenus = ({
   onReverseEdge,
   onChangeEdgeKind,
   onAddToProject,
+  onDuplicateNode,
   getVFSNodeKind,
   getIsNodeExternal,
   getElementId,
   isStandalone = false,
+  screenToCanvas,
 }: UseDiagramMenusProps) => {
-  const { screenToFlowPosition } = useReactFlow();
   const { t } = useTranslation();
 
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator);
@@ -147,28 +150,28 @@ export const useDiagramMenus = ({
           {
             label: t("contextMenu.pane.addClass"),
             onClick: () => {
-              const position = screenToFlowPosition({ x: menu.x, y: menu.y });
+              const position = screenToCanvas({ x: menu.x, y: menu.y });
               addVFSNode("CLASS", position);
             },
           },
           {
             label: t("contextMenu.pane.addInterface"),
             onClick: () => {
-              const position = screenToFlowPosition({ x: menu.x, y: menu.y });
+              const position = screenToCanvas({ x: menu.x, y: menu.y });
               addVFSNode("INTERFACE", position);
             },
           },
           {
             label: t("contextMenu.pane.addAbstract"),
             onClick: () => {
-              const position = screenToFlowPosition({ x: menu.x, y: menu.y });
+              const position = screenToCanvas({ x: menu.x, y: menu.y });
               addVFSNode("ABSTRACT_CLASS", position);
             },
           },
           {
             label: t("contextMenu.pane.addNote"),
             onClick: () => {
-              const position = screenToFlowPosition({ x: menu.x, y: menu.y });
+              const position = screenToCanvas({ x: menu.x, y: menu.y });
               addVFSNode("NOTE", position);
             },
           },
@@ -187,14 +190,17 @@ export const useDiagramMenus = ({
           effectiveType === "CLASS" ||
           effectiveType === "INTERFACE" ||
           effectiveType === "ABSTRACT_CLASS";
+        const isPackageType = effectiveType === "PACKAGE";
         const isNodeExternal = getIsNodeExternal(nodeId);
 
-        const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [
-          {
+        const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [];
+
+        if (!isPackageType) {
+          baseOptions.push({
             label: t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
-          },
-        ];
+          });
+        }
 
         if (isClassType) {
           const resolvedId = getElementId(nodeId) ?? nodeId;
@@ -225,6 +231,14 @@ export const useDiagramMenus = ({
           label: t("contextMenu.node.removeFromDiagram"),
           onClick: () => onDeleteNode(nodeId),
         });
+
+        if (!isPackageType) {
+          baseOptions.push({
+            label: t("contextMenu.node.duplicate") || "Duplicate",
+            onClick: () => onDuplicateNode(nodeId),
+          });
+        }
+
         if (!isStandalone) {
           baseOptions.push({
             label: isNodeExternal
@@ -270,6 +284,10 @@ export const useDiagramMenus = ({
 
         return [
           {
+            label: t("contextMenu.edge.defineMultiplicity"),
+            onClick: () => onEditEdgeMultiplicity(edgeId),
+          },
+          {
             label: t("contextMenu.edge.reverse"),
             onClick: () => onReverseEdge(edgeId),
           },
@@ -294,7 +312,8 @@ export const useDiagramMenus = ({
       onClearCanvas,
       onEditNode,
       onEditEdgeMultiplicity,
-      screenToFlowPosition,
+      onDuplicateNode,
+      screenToCanvas,
       openSingleGenerator,
       onGenerateMethods,
       onAddToProject,

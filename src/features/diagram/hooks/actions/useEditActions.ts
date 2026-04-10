@@ -1,52 +1,40 @@
 import { useCallback } from "react";
-import { useReactFlow } from "reactflow";
 import { useUiStore } from "../../../../store/uiStore";
 import { useSelectionStore } from "../../../../store/selection.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
 import { standaloneModelOps, getLocalModel } from "../../../../store/standaloneModelOps";
+import { getUndoManager } from "../../../../core/undo/undoBridge";
 import { isDiagramView } from "../useVFSCanvasController";
 import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
 
 /**
  * Edit Actions — reads selection from useSelectionStore (Zustand).
  *
- * Selection is synced from React Flow → store via DiagramCanvas.onSelectionChange.
- * All actions here read from the store, making selection state accessible outside
- * the React Flow context (clipboard, toolbars, future integrations).
+ * Selection is managed via SelectionStore; no ReactFlow context needed.
  */
 export const useEditActions = () => {
   const { openSSoTClassEditor } = useUiStore();
-  const { getNodes, getEdges, setNodes, setEdges } = useReactFlow();
-
-  // ── Selection actions ────────────────────────────────────────────────────
 
   const selectAll = useCallback(() => {
-    const nodes = getNodes();
-    const edges = getEdges();
-
-    setNodes(nodes.map((node) => ({ ...node, selected: true })));
-    setEdges(edges.map((edge) => ({ ...edge, selected: true })));
-
-    // Sync to store (onSelectionChange will also fire, but this is immediate)
+    const activeTabId = useWorkspaceStore.getState().activeTabId;
+    if (!activeTabId) return;
+    const project = useVFSStore.getState().project;
+    if (!project) return;
+    const fileNode = project.nodes[activeTabId];
+    if (!fileNode || fileNode.type !== 'FILE') return;
+    if (!isDiagramView((fileNode as VFSFile).content)) return;
+    const view = (fileNode as VFSFile).content as DiagramView;
     useSelectionStore.getState().setSelection(
-      nodes.map((n) => n.id),
-      edges.map((e) => e.id),
+      view.nodes.map((n) => n.id),
+      view.edges.map((e) => e.id),
     );
-  }, [getNodes, getEdges, setNodes, setEdges]);
+  }, []);
 
   const deselectAll = useCallback(() => {
-    const nodes = getNodes();
-    const edges = getEdges();
-
-    setNodes(nodes.map((node) => ({ ...node, selected: false })));
-    setEdges(edges.map((edge) => ({ ...edge, selected: false })));
-
     useSelectionStore.getState().clear();
-  }, [getNodes, getEdges, setNodes, setEdges]);
-
-  // ── Edit selected ────────────────────────────────────────────────────────
+  }, []);
 
   const editSelected = useCallback(() => {
     const { selectedNodeIds } = useSelectionStore.getState();
@@ -69,8 +57,6 @@ export const useEditActions = () => {
       openSSoTClassEditor(viewNode.elementId);
     }
   }, [openSSoTClassEditor]);
-
-  // ── Delete selected (VFS) ────────────────────────────────────────────────
 
   const deleteSelected = useCallback(() => {
     const { selectedNodeIds, selectedEdgeIds } = useSelectionStore.getState();
@@ -104,7 +90,6 @@ export const useEditActions = () => {
       updatedEdges = updatedEdges.filter((ve) => ve.id !== edgeId);
     }
 
-    // Remove selected nodes from view + prune their edges
     let updatedNodes = currentView.nodes;
     for (const nodeId of selectedNodeIds) {
       const removedVN = updatedNodes.find((vn) => vn.id === nodeId);
@@ -112,7 +97,6 @@ export const useEditActions = () => {
 
       updatedNodes = updatedNodes.filter((vn) => vn.id !== nodeId);
 
-      // Prune dangling edges whose relation involves this element
       if (removedVN.elementId) {
         const activeModel = isStandalone
           ? getLocalModel(activeTabId)
@@ -139,8 +123,6 @@ export const useEditActions = () => {
     useSelectionStore.getState().clear();
   }, []);
 
-  // ── Duplicate selected (TODO: VFS implementation) ────────────────────────
-
   const duplicateSelected = useCallback(() => {
     const { selectedNodeIds } = useSelectionStore.getState();
     if (selectedNodeIds.length === 0) return;
@@ -151,14 +133,14 @@ export const useEditActions = () => {
     console.warn("TODO: VFS duplicate not yet implemented");
   }, []);
 
-  // ── Undo/Redo stubs ─────────────────────────────────────────────────────
-
   const undo = useCallback(() => {
-    console.warn("TODO: SSOT - Undo not implemented. Requires history middleware (e.g., zundo)");
+    const activeTabId = useWorkspaceStore.getState().activeTabId;
+    getUndoManager()?.undo(activeTabId ?? undefined);
   }, []);
 
   const redo = useCallback(() => {
-    console.warn("TODO: SSOT - Redo not implemented. Requires history middleware (e.g., zundo)");
+    const activeTabId = useWorkspaceStore.getState().activeTabId;
+    getUndoManager()?.redo(activeTabId ?? undefined);
   }, []);
 
   return {

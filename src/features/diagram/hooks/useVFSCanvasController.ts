@@ -1,6 +1,10 @@
 import { useMemo, useCallback, useEffect } from 'react';
 import type { CSSProperties } from 'react';
-import type { NodeChange, EdgeChange, Connection } from 'reactflow';
+import type {
+  KonvaNodeChange,
+  KonvaEdgeChange,
+  KonvaConnection,
+} from '../../../canvas/types/canvas.types';
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
@@ -22,12 +26,14 @@ import type {
   IRClass,
   IRInterface,
   IREnum,
+  IRPackage,
   SemanticModel,
   RelationKind,
 } from '../../../core/domain/vfs/vfs.types';
 import type {
   NodeViewModel,
   NoteViewModel,
+  PackageViewModel,
   NodeStyleConfig,
   NodeSection,
 } from '../../../adapters/react-flow/view-models/node.view-model';
@@ -177,10 +183,10 @@ function buildSections(
 
 // ─── Semantic resolution ──────────────────────────────────────────────────────
 
-type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE' | 'UNKNOWN';
+type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'UNKNOWN';
 
 interface ResolvedElement {
-  element: IRClass | IRInterface | IREnum | null;
+  element: IRClass | IRInterface | IREnum | IRPackage | null;
   kind: SemanticKind;
 }
 
@@ -189,7 +195,6 @@ interface ResolvedElement {
  * An empty elementId is the sentinel for visual-only elements (notes).
  */
 function resolveSemanticElement(model: SemanticModel, elementId: string): ResolvedElement {
-  // Empty elementId = visual-only element (note), no IR backing.
   if (!elementId) return { element: null, kind: 'NOTE' };
 
   const cls = model.classes[elementId];
@@ -202,10 +207,44 @@ function resolveSemanticElement(model: SemanticModel, elementId: string): Resolv
   const enm = model.enums[elementId];
   if (enm) return { element: enm, kind: 'ENUM' };
 
+  const pkg = model.packages[elementId];
+  if (pkg) return { element: pkg, kind: 'PACKAGE' };
+
   return { element: null, kind: 'UNKNOWN' };
 }
 
 // ─── Node builders ────────────────────────────────────────────────────────────
+
+/**
+ * Converts ViewNode position to absolute canvas coordinates.
+ * If the node has a parentPackageId, its stored x/y are relative to the parent.
+ * This function adds the parent's position to get absolute coordinates.
+ */
+function getAbsolutePosition(
+  viewNode: ViewNode,
+  allViewNodes: ViewNode[],
+): { x: number; y: number } {
+  if (!viewNode.parentPackageId) {
+    // Root-level node, position is already absolute
+    return { x: viewNode.x, y: viewNode.y };
+  }
+  
+  // Find parent package
+  const parentNode = allViewNodes.find((n) => n.id === viewNode.parentPackageId);
+  if (!parentNode) {
+    // Parent not found, use stored position as-is
+    return { x: viewNode.x, y: viewNode.y };
+  }
+  
+  // Recursively get parent's absolute position (in case parent is also nested)
+  const parentPos = getAbsolutePosition(parentNode, allViewNodes);
+  
+  // Add relative position to parent's absolute position
+  return {
+    x: parentPos.x + viewNode.x,
+    y: parentPos.y + viewNode.y,
+  };
+}
 
 function makeReactFlowNode(
   viewNode: ViewNode,
@@ -213,6 +252,7 @@ function makeReactFlowNode(
   displayConfig: ElementDisplayConfig,
   sections: NodeSection[],
   onRename: (name: string, generics?: string) => void,
+  allViewNodes: ViewNode[],
   badge?: string,
 ) {
   const viewModel: NodeViewModel = {
@@ -231,7 +271,7 @@ function makeReactFlowNode(
   return {
     id: viewNode.id,
     type: 'umlClass',
-    position: { x: viewNode.x, y: viewNode.y },
+    position: getAbsolutePosition(viewNode, allViewNodes),
     data: viewModel,
     domainId: viewNode.elementId,
   };
@@ -245,6 +285,7 @@ function makeReactFlowNode(
 function makeReactFlowNoteNode(
   viewNode: ViewNode,
   onSave: (viewNodeId: string, update: { content?: string; title?: string }) => void,
+  allViewNodes: ViewNode[],
 ) {
   const viewModel: NoteViewModel = {
     id: viewNode.id,
@@ -257,14 +298,79 @@ function makeReactFlowNoteNode(
   return {
     id: viewNode.id,
     type: 'umlNote',
-    position: { x: viewNode.x, y: viewNode.y },
+    position: getAbsolutePosition(viewNode, allViewNodes),
     data: viewModel,
+  };
+}
+
+function computePackageDisplayName(
+  viewNode: ViewNode,
+  pkg: IRPackage,
+  allViewNodes: ViewNode[],
+  allPackages: Record<string, IRPackage>,
+): string {
+  if (!viewNode.parentPackageId) {
+    // Standalone package — use stored name as-is (may already be full qualified)
+    return pkg.name;
+  }
+  // Walk parent chain, collecting last segments to build full qualified name
+  const segments: string[] = [];
+  let currentId: string | null | undefined = viewNode.parentPackageId;
+  while (currentId) {
+    const parentVN = allViewNodes.find((vn) => vn.id === currentId);
+    if (!parentVN) break;
+    const parentPkg = allPackages[parentVN.elementId];
+    if (!parentPkg) break;
+    segments.unshift(parentPkg.name.split('.').pop() || parentPkg.name);
+    currentId = parentVN.parentPackageId;
+  }
+  segments.push(pkg.name.split('.').pop() || pkg.name);
+  return segments.join('.');
+}
+
+function makeReactFlowPackageNode(
+  viewNode: ViewNode,
+  pkg: IRPackage,
+  allViewNodes: ViewNode[],
+  allPackages: Record<string, IRPackage>,
+) {
+  const childCount = allViewNodes.filter(vn => vn.parentPackageId === viewNode.id).length;
+
+  const depth = (() => {
+    let d = 0;
+    let currentId = viewNode.parentPackageId;
+    while (currentId && d < 10) {
+      const parent = allViewNodes.find(vn => vn.id === currentId);
+      if (!parent) break;
+      d++;
+      currentId = parent.parentPackageId;
+    }
+    return d;
+  })();
+
+  const viewModel: PackageViewModel = {
+    __brand: 'package',
+    id: viewNode.id,
+    name: computePackageDisplayName(viewNode, pkg, allViewNodes, allPackages),
+    collapsed: viewNode.collapsed ?? false,
+    color: viewNode.color,
+    childCount,
+    depth,
+  };
+
+  return {
+    id: viewNode.id,
+    type: 'umlPackage',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: viewModel,
+    domainId: viewNode.elementId,
   };
 }
 
 export type VFSReactFlowNode =
   | ReturnType<typeof makeReactFlowNode>
-  | ReturnType<typeof makeReactFlowNoteNode>;
+  | ReturnType<typeof makeReactFlowNoteNode>
+  | ReturnType<typeof makeReactFlowPackageNode>;
 
 // ─── Edge type ────────────────────────────────────────────────────────────────
 
@@ -307,16 +413,18 @@ export interface VFSCanvasResult {
   vfsFile: VFSFile | null;
   /** Active tab ID from WorkspaceStore. */
   activeTabId: string | null;
-  /** ReactFlow onNodesChange handler (position + removal). */
-  onNodesChange: (changes: NodeChange[]) => void;
-  /** ReactFlow onEdgesChange handler (removal). */
-  onEdgesChange: (changes: EdgeChange[]) => void;
-  /** ReactFlow onConnect handler (creates relation). */
-  onConnect: (connection: Connection) => void;
+  /** Konva-native onConnect handler (creates relation). */
+  onConnect: (connection: KonvaConnection) => void;
+  /** Konva-typed onNodesChange — used by useKonvaCanvasController. */
+  onKonvaNodesChange: (changes: KonvaNodeChange[]) => void;
+  /** Konva-typed onEdgesChange — used by useKonvaCanvasController. */
+  onKonvaEdgesChange: (changes: KonvaEdgeChange[]) => void;
   /** View-only removal: removes ViewNode from this diagram only. */
   removeNodeFromDiagram: (viewNodeId: string) => void;
   /** Full cascade: deletes semantic element from ModelStore + all diagrams. */
   deleteElementFromModel: (viewNodeId: string) => void;
+  /** Duplicates a node: creates a copy of the semantic element and ViewNode at +50px offset. */
+  duplicateNode: (viewNodeId: string) => void;
   /** Deletes a VFS edge by ViewEdge.id. */
   deleteEdgeById: (viewEdgeId: string) => void;
   /** Reverses a VFS edge by swapping source ↔ target. */
@@ -509,22 +617,23 @@ export function useVFSCanvasController(): VFSCanvasResult {
     [activeTabId, diagramView],
   );
 
-  // Map ViewNodes → ReactFlow nodes.
-  // Each node's onRename closure captures elementId and kind for targeted ModelStore updates.
   const nodes = useMemo((): VFSReactFlowNode[] => {
     if (!diagramView || !model) return [];
 
     return diagramView.nodes.map((viewNode: ViewNode) => {
       const { element, kind } = resolveSemanticElement(model, viewNode.elementId);
 
-      // NOTE nodes are visual-only — no semantic IR backing, no rename callback needed.
       if (kind === 'NOTE') {
-        return makeReactFlowNoteNode(viewNode, handleNoteUpdate);
+        return makeReactFlowNoteNode(viewNode, handleNoteUpdate, diagramView.nodes);
+      }
+
+      if (kind === 'PACKAGE') {
+        return makeReactFlowPackageNode(viewNode, element as IRPackage, diagramView.nodes, model.packages);
       }
 
       const label = element?.name ?? 'NewClass';
       const displayConfig = VFS_DISPLAY[kind] ?? VFS_DISPLAY.CLASS;
-      const sections = element ? buildSections(model, element, kind) : [];
+      const sections = element ? buildSections(model, element as IRClass | IRInterface | IREnum, kind) : [];
       const badge = (element as IRClass | IRInterface | IREnum | null)?.packageName ?? undefined;
 
       const onRename = (name: string, generics?: string) => {
@@ -566,9 +675,9 @@ export function useVFSCanvasController(): VFSCanvasResult {
         }
       };
 
-      return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename, badge);
+      return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename, diagramView.nodes, badge);
     });
-  }, [diagramView, model, isStandalone, activeTabId]);
+  }, [diagramView, model, isStandalone, activeTabId, handleNoteUpdate]);
 
   // Map ViewEdges → ReactFlow edges.
   // Requires a reverse lookup from semantic elementId → ReactFlow node ID (ViewNode.id).
@@ -643,11 +752,12 @@ export function useVFSCanvasController(): VFSCanvasResult {
     diagramView,
     vfsFile,
     activeTabId,
-    onNodesChange: eventHandlers.onNodesChange,
-    onEdgesChange: eventHandlers.onEdgesChange,
     onConnect: eventHandlers.onConnect,
+    onKonvaNodesChange: eventHandlers.onNodesChange,
+    onKonvaEdgesChange: eventHandlers.onEdgesChange,
     removeNodeFromDiagram: nodeActions.removeNodeFromDiagram,
     deleteElementFromModel: nodeActions.deleteElementFromModel,
+    duplicateNode: nodeActions.duplicateNode,
     deleteEdgeById: edgeActions.deleteEdgeById,
     reverseEdgeById: edgeActions.reverseEdgeById,
     changeEdgeKind: edgeActions.changeEdgeKind,

@@ -10,18 +10,13 @@ export function ExportMenuContent() {
 
   return (
     <>
-      {/* Primary Export Action */}
       <MenubarItem
         label={t("menubar.export.diagram")}
         icon={<Image className="w-4 h-4" />}
         shortcut="Ctrl+E"
         onClick={openExportModal}
       />
-
-      {/* Separator */}
       <div className="h-px bg-surface-border my-1" />
-      
-      {/* Coming Soon Items */}
       <MenubarItem
         label={t("menubar.export.pdf")}
         icon={<Download className="w-4 h-4" />}

@@ -6,6 +6,7 @@ export const CLASS_ICON_CONFIG: Record<stereotype, { bg: string; letter: string;
   abstract: { bg: "#9AA7B0", letter: "A", color: "#FFFFFF" },
   enum: { bg: "#9876AA", letter: "E", color: "#FFFFFF" },
   note: { bg: "#F0AD4E", letter: "N", color: "#FFFFFF" },
+  package: { bg: "#6B8CAE", letter: "P", color: "#FFFFFF" },
 };
 
 export const THEME_COLORS = {

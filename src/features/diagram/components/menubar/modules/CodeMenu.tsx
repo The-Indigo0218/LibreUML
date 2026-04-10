@@ -16,13 +16,11 @@ export function CodeMenu() {
   const openImportModal = useUiStore((s) => s.openImportCode);
   const openCodeExportConfig = useUiStore((s) => s.openCodeExportConfig);
 
-  // Get active file and diagram type
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const getFile = useWorkspaceStore((s) => s.getFile);
   const activeFile = activeFileId ? getFile(activeFileId) : null;
   const diagramType = activeFile?.diagramType || 'CLASS_DIAGRAM';
 
-  // Get code generation actions from registry
   const codeActions = useMemo(() => {
     try {
       const registry = getDiagramRegistry(diagramType);
@@ -33,12 +31,10 @@ export function CodeMenu() {
     }
   }, [diagramType]);
 
-  // If no code generation actions available, don't render the menu
   if (codeActions.length === 0) {
     return null;
   }
 
-  // Map action IDs to handlers
   const actionHandlers: Record<string, () => void> = {
     'generate-class': openSingleGenerator,
     'generate-project': openProjectGenerator,
@@ -69,16 +65,12 @@ export function CodeMenu() {
           </div>
         );
       })}
-
-      {/* Export Configuration */}
       <div className="h-px bg-surface-border my-1" />
       <MenubarItem
         label={t("menubar.code.exportConfig")} 
         icon={<FileCode2 className="w-4 h-4" />}
         onClick={openCodeExportConfig}
       />
-
-      {/* Future Stuff */}
       <div className="h-px bg-surface-border my-1" />
       <MenubarItem
         label={t("menubar.code.livePreview")} 

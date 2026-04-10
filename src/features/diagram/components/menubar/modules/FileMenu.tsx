@@ -23,6 +23,7 @@ import {
 } from "../../../../../services/projectIO.service";
 import { useVFSStore } from "../../../../../store/project-vfs.store";
 import { useUiStore } from "../../../../../store/uiStore";
+import { undoManager } from "../../../../../core/undo/instance";
 import type { VFSFile } from "../../../../../core/domain/vfs/vfs.types";
 import CloseProjectModal, {
   isCloseProjectWarningSuppressed,
@@ -102,6 +103,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
 
   const handleCloseProject = () => {
     if (isCloseProjectWarningSuppressed()) {
+      undoManager.clear();
       closeProject();
       closeAllFiles();
     } else {
@@ -121,17 +123,13 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
           icon={<FilePlus className="w-4 h-4" />}
           onClick={handleNew}
         />
-
         <MenubarItem
           label="Open File..."
           icon={<FolderOpen className="w-4 h-4" />}
           shortcut="Ctrl+O"
           onClick={openOpenFileModal}
         />
-
         <div className="h-px bg-surface-border my-1" />
-
-        {/* ── VFS Project I/O ─────────────────────────────────────────── */}
         <MenubarItem
           label="Save Project (.luml.zip)"
           icon={<Download className="w-4 h-4 text-emerald-400" />}
@@ -206,6 +204,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
         isOpen={isCloseProjectModalOpen}
         onClose={() => setIsCloseProjectModalOpen(false)}
         onConfirm={() => {
+          undoManager.clear();
           closeProject();
           closeAllFiles();
         }}

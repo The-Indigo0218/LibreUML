@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { temporal } from 'zundo';
+import { immer } from 'zustand/middleware/immer';
 import { useModelStore } from './model.store';
 import type {
   LibreUMLProject,
@@ -61,9 +61,8 @@ interface VFSStoreState {
 }
 
 export const useVFSStore = create<VFSStoreState>()(
-  temporal(
   persist(
-    (set) => ({
+    immer((set) => ({
       project: null,
       isLoading: false,
 
@@ -432,7 +431,7 @@ export const useVFSStore = create<VFSStoreState>()(
           };
         });
       },
-    }),
+    })),
     {
       name: 'libreuml-vfs-storage',
       version: 1,
@@ -450,37 +449,16 @@ export const useVFSStore = create<VFSStoreState>()(
       },
       onRehydrateStorage: () => {
         return () => {
-          // Clear undo history created by persist rehydration —
-          // loading from storage is not a user action.
-          // Wrapped in setTimeout to avoid TDZ (Temporal Dead Zone) issue:
-          // onRehydrateStorage fires during create(), before useVFSStore is assigned.
           setTimeout(() => {
-            useVFSStore.temporal.getState().clear();
+            import('../core/undo/instance').then(({ undoManager }) => {
+              undoManager.clear();
+            });
           }, 0);
         };
       },
     }
-  ),
-  { limit: 50 },
   )
 );
-
-/**
- * Runs a callback with temporal tracking paused on BOTH stores.
- * Used for position-only updates that shouldn't create undo history.
- */
-export function withoutUndo(fn: () => void): void {
-  const vfsTemporalStore = useVFSStore.temporal.getState();
-  const modelTemporalStore = useModelStore.temporal.getState();
-  
-  vfsTemporalStore.pause();
-  modelTemporalStore.pause();
-  
-  fn();
-  
-  vfsTemporalStore.resume();
-  modelTemporalStore.resume();
-}
 
 export function getNodePath(
   nodeId: string,

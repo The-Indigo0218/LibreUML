@@ -48,6 +48,7 @@ import JSZip from 'jszip';
 import { useVFSStore } from '../store/project-vfs.store';
 import { useModelStore } from '../store/model.store';
 import { useWorkspaceStore } from '../store/workspace.store';
+import { undoManager } from '../core/undo/instance';
 import type {
   LibreUMLProject,
   VFSFile,
@@ -383,6 +384,7 @@ export function loadParsedProject(
   project: LibreUMLProject,
   model: SemanticModel | null,
 ): void {
+  undoManager.clear();
   useWorkspaceStore.getState().closeAllFiles();
   if (model !== null) {
     useModelStore.getState().loadModel(model);

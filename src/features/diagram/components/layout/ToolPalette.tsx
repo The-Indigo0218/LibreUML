@@ -7,7 +7,8 @@ import { edgeConfig } from "../../../../config/theme.config";
 import { useTranslation } from "react-i18next";
 import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
 import { getIconComponent } from "../../../../core/registry/icon-map";
-import { useAutoLayout } from "../../hooks/useAutoLayout";
+import { useKonvaAutoLayout } from "../../../../canvas/hooks/useKonvaAutoLayout";
+import { DRAG_TYPE_NEW } from "../../../../canvas/hooks/useKonvaDnD";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import type { VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
@@ -17,7 +18,7 @@ export default function ToolPalette() {
   const getFile = useWorkspaceStore((s) => s.getFile);
   const updateFile = useWorkspaceStore((s) => s.updateFile);
   const project = useVFSStore((s) => s.project);
-  const { runLayout } = useAutoLayout();
+  const { runLayout } = useKonvaAutoLayout();
 
   const activeFile = activeFileId ? getFile(activeFileId) : null;
   const diagramType = activeFile?.diagramType || 'CLASS_DIAGRAM';
@@ -72,7 +73,7 @@ export default function ToolPalette() {
   const { t } = useTranslation();
 
   const onDragStart = (event: React.DragEvent, nodeType: stereotype) => {
-    event.dataTransfer.setData("application/reactflow", nodeType);
+    event.dataTransfer.setData(DRAG_TYPE_NEW, nodeType);
     event.dataTransfer.effectAllowed = "move";
   };
 

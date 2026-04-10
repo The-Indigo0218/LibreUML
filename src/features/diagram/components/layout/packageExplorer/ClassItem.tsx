@@ -3,17 +3,19 @@ import { ChevronRight, ChevronDown, Hash, FunctionSquare, Settings } from "lucid
 import type { UmlAttribute, UmlMethod } from "../../../types/diagram.types";
 import type { ClassItemProps } from "./types";
 
-export function ClassItem({ 
-  classNode, 
-  level, 
-  isExpanded, 
+export function ClassItem({
+  classNode,
+  level,
+  isExpanded,
   isRenaming,
-  onToggle, 
+  onToggle,
   onClassClick,
   onEditClass,
   onContextMenu,
   onRename,
-  onCancelRename
+  onCancelRename,
+  viewNodeId,
+  onDragStart,
 }: ClassItemProps) {
   const hasMembers = classNode.data.attributes.length > 0 || classNode.data.methods.length > 0;
   const [editValue, setEditValue] = useState(classNode.data.label);
@@ -89,6 +91,8 @@ export function ClassItem({
       <div
         className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors"
         style={{ paddingLeft: `${level * 12 + 8}px` }}
+        draggable={!!onDragStart}
+        onDragStart={onDragStart ? (e) => onDragStart(e, classNode.id, viewNodeId) : undefined}
         onContextMenu={(e) => onContextMenu(e, classNode.id, classNode.data.label)}
       >
         {hasMembers ? (

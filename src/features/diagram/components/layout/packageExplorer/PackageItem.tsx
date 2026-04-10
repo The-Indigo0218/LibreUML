@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronRight, ChevronDown, Folder, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ClassItem } from "./ClassItem";
 import { InlinePackageInput } from "./InlinePackageInput";
+import { DRAG_TYPE_PACKAGE } from "../../../../../canvas/hooks/useKonvaDnD";
 import type { PackageItemProps } from "./types";
 
 export function PackageItem({
@@ -23,6 +24,9 @@ export function PackageItem({
   onRenamePackage,
   onAddChildPackage,
   onCancelAddChild,
+  getViewNodeId,
+  onClassDragStart,
+  onDropOnPackage,
 }: PackageItemProps) {
   const { t } = useTranslation();
   // TODO: SSOT Migration - Package validation needs WorkspaceStore integration
@@ -38,6 +42,7 @@ export function PackageItem({
   const [editValue, setEditValue] = useState(node.name);
   const [newChildName, setNewChildName] = useState("");
   const [hasError, setHasError] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -105,15 +110,47 @@ export function PackageItem({
     onCancelAddChild();
   };
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!onDropOnPackage || node.name === 'root') return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setIsDragOver(true);
+  }, [onDropOnPackage, node.name]);
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    setIsDragOver(false);
+    if (!onDropOnPackage || node.name === 'root') return;
+    onDropOnPackage(e, node.fullPath);
+  }, [onDropOnPackage, node.name, node.fullPath]);
+
+  const handlePackageDragStart = useCallback((e: React.DragEvent) => {
+    if (node.name === 'root') {
+      e.preventDefault();
+      return;
+    }
+    e.stopPropagation();
+    e.dataTransfer.setData(DRAG_TYPE_PACKAGE, node.fullPath);
+    e.dataTransfer.effectAllowed = 'move';
+  }, [node.name, node.fullPath]);
+
   return (
     <div>
       {node.name !== "root" && (
         <>
           <div
-            className="flex items-center gap-1.5 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors"
+            className={`flex items-center gap-1.5 px-2 py-1.5 hover:bg-surface-hover rounded cursor-pointer group transition-colors ${isDragOver ? 'ring-1 ring-uml-class-border bg-surface-hover' : ''}`}
             style={{ paddingLeft: `${level * 12 + 8}px` }}
+            draggable={node.name !== 'root'}
             onClick={() => !isRenaming && onToggle(node.fullPath)}
             onContextMenu={(e) => onPackageContextMenu(e, node.fullPath, node.name)}
+            onDragStart={handlePackageDragStart}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
             {hasChildren || hasClasses ? (
               <button className="w-4 h-4 flex items-center justify-center text-text-muted hover:text-text-primary">
@@ -195,6 +232,8 @@ export function PackageItem({
               onContextMenu={onClassContextMenu}
               onRename={onRenameClass}
               onCancelRename={onCancelRename}
+              viewNodeId={getViewNodeId?.(classNode.id)}
+              onDragStart={onClassDragStart}
             />
           ))}
 
@@ -220,6 +259,9 @@ export function PackageItem({
                 onRenamePackage={onRenamePackage}
                 onAddChildPackage={onAddChildPackage}
                 onCancelAddChild={onCancelAddChild}
+                getViewNodeId={getViewNodeId}
+                onClassDragStart={onClassDragStart}
+                onDropOnPackage={onDropOnPackage}
               />
             ))}
         </>

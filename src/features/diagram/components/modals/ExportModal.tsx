@@ -12,17 +12,18 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useReactFlow } from "reactflow";
 import { useSettingsStore } from "../../../../store/settingsStore";
+import { useStageStore } from "../../../../canvas/store/stageStore";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelStore } from "../../../../store/model.store";
 import { ExportService } from "../../../../services/export.service";
 import {
   downloadVfsDiagramXmi,
-  downloadVfsDiagramJson,
 } from "../../../../services/vfsExport.service";
+import { exportDiagram } from "../../../../services/projectIO.service";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
+import { useKonvaCanvasController } from "../../../../canvas/hooks/useKonvaCanvasController";
 import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
 
 type ExportFormat = "png" | "svg" | "xmi" | "json";
@@ -34,30 +35,24 @@ interface ExportModalProps {
 
 export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { t } = useTranslation();
-  const { getNodes } = useReactFlow();
+  const stage = useStageStore((s) => s.stage);
 
-  // Workspace
+  const { shapes, edges } = useKonvaCanvasController();
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
-
-  // VFS state
   const project = useVFSStore((s) => s.project);
   const model = useModelStore((s) => s.model);
   const isVFSMode = !!project;
-
-  // Collect diagram files from VFS project
   const diagramFiles: VFSFile[] = isVFSMode
     ? (Object.values(project!.nodes).filter(
         (n) => n.type === "FILE" && (n as VFSFile).extension === ".luml",
       ) as VFSFile[])
     : [];
 
-  // Settings
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
   const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
   const suppressSvgWarning = useSettingsStore((s) => s.suppressSvgWarning);
   const setSuppressSvgWarning = useSettingsStore((s) => s.setSuppressSvgWarning);
 
-  // Local state
   const [format, setFormat] = useState<ExportFormat>("png");
   const [scale, setScale] = useState<number>(2);
   const [transparent, setTransparent] = useState(false);
@@ -66,12 +61,10 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
   const [isExporting, setIsExporting] = useState(false);
 
-  // Warning flow state (SVG only)
   const [view, setView] = useState<"config" | "warning">("config");
   const [countdown, setCountdown] = useState(3);
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
-  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setView("config");
@@ -89,7 +82,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // SVG countdown
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     if (view === "warning" && countdown > 0) {
@@ -97,8 +89,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     }
     return () => clearTimeout(timer);
   }, [view, countdown]);
-
-  // ── Resolved VFS file ───────────────────────────────────────────────────────
 
   const selectedVFSFile = isVFSMode
     ? (project!.nodes[selectedFileId] as VFSFile | undefined)
@@ -111,16 +101,15 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
   const selectedFileName = selectedVFSFile?.name?.replace(/\.luml$/i, "") || "diagram";
 
-  // Legacy diagram name (non-VFS path)
   const getFile = useWorkspaceStore((s) => s.getFile);
   const legacyDiagramName = activeTabId ? getFile(activeTabId)?.name ?? "diagram" : "diagram";
 
-  // ── PNG / SVG export (captures live ReactFlow viewport) ─────────────────────
-
   const executePngSvgExport = useCallback(async () => {
+    if (!stage) {
+      alert("Canvas not ready for export.");
+      return;
+    }
     setIsExporting(true);
-    const viewportEl = document.querySelector(".react-flow__viewport") as HTMLElement;
-    if (!viewportEl) { setIsExporting(false); return; }
 
     const computedStyle = getComputedStyle(document.documentElement);
     const bgColor = computedStyle.getPropertyValue("--canvas-base").trim();
@@ -136,12 +125,27 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
     try {
       const exportFileName = isVFSMode ? selectedFileName : legacyDiagramName;
-      await ExportService.downloadImage(viewportEl, getNodes(), {
+      
+      let nodes = selectedDiagramView?.nodes;
+      if (!nodes && activeTabId && project) {
+        const fileNode = project.nodes[activeTabId];
+        if (fileNode && fileNode.type === 'FILE') {
+          const content = (fileNode as VFSFile).content;
+          if (isDiagramView(content)) {
+            nodes = (content as DiagramView).nodes;
+          }
+        }
+      }
+      
+      await ExportService.downloadImage(stage, {
         fileName: exportFileName,
         format: format as "png" | "svg",
         scale,
         transparent,
         backgroundColor: bgColor,
+        nodes,
+        shapes,
+        edges,
       });
 
       if (format === "svg" && dontShowAgain) {
@@ -160,12 +164,12 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       setIsExporting(false);
     }
   }, [
+    stage,
     format,
     scale,
     transparent,
     includeConnections,
     toggleShowAllEdges,
-    getNodes,
     onClose,
     t,
     dontShowAgain,
@@ -175,9 +179,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     legacyDiagramName,
   ]);
 
-  // ── XMI / JSON export ───────────────────────────────────────────────────────
-
-  const executeVfsExport = () => {
+  const executeVfsExport = async () => {
     if (!model) {
       alert("No semantic model loaded. Cannot export.");
       return;
@@ -186,16 +188,15 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       downloadVfsDiagramXmi(model, selectedDiagramView, selectedFileName);
       onClose();
     } else if (format === "json") {
-      downloadVfsDiagramJson(selectedDiagramView, selectedFileName);
+      // Use exportDiagram instead of downloadVfsDiagramJson to include semantic model
+      await exportDiagram(selectedFileId);
       onClose();
     }
   };
 
-  // ── Handler for Export button click ─────────────────────────────────────────
-
-  const handleExportClick = () => {
+  const handleExportClick = async () => {
     if (format === "xmi" || format === "json") {
-      executeVfsExport();
+      await executeVfsExport();
       return;
     }
     if (format === "svg" && !suppressSvgWarning) {
@@ -216,7 +217,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-surface-primary border border-surface-border rounded-xl shadow-2xl w-96 overflow-hidden animate-in zoom-in-95 duration-200">
 
-        {/* === CONFIG VIEW === */}
         {view === "config" && (
           <>
             <div className="px-6 py-4 border-b border-surface-border bg-surface-secondary/50 flex items-center gap-3">
@@ -384,7 +384,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
                   {/* PNG/SVG note in VFS mode */}
                   {isVFSMode && (
                     <p className="text-xs text-text-muted">
-                      PNG / SVG captures the current canvas view. Switch to the desired diagram tab first.
+                      PNG / SVG captures the entire diagram (all nodes). Switch to the desired diagram tab first.
                     </p>
                   )}
                 </>
@@ -400,7 +400,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
               {/* JSON info */}
               {format === "json" && isVFSMode && (
                 <p className="text-xs text-text-muted">
-                  Downloads the DiagramView (node positions and edge layout) of the selected diagram as JSON.
+                  Exports the selected diagram with its semantic model as a portable .luml file that can be imported into other projects.
                 </p>
               )}
             </div>
@@ -424,7 +424,6 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
           </>
         )}
 
-        {/* === SVG WARNING VIEW (unchanged) === */}
         {view === "warning" && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="px-6 py-4 border-b border-surface-border bg-amber-500/10 flex items-center gap-3">

@@ -258,11 +258,37 @@ export async function injectDiagramIntoVFS(
       if (pkgName) ops.addPackageName(pkgName);
     }
 
+    // Fallback: collect package names from individual elements (for older exports)
+    const packageNamesFromElements = new Set<string>();
+    for (const cls of Object.values(partialModel.classes)) {
+      if (cls.packageName) packageNamesFromElements.add(cls.packageName);
+    }
+    for (const iface of Object.values(partialModel.interfaces)) {
+      if (iface.packageName) packageNamesFromElements.add(iface.packageName);
+    }
+    for (const enm of Object.values(partialModel.enums)) {
+      if (enm.packageName) packageNamesFromElements.add(enm.packageName);
+    }
+    for (const pkgName of packageNamesFromElements) {
+      ops.addPackageName(pkgName);
+    }
+
     const viewNodes: ViewNode[] = view.nodes.flatMap((n) => {
       if (!n.elementId) return [{ ...n, id: crypto.randomUUID() }];
       if (!idMap.has(n.elementId)) return [];
       return [{ ...n, id: crypto.randomUUID(), elementId: idMap.get(n.elementId)! }];
     });
+
+    // Distribute nodes in a grid layout to avoid overlapping
+    const GRID_SPACING = 250; // spacing between nodes
+    const COLS = Math.ceil(Math.sqrt(viewNodes.length)); // square-ish grid
+    viewNodes.forEach((node, index) => {
+      const col = index % COLS;
+      const row = Math.floor(index / COLS);
+      node.x = 100 + col * GRID_SPACING;
+      node.y = 100 + row * GRID_SPACING;
+    });
+
     const viewEdges: ViewEdge[] = view.edges
       .filter((e) => idMap.has(e.relationId))
       .map((e) => ({ ...e, id: crypto.randomUUID(), relationId: idMap.get(e.relationId)! }));
@@ -349,8 +375,24 @@ export async function injectDiagramIntoVFS(
   }
 
   // Sync package names from the imported model
+  // First, add any packageNames array from the model
   for (const pkgName of (partialModel.packageNames ?? [])) {
     if (pkgName) modelStore.addPackageName(pkgName);
+  }
+  
+  // Fallback: collect package names from individual elements (for older exports)
+  const packageNamesFromElements = new Set<string>();
+  for (const cls of Object.values(partialModel.classes)) {
+    if (cls.packageName) packageNamesFromElements.add(cls.packageName);
+  }
+  for (const iface of Object.values(partialModel.interfaces)) {
+    if (iface.packageName) packageNamesFromElements.add(iface.packageName);
+  }
+  for (const enm of Object.values(partialModel.enums)) {
+    if (enm.packageName) packageNamesFromElements.add(enm.packageName);
+  }
+  for (const pkgName of packageNamesFromElements) {
+    modelStore.addPackageName(pkgName);
   }
 
   // Relations (after all elements so source/target IDs can be remapped)
@@ -398,6 +440,16 @@ export async function injectDiagramIntoVFS(
     }
     if (!idMap.has(n.elementId)) return [];
     return [{ ...n, id: crypto.randomUUID(), elementId: idMap.get(n.elementId)! }];
+  });
+
+  // Distribute nodes in a grid layout to avoid overlapping
+  const GRID_SPACING = 250; // spacing between nodes
+  const COLS = Math.ceil(Math.sqrt(viewNodes.length)); // square-ish grid
+  viewNodes.forEach((node, index) => {
+    const col = index % COLS;
+    const row = Math.floor(index / COLS);
+    node.x = 100 + col * GRID_SPACING;
+    node.y = 100 + row * GRID_SPACING;
   });
 
   const viewEdges: ViewEdge[] = view.edges

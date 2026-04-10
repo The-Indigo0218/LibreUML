@@ -1,16 +1,19 @@
-import { XCircle, AlertTriangle, Shield, Globe, Cloud, CloudOff } from "lucide-react";
+import { XCircle, AlertTriangle, Shield, Globe, Cloud, CloudOff, Undo2, Redo2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useModelValidation } from "../../hooks/useModelValidation";
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useCodeGenerationStore, LANGUAGE_OPTIONS } from "../../../../store/codeGeneration.store";
+import { useUndoManager } from "../../../../core/undo/useUndoManager";
+import { undoManager } from "../../../../core/undo/instance";
 
 export default function StatusBar() {
   const { t } = useTranslation();
   const { activeTabId } = useWorkspaceStore();
   const { project } = useVFSStore();
   const { openProblemsTab } = useLayoutStore();
+  const { canUndo, canRedo, undo: handleUndo, redo: handleRedo } = useUndoManager(undoManager, activeTabId ?? undefined);
 
   const activeNode = activeTabId && project?.nodes[activeTabId];
   const activeFile = activeNode && activeNode.type === "FILE" ? activeNode : null;
@@ -26,6 +29,29 @@ export default function StatusBar() {
   return (
     <footer className="h-8 w-full bg-surface-primary border-t border-surface-border flex justify-between items-center px-4 py-1 select-none shrink-0">
       <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleUndo}
+            disabled={!canUndo}
+            className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95"
+            title={`Undo (${navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+Z)`}
+          >
+            <Undo2 className="w-3.5 h-3.5 text-text-primary" />
+            <span className="text-xs font-medium text-text-primary">Undo</span>
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={!canRedo}
+            className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-surface-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent active:scale-95"
+            title={`Redo (${navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+Shift+Z)`}
+          >
+            <Redo2 className="w-3.5 h-3.5 text-text-primary" />
+            <span className="text-xs font-medium text-text-primary">Redo</span>
+          </button>
+        </div>
+
+        <div className="h-4 w-px bg-surface-border" />
+
         <div className="flex items-center gap-3">
           <button
             onClick={openProblemsTab}

@@ -26,8 +26,6 @@ export function EditMenu() {
 
   return (
     <MenubarTrigger label={t("menubar.edit.title") || "Edit"}>
-      
-      {/* --- HISTORY --- */}
       <MenubarItem
         label={t("menubar.edit.undo") || "Undo"}
         icon={<Undo2 className="w-4 h-4" />}
@@ -42,8 +40,6 @@ export function EditMenu() {
       />
 
       <div className="h-px bg-surface-border my-1" />
-
-      {/* --- MANIPULATION --- */}
       <MenubarItem
         label={t("menubar.edit.duplicate") || "Duplicate"}
         icon={<Copy className="w-4 h-4" />}
@@ -67,8 +63,6 @@ export function EditMenu() {
       />
 
       <div className="h-px bg-surface-border my-1" />
-
-      {/* --- SELECTION --- */}
       <MenubarItem
         label={t("menubar.edit.selectAll") || "Select All"}
         icon={<CheckSquare className="w-4 h-4" />}

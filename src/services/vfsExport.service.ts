@@ -257,6 +257,10 @@ export function downloadVfsDiagramXmi(
 
 /**
  * Downloads the raw DiagramView content of a VFS file as a `.json` file.
+ * 
+ * DEPRECATED: This function exports only the DiagramView without the semantic model,
+ * making the file incompatible with the import system. Use exportDiagram() from
+ * projectIO.service.ts instead for proper diagram exports.
  */
 export function downloadVfsDiagramJson(
   content: DiagramView | null,

@@ -1,175 +1,298 @@
-import { toPng, toSvg } from "html-to-image";
-import {
-  getNodesBounds,
-  getViewportForBounds,
-  type Node,
-  type ReactFlowJsonObject,
-} from "reactflow";
+/**
+ * export.service.ts — Konva-native image export (MAG-01.13 + MAG-01.14 + MAG-01.15)
+ *
+ * Replaces html-to-image / ReactFlow DOM capture.
+ * PNG: captures ALL nodes by temporarily resetting the stage transform so
+ *      all content maps to screen (0,0), regardless of current pan/zoom.
+ * SVG: vector SVG via diagramToSvg (MAG-01.15) when shapes/edges are provided;
+ *      falls back to raster PNG-in-SVG otherwise (legacy path).
+ * JSON export is unchanged (no canvas dependency).
+ *
+ * Note: This service is legacy. New code should use useKonvaExport hook instead.
+ */
+
+import type Konva from 'konva';
+import type { ViewNode } from '../core/domain/vfs/vfs.types';
+import type { ShapeDescriptor, EdgeDescriptor } from '../canvas/types/canvas.types';
+import type { NodeViewModel, NoteViewModel, PackageViewModel } from '../adapters/react-flow/view-models/node.view-model';
+import { getClassShapeSize } from '../canvas/shapes/ClassShape';
+import { getNoteShapeSize } from '../canvas/shapes/NoteShape';
+import { getPackageShapeSize } from '../canvas/shapes/PackageShape';
+import { diagramToSvg } from '../canvas/export/diagramToSvg';
 
 export interface ExportImageOptions {
   fileName: string;
-  format: "png" | "svg";
+  format: 'png' | 'svg';
   scale: number;
   transparent: boolean;
   backgroundColor: string;
+  nodes?: ViewNode[];            // Legacy: ViewNode positions for bounds (fallback only)
+  shapes?: ShapeDescriptor[];   // Preferred: full shape descriptors for accurate bounds + vector SVG
+  edges?: EdgeDescriptor[];     // Optional: edge descriptors for vector SVG
 }
 
-// PHASE 4: Export service works with generic React Flow objects, not UI types
+const EXPORT_MARGIN = 50;
+
+// Fallback dimensions used when shapes have no size info (legacy nodes path)
+const NODE_WIDTH = 256;
+const NODE_HEIGHT = 120;
+
+interface DiagramBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Calculate bounding box from ShapeDescriptor[] using accurate per-shape dimensions.
+ * Returns null for an empty diagram (falls back to viewport capture).
+ */
+function calculateBoundsFromShapes(shapes: ShapeDescriptor[]): DiagramBounds | null {
+  if (shapes.length === 0) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const shape of shapes) {
+    let width: number;
+    let height: number;
+    
+    if (shape.type === 'note') {
+      const size = getNoteShapeSize(shape.data as NoteViewModel);
+      width = size.width;
+      height = size.height;
+    } else if (shape.type === 'package') {
+      // For packages, use stored dimensions if available, otherwise calculate
+      if (shape.width !== undefined && shape.height !== undefined) {
+        width = shape.width;
+        height = shape.height;
+      } else {
+        const size = getPackageShapeSize(shape.data as PackageViewModel);
+        width = size.width;
+        height = size.height;
+      }
+    } else {
+      // class type
+      const size = getClassShapeSize(shape.data as NodeViewModel);
+      width = size.width;
+      height = size.height;
+    }
+
+    minX = Math.min(minX, shape.x);
+    minY = Math.min(minY, shape.y);
+    maxX = Math.max(maxX, shape.x + width);
+    maxY = Math.max(maxY, shape.y + height);
+  }
+
+  return {
+    x: minX - EXPORT_MARGIN,
+    y: minY - EXPORT_MARGIN,
+    width: maxX - minX + EXPORT_MARGIN * 2,
+    height: maxY - minY + EXPORT_MARGIN * 2,
+  };
+}
+
+/**
+ * Legacy bounds calculation from ViewNode[] (used when shapes are unavailable).
+ */
+function calculateDiagramBounds(nodes: ViewNode[]): DiagramBounds | null {
+  if (nodes.length === 0) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const node of nodes) {
+    minX = Math.min(minX, node.x);
+    minY = Math.min(minY, node.y);
+    maxX = Math.max(maxX, node.x + (node.width ?? NODE_WIDTH));
+    maxY = Math.max(maxY, node.y + (node.height ?? NODE_HEIGHT));
+  }
+
+  return {
+    x: minX - EXPORT_MARGIN,
+    y: minY - EXPORT_MARGIN,
+    width: maxX - minX + EXPORT_MARGIN * 2,
+    height: maxY - minY + EXPORT_MARGIN * 2,
+  };
+}
+
+/**
+ * Export the full diagram by temporarily resetting the stage transform so all
+ * content is visible at scale=1, regardless of current pan/zoom position.
+ *
+ * Two additional steps run before the capture and are restored after:
+ *  1. Culling bypass — direct children of all layers that are hidden by the
+ *     viewport culler (visible=false) are force-shown so off-screen nodes
+ *     appear in the export image.
+ *  2. Background fill — if bgColor is provided the `.bg-rect` node's fill is
+ *     temporarily changed from "transparent" to the canvas background color.
+ *
+ * All mutations are synchronous and restored in `finally`, so the browser
+ * cannot paint the intermediate state before the viewport is restored.
+ */
+function exportWithTemporaryTransform(
+  stage: Konva.Stage,
+  bounds: DiagramBounds,
+  pixelRatio: number,
+  mimeType: string,
+  bgColor?: string,
+): string {
+  const savedX = stage.x();
+  const savedY = stage.y();
+  const savedScaleX = stage.scaleX();
+  const savedScaleY = stage.scaleY();
+  const savedWidth = stage.width();
+  const savedHeight = stage.height();
+
+  // 1. Bypass viewport culling: show any hidden direct child of every layer
+  const culledNodes: Konva.Node[] = [];
+  for (const layer of stage.getLayers()) {
+    for (const child of layer.children ?? []) {
+      if (!child.visible()) {
+        culledNodes.push(child);
+        child.show();
+      }
+    }
+  }
+
+  // 2. Apply background: find the bg-rect and change its fill temporarily
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bgRect = stage.findOne('.bg-rect') as any;
+  const savedBgFill: string | null = bgRect ? bgRect.fill() as string : null;
+  if (bgRect && bgColor) {
+    bgRect.fill(bgColor);
+  }
+
+  try {
+    // Translate so the top-left diagram corner maps to screen (0, 0), scale = 1
+    stage.position({ x: -bounds.x, y: -bounds.y });
+    stage.scale({ x: 1, y: 1 });
+    stage.width(bounds.width);
+    stage.height(bounds.height);
+    // Force a synchronous redraw with the new transform before capturing
+    stage.draw();
+    return stage.toDataURL({ pixelRatio, mimeType });
+  } finally {
+    // Restore background fill
+    if (bgRect && savedBgFill !== null) {
+      bgRect.fill(savedBgFill);
+    }
+    // Restore culled nodes
+    for (const node of culledNodes) {
+      node.hide();
+    }
+    // Restore stage transform
+    stage.position({ x: savedX, y: savedY });
+    stage.scale({ x: savedScaleX, y: savedScaleY });
+    stage.width(savedWidth);
+    stage.height(savedHeight);
+    stage.batchDraw();
+  }
+}
+
 export const ExportService = {
-  // --- JSON (NATIVO) ---
+  // --- JSON (legacy / VFS download) ---
   downloadJson: (
-    flowObject: ReactFlowJsonObject,
+    flowObject: { nodes: unknown[]; edges: unknown[]; viewport?: unknown },
     id: string,
     name: string,
   ): void => {
-    const cleanEdges = flowObject.edges.map((edge) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { style, markerEnd, animated, zIndex, selected, ...semanticEdge } =
-        edge;
-      return semanticEdge;
-    });
-
-    const cleanNodes = flowObject.nodes.map((node) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { selected, dragging, ...semanticNode } = node;
-      return semanticNode;
-    });
-
-    // PHASE 4: Use generic structure instead of casting to UI types
-    const exportData = {
-      id,
-      name,
-      nodes: cleanNodes,
-      edges: cleanEdges,
-      viewport: flowObject.viewport,
-    };
-
+    const exportData = { id, name, ...flowObject };
     const jsonString = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([jsonString], { type: "application/json" });
+    const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = url;
     link.download = `${name}.luml`;
     link.click();
     URL.revokeObjectURL(url);
   },
 
-  // --- IMAGEN (PNG/SVG) ---
+  // --- IMAGE (PNG / SVG via Konva stage) ---
   downloadImage: async (
-    viewportEl: HTMLElement,
-    nodes: Node[],
+    stage: Konva.Stage,
     options: ExportImageOptions,
   ): Promise<void> => {
-    const nodesBounds = getNodesBounds(nodes);
+    const pixelRatio = options.scale;
 
-    if (nodesBounds.width === 0 || nodesBounds.height === 0) return;
+    // Prefer shapes (accurate per-shape dimensions) over legacy nodes (estimated sizes)
+    const bounds =
+      options.shapes && options.shapes.length > 0
+        ? calculateBoundsFromShapes(options.shapes)
+        : options.nodes
+        ? calculateDiagramBounds(options.nodes)
+        : null;
 
-    const viewport = getViewportForBounds(
-      nodesBounds,
-      nodesBounds.width,
-      nodesBounds.height,
-      0.5,
-      2,
-    );
+    const bgColor = options.transparent ? undefined : options.backgroundColor;
 
-    const backgroundStyle =
-      !options.transparent && options.format === "svg"
-        ? { backgroundColor: options.backgroundColor }
-        : {};
-
-    const config = {
-      width: nodesBounds.width,
-      height: nodesBounds.height,
-      style: {
-        width: `${nodesBounds.width}px`,
-        height: `${nodesBounds.height}px`,
-        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-        ...backgroundStyle,
-      },
-      backgroundColor:
-        options.format === "png" && !options.transparent
-          ? options.backgroundColor
-          : undefined,
-      filter: (node: HTMLElement) => {
-        const classList = node.classList;
-        if (!classList) return true;
-        return (
-          !classList.contains("react-flow__minimap") &&
-          !classList.contains("react-flow__controls") &&
-          !classList.contains("react-flow__panel")
-        );
-      },
-    };
-
-    // Expand Note node elements so html-to-image captures them without scrollbars.
-    // Both the outer container (overflow-hidden) and the inner content area
-    // (max-h-40 / overflow-y-auto) need to be temporarily unlocked.
-    type StyleSnapshot = {
-      el: HTMLElement;
-      maxHeight: string;
-      height: string;
-      overflow: string;
-    };
-    const styleSnapshots: StyleSnapshot[] = [];
-
-    viewportEl
-      .querySelectorAll<HTMLElement>(".react-flow__node-umlNote")
-      .forEach((noteNode) => {
-        const container = noteNode.querySelector<HTMLElement>(":scope > div");
-        const contentArea = noteNode.querySelector<HTMLElement>(".overflow-y-auto");
-
-        [container, contentArea].forEach((el) => {
-          if (!el) return;
-          styleSnapshots.push({
-            el,
-            maxHeight: el.style.maxHeight,
-            height: el.style.height,
-            overflow: el.style.overflow,
-          });
-          el.style.height = "max-content";
-          el.style.maxHeight = "none";
-          el.style.overflow = "visible";
-        });
-      });
-
-    let dataUrl = "";
-
-    try {
-      if (options.format === "svg") {
-        dataUrl = await toSvg(viewportEl, config);
-      } else {
-        dataUrl = await toPng(viewportEl, {
-          ...config,
-          pixelRatio: options.scale,
-        });
-      }
+    if (options.format === 'png') {
+      const dataUrl = bounds
+        ? exportWithTemporaryTransform(stage, bounds, pixelRatio, 'image/png', bgColor)
+        : stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
 
       if (window.electronAPI?.isElectron()) {
-        const result = await window.electronAPI.saveImage(
-          dataUrl,
-          options.fileName,
-          options.format,
-        );
-
-        if (result.canceled) {
-          console.log("Exportación cancelada por el usuario");
-        }
+        const result = await window.electronAPI.saveImage(dataUrl, options.fileName, 'png');
+        if (result.canceled) return;
       } else {
-        const link = document.createElement("a");
-        link.download = `${options.fileName}.${options.format}`;
+        const link = document.createElement('a');
+        link.download = `${options.fileName}.png`;
         link.href = dataUrl;
         link.click();
       }
-    } catch (error) {
-      console.error("Error exporting image:", error);
-      throw error;
-    } finally {
-      // Restore original inline styles whether the export succeeded or failed.
-      styleSnapshots.forEach(({ el, maxHeight, height, overflow }) => {
-        el.style.maxHeight = maxHeight;
-        el.style.height = height;
-        el.style.overflow = overflow;
-      });
+      return;
+    }
+
+    if (options.format === 'svg') {
+      let svgContent: string;
+
+      if (options.shapes && options.edges) {
+        // MAG-01.15: True vector SVG — programmatic generation from diagram data.
+        svgContent = diagramToSvg(options.shapes, options.edges, {
+          transparent: options.transparent,
+          backgroundColor: options.backgroundColor,
+        });
+      } else {
+        // Legacy fallback: raster PNG embedded in an SVG envelope.
+        let pngDataUrl: string;
+        let w: number;
+        let h: number;
+
+        if (bounds) {
+          pngDataUrl = exportWithTemporaryTransform(stage, bounds, pixelRatio, 'image/png', bgColor);
+          w = bounds.width * pixelRatio;
+          h = bounds.height * pixelRatio;
+        } else {
+          pngDataUrl = stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
+          w = stage.width() * pixelRatio;
+          h = stage.height() * pixelRatio;
+        }
+
+        svgContent = [
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">`,
+          options.transparent ? '' : `<rect width="${w}" height="${h}" fill="${options.backgroundColor}"/>`,
+          `<image href="${pngDataUrl}" width="${w}" height="${h}"/>`,
+          '</svg>',
+        ].join('');
+      }
+
+      const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+      const svgDataUrl = URL.createObjectURL(blob);
+
+      if (window.electronAPI?.isElectron()) {
+        const result = await window.electronAPI.saveImage(svgDataUrl, options.fileName, 'svg');
+        if (result.canceled) { URL.revokeObjectURL(svgDataUrl); return; }
+      } else {
+        const link = document.createElement('a');
+        link.download = `${options.fileName}.svg`;
+        link.href = svgDataUrl;
+        link.click();
+      }
+      URL.revokeObjectURL(svgDataUrl);
     }
   },
 };

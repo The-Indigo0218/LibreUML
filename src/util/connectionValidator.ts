@@ -32,8 +32,8 @@ const RELATIONSHIP_RULES: Record<
     targets: ["class", "abstract", "interface", "enum"],
   },
   dependency: {
-    sources: ["class", "abstract", "interface", "enum"],
-    targets: ["class", "abstract", "interface", "enum"],
+    sources: ["class", "abstract", "interface", "enum", "package"],
+    targets: ["class", "abstract", "interface", "enum", "package"],
   },
   aggregation: {
     sources: ["class", "abstract", "interface", "enum"],
@@ -58,6 +58,10 @@ export const validateConnection = (
   relationType: UmlRelationType
 ): boolean => {
   if (sourceStereotype === "note" || targetStereotype === "note") return true;
+
+  if (sourceStereotype === "package" && targetStereotype === "package") {
+    return relationType === "dependency";
+  }
 
   const rule = RELATIONSHIP_RULES[relationType];
   if (!rule) return false;

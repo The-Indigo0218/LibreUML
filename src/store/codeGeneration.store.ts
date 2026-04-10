@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export type TargetLanguage = 'java' | 'csharp' | 'python' | 'typescript';
 
 export interface CodeGenerationConfig {
@@ -21,13 +19,8 @@ export interface LanguageOption {
 }
 
 interface CodeGenerationState {
-  // Configuration
   config: CodeGenerationConfig;
-  
-  // Selected classes for export
   selectedClassIds: Set<string>;
-  
-  // Actions
   setTargetLanguage: (language: TargetLanguage) => void;
   setGenerateGettersSetters: (value: boolean) => void;
   setGenerateEmptyConstructors: (value: boolean) => void;
@@ -42,8 +35,6 @@ interface CodeGenerationState {
   resetToDefaults: () => void;
 }
 
-// ─── Default Configuration ────────────────────────────────────────────────────
-
 const DEFAULT_CONFIG: CodeGenerationConfig = {
   targetLanguage: 'java',
   generateGettersSetters: true,
@@ -51,8 +42,6 @@ const DEFAULT_CONFIG: CodeGenerationConfig = {
   includePackageDeclaration: true,
   generateDocStubs: false,
 };
-
-// ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useCodeGenerationStore = create<CodeGenerationState>()(
   persist(
@@ -126,8 +115,6 @@ export const useCodeGenerationStore = create<CodeGenerationState>()(
     }
   )
 );
-
-// ─── Language Options ─────────────────────────────────────────────────────────
 
 export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { value: 'java', label: 'Java', enabled: true },

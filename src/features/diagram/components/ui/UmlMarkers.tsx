@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
 
-/**
- * Hook para obtener valores computados de variables CSS
- */
 const useCSSVariables = () => {
   const [colors, setColors] = useState({
     canvasBase: "#0b0f1a",
@@ -45,39 +42,30 @@ const useCSSVariables = () => {
   return colors;
 };
 
-/**
- * Función para inyectar markers en el SVG principal de React Flow
- */
 function injectMarkers(colors: {
   canvasBase: string;
   edgeInheritance: string;
   edgeImplementation: string;
   edgeAssociation: string;
 }) {
-  // Buscar el SVG principal de React Flow
-  const svgElement = document.querySelector('.react-flow__edges') 
+  const svgElement = document.querySelector('.react-flow__edges')
     || document.querySelector('.react-flow__renderer')
     || document.querySelector('svg');
   
   if (!svgElement) return false;
 
-  // Obtener el elemento SVG raíz
   const rootSvg = svgElement.closest('svg') || svgElement;
-
-  // Buscar o crear <defs>
   let defs = rootSvg.querySelector('defs');
   if (!defs) {
     defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
     rootSvg.insertBefore(defs, rootSvg.firstChild);
   }
 
-  // Limpiar markers anteriores de UML
   ['inheritance-end', 'implementation-end', 'aggregation-end', 'composition-end'].forEach(id => {
     const old = defs!.querySelector(`#${id}`);
     if (old) old.remove();
   });
 
-  // Crear e inyectar markers
   const markers = [
     createTriangleMarker('inheritance-end', colors.canvasBase, colors.edgeInheritance),
     createTriangleMarker('implementation-end', colors.canvasBase, colors.edgeImplementation),
@@ -130,17 +118,11 @@ function createDiamondMarker(id: string, fillColor: string, strokeColor: string)
   return marker;
 }
 
-/**
- * Componente que inyecta y mantiene sincronizados los markers UML
- */
 export default function UmlMarkers() {
   const colors = useCSSVariables();
 
   useEffect(() => {
-    // Intentar inyectar inmediatamente
     let injected = injectMarkers(colors);
-
-    // Si no funciona, intentar cada 100ms hasta que React Flow esté listo
     const maxAttempts = 50;
     let attempts = 0;
     
@@ -154,9 +136,7 @@ export default function UmlMarkers() {
       attempts++;
     }, 100);
 
-    // Observer para re-inyectar si el DOM cambia drásticamente
     const observer = new MutationObserver(() => {
-      // Re-inyectar si los markers desaparecieron
       const existingMarker = document.querySelector('#inheritance-end');
       if (!existingMarker) {
         injectMarkers(colors);

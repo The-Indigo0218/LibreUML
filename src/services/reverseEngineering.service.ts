@@ -5,7 +5,7 @@ import type {
 } from "../features/diagram/types/diagram.types";
 import { JavaParserService } from "./javaParser.service";
 import { edgeConfig } from "../config/theme.config";
-import { MarkerType } from "reactflow";
+const MarkerType = { Arrow: 'arrow' } as const;
 
 interface ReverseEngineeringResult {
   nodes: UmlClassNode[];

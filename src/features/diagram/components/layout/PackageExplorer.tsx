@@ -13,11 +13,14 @@ import { PackageItem } from "./packageExplorer/PackageItem";
 import { ClassItem } from "./packageExplorer/ClassItem";
 import { InlinePackageInput } from "./packageExplorer/InlinePackageInput";
 import { DeletePackageModal } from "./packageExplorer/DeletePackageModal";
+import { isDiagramView } from "../../hooks/useVFSCanvasController";
+import { undoTransaction } from "../../../../core/undo/undoBridge";
 import type { UmlClassNode, UmlAttribute, UmlMethod, visibility as UmlVisibility } from "../../types/diagram.types";
 import type { DeletePackageState, TreeNode } from "./packageExplorer/types";
-import type { SemanticModel, VFSFile } from "../../../../core/domain/vfs/vfs.types";
+import type { SemanticModel, VFSFile, ViewNode } from "../../../../core/domain/vfs/vfs.types";
 
-// ── IR → UmlClassNode adapter ─────────────────────────────────────────────
+const SIDEBAR_DND_TYPE = 'application/libreuml-sidebar-class';
+
 
 function irVisToSymbol(v: string | undefined): UmlVisibility {
   if (v === "private") return "-";
@@ -112,9 +115,6 @@ function irToUmlNodes(model: SemanticModel): UmlClassNode[] {
 
   return nodes;
 }
-
-// ── Local context menu type ───────────────────────────────────────────────
-
 interface LocalContextMenu {
   x: number;
   y: number;
@@ -165,6 +165,15 @@ export default function PackageExplorer() {
 
   const activeModel = isStandalone ? localModel : model;
 
+  const viewNodes = useVFSStore((s): ViewNode[] => {
+    if (!activeTabId || !s.project) return [];
+    const node = s.project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return [];
+    const content = (node as VFSFile).content;
+    if (!isDiagramView(content)) return [];
+    return content.nodes;
+  });
+
   // ── Derived data ───────────────────────────────────────────────────────
 
   const transformedNodes: UmlClassNode[] = useMemo(() => {
@@ -172,16 +181,83 @@ export default function PackageExplorer() {
     return irToUmlNodes(activeModel);
   }, [activeModel]);
 
+  const elementViewNodeMap = useMemo(() => {
+    const map = new Map<string, ViewNode>();
+    for (const vn of viewNodes) map.set(vn.elementId, vn);
+    return map;
+  }, [viewNodes]);
+
+  // Resolve effective visual tree paths for packages based on canvas parentPackageId nesting.
+  // E.g. if package "ServiceLayer" is dragged inside "Infrastructure" on canvas,
+  // its effective path becomes "Infrastructure.ServiceLayer" so the sidebar tree mirrors the canvas.
+  const pkgEffectivePaths = useMemo((): Map<string, string> => {
+    const result = new Map<string, string>();
+    if (!activeModel?.packages || !viewNodes.length) return result;
+
+    const vnToPkgId = new Map<string, string>();
+    const pkgIdToVN = new Map<string, ViewNode>();
+    for (const vn of viewNodes) {
+      if (activeModel.packages[vn.elementId]) {
+        vnToPkgId.set(vn.id, vn.elementId);
+        pkgIdToVN.set(vn.elementId, vn);
+      }
+    }
+
+    const resolve = (pkgId: string, visiting: Set<string>): string => {
+      if (result.has(pkgId)) return result.get(pkgId)!;
+      if (visiting.has(pkgId)) return activeModel.packages![pkgId]?.name ?? pkgId;
+
+      const pkg = activeModel.packages![pkgId];
+      if (!pkg) return pkgId;
+
+      const vn = pkgIdToVN.get(pkgId);
+      if (!vn?.parentPackageId) {
+        result.set(pkgId, pkg.name);
+        return pkg.name;
+      }
+
+      const parentPkgId = vnToPkgId.get(vn.parentPackageId);
+      if (!parentPkgId) {
+        result.set(pkgId, pkg.name);
+        return pkg.name;
+      }
+
+      const parentEffective = resolve(parentPkgId, new Set([...visiting, pkgId]));
+      // If pkg.name is already a full qualified path that starts with the parent's effective
+      // path (e.g. pkg.name="com.models", parent="com"), avoid double-prefixing to "com.com.models".
+      const path = pkg.name.startsWith(parentEffective + '.')
+        ? pkg.name
+        : `${parentEffective}.${pkg.name}`;
+      result.set(pkgId, path);
+      return path;
+    };
+
+    for (const pkgId of Object.keys(activeModel.packages)) {
+      resolve(pkgId, new Set());
+    }
+    return result;
+  }, [activeModel, viewNodes]);
+
   const allPackages: Array<{ id: string; name: string }> = useMemo(() => {
     if (!activeModel) return [];
     const pkgSet = new Map<string, { id: string; name: string }>();
 
-    // Explicit packages from model
+    // Visual packages from IR model (canvas packages — real IRPackage entries).
+    // Use effective paths so visually nested packages appear in the right tree position.
+    Object.values(activeModel.packages ?? {}).forEach((pkg) => {
+      if (pkg.name && pkg.name.trim() !== "") {
+        const effectiveName = pkgEffectivePaths.get(pkg.id) ?? pkg.name;
+        pkgSet.set(effectiveName, { id: pkg.id, name: effectiveName });
+      }
+    });
+
+    // Explicit semantic packages from model
     (activeModel.packageNames ?? []).forEach((name) => {
-      pkgSet.set(name, { id: `pkg-${name}`, name });
+      if (!pkgSet.has(name)) pkgSet.set(name, { id: `pkg-${name}`, name });
     });
 
     // Auto-discover implicit packages from element packageName fields
+    // BUT skip if already exists in pkgSet (from IRPackage or packageNames)
     transformedNodes.forEach((node) => {
       const pkgName = node.data.package;
       if (!pkgName || pkgName.trim() === "") return;
@@ -189,27 +265,71 @@ export default function PackageExplorer() {
       let currentPath = "";
       segments.forEach((segment) => {
         currentPath = currentPath ? `${currentPath}.${segment}` : segment;
+        // Only add if not already in pkgSet (prevents duplicates with IRPackages)
         if (!pkgSet.has(currentPath)) {
           pkgSet.set(currentPath, { id: `implicit-${currentPath}`, name: currentPath });
         }
       });
     });
 
-    return Array.from(pkgSet.values());
-  }, [activeModel, transformedNodes]);
+    // Strong deduplication: prefer IRPackages over implicit/semantic packages
+    // This handles cases where effectiveName differs from pkg.name
+    const packages = Array.from(pkgSet.values());
+    const deduped = new Map<string, { id: string; name: string }>();
+    
+    // First pass: add all packages
+    packages.forEach(pkg => {
+      deduped.set(pkg.name, pkg);
+    });
+    
+    // Second pass: if there are duplicates, prefer IRPackages (UUID ids) over others
+    packages.forEach(pkg => {
+      const existing = deduped.get(pkg.name);
+      if (existing && existing.id !== pkg.id) {
+        // Prefer IRPackage (UUID) over pkg-* or implicit-* ids
+        const isExistingIRPackage = !existing.id.startsWith('pkg-') && !existing.id.startsWith('implicit-');
+        const isCurrentIRPackage = !pkg.id.startsWith('pkg-') && !pkg.id.startsWith('implicit-');
+        
+        if (isCurrentIRPackage && !isExistingIRPackage) {
+          // Replace with IRPackage
+          deduped.set(pkg.name, pkg);
+        }
+      }
+    });
 
-  const packageTree = useMemo(() => buildPackageTree(allPackages, transformedNodes), [allPackages, transformedNodes]);
+    return Array.from(deduped.values());
+  }, [activeModel, transformedNodes, pkgEffectivePaths]);
 
-  // Strip root-level classes from the tree passed to PackageItem — they are
-  // already rendered in the explicit (default) folder above, so passing them
-  // to PackageItem would cause every unassigned element to appear twice.
+  // Resolve visual containment: if a node's ViewNode has parentPackageId,
+  // override its package field with the effective path of the parent package
+  // (accounting for multi-level canvas nesting).
+  const resolvedNodes = useMemo(() => {
+    if (!viewNodes.length || !activeModel?.packages) return transformedNodes;
+
+    const pkgViewNodeToEffectivePath = new Map<string, string>();
+    for (const vn of viewNodes) {
+      const pkg = activeModel.packages[vn.elementId];
+      if (pkg) {
+        pkgViewNodeToEffectivePath.set(vn.id, pkgEffectivePaths.get(pkg.id) ?? pkg.name);
+      }
+    }
+
+    return transformedNodes.map((node) => {
+      const vn = elementViewNodeMap.get(node.id);
+      if (!vn?.parentPackageId) return node;
+      const parentPath = pkgViewNodeToEffectivePath.get(vn.parentPackageId);
+      if (!parentPath) return node;
+      return { ...node, data: { ...node.data, package: parentPath } };
+    });
+  }, [transformedNodes, viewNodes, elementViewNodeMap, activeModel, pkgEffectivePaths]);
+
+  const packageTree = useMemo(() => buildPackageTree(allPackages, resolvedNodes), [allPackages, resolvedNodes]);
   const packageTreeForItem = useMemo(() => ({ ...packageTree, classes: [] }), [packageTree]);
 
-  const totalElements = transformedNodes.length;
+  const totalElements = resolvedNodes.length;
   const unassignedCount = packageTree.classes.length;
   const displayedPackageCount = allPackages.length + (unassignedCount > 0 ? 1 : 0);
-
-  // ── UI state ───────────────────────────────────────────────────────────
+  const hasPackages = allPackages.length > 0;
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
@@ -231,8 +351,6 @@ export default function PackageExplorer() {
       return () => document.removeEventListener("click", handleClickOutside);
     }
   }, [contextMenu, pkgPicker]);
-
-  // ── Package mutations ──────────────────────────────────────────────────
 
   const addPackage = useCallback((name: string) => {
     const trimmed = name.trim();
@@ -279,39 +397,158 @@ export default function PackageExplorer() {
   const deletePackage = useCallback((pkgPath: string, deleteClasses: boolean) => {
     if (!activeModel) return;
 
+    // Resolve the IRPackage entry for this path (if it's a visual canvas package).
+    const irPkg = Object.values(activeModel.packages ?? {}).find(
+      (pkg) => (pkgEffectivePaths.get(pkg.id) ?? pkg.name) === pkgPath
+    );
+
     const allEls = [
       ...Object.values(activeModel.classes),
       ...Object.values(activeModel.interfaces),
       ...Object.values(activeModel.enums),
     ];
-    const affected = allEls.filter((el) => el.packageName === pkgPath);
+    const affected = allEls.filter(
+      (el) => el.packageName === pkgPath || el.packageName?.startsWith(`${pkgPath}.`)
+    );
+
+    // Collect affected relation IDs (for edge removal) before mutating.
+    const deletedRelationIds = new Set<string>();
+    if (deleteClasses && activeModel.relations) {
+      const affectedIds = new Set(affected.map((el) => el.id));
+      for (const [rid, rel] of Object.entries(activeModel.relations)) {
+        if (affectedIds.has(rel.sourceId) || affectedIds.has(rel.targetId)) {
+          deletedRelationIds.add(rid);
+        }
+      }
+    }
 
     if (isStandalone && activeTabId) {
-      const ops = standaloneModelOps(activeTabId);
-      if (deleteClasses) {
-        affected.forEach((el) => {
-          if (activeModel.classes[el.id]) ops.deleteClass(el.id);
-          else if (activeModel.interfaces[el.id]) ops.deleteInterface(el.id);
-          else ops.deleteEnum(el.id);
-        });
-      } else {
-        affected.forEach((el) => ops.setElementPackage(el.id, undefined));
-      }
-      ops.removePackageName(pkgPath);
+      undoTransaction({
+        label: `Delete Package: ${pkgPath}`,
+        scope: activeTabId,
+        mutations: [{
+          store: 'vfs',
+          mutate: (draft: any) => {
+            const file = draft.project?.nodes[activeTabId];
+            if (!file || file.type !== 'FILE') return;
+
+            // 1. Mutate localModel
+            if (file.localModel) {
+              if (irPkg) delete file.localModel.packages[irPkg.id];
+              if (file.localModel.packageNames) {
+                file.localModel.packageNames = file.localModel.packageNames.filter(
+                  (n: string) => n !== pkgPath && !n.startsWith(`${pkgPath}.`)
+                );
+              }
+              if (deleteClasses) {
+                affected.forEach((el) => {
+                  delete file.localModel.classes?.[el.id];
+                  delete file.localModel.interfaces?.[el.id];
+                  delete file.localModel.enums?.[el.id];
+                });
+                for (const rid of deletedRelationIds) {
+                  if (file.localModel.relations) delete file.localModel.relations[rid];
+                }
+              } else {
+                affected.forEach((el) => {
+                  const rec = file.localModel.classes?.[el.id]
+                    ?? file.localModel.interfaces?.[el.id]
+                    ?? file.localModel.enums?.[el.id];
+                  if (rec) rec.packageName = undefined;
+                });
+              }
+              file.localModel.updatedAt = Date.now();
+            }
+
+            // 2. Cascade ViewNode removal and un-nest children
+            if (isDiagramView(file.content)) {
+              if (irPkg) {
+                const pkgVN = file.content.nodes.find((vn: ViewNode) => vn.elementId === irPkg.id);
+                if (pkgVN) {
+                  file.content.nodes = file.content.nodes
+                    .map((vn: ViewNode) =>
+                      vn.parentPackageId === pkgVN.id ? { ...vn, parentPackageId: null } : vn
+                    )
+                    .filter((vn: ViewNode) => vn.elementId !== irPkg.id);
+                }
+              }
+              if (deleteClasses) {
+                const deletedIds = new Set(affected.map((el) => el.id));
+                file.content.nodes = file.content.nodes.filter((vn: ViewNode) => !deletedIds.has(vn.elementId));
+                file.content.edges = file.content.edges.filter((ve: any) => !deletedRelationIds.has(ve.relationId));
+              }
+            }
+          },
+        }],
+      });
     } else {
-      if (deleteClasses) {
-        affected.forEach((el) => {
-          if (activeModel.classes[el.id]) deleteClass(el.id);
-          else if (activeModel.interfaces[el.id]) deleteInterface(el.id);
-          else deleteEnum(el.id);
-        });
-      } else {
-        affected.forEach((el) => setElementPackage(el.id, undefined));
-      }
-      removePackageName(pkgPath);
+      undoTransaction({
+        label: `Delete Package: ${pkgPath}`,
+        scope: 'global',
+        mutations: [
+          {
+            store: 'model',
+            mutate: (draft: any) => {
+              if (!draft.model) return;
+              if (irPkg) delete draft.model.packages[irPkg.id];
+              if (draft.model.packageNames) {
+                draft.model.packageNames = draft.model.packageNames.filter(
+                  (n: string) => n !== pkgPath && !n.startsWith(`${pkgPath}.`)
+                );
+              }
+              if (deleteClasses) {
+                affected.forEach((el) => {
+                  delete draft.model.classes[el.id];
+                  delete draft.model.interfaces[el.id];
+                  delete draft.model.enums[el.id];
+                });
+                for (const rid of deletedRelationIds) {
+                  delete draft.model.relations[rid];
+                }
+              } else {
+                affected.forEach((el) => {
+                  const rec = draft.model.classes[el.id]
+                    ?? draft.model.interfaces[el.id]
+                    ?? draft.model.enums[el.id];
+                  if (rec) rec.packageName = undefined;
+                });
+              }
+              draft.model.updatedAt = Date.now();
+            },
+          },
+          {
+            store: 'vfs',
+            mutate: (draft: any) => {
+              if (!draft.project) return;
+              const deletedElementIds = new Set(deleteClasses ? affected.map((el) => el.id) : []);
+              for (const fileNode of Object.values(draft.project.nodes as Record<string, any>)) {
+                if (fileNode.type !== 'FILE' || !isDiagramView(fileNode.content)) continue;
+                if (irPkg) {
+                  const pkgVN = fileNode.content.nodes.find((vn: ViewNode) => vn.elementId === irPkg.id);
+                  if (pkgVN) {
+                    fileNode.content.nodes = fileNode.content.nodes
+                      .map((vn: ViewNode) =>
+                        vn.parentPackageId === pkgVN.id ? { ...vn, parentPackageId: null } : vn
+                      )
+                      .filter((vn: ViewNode) => vn.elementId !== irPkg.id);
+                  }
+                }
+                if (deleteClasses && deletedElementIds.size > 0) {
+                  fileNode.content.nodes = fileNode.content.nodes.filter(
+                    (vn: ViewNode) => !deletedElementIds.has(vn.elementId)
+                  );
+                  fileNode.content.edges = fileNode.content.edges.filter(
+                    (ve: any) => !deletedRelationIds.has(ve.relationId)
+                  );
+                }
+              }
+            },
+          },
+        ],
+      });
     }
     showToast(`Package "${pkgPath}" deleted.`);
-  }, [activeModel, isStandalone, activeTabId, deleteClass, deleteInterface, deleteEnum, setElementPackage, removePackageName, showToast]);
+  }, [activeModel, isStandalone, activeTabId, pkgEffectivePaths, showToast]);
 
   const deleteElement = useCallback((elementId: string) => {
     if (!activeModel) return;
@@ -342,8 +579,6 @@ export default function PackageExplorer() {
     }
     showToast(`Renamed to "${trimmed}".`);
   }, [activeModel, isStandalone, activeTabId, updateClass, updateInterface, updateEnum, showToast]);
-
-  // ── Handlers ───────────────────────────────────────────────────────────
 
   const handleToggle = (path: string) => {
     setExpandedPaths((prev) => {
@@ -426,7 +661,7 @@ export default function PackageExplorer() {
   const handleDeleteClick = () => {
     if (!contextMenu) return;
     if (contextMenu.type === "package") {
-      const classesInPackage = transformedNodes.filter((n) => n.data.package === contextMenu.packagePath);
+      const classesInPackage = resolvedNodes.filter((n) => n.data.package === contextMenu.packagePath);
       setDeletePackageState({
         id: contextMenu.packagePath!,
         name: contextMenu.name,
@@ -460,7 +695,7 @@ export default function PackageExplorer() {
 
   const handleCancelRename = () => setRenamingId(null);
 
-  const handleMoveToPackage = (elementId: string, targetPkg: string | undefined) => {
+  const handleMoveToPackage = useCallback((elementId: string, targetPkg: string | undefined) => {
     if (isStandalone && activeTabId) {
       standaloneModelOps(activeTabId).setElementPackage(elementId, targetPkg);
     } else {
@@ -468,7 +703,180 @@ export default function PackageExplorer() {
     }
     showToast(targetPkg ? `Moved to "${targetPkg}".` : "Removed from package.");
     setPkgPicker(null);
-  };
+  }, [isStandalone, activeTabId, setElementPackage, showToast]);
+
+  const getViewNodeId = useCallback((elementId: string): string | undefined => {
+    return elementViewNodeMap.get(elementId)?.id;
+  }, [elementViewNodeMap]);
+
+  const handleClassDragStart = useCallback((e: React.DragEvent, elementId: string, viewNodeId: string | undefined) => {
+    e.dataTransfer.setData(SIDEBAR_DND_TYPE, JSON.stringify({ elementId, viewNodeId }));
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDropOnPackage = useCallback((e: React.DragEvent, targetPkgPath: string) => {
+    e.preventDefault();
+    const raw = e.dataTransfer.getData(SIDEBAR_DND_TYPE);
+    if (!raw) return;
+
+    let payload: { elementId: string; viewNodeId?: string };
+    try { payload = JSON.parse(raw); } catch { return; }
+    const { elementId, viewNodeId } = payload;
+
+    if (viewNodeId && activeTabId && activeModel?.packages) {
+      const targetPkg = Object.values(activeModel.packages).find(
+        (p) => (pkgEffectivePaths.get(p.id) ?? p.name) === targetPkgPath
+      );
+      if (targetPkg) {
+        const targetViewNode = viewNodes.find((vn) => vn.elementId === targetPkg.id);
+        if (targetViewNode) {
+          undoTransaction({
+            label: `Move to package: ${targetPkgPath}`,
+            scope: isStandalone ? activeTabId : 'global',
+            mutations: [
+              {
+                store: 'vfs',
+                mutate: (draft: any) => {
+                  const file = draft.project?.nodes[activeTabId];
+                  if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+                  const vn = file.content.nodes.find((n: ViewNode) => n.id === viewNodeId);
+                  if (vn) vn.parentPackageId = targetViewNode.id;
+                  // For standalone: also update packageName in localModel
+                  if (isStandalone && file.localModel) {
+                    const el = file.localModel.classes?.[elementId]
+                      ?? file.localModel.interfaces?.[elementId]
+                      ?? file.localModel.enums?.[elementId];
+                    if (el) el.packageName = targetPkgPath;
+                  }
+                },
+              },
+              ...(!isStandalone ? [{
+                store: 'model' as const,
+                mutate: (draft: any) => {
+                  if (!draft.model) return;
+                  const el = draft.model.classes[elementId]
+                    ?? draft.model.interfaces[elementId]
+                    ?? draft.model.enums[elementId];
+                  if (el) { el.packageName = targetPkgPath; draft.model.updatedAt = Date.now(); }
+                },
+              }] : []),
+            ],
+            affectedElementIds: [elementId],
+          });
+          showToast(`Moved to "${targetPkgPath}".`);
+          return;
+        }
+      }
+    }
+
+    handleMoveToPackage(elementId, targetPkgPath);
+  }, [activeTabId, activeModel, isStandalone, viewNodes, pkgEffectivePaths, showToast, handleMoveToPackage]);
+
+  const handleAddToCanvas = useCallback((pkgPath: string) => {
+    if (!activeTabId || !activeModel) return;
+
+    // Look up by effective path so nested packages (e.g. "s.dfdf") are found by their
+    // resolved path rather than the raw IRPackage.name ("dfdf").
+    const irPkg = Object.values(activeModel.packages ?? {}).find(
+      (p) => (pkgEffectivePaths.get(p.id) ?? p.name) === pkgPath
+    );
+
+    if (irPkg) {
+      if (viewNodes.some((vn) => vn.elementId === irPkg.id)) {
+        showToast(`"${pkgPath}" is already on canvas.`);
+        setContextMenu(null);
+        return;
+      }
+      const newVNId = crypto.randomUUID();
+      undoTransaction({
+        label: `Add to canvas: ${pkgPath}`,
+        scope: activeTabId,
+        mutations: [{
+          store: 'vfs',
+          mutate: (draft: any) => {
+            const file = draft.project?.nodes[activeTabId];
+            if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+            file.content.nodes.push({ id: newVNId, elementId: irPkg.id, x: 200, y: 200, collapsed: false });
+          },
+        }],
+        affectedElementIds: [irPkg.id],
+      });
+    } else {
+      // String-based semantic package → promote to IRPackage + ViewNode.
+      // Use only the last dotted segment as the canvas label (e.g. "s.sa" → "sa").
+      // Also remove the source string entry to prevent ghost duplicates once the
+      // new IRPackage picks up an effective path different from the raw string.
+      const simpleName = pkgPath.split('.').pop()!;
+      const newPkgId = crypto.randomUUID();
+      const newVNId = crypto.randomUUID();
+
+      if (isStandalone && activeTabId) {
+        undoTransaction({
+          label: `Add to canvas: ${pkgPath}`,
+          scope: activeTabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE') return;
+              if (!node.localModel) return;
+              node.localModel.packages[newPkgId] = {
+                id: newPkgId, name: simpleName, kind: 'PACKAGE',
+                packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+              };
+              // Remove the string-based entry so it doesn't ghost back as a root node
+              if (node.localModel.packageNames) {
+                node.localModel.packageNames = node.localModel.packageNames.filter(
+                  (n: string) => n !== pkgPath
+                );
+              }
+              node.localModel.updatedAt = Date.now();
+              if (isDiagramView(node.content)) {
+                node.content.nodes.push({ id: newVNId, elementId: newPkgId, x: 200, y: 200, collapsed: false });
+              }
+            },
+          }],
+          affectedElementIds: [newPkgId],
+        });
+      } else {
+        undoTransaction({
+          label: `Add to canvas: ${pkgPath}`,
+          scope: 'global',
+          mutations: [
+            {
+              store: 'model',
+              mutate: (draft: any) => {
+                if (!draft.model) return;
+                draft.model.packages[newPkgId] = {
+                  id: newPkgId, name: simpleName, kind: 'PACKAGE',
+                  packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+                };
+                // Remove the string-based entry
+                if (draft.model.packageNames) {
+                  draft.model.packageNames = draft.model.packageNames.filter(
+                    (n: string) => n !== pkgPath
+                  );
+                }
+                draft.model.updatedAt = Date.now();
+              },
+            },
+            {
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const file = draft.project?.nodes[activeTabId];
+                if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+                file.content.nodes.push({ id: newVNId, elementId: newPkgId, x: 200, y: 200, collapsed: false });
+              },
+            },
+          ],
+          affectedElementIds: [newPkgId],
+        });
+      }
+    }
+
+    showToast(`"${pkgPath}" added to canvas.`);
+    setContextMenu(null);
+  }, [activeTabId, activeModel, isStandalone, viewNodes, pkgEffectivePaths, showToast]);
 
   return (
     <div className="flex flex-col h-full bg-surface-primary border-r border-surface-border">
@@ -507,7 +915,7 @@ export default function PackageExplorer() {
           />
         )}
 
-        {!activeModel || (totalElements === 0 && !isAddingGlobal) ? (
+        {!activeModel || (totalElements === 0 && !hasPackages && !isAddingGlobal) ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <Package className="w-12 h-12 text-text-muted/30 mb-3" />
             <p className="text-sm text-text-muted">{t('packageExplorer.noPackages')}</p>
@@ -557,6 +965,8 @@ export default function PackageExplorer() {
                       onContextMenu={handleClassContextMenu}
                       onRename={handleRenameClass}
                       onCancelRename={handleCancelRename}
+                      viewNodeId={getViewNodeId(classNode.id)}
+                      onDragStart={handleClassDragStart}
                     />
                   ))}
               </div>
@@ -580,6 +990,9 @@ export default function PackageExplorer() {
               onRenamePackage={handleRenamePackage}
               onAddChildPackage={handleAddChildPackage}
               onCancelAddChild={handleCancelAddChild}
+              getViewNodeId={getViewNodeId}
+              onClassDragStart={handleClassDragStart}
+              onDropOnPackage={handleDropOnPackage}
             />
           </>
         )}
@@ -630,6 +1043,14 @@ export default function PackageExplorer() {
               >
                 Rename
               </button>
+              {activeTabId && (
+                <button
+                  className="w-full text-left px-3 py-1.5 text-sm text-text-primary hover:bg-surface-hover"
+                  onClick={() => handleAddToCanvas(contextMenu.packagePath!)}
+                >
+                  Add to Canvas
+                </button>
+              )}
               <hr className="border-surface-border my-1" />
               <button
                 className="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-surface-hover"
@@ -678,8 +1099,6 @@ export default function PackageExplorer() {
           )}
         </div>
       )}
-
-      {/* ── Package picker popup ─────────────────────────────────────────── */}
       {pkgPicker && (
         <div
           className="fixed z-50 bg-surface-primary border border-surface-border rounded shadow-lg py-1 min-w-[180px]"

@@ -24,6 +24,7 @@ import type {
   IRAttribute,
   IROperation,
 } from '../core/domain/vfs/vfs.types';
+import { getPackageHierarchy } from '../utils/packageHelpers';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,13 +68,41 @@ export function standaloneModelOps(fileId: string) {
 
     createClass: (data: Omit<IRClass, 'id' | 'kind'>): string => {
       const id = crypto.randomUUID();
-      update((m) => { m.classes[id] = { ...data, id, kind: 'CLASS' }; m.updatedAt = Date.now(); });
+      update((m) => {
+        // Auto-create intermediate packages if packageName contains dots
+        if (data.packageName) {
+          const hierarchy = getPackageHierarchy(data.packageName);
+          if (!m.packageNames) m.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
+              m.packageNames.push(pkg);
+            }
+          });
+        }
+        
+        m.classes[id] = { ...data, id, kind: 'CLASS' };
+        m.updatedAt = Date.now();
+      });
       return id;
     },
 
     createAbstractClass: (data: Omit<IRClass, 'id' | 'kind' | 'isAbstract'>): string => {
       const id = crypto.randomUUID();
-      update((m) => { m.classes[id] = { ...data, id, kind: 'CLASS', isAbstract: true }; m.updatedAt = Date.now(); });
+      update((m) => {
+        // Auto-create intermediate packages if packageName contains dots
+        if (data.packageName) {
+          const hierarchy = getPackageHierarchy(data.packageName);
+          if (!m.packageNames) m.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
+              m.packageNames.push(pkg);
+            }
+          });
+        }
+        
+        m.classes[id] = { ...data, id, kind: 'CLASS', isAbstract: true };
+        m.updatedAt = Date.now();
+      });
       return id;
     },
 
@@ -97,7 +126,21 @@ export function standaloneModelOps(fileId: string) {
 
     createInterface: (data: Omit<IRInterface, 'id' | 'kind'>): string => {
       const id = crypto.randomUUID();
-      update((m) => { m.interfaces[id] = { ...data, id, kind: 'INTERFACE' }; m.updatedAt = Date.now(); });
+      update((m) => {
+        // Auto-create intermediate packages if packageName contains dots
+        if (data.packageName) {
+          const hierarchy = getPackageHierarchy(data.packageName);
+          if (!m.packageNames) m.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
+              m.packageNames.push(pkg);
+            }
+          });
+        }
+        
+        m.interfaces[id] = { ...data, id, kind: 'INTERFACE' };
+        m.updatedAt = Date.now();
+      });
       return id;
     },
 
@@ -121,7 +164,21 @@ export function standaloneModelOps(fileId: string) {
 
     createEnum: (data: Omit<IREnum, 'id' | 'kind'>): string => {
       const id = crypto.randomUUID();
-      update((m) => { m.enums[id] = { ...data, id, kind: 'ENUM' }; m.updatedAt = Date.now(); });
+      update((m) => {
+        // Auto-create intermediate packages if packageName contains dots
+        if (data.packageName) {
+          const hierarchy = getPackageHierarchy(data.packageName);
+          if (!m.packageNames) m.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
+              m.packageNames.push(pkg);
+            }
+          });
+        }
+        
+        m.enums[id] = { ...data, id, kind: 'ENUM' };
+        m.updatedAt = Date.now();
+      });
       return id;
     },
 
@@ -212,6 +269,17 @@ export function standaloneModelOps(fileId: string) {
 
     setElementPackage: (elementId: string, packageName: string | undefined) => {
       update((m) => {
+        // Auto-create intermediate packages if packageName contains dots
+        if (packageName) {
+          const hierarchy = getPackageHierarchy(packageName);
+          if (!m.packageNames) m.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (m.packageNames && !m.packageNames.includes(pkg)) {
+              m.packageNames.push(pkg);
+            }
+          });
+        }
+        
         if (m.classes[elementId]) {
           m.classes[elementId] = { ...m.classes[elementId], packageName };
         } else if (m.interfaces[elementId]) {

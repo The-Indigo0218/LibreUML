@@ -3,6 +3,7 @@ import type { ActivityTab } from "./ActivityBar";
 import ProjectStructure from "./ProjectStructure";
 import PackageExplorer from "./PackageExplorer";
 import ToolPalette from "./ToolPalette";
+import UndoHistoryPanel from "../../../../components/UndoHistoryPanel";
 
 interface PrimarySideBarProps {
   activeTab: ActivityTab;
@@ -18,6 +19,7 @@ export default function PrimarySideBar({ activeTab }: PrimarySideBarProps) {
       {activeTab === "structure" && <ProjectStructure />}
       {activeTab === "packages" && <PackageExplorer />}
       {activeTab === "tools" && <ToolPalette />}
+      {activeTab === "history" && <UndoHistoryPanel />}
       {activeTab === "profile" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.userProfile")}</div>}
       {activeTab === "cloud" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.cloudSync")}</div>}
       {activeTab === "github" && <div className="flex-1 p-4 text-text-secondary">{t("primarySidebar.githubIntegration")}</div>}

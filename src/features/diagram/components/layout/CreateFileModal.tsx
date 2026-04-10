@@ -210,7 +210,6 @@ export default function CreateFileModal({
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="overflow-y-auto px-6 pb-4 space-y-4">
-          {/* ── File Name ────────────────────────────────────────────── */}
           <div>
             <label
               htmlFor="fileName"
@@ -241,8 +240,6 @@ export default function CreateFileModal({
               <p className="text-xs text-red-400 mt-1">{validationError}</p>
             )}
           </div>
-
-          {/* ── Location ─────────────────────────────────────────────── */}
           <div>
             <label
               htmlFor="location"
@@ -271,8 +268,6 @@ export default function CreateFileModal({
               ))}
             </select>
           </div>
-
-          {/* ── Diagram Type ─────────────────────────────────────────── */}
           <div>
             <label className="block text-sm font-medium text-[#cbd5e1] mb-2">
               Diagram Type <span className="text-red-400">*</span>
@@ -309,8 +304,6 @@ export default function CreateFileModal({
               })}
             </div>
           </div>
-
-          {/* ── Description ──────────────────────────────────────────── */}
           <div>
             <label
               htmlFor="description"
@@ -327,8 +320,6 @@ export default function CreateFileModal({
               className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-[#7C83FF] resize-none"
             />
           </div>
-
-          {/* ── Standalone toggle (creation only) ───────────────────── */}
           {!editNodeId && (
             <div className="flex items-start gap-3 px-3 py-3 rounded-lg border border-[#2a3358] bg-[#0f1419]">
               <button
@@ -363,8 +354,6 @@ export default function CreateFileModal({
             </div>
           )}
           </div>
-
-          {/* ── Actions ──────────────────────────────────────────────── */}
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#2a3358] shrink-0">
             <button
               type="button"

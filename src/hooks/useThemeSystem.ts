@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { useSettingsStore } from "../store/settingsStore"; // <--- IMPORTANTE: Usamos el nuevo store
 
 export const useThemeSystem = () => {
-  // Conectamos directamente al Settings Store
   const theme = useSettingsStore((state) => state.theme);
 
   useEffect(() => {
@@ -15,6 +14,5 @@ export const useThemeSystem = () => {
       root.classList.remove("dark");
       root.style.colorScheme = "light";
     }
-    
   }, [theme]);
 };

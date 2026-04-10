@@ -10,19 +10,9 @@ const DEBOUNCE_DELAY = 2000; // 2 seconds after last change
 
 /**
  * Auto-Save Hook
- * 
- * Implements background auto-save functionality that:
- * - Monitors dirty state of active file
- * - Saves silently without interrupting user
- * - Uses debouncing to avoid excessive saves
- * - Works with both Web and Electron storage adapters
- * - Clears dirty flag after successful save
- * 
- * Architecture:
- * - Saves to backup storage (emergency recovery)
- * - Does NOT trigger file system saves (that's manual)
- * - Respects autoSave setting toggle
- * - Runs in background without blocking UI
+ *
+ * Monitors dirty state and saves to backup storage with debouncing.
+ * Does not trigger file system saves; respects autoSave setting toggle.
  */
 export const useAutoSave = () => {
   const autoSaveEnabled = useSettingsStore((s) => s.autoSave);
@@ -36,10 +26,6 @@ export const useAutoSave = () => {
   const lastSaveTimeRef = useRef<number>(0);
   const isSavingRef = useRef<boolean>(false);
 
-  /**
-   * Performs the actual save operation
-   * Saves both WorkspaceStore and ProjectStore state to backup storage
-   */
   const performSave = useCallback(async () => {
     if (isSavingRef.current) {
       console.log("[AutoSave] Save already in progress, skipping");
@@ -62,11 +48,9 @@ export const useAutoSave = () => {
       isSavingRef.current = true;
       const startTime = Date.now();
 
-      // Get domain data for active file
       const nodes = getNodes(activeFile.nodeIds);
       const edges = getEdges(activeFile.edgeIds);
 
-      // Create backup data structure
       const backupData = {
         version: 1,
         timestamp: Date.now(),
@@ -83,16 +67,14 @@ export const useAutoSave = () => {
         edges,
       };
 
-      // Save to backup storage
       const backupJson = JSON.stringify(backupData);
       storageAdapter.setItem(BACKUP_KEY, backupJson);
 
-      // Mark file as clean (saved)
       markFileClean(activeFile.id);
 
       const duration = Date.now() - startTime;
       lastSaveTimeRef.current = Date.now();
-      
+
       console.log(`[AutoSave] ✓ Saved ${nodes.length} nodes, ${edges.length} edges (${duration}ms)`);
     } catch (error) {
       console.error("[AutoSave] Error saving backup:", error);
@@ -114,9 +96,6 @@ export const useAutoSave = () => {
     }, DEBOUNCE_DELAY);
   }, [performSave]);
 
-  /**
-   * Check if save is needed and trigger debounced save
-   */
   const checkAndSave = useCallback(() => {
     if (!autoSaveEnabled) return;
 
@@ -137,7 +116,6 @@ export const useAutoSave = () => {
    */
   useEffect(() => {
     if (!autoSaveEnabled) {
-      // Clean up interval if auto-save is disabled
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -145,7 +123,6 @@ export const useAutoSave = () => {
       return;
     }
 
-    // Set up periodic check
     intervalRef.current = setInterval(() => {
       checkAndSave();
     }, AUTO_SAVE_INTERVAL);
@@ -176,7 +153,6 @@ export const useAutoSave = () => {
     }
   }, [autoSaveEnabled, getActiveFile, debouncedSave]);
 
-  // Return save function for manual triggering if needed
   return {
     performSave,
     isAutoSaveEnabled: autoSaveEnabled,

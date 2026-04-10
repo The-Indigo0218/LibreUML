@@ -5,6 +5,9 @@ import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useToastStore } from "../../../../store/toast.store";
 import { standaloneModelOps } from "../../../../store/standaloneModelOps";
+import { undoTransaction } from "../../../../core/undo/undoBridge";
+import { computeNewRelations } from "../../utils/autoConnect";
+import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import ClassEditorModal from "./ClassEditorModal";
 import type {
   UmlClassData,
@@ -23,7 +26,6 @@ import type {
   IREnum,
   VFSFile,
 } from "../../../../core/domain/vfs/vfs.types";
-import { autoConnectByAttributeType } from "../../utils/autoConnect";
 
 type ResolvedElement =
   | { kind: "CLASS"; data: IRClass }
@@ -140,11 +142,6 @@ function toIrMembers(newData: UmlClassData): {
 export default function SSoTClassEditorModal() {
   const { activeModal, editingId, closeModals } = useUiStore();
   const model = useModelStore((s) => s.model);
-  const updateClass = useModelStore((s) => s.updateClass);
-  const updateInterface = useModelStore((s) => s.updateInterface);
-  const updateEnum = useModelStore((s) => s.updateEnum);
-  const setElementMembers = useModelStore((s) => s.setElementMembers);
-  const setElementPackage = useModelStore((s) => s.setElementPackage);
   const showToast = useToastStore((s) => s.show);
 
   // Standalone context: resolve active file's isolation status and localModel.
@@ -215,27 +212,96 @@ export default function SSoTClassEditorModal() {
       }
       ops.setElementPackage(editingId, newData.package || undefined);
     } else {
-      // Global model path: existing behaviour.
+      // Global model path: single undoTransaction so one Ctrl+Z undoes the full edit.
       if (!model) return;
+      const pkg = newData.package || undefined;
+
       if (element.kind === "CLASS") {
-        updateClass(editingId, { name: newData.label });
         const { attributes, operations } = toIrMembers(newData);
-        setElementMembers(editingId, attributes, operations);
-        autoConnectByAttributeType(editingId, attributes);
+        // Pre-compute auto-connect data from current state before any mutation.
+        const newRelations = computeNewRelations(editingId, attributes);
+
+        undoTransaction({
+          label: `Edit Class: ${element.data.name}`,
+          scope: 'global',
+          mutations: [
+            {
+              store: 'model',
+              mutate: (draft: any) => {
+                if (!draft.model) return;
+                const cls = draft.model.classes[editingId];
+                if (!cls) return;
+                cls.name = newData.label;
+                if (pkg !== undefined) cls.packageName = pkg;
+                cls.attributeIds.forEach((id: string) => { delete draft.model.attributes[id]; });
+                cls.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
+                attributes.forEach((a: IRAttribute) => { draft.model.attributes[a.id] = a; });
+                operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
+                cls.attributeIds = attributes.map((a: IRAttribute) => a.id);
+                cls.operationIds = operations.map((o: IROperation) => o.id);
+                for (const { relationId, kind, targetElementId } of newRelations) {
+                  draft.model.relations[relationId] = {
+                    id: relationId, kind, sourceId: editingId, targetId: targetElementId,
+                  };
+                }
+                draft.model.updatedAt = Date.now();
+              },
+            },
+            {
+              store: 'vfs',
+              mutate: (draft: any) => {
+                if (!activeTabId || newRelations.length === 0) return;
+                const node = draft.project?.nodes[activeTabId];
+                if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+                for (const { viewEdge } of newRelations) {
+                  node.content.edges.push(viewEdge);
+                }
+              },
+            },
+          ],
+        });
       } else if (element.kind === "INTERFACE") {
-        updateInterface(editingId, { name: newData.label });
         const { operations } = toIrMembers(newData);
-        setElementMembers(editingId, [], operations);
+        undoTransaction({
+          label: `Edit Interface: ${element.data.name}`,
+          scope: 'global',
+          mutations: [{
+            store: 'model',
+            mutate: (draft: any) => {
+              if (!draft.model) return;
+              const iface = draft.model.interfaces[editingId];
+              if (!iface) return;
+              iface.name = newData.label;
+              if (pkg !== undefined) iface.packageName = pkg;
+              iface.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
+              operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
+              iface.operationIds = operations.map((o: IROperation) => o.id);
+              draft.model.updatedAt = Date.now();
+            },
+          }],
+        });
       } else {
-        updateEnum(editingId, {
-          name: newData.label,
-          literals: (newData.literals ?? []).map((l) => ({
-            name: l.name,
-            ...(l.value !== undefined && l.value !== '' ? { value: l.value } : {}),
-          })),
+        const literals = (newData.literals ?? []).map((l) => ({
+          name: l.name,
+          ...(l.value !== undefined && l.value !== '' ? { value: l.value } : {}),
+        }));
+        undoTransaction({
+          label: `Edit Enum: ${element.data.name}`,
+          scope: 'global',
+          mutations: [{
+            store: 'model',
+            mutate: (draft: any) => {
+              if (!draft.model) return;
+              const enm = draft.model.enums[editingId];
+              if (!enm) return;
+              enm.name = newData.label;
+              if (pkg !== undefined) enm.packageName = pkg;
+              enm.literals = literals;
+              draft.model.updatedAt = Date.now();
+            },
+          }],
         });
       }
-      setElementPackage(editingId, newData.package || undefined);
     }
 
     showToast(`"${newData.label}" saved.`);

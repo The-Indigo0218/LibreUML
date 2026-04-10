@@ -1,9 +1,9 @@
-import { FolderTree, Package, Wrench, UserCircle, Cloud, Github, Bug, MonitorPlay } from "lucide-react";
+import { FolderTree, Package, Wrench, UserCircle, Cloud, Github, Bug, MonitorPlay, History } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useUiStore } from "../../../../store/uiStore";
 import { useLayoutStore } from "../../../../store/layout.store";
 
-export type ActivityTab = "structure" | "packages" | "tools" | "profile" | "cloud" | "github" | null;
+export type ActivityTab = "structure" | "packages" | "tools" | "profile" | "cloud" | "github" | "history" | null;
 
 interface ActivityBarProps {
   activeTab: ActivityTab;
@@ -17,16 +17,13 @@ export default function ActivityBar({ activeTab, onTabChange }: ActivityBarProps
   const { isLeftPanelOpen, toggleLeftPanel } = useLayoutStore();
 
   const handleTabClick = (tab: ActivityTab) => {
-    // Si se hace click en el mismo tab que está activo, cerrar el panel
     if (activeTab === tab) {
       onTabChange(null);
       if (isLeftPanelOpen) {
         toggleLeftPanel();
       }
     } else {
-      // Si se hace click en un tab diferente
       onTabChange(tab);
-      // Si el panel está cerrado, abrirlo
       if (!isLeftPanelOpen) {
         toggleLeftPanel();
       }
@@ -75,6 +72,13 @@ export default function ActivityBar({ activeTab, onTabChange }: ActivityBarProps
         label={t('activityBar.githubIntegration')}
         isActive={activeTab === "github"}
         onClick={() => handleTabClick("github")}
+      />
+
+      <ActivityBarIcon
+        icon={<History className="w-5 h-5" />}
+        label="Undo History"
+        isActive={activeTab === "history"}
+        onClick={() => handleTabClick("history")}
       />
 
       <button

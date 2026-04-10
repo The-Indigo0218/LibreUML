@@ -291,7 +291,46 @@ export default function RightSidebar() {
 
   // ── Package groups ─────────────────────────────────────────────────────────
 
-  const packageNames: string[] = useMemo(() => model?.packageNames ?? [], [model]);
+  const packageNames: string[] = useMemo(() => {
+    const names = new Set<string>();
+    
+    if (model?.packageNames) {
+      model.packageNames.forEach(name => names.add(name));
+    }
+    
+    if (model?.packages && activeTabId && project) {
+      const file = project.nodes[activeTabId];
+      if (file && file.type === 'FILE') {
+        const vfsFile = file as VFSFile;
+        const content = vfsFile.content;
+        
+        if (content && typeof content === 'object' && 'nodes' in content) {
+          const viewNodes = (content as any).nodes || [];
+          
+          for (const vn of viewNodes) {
+            const pkg = model.packages[vn.elementId];
+            if (!pkg) continue;
+            
+            let effectivePath = pkg.name;
+            let currentVN = vn;
+            
+            while (currentVN.parentPackageId) {
+              const parentVN = viewNodes.find((n: any) => n.id === currentVN.parentPackageId);
+              if (!parentVN) break;
+              const parentPkg = model.packages[parentVN.elementId];
+              if (!parentPkg) break;
+              effectivePath = `${parentPkg.name}.${effectivePath}`;
+              currentVN = parentVN;
+            }
+            
+            names.add(effectivePath);
+          }
+        }
+      }
+    }
+    
+    return Array.from(names).sort();
+  }, [model, activeTabId, project]);
 
   const DEFAULT_PKG = "__default__";
 

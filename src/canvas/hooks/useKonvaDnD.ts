@@ -1,31 +1,3 @@
-/**
- * useKonvaDnD — Konva-native drag & drop hook (MAG-01.11, MAG-01.32)
- *
- * Replaces useDiagramDnD for Konva canvas. Handles two drop types:
- * 1. DRAG_TYPE_NEW: Tool palette → create IR element + ViewNode
- * 2. DRAG_TYPE_EXISTING: Model Explorer → create ViewNode only (no model change)
- *
- * Architecture:
- * - Screen → canvas coordinate conversion via manual transform
- * - Gets container rect, applies inverse viewport transform (scale + pan)
- * - Formula: canvasX = (screenX - stageX) / scale
- * - Centers node under cursor (canvasX - width/2, canvasY - height/2)
- * - Auto-incremented names ("Class 1", "Class 2", etc.)
- * - Standalone file support (creates IR in localModel)
- * - Triggers VFS auto-save via MAG-01.9
- *
- * Integration:
- * - Wire onDragOver to Stage onDragOver event
- * - Wire onDrop to Stage onDrop event
- * - Drop data format: { type, elementKind, elementId }
- *
- * Coordinate conversion (MAG-01.32 fix):
- * - Cannot use stage.getPointerPosition() (not updated during React drag events)
- * - Manual conversion: containerX = clientX - rect.left
- * - Apply inverse transform: canvasX = (containerX - stage.x()) / stage.scaleX()
- * - Works correctly at all zoom levels and pan positions
- */
-
 import { useCallback, useState } from 'react';
 import type Konva from 'konva';
 import { useWorkspaceStore } from '../../store/workspace.store';
@@ -39,31 +11,12 @@ import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/domain/vfs/vfs.types';
 import type { stereotype } from '../../features/diagram/types/diagram.types';
 
-// ─── Drag type constants ──────────────────────────────────────────────────────
-
-/** Payload set by the tool palette — creates a NEW semantic element on drop. */
 export const DRAG_TYPE_NEW = 'application/libreuml-node' as const;
-
-/**
- * Payload set by the Model Explorer SSOT sidebar — the semantic element already
- * exists. The drop handler must ONLY create a ViewNode; it must NOT touch ModelStore.
- */
 export const DRAG_TYPE_EXISTING = 'application/libreuml-existing-node' as const;
-
 export const DRAG_TYPE_PACKAGE = 'application/libreuml-package' as const;
 
-// ─── Node dimensions (for centering) ──────────────────────────────────────────
-
-const NODE_WIDTH = 256;  // Matches ClassShape MIN_W
-const NODE_HEIGHT = 120; // Approximate default height
-
-// ─── VFS name helper ──────────────────────────────────────────────────────────
-
-/**
- * Scans an array of IR element names and returns the next available "Prefix N" name.
- * Mirrors the logic of getNextDefaultName but works with plain string arrays
- * so it can operate on SemanticModel collections without depending on DomainNode types.
- */
+const NODE_WIDTH = 256;
+const NODE_HEIGHT = 120;
 export function getNextVFSName(existingNames: string[], prefix: string): string {
   const pattern = new RegExp(`^${prefix}\\s+(\\d+)$`);
   let max = 0;
@@ -77,15 +30,6 @@ export function getNextVFSName(existingNames: string[], prefix: string): string 
   return `${prefix} ${max + 1}`;
 }
 
-// ─── VFS semantic drop configuration ─────────────────────────────────────────
-
-/**
- * Configuration for each stereotype when dropped onto a VFS .luml canvas.
- * - `getNextName(model)` : Generates an auto-incremented name by scanning the
- *                          relevant SemanticModel collection (e.g. "Class 3").
- * - `create(name)`       : Calls the appropriate ModelStore factory and returns
- *                          the new semantic element's stable ID.
- */
 interface DropConfig {
   getNextName: (model: SemanticModel) => string;
   applyToModelDraft: (modelDraft: any, id: string, name: string, isExternal?: boolean) => void;
@@ -178,8 +122,6 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
   },
 };
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
 export interface UseKonvaDnDParams {
   stageRef: React.RefObject<Konva.Stage | null>;
 }
@@ -203,7 +145,6 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
   const setHideDuplicateFileWarning = useSettingsStore((s) => s.setHideDuplicateFileWarning);
   const showToast = useToastStore((s) => s.show);
 
-  // Modal state
   const [duplicateModal, setDuplicateModal] = useState({
     isOpen: false,
     fileName: '',
@@ -211,31 +152,21 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     position: { x: 0, y: 0 },
   });
 
-  // ─── Position helpers ─────────────────────────────────────────────────────
-
   const getCenteredPosition = useCallback(
     (clientX: number, clientY: number) => {
       const stage = stageRef.current;
       if (!stage) return { x: 0, y: 0 };
 
-      // Get stage container position
       const container = stage.container();
       const rect = container.getBoundingClientRect();
-
-      // Convert screen coordinates to container-relative coordinates
       const containerX = clientX - rect.left;
       const containerY = clientY - rect.top;
-
-      // Apply inverse viewport transform to get canvas coordinates
-      const scale = stage.scaleX(); // Assumes uniform scaling
+      const scale = stage.scaleX();
       const stageX = stage.x();
       const stageY = stage.y();
-
-      // Canvas coordinates: (screen - stageOffset) / scale
       const canvasX = (containerX - stageX) / scale;
       const canvasY = (containerY - stageY) / scale;
 
-      // Center node under cursor
       return {
         x: canvasX - NODE_WIDTH / 2,
         y: canvasY - NODE_HEIGHT / 2,
@@ -243,8 +174,6 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     },
     [stageRef],
   );
-
-  // ─── Helper: Get element name ─────────────────────────────────────────────
 
   const getElementName = useCallback((elementId: string): string => {
     if (!activeTabId) return 'Element';
@@ -277,8 +206,6 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     }
   }, [activeTabId]);
 
-  // ─── Helper: Check if element exists in diagram ──────────────────────────
-
   const checkDuplicateElement = useCallback(
     (elementId: string): ViewNode | null => {
       if (!activeTabId) return null;
@@ -291,13 +218,10 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       if (!isDiagramView(freshContent)) return null;
       const freshView = freshContent as DiagramView;
 
-      // Find existing ViewNode with same elementId
       return freshView.nodes.find((vn) => vn.elementId === elementId) ?? null;
     },
     [activeTabId],
   );
-
-  // ─── Helper: Add element to diagram ───────────────────────────────────────
 
   const addElementToDiagram = useCallback(
     (elementId: string, position: { x: number; y: number }, replaceNodeId?: string) => {
@@ -319,8 +243,6 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     },
     [activeTabId, updateFileContent],
   );
-
-  // ─── Modal handlers ───────────────────────────────────────────────────────
 
   const handleModalReplace = useCallback(() => {
     const { elementId, position } = duplicateModal;
@@ -344,18 +266,22 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     [setHideDuplicateFileWarning],
   );
 
-  // ─── onDragOver ───────────────────────────────────────────────────────────
-
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   }, []);
 
-  // ─── onDrop ───────────────────────────────────────────────────────────────
-
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
+      
+      const hasPackageData = event.dataTransfer.types.includes(DRAG_TYPE_PACKAGE.toLowerCase());
+      const hasNewData = event.dataTransfer.types.includes(DRAG_TYPE_NEW.toLowerCase());
+      const hasExistingData = event.dataTransfer.types.includes(DRAG_TYPE_EXISTING.toLowerCase());
+      
+      if (!hasPackageData && !hasNewData && !hasExistingData) {
+        return;
+      }
 
       const position = getCenteredPosition(event.clientX, event.clientY);
 
@@ -375,21 +301,18 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
         let existingPackageId: string | null = null;
         let existingViewNodeId: string | null = null;
         
-        // Helper to find parent package ViewNode if this is a nested package
         const findParentPackageViewNode = (fullPath: string): string | null => {
           const segments = fullPath.split('.');
-          if (segments.length <= 1) return null; // No parent
+          if (segments.length <= 1) return null;
           
           const parentPath = segments.slice(0, -1).join('.');
           const currentModel = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
           if (!currentModel) return null;
           
-          // Find parent package by matching effective path
           for (const vn of freshContent.nodes) {
             const pkg = currentModel.packages?.[vn.elementId];
             if (!pkg) continue;
             
-            // Build effective path for this package considering its visual nesting
             let effectivePath = pkg.name;
             let currentVN = vn;
             while (currentVN.parentPackageId) {
@@ -408,14 +331,12 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           return null;
         };
         
-        // Check if package already exists on canvas by matching effective path
         const currentModel = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
         if (currentModel?.packages) {
           for (const vn of freshContent.nodes) {
             const pkg = currentModel.packages[vn.elementId];
             if (!pkg) continue;
             
-            // Build effective path for this package
             let effectivePath = pkg.name;
             let currentVN = vn;
             while (currentVN.parentPackageId) {
@@ -435,13 +356,11 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           }
         }
         
-        // If package already exists on canvas, show message and don't create duplicate
         if (existingViewNodeId) {
           showToast(`"${packageFullPath}" is already on canvas. Drag it directly to move it.`);
           return;
         }
         
-        // If package doesn't exist on canvas but exists in model, find its ID
         if (!existingPackageId && currentModel) {
           let pkg = Object.values(currentModel.packages ?? {}).find(p => p.name === packageFullPath);
           if (!pkg) {
@@ -450,12 +369,10 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           }
           if (pkg) existingPackageId = pkg.id;
         }
-        // If package exists in model but not on canvas, add it
+
         if (existingPackageId) {
-          // Find parent package ViewNode for nested packages
           const parentViewNodeId = findParentPackageViewNode(packageFullPath);
           
-          // Add with parent relationship if applicable
           undoTransaction({
             label: `Add to canvas: ${packageFullPath}`,
             scope: isStandaloneFile ? activeTabId : 'global',
@@ -480,13 +397,11 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           return;
         }
 
-        // Package doesn't exist in model, create it
         const newElementId = crypto.randomUUID();
         const newViewNodeId = crypto.randomUUID();
         const packageName = packageFullPath.split('.').pop() || packageFullPath;
         const parentViewNodeId = findParentPackageViewNode(packageFullPath);
         
-        // If this is a nested package but parent is not on canvas, warn the user
         const segments = packageFullPath.split('.');
         if (segments.length > 1 && !parentViewNodeId) {
           const parentPath = segments.slice(0, -1).join('.');
@@ -538,7 +453,6 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
             }],
           });
         } else {
-          const modelState = useModelStore.getState();
           const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
 
           undoTransaction({
@@ -594,19 +508,16 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
 
       const existingElementId = event.dataTransfer.getData(DRAG_TYPE_EXISTING);
       if (existingElementId) {
-        // Check if element already exists in diagram
         const existingNode = checkDuplicateElement(existingElementId);
         
         if (existingNode) {
           const elementName = getElementName(existingElementId);
           
-          // If warning is disabled, show toast and return
           if (hideDuplicateFileWarning) {
             showToast(`"${elementName}" is already in the diagram`);
             return;
           }
           
-          // Show modal
           setDuplicateModal({
             isOpen: true,
             fileName: elementName,
@@ -616,7 +527,6 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           return;
         }
 
-        // Element not in diagram, add it
         addElementToDiagram(existingElementId, position);
         return;
       }
@@ -625,21 +535,15 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
 
       if (!stereotype) return;
 
-      // ===================================================================
-      // VFS SEMANTIC DROP
-      // ===================================================================
       if (!activeTabId) return;
 
       const dropConfig = VFS_DROP_CONFIG[stereotype];
 
       if (!dropConfig) {
-        console.warn(
-          `[VFS Drop] Stereotype "${stereotype}" has no VFS semantic mapping. Drop ignored.`,
-        );
+        console.warn(`[VFS Drop] Stereotype "${stereotype}" has no VFS semantic mapping. Drop ignored.`);
         return;
       }
 
-      // Fresh read on every drop — avoids stale-closure overwrite on rapid drops.
       const freshProject = useVFSStore.getState().project;
       if (!freshProject) return;
       const freshFileNode = freshProject.nodes[activeTabId];

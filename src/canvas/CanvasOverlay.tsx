@@ -75,7 +75,7 @@ export default function CanvasOverlay({
             y={contextMenu.y}
             options={contextMenuOptions}
             onClose={onCloseContextMenu}
-            centered={contextMenu.type === 'node'}
+            centered={true}
           />
         </div>
       )}

@@ -22,10 +22,12 @@ import type { CanvasNode } from './interactions/useDragHandler';
 import { useConnectionDraw } from './interactions/useConnectionDraw';
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import { usePackageDrop } from './interactions/usePackageDrop';
-import { withUndo } from '../core/undo/undoBridge';
+import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
 import DuplicateFileModal from '../components/shared/DuplicateFileModal';
+import ConfirmationModal from '../components/shared/ConfirmationModal';
+import { DeletePackageModal } from '../features/diagram/components/layout/packageExplorer/DeletePackageModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
 import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
@@ -33,8 +35,11 @@ import { useVFSCanvasController } from '../features/diagram/hooks/useVFSCanvasCo
 import { useUiStore } from '../store/uiStore';
 import { useModelStore } from '../store/model.store';
 import { useToastStore } from '../store/toast.store';
+import { useVFSStore } from '../store/project-vfs.store';
 import { useStageStore } from './store/stageStore';
 import type { KonvaNodeChange, KonvaEdgeChange } from './types/canvas.types';
+import type { ViewNode } from '../core/domain/vfs/vfs.types';
+import { useTranslation } from 'react-i18next';
 import {
   isNoteViewModel,
   isPackageViewModel,
@@ -56,7 +61,26 @@ const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
 export default function KonvaCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [deletePackageModal, setDeletePackageModal] = useState<{
+    isOpen: boolean;
+    packageName: string;
+    packageId: string;
+    viewNodeId: string;
+    hasClasses: boolean;
+    classCount: number;
+  }>({
+    isOpen: false,
+    packageName: '',
+    packageId: '',
+    viewNodeId: '',
+    hasClasses: false,
+    classCount: 0,
+  });
 
+  const [clearCanvasModal, setClearCanvasModal] = useState(false);
+
+  const { t } = useTranslation();
+  const theme = useSettingsStore((s) => s.theme);
   const showGrid = useSettingsStore((s) => s.showGrid);
   const highlightConnections = useSettingsStore((s) => s.showAllEdges);
 
@@ -562,7 +586,6 @@ export default function KonvaCanvas() {
 
   const {
     openSSoTClassEditor,
-    openClearConfirmation,
     openVfsEdgeAction,
     openMethodGenerator,
   } = useUiStore();
@@ -577,13 +600,172 @@ export default function KonvaCanvas() {
     [stageRef],
   );
 
+  const deletePackageFromModel = useCallback((packageId: string, packageName: string, deleteClasses: boolean) => {
+    const activeModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+    if (!activeModel || !activeTabId) return;
+
+    const allEls = [
+      ...Object.values(activeModel.classes),
+      ...Object.values(activeModel.interfaces),
+      ...Object.values(activeModel.enums),
+    ];
+    const affected = allEls.filter(
+      (el) => el.packageName === packageName || el.packageName?.startsWith(`${packageName}.`)
+    );
+
+    const deletedRelationIds = new Set<string>();
+    if (deleteClasses && activeModel.relations) {
+      const affectedIds = new Set(affected.map((el) => el.id));
+      for (const [rid, rel] of Object.entries(activeModel.relations)) {
+        if (affectedIds.has(rel.sourceId) || affectedIds.has(rel.targetId)) {
+          deletedRelationIds.add(rid);
+        }
+      }
+    }
+
+    if (vfsController.isStandalone) {
+      undoTransaction({
+        label: `Delete Package: ${packageName}`,
+        scope: activeTabId,
+        mutations: [{
+          store: 'vfs',
+          mutate: (draft: any) => {
+            const file = draft.project?.nodes[activeTabId];
+            if (!file || file.type !== 'FILE') return;
+
+            if (file.localModel) {
+              delete file.localModel.packages[packageId];
+              if (file.localModel.packageNames) {
+                file.localModel.packageNames = file.localModel.packageNames.filter(
+                  (n: string) => n !== packageName && !n.startsWith(`${packageName}.`)
+                );
+              }
+              if (deleteClasses) {
+                affected.forEach((el) => {
+                  delete file.localModel.classes?.[el.id];
+                  delete file.localModel.interfaces?.[el.id];
+                  delete file.localModel.enums?.[el.id];
+                });
+                for (const rid of deletedRelationIds) {
+                  if (file.localModel.relations) delete file.localModel.relations[rid];
+                }
+              } else {
+                affected.forEach((el) => {
+                  const rec = file.localModel.classes?.[el.id]
+                    ?? file.localModel.interfaces?.[el.id]
+                    ?? file.localModel.enums?.[el.id];
+                  if (rec) rec.packageName = undefined;
+                });
+              }
+              file.localModel.updatedAt = Date.now();
+            }
+
+            if (isDiagramView(file.content)) {
+              const pkgVN = file.content.nodes.find((vn: ViewNode) => vn.elementId === packageId);
+              if (pkgVN) {
+                file.content.nodes = file.content.nodes
+                  .map((vn: ViewNode) =>
+                    vn.parentPackageId === pkgVN.id ? { ...vn, parentPackageId: null } : vn
+                  )
+                  .filter((vn: ViewNode) => vn.elementId !== packageId);
+              }
+              if (deleteClasses) {
+                const deletedIds = new Set(affected.map((el) => el.id));
+                file.content.nodes = file.content.nodes.filter((vn: ViewNode) => !deletedIds.has(vn.elementId));
+                file.content.edges = file.content.edges.filter((ve: any) => !deletedRelationIds.has(ve.relationId));
+              }
+            }
+          },
+        }],
+      });
+    } else {
+      undoTransaction({
+        label: `Delete Package: ${packageName}`,
+        scope: 'global',
+        mutations: [
+          {
+            store: 'model',
+            mutate: (draft: any) => {
+              if (!draft.model) return;
+              delete draft.model.packages[packageId];
+              if (draft.model.packageNames) {
+                draft.model.packageNames = draft.model.packageNames.filter(
+                  (n: string) => n !== packageName && !n.startsWith(`${packageName}.`)
+                );
+              }
+              if (deleteClasses) {
+                affected.forEach((el) => {
+                  delete draft.model.classes[el.id];
+                  delete draft.model.interfaces[el.id];
+                  delete draft.model.enums[el.id];
+                });
+                for (const rid of deletedRelationIds) {
+                  delete draft.model.relations[rid];
+                }
+              } else {
+                affected.forEach((el) => {
+                  const rec = draft.model.classes[el.id]
+                    ?? draft.model.interfaces[el.id]
+                    ?? draft.model.enums[el.id];
+                  if (rec) rec.packageName = undefined;
+                });
+              }
+              draft.model.updatedAt = Date.now();
+            },
+          },
+          {
+            store: 'vfs',
+            mutate: (draft: any) => {
+              if (!draft.project) return;
+              const deletedElementIds = new Set(deleteClasses ? affected.map((el) => el.id) : []);
+              for (const fileNode of Object.values(draft.project.nodes as Record<string, any>)) {
+                if (fileNode.type !== 'FILE' || !isDiagramView(fileNode.content)) continue;
+                const pkgVN = fileNode.content.nodes.find((vn: ViewNode) => vn.elementId === packageId);
+                if (pkgVN) {
+                  fileNode.content.nodes = fileNode.content.nodes
+                    .map((vn: ViewNode) =>
+                      vn.parentPackageId === pkgVN.id ? { ...vn, parentPackageId: null } : vn
+                    )
+                    .filter((vn: ViewNode) => vn.elementId !== packageId);
+                }
+                if (deleteClasses && deletedElementIds.size > 0) {
+                  fileNode.content.nodes = fileNode.content.nodes.filter(
+                    (vn: ViewNode) => !deletedElementIds.has(vn.elementId)
+                  );
+                  fileNode.content.edges = fileNode.content.edges.filter(
+                    (ve: any) => !deletedRelationIds.has(ve.relationId)
+                  );
+                }
+              }
+            },
+          },
+        ],
+      });
+    }
+    useToastStore.getState().show(`Package "${packageName}" deleted.`);
+  }, [vfsController, activeTabId]);
+
+  const clearCanvas = useCallback(() => {
+    if (!activeTabId) return;
+    
+    withUndo('vfs', 'Clear Canvas', activeTabId, (draft: any) => {
+      const node = draft.project?.nodes[activeTabId];
+      if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+      node.content.nodes = [];
+      node.content.edges = [];
+    });
+    
+    useToastStore.getState().show('Canvas cleared');
+    setClearCanvasModal(false);
+  }, [activeTabId]);
+
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (nodeId) => {
       const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
       if (viewNode?.elementId) openSSoTClassEditor(viewNode.elementId);
       closeMenu();
     },
-    onClearCanvas: () => { openClearConfirmation(); closeMenu(); },
+    onClearCanvas: () => { setClearCanvasModal(true); closeMenu(); },
     onEditEdgeMultiplicity: (id) => { openVfsEdgeAction(id); closeMenu(); },
     onGenerateMethods: (id) => { openMethodGenerator(id); closeMenu(); },
     onDeleteNode: (nodeId) => {
@@ -591,6 +773,35 @@ export default function KonvaCanvas() {
       closeMenu();
     },
     onDeleteNodeFromModel: (nodeId) => {
+      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
+      if (!viewNode?.elementId) return;
+
+      const activeModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+      if (!activeModel) return;
+
+      const pkg = activeModel.packages[viewNode.elementId];
+      if (pkg) {
+        const allEls = [
+          ...Object.values(activeModel.classes),
+          ...Object.values(activeModel.interfaces),
+          ...Object.values(activeModel.enums),
+        ];
+        const classesInPackage = allEls.filter(
+          (el) => el.packageName === pkg.name || el.packageName?.startsWith(`${pkg.name}.`)
+        );
+
+        setDeletePackageModal({
+          isOpen: true,
+          packageName: pkg.name,
+          packageId: pkg.id,
+          viewNodeId: nodeId,
+          hasClasses: classesInPackage.length > 0,
+          classCount: classesInPackage.length,
+        });
+        closeMenu();
+        return;
+      }
+
       vfsController.deleteElementFromModel(nodeId);
       closeMenu();
     },
@@ -1067,6 +1278,30 @@ export default function KonvaCanvas() {
         onReplace={duplicateModal.onReplace}
         onCancel={duplicateModal.onCancel}
         onDontShowAgain={duplicateModal.onDontShowAgain}
+      />
+
+      <ConfirmationModal
+        isOpen={clearCanvasModal}
+        title={t('modals.confirmation.clearCanvasTitle') || 'Clear Canvas'}
+        message={t('modals.confirmation.clearCanvasMessage') || 'Are you sure you want to remove all elements from this diagram? This action cannot be undone.'}
+        onConfirm={clearCanvas}
+        onCancel={() => setClearCanvasModal(false)}
+      />
+
+      <DeletePackageModal
+        isOpen={deletePackageModal.isOpen}
+        packageName={deletePackageModal.packageName}
+        hasClasses={deletePackageModal.hasClasses}
+        classCount={deletePackageModal.classCount}
+        onConfirm={(deleteClasses) => {
+          deletePackageFromModel(deletePackageModal.packageId, deletePackageModal.packageName, deleteClasses);
+          setDeletePackageModal({ isOpen: false, packageName: '', packageId: '', viewNodeId: '', hasClasses: false, classCount: 0 });
+        }}
+        onCancel={() => {
+          setDeletePackageModal({ isOpen: false, packageName: '', packageId: '', viewNodeId: '', hasClasses: false, classCount: 0 });
+        }}
+        isDark={theme === 'dark'}
+        t={t}
       />
     </div>
   );

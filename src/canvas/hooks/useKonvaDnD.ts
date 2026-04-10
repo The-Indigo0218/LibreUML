@@ -371,15 +371,59 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
         if (!isDiagramView(freshContent)) return;
 
         const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
-        const newElementId = crypto.randomUUID();
-        const newViewNodeId = crypto.randomUUID();
-
+        const packageFullPath = packageData;
+        let existingPackageId: string | null = null;
+        
         if (isStandaloneFile) {
           const currentLocalModel = getLocalModel(activeTabId);
-          const packageName = currentLocalModel
-            ? getNextVFSName(Object.values(currentLocalModel.packages).map((p) => p.name), 'Package')
-            : 'Package 1';
+          if (currentLocalModel) {
+            let pkg = Object.values(currentLocalModel.packages).find(p => p.name === packageFullPath);
+            if (!pkg) {
+              const lastSegment = packageFullPath.split('.').pop();
+              pkg = Object.values(currentLocalModel.packages).find(p => p.name === lastSegment);
+            }
+            if (pkg) existingPackageId = pkg.id;
+          }
+        } else {
+          const modelState = useModelStore.getState();
+          const currentModel = modelState.model;
+          if (currentModel) {
+            let pkg = Object.values(currentModel.packages).find(p => p.name === packageFullPath);
+            if (!pkg) {
+              const lastSegment = packageFullPath.split('.').pop();
+              pkg = Object.values(currentModel.packages).find(p => p.name === lastSegment);
+            }
+            if (pkg) existingPackageId = pkg.id;
+          }
+        }
 
+        if (existingPackageId) {
+          const existingNode = checkDuplicateElement(existingPackageId);
+          
+          if (existingNode) {
+            if (hideDuplicateFileWarning) {
+              showToast(`"${packageFullPath}" is already in the diagram`);
+              return;
+            }
+            
+            setDuplicateModal({
+              isOpen: true,
+              fileName: packageFullPath,
+              elementId: existingPackageId,
+              position,
+            });
+            return;
+          }
+
+          addElementToDiagram(existingPackageId, position);
+          return;
+        }
+
+        const newElementId = crypto.randomUUID();
+        const newViewNodeId = crypto.randomUUID();
+        const packageName = packageFullPath.split('.').pop() || packageFullPath;
+
+        if (isStandaloneFile) {
           undoTransaction({
             label: `Create Package: ${packageName}`,
             scope: activeTabId,
@@ -423,11 +467,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           });
         } else {
           const modelState = useModelStore.getState();
-          const currentModel = modelState.model;
           const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
-          const packageName = currentModel
-            ? getNextVFSName(Object.values(currentModel.packages).map((p) => p.name), 'Package')
-            : 'Package 1';
 
           undoTransaction({
             label: `Create Package: ${packageName}`,

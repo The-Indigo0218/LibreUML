@@ -190,14 +190,17 @@ export const useDiagramMenus = ({
           effectiveType === "CLASS" ||
           effectiveType === "INTERFACE" ||
           effectiveType === "ABSTRACT_CLASS";
+        const isPackageType = effectiveType === "PACKAGE";
         const isNodeExternal = getIsNodeExternal(nodeId);
 
-        const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [
-          {
+        const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [];
+
+        if (!isPackageType) {
+          baseOptions.push({
             label: t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
-          },
-        ];
+          });
+        }
 
         if (isClassType) {
           const resolvedId = getElementId(nodeId) ?? nodeId;
@@ -228,10 +231,14 @@ export const useDiagramMenus = ({
           label: t("contextMenu.node.removeFromDiagram"),
           onClick: () => onDeleteNode(nodeId),
         });
-        baseOptions.push({
-          label: t("contextMenu.node.duplicate") || "Duplicate",
-          onClick: () => onDuplicateNode(nodeId),
-        });
+
+        if (!isPackageType) {
+          baseOptions.push({
+            label: t("contextMenu.node.duplicate") || "Duplicate",
+            onClick: () => onDuplicateNode(nodeId),
+          });
+        }
+
         if (!isStandalone) {
           baseOptions.push({
             label: isNodeExternal

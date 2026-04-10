@@ -636,6 +636,7 @@ export default function KonvaCanvas() {
       if (cls) return cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS';
       if (activeModel.interfaces[viewNode.elementId]) return 'INTERFACE';
       if (activeModel.enums[viewNode.elementId]) return 'ENUM';
+      if (activeModel.packages[viewNode.elementId]) return 'PACKAGE';
       return 'NOTE';
     },
     getIsNodeExternal: (nodeId) => {

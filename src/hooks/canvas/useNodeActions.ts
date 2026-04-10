@@ -106,6 +106,7 @@ export function useNodeActions({
           localM.classes[elementId]?.name ??
           localM.interfaces[elementId]?.name ??
           localM.enums[elementId]?.name ??
+          localM.packages[elementId]?.name ??
           'Element';
 
         undoTransaction({
@@ -121,6 +122,7 @@ export function useNodeActions({
               if (lm.classes[elementId])         { delete lm.classes[elementId]; }
               else if (lm.interfaces[elementId]) { delete lm.interfaces[elementId]; }
               else if (lm.enums[elementId])      { delete lm.enums[elementId]; }
+              else if (lm.packages[elementId])   { delete lm.packages[elementId]; }
               cascadeDeleteRelations(lm, elementId);
               lm.updatedAt = Date.now();
               if (isDiagramView(node.content)) {
@@ -142,6 +144,7 @@ export function useNodeActions({
           ms.model.classes[elementId]?.name ??
           ms.model.interfaces[elementId]?.name ??
           ms.model.enums[elementId]?.name ??
+          ms.model.packages[elementId]?.name ??
           'Element';
 
         const projectSnapshot = currentProject;
@@ -157,6 +160,7 @@ export function useNodeActions({
                 if (draft.model.classes[elementId])         { delete draft.model.classes[elementId]; }
                 else if (draft.model.interfaces[elementId]) { delete draft.model.interfaces[elementId]; }
                 else if (draft.model.enums[elementId])      { delete draft.model.enums[elementId]; }
+                else if (draft.model.packages[elementId])   { delete draft.model.packages[elementId]; }
                 cascadeDeleteRelations(draft.model, elementId);
                 draft.model.updatedAt = Date.now();
               },

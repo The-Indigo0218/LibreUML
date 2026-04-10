@@ -25,7 +25,8 @@ import { useViewportControlStore } from '../store/viewportControlStore';
 const MAX_SCALE = 5;
 const ZOOM_FACTOR = 1.1;
 const BOUNDS_MARGIN = 200; // Padding around content bounds
-const DEFAULT_MIN_SCALE = 0.1; // Fallback when no content
+const DEFAULT_MIN_SCALE = 0.05; // Fallback when no content (allow more zoom out)
+const ABSOLUTE_MIN_SCALE = 0.05; // Absolute minimum zoom level
 
 export interface Viewport {
   x: number;
@@ -71,9 +72,16 @@ export function useViewport(options: UseViewportOptions = {}) {
       };
     }
 
-    const scaleX = stageWidth / contentBounds.width;
-    const scaleY = stageHeight / contentBounds.height;
-    const minScale = Math.min(scaleX, scaleY, 1); // Don't zoom in beyond 1:1
+    // Calculate scale needed to fit all content in viewport
+    const scaleX = stageWidth / (contentBounds.width + BOUNDS_MARGIN * 2);
+    const scaleY = stageHeight / (contentBounds.height + BOUNDS_MARGIN * 2);
+    
+    // Use the smaller scale to ensure all content fits
+    // Allow zooming out further than content bounds if needed
+    const fitScale = Math.min(scaleX, scaleY);
+    
+    // Set minScale to allow viewing all content, but not less than absolute minimum
+    const minScale = Math.max(ABSOLUTE_MIN_SCALE, fitScale * 0.8); // 0.8 gives extra room
 
     const bounds: ViewportBounds = {
       x: contentBounds.x - BOUNDS_MARGIN,

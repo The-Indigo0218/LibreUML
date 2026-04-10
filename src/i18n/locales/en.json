@@ -242,10 +242,17 @@
       "exitMessage": "Are you sure you want to exit? Unsaved changes will be lost.",
       "clearTitle": "Clear Entire Canvas?",
       "clearMessage": "This action cannot be undone and you will lose unsaved changes.",
+      "clearCanvasTitle": "Clear Canvas",
+      "clearCanvasMessage": "Are you sure you want to clear the entire canvas? This action cannot be undone.",
       "newTitle": "Create New Diagram",
       "newMessage": "Are you sure? Unsaved changes in the current diagram will be lost.",
       "discardTitle": "Discard Changes?",
       "discardMessage": "The diagram will revert to its last saved state.",
+      "deletePackageTitle": "Delete Package",
+      "deletePackageWithClassesCount": "The package \"{{name}}\" contains {{count}} class(es). What would you like to do?",
+      "deletePackageEmpty": "Are you sure you want to delete the package \"{{name}}\"?",
+      "deletePackageAndClasses": "Delete package and all classes",
+      "deletePackageKeepClasses": "Delete package only (keep classes)",
       "confirm": "Confirm",
       "cancel": "Cancel"
     },
@@ -330,6 +337,20 @@
       "generateGettersSetters": "Getters & Setters",
       "generateConstructor": "Constructor",
       "generateAll": "Generate All",
+      "cancel": "Cancel"
+    },
+    "packageHierarchy": {
+      "title": "Place Package Hierarchy",
+      "parentContains": "The parent package '{{parentPath}}' contains {{content}}. How would you like to place it?",
+      "class_one": "1 class",
+      "class_other": "{{count}} classes",
+      "subPackage_one": "1 sub-package",
+      "subPackage_other": "{{count}} sub-packages",
+      "and": "and",
+      "placeOnlyTitle": "Place only '{{packagePath}}'",
+      "placeOnlyDesc": "Place this package independently with full qualified name",
+      "placeHierarchyTitle": "Place complete '{{parentPath}}' hierarchy",
+      "placeHierarchyDesc": "Place parent package with all classes, sub-packages, and relationships",
       "cancel": "Cancel"
     }
   },

@@ -270,13 +270,39 @@ function makeReactFlowNoteNode(
   };
 }
 
+function computePackageDisplayName(
+  viewNode: ViewNode,
+  pkg: IRPackage,
+  allViewNodes: ViewNode[],
+  allPackages: Record<string, IRPackage>,
+): string {
+  if (!viewNode.parentPackageId) {
+    // Standalone package — use stored name as-is (may already be full qualified)
+    return pkg.name;
+  }
+  // Walk parent chain, collecting last segments to build full qualified name
+  const segments: string[] = [];
+  let currentId: string | null | undefined = viewNode.parentPackageId;
+  while (currentId) {
+    const parentVN = allViewNodes.find((vn) => vn.id === currentId);
+    if (!parentVN) break;
+    const parentPkg = allPackages[parentVN.elementId];
+    if (!parentPkg) break;
+    segments.unshift(parentPkg.name.split('.').pop() || parentPkg.name);
+    currentId = parentVN.parentPackageId;
+  }
+  segments.push(pkg.name.split('.').pop() || pkg.name);
+  return segments.join('.');
+}
+
 function makeReactFlowPackageNode(
   viewNode: ViewNode,
   pkg: IRPackage,
   allViewNodes: ViewNode[],
+  allPackages: Record<string, IRPackage>,
 ) {
   const childCount = allViewNodes.filter(vn => vn.parentPackageId === viewNode.id).length;
-  
+
   const depth = (() => {
     let d = 0;
     let currentId = viewNode.parentPackageId;
@@ -292,7 +318,7 @@ function makeReactFlowPackageNode(
   const viewModel: PackageViewModel = {
     __brand: 'package',
     id: viewNode.id,
-    name: pkg.name,
+    name: computePackageDisplayName(viewNode, pkg, allViewNodes, allPackages),
     collapsed: viewNode.collapsed ?? false,
     color: viewNode.color,
     childCount,
@@ -569,7 +595,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
       }
 
       if (kind === 'PACKAGE') {
-        return makeReactFlowPackageNode(viewNode, element as IRPackage, diagramView.nodes);
+        return makeReactFlowPackageNode(viewNode, element as IRPackage, diagramView.nodes, model.packages);
       }
 
       const label = element?.name ?? 'NewClass';

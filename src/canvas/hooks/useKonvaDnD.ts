@@ -122,6 +122,35 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
   },
 };
 
+function getParentContent(
+  parentPath: string,
+  draggingPath: string,
+  model: SemanticModel | null,
+): { classCount: number; subPackageCount: number; siblingCount: number } {
+  if (!model) return { classCount: 0, subPackageCount: 0, siblingCount: 0 };
+
+  const classCount = [
+    ...Object.values(model.classes),
+    ...Object.values(model.interfaces),
+    ...Object.values(model.enums),
+  ].filter((el: any) => el.packageName === parentPath).length;
+
+  const allPkgPaths = new Set([
+    ...Object.values(model.packages).map((p) => p.name),
+    ...(model.packageNames ?? []),
+  ]);
+  const directSubs = [...allPkgPaths].filter((n) => {
+    if (!n.startsWith(parentPath + '.')) return false;
+    return !n.slice(parentPath.length + 1).includes('.');
+  });
+
+  return {
+    classCount,
+    subPackageCount: directSubs.length,
+    siblingCount: directSubs.filter((n) => n !== draggingPath).length,
+  };
+}
+
 export interface UseKonvaDnDParams {
   stageRef: React.RefObject<Konva.Stage | null>;
 }
@@ -135,6 +164,16 @@ export interface UseKonvaDnDResult {
     onReplace: () => void;
     onCancel: () => void;
     onDontShowAgain: (checked: boolean) => void;
+  };
+  hierarchyModal: {
+    isOpen: boolean;
+    packageFullPath: string;
+    parentPath: string;
+    classCount: number;
+    subPackageCount: number;
+    onPlaceSimple: () => void;
+    onPlaceHierarchy: () => void;
+    onCancel: () => void;
   };
 }
 
@@ -150,6 +189,24 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     fileName: '',
     elementId: '',
     position: { x: 0, y: 0 },
+  });
+
+  const [hierarchyModal, setHierarchyModal] = useState<{
+    isOpen: boolean;
+    packageFullPath: string;
+    parentPath: string;
+    classCount: number;
+    subPackageCount: number;
+    position: { x: number; y: number };
+    isStandaloneFile: boolean;
+  }>({
+    isOpen: false,
+    packageFullPath: '',
+    parentPath: '',
+    classCount: 0,
+    subPackageCount: 0,
+    position: { x: 0, y: 0 },
+    isStandaloneFile: false,
   });
 
   const getCenteredPosition = useCallback(
@@ -266,6 +323,418 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     [setHideDuplicateFileWarning],
   );
 
+  const handleHierarchyCancel = useCallback(() => {
+    setHierarchyModal((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const handleHierarchyPlaceSimple = useCallback(() => {
+    const { packageFullPath, position, isStandaloneFile } = hierarchyModal;
+    setHierarchyModal((prev) => ({ ...prev, isOpen: false }));
+    if (!activeTabId) return;
+
+    const freshProject = useVFSStore.getState().project;
+    if (!freshProject) return;
+    const currentModel = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
+
+    const newElementId = crypto.randomUUID();
+    const newViewNodeId = crypto.randomUUID();
+
+    // If package already exists in model, just add a view node
+    if (currentModel?.packages) {
+      const existingPkg =
+        Object.values(currentModel.packages).find((p) => p.name === packageFullPath) ??
+        Object.values(currentModel.packages).find((p) => p.name === packageFullPath.split('.').pop());
+      if (existingPkg) {
+        undoTransaction({
+          label: `Add to canvas: ${packageFullPath}`,
+          scope: isStandaloneFile ? activeTabId : 'global',
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+              if (node.content.nodes.some((vn: any) => vn.elementId === existingPkg.id)) return;
+              node.content.nodes.push({
+                id: newViewNodeId, elementId: existingPkg.id,
+                x: position.x, y: position.y, collapsed: false, parentPackageId: null,
+              });
+            },
+          }],
+          affectedElementIds: [existingPkg.id],
+        });
+        return;
+      }
+    }
+
+    if (isStandaloneFile) {
+      undoTransaction({
+        label: `Create Package: ${packageFullPath}`,
+        scope: activeTabId,
+        mutations: [{
+          store: 'vfs',
+          mutate: (draft: any) => {
+            const node = draft.project?.nodes[activeTabId];
+            if (!node || node.type !== 'FILE') return;
+            if (!node.localModel) {
+              const now = Date.now();
+              node.localModel = {
+                id: crypto.randomUUID(), name: `${node.name} (standalone)`, version: '1.0.0',
+                packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                packageNames: [],
+                createdAt: now, updatedAt: now,
+              };
+            }
+            // Ensure packageNames array exists
+            if (!node.localModel.packageNames) node.localModel.packageNames = [];
+            
+            node.localModel.packages[newElementId] = {
+              id: newElementId, name: packageFullPath, kind: 'PACKAGE',
+              packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+            };
+            // Remove from packageNames to avoid duplication in sidebar
+            node.localModel.packageNames = node.localModel.packageNames.filter(
+              (name: string) => name !== packageFullPath
+            );
+            node.localModel.updatedAt = Date.now();
+            if (isDiagramView(node.content)) {
+              node.content.nodes.push({
+                id: newViewNodeId, elementId: newElementId,
+                x: position.x, y: position.y, collapsed: false, parentPackageId: null,
+              });
+            }
+          },
+        }],
+      });
+    } else {
+      const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
+      undoTransaction({
+        label: `Create Package: ${packageFullPath}`,
+        scope: 'global',
+        mutations: [
+          {
+            store: 'model',
+            mutate: (draft: any) => {
+              if (!draft.model) {
+                const now = Date.now();
+                draft.model = {
+                  id: domainModelId, name: 'Domain Model', version: '1.0.0',
+                  packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                  attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                  objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                  packageNames: [], createdAt: now, updatedAt: now,
+                };
+              }
+              // Ensure packageNames array exists
+              if (!draft.model.packageNames) draft.model.packageNames = [];
+              
+              draft.model.packages[newElementId] = {
+                id: newElementId, name: packageFullPath, kind: 'PACKAGE',
+                packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+              };
+              // Remove from packageNames to avoid duplication in sidebar
+              draft.model.packageNames = draft.model.packageNames.filter(
+                (name: string) => name !== packageFullPath
+              );
+              draft.model.updatedAt = Date.now();
+            },
+          },
+          {
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+              node.content.nodes.push({
+                id: newViewNodeId, elementId: newElementId,
+                x: position.x, y: position.y, collapsed: false, parentPackageId: null,
+              });
+            },
+          },
+        ],
+      });
+    }
+  }, [hierarchyModal, activeTabId]);
+
+  const handleHierarchyPlaceHierarchy = useCallback(() => {
+    const { parentPath, position, isStandaloneFile } = hierarchyModal;
+    setHierarchyModal((prev) => ({ ...prev, isOpen: false }));
+    if (!activeTabId) return;
+
+    const freshProject = useVFSStore.getState().project;
+    if (!freshProject) return;
+    const freshFileNode = freshProject.nodes[activeTabId] as VFSFile;
+    if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+    if (!isDiagramView(freshFileNode.content)) return;
+
+    const currentModel = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
+    if (!currentModel) return;
+
+    // Layout constants
+    const PAD = 40;
+    const TAB_H = 24;
+    const EL_W = 256;
+    const EL_H = 120;
+    const EL_GAP_X = 20;
+    const EL_GAP_Y = 20;
+    const COLS = 3;
+    const PKG_GAP = 20;
+
+    // Collect elements
+    const parentElements: Array<{ id: string }> = [
+      ...Object.values(currentModel.classes).filter((c) => c.packageName === parentPath),
+      ...Object.values(currentModel.interfaces).filter((i) => i.packageName === parentPath),
+      ...Object.values(currentModel.enums).filter((e) => e.packageName === parentPath),
+    ];
+
+    const allPkgPaths = new Set([
+      ...Object.values(currentModel.packages).map((p) => p.name),
+      ...(currentModel.packageNames ?? []),
+    ]);
+    const directSubPkgPaths = [...allPkgPaths]
+      .filter((n) => {
+        if (!n.startsWith(parentPath + '.')) return false;
+        return !n.slice(parentPath.length + 1).includes('.');
+      })
+      .sort();
+
+    const subPkgElements = new Map<string, Array<{ id: string }>>();
+    for (const subPkgPath of directSubPkgPaths) {
+      subPkgElements.set(subPkgPath, [
+        ...Object.values(currentModel.classes).filter((c) => c.packageName === subPkgPath),
+        ...Object.values(currentModel.interfaces).filter((i) => i.packageName === subPkgPath),
+        ...Object.values(currentModel.enums).filter((e) => e.packageName === subPkgPath),
+      ]);
+    }
+
+    // Compute layout
+    const parentElOffsets = new Map<string, { x: number; y: number }>();
+    let rowX = PAD;
+    let rowY = TAB_H + PAD;
+    for (let i = 0; i < parentElements.length; i++) {
+      parentElOffsets.set(parentElements[i].id, { x: rowX, y: rowY });
+      rowX += EL_W + EL_GAP_X;
+      if ((i + 1) % COLS === 0) { rowX = PAD; rowY += EL_H + EL_GAP_Y; }
+    }
+    const classRowsCount = Math.ceil(parentElements.length / COLS);
+    const classAreaBottom = TAB_H + PAD + (parentElements.length > 0 ? classRowsCount * (EL_H + EL_GAP_Y) : 0);
+
+    const subPkgOffsets = new Map<string, { x: number; y: number }>();
+    const subPkgElOffsets = new Map<string, Map<string, { x: number; y: number }>>();
+    let subPkgY = classAreaBottom + (parentElements.length > 0 ? PKG_GAP : 0);
+
+    const subPkgDims = new Map<string, { w: number; h: number }>();
+    for (const subPkgPath of directSubPkgPaths) {
+      const subEls = subPkgElements.get(subPkgPath) ?? [];
+      const elOffsets = new Map<string, { x: number; y: number }>();
+      let sx = PAD; let sy = TAB_H + PAD;
+      for (let i = 0; i < subEls.length; i++) {
+        elOffsets.set(subEls[i].id, { x: sx, y: sy });
+        sx += EL_W + EL_GAP_X;
+        if ((i + 1) % COLS === 0) { sx = PAD; sy += EL_H + EL_GAP_Y; }
+      }
+      subPkgElOffsets.set(subPkgPath, elOffsets);
+      const subRows = Math.max(1, Math.ceil(subEls.length / COLS));
+      const subW = Math.max(400, COLS * (EL_W + EL_GAP_X) + 2 * PAD);
+      const subH = Math.max(150, TAB_H + PAD + subRows * (EL_H + EL_GAP_Y) + PAD);
+      subPkgDims.set(subPkgPath, { w: subW, h: subH });
+      subPkgOffsets.set(subPkgPath, { x: PAD, y: subPkgY });
+      subPkgY += subH + PKG_GAP;
+    }
+
+    const parentW = Math.max(600, COLS * (EL_W + EL_GAP_X) + 2 * PAD);
+    const parentH = subPkgY + PAD;
+
+    // Find or create package element IDs — exact name match only to avoid
+    // incorrectly reusing an unrelated package with the same short name.
+    const findPkg = (name: string) =>
+      Object.values(currentModel.packages).find((p) => p.name === name);
+
+    const parentPkgExisting = findPkg(parentPath);
+    const parentPkgElementId = parentPkgExisting?.id ?? crypto.randomUUID();
+    const parentPkgIsNew = !parentPkgExisting;
+    const parentPkgViewNodeId = crypto.randomUUID();
+
+    const subPkgInfo = new Map<string, { elementId: string; viewNodeId: string; isNew: boolean }>();
+    for (const subPkgPath of directSubPkgPaths) {
+      const existing = findPkg(subPkgPath);
+      subPkgInfo.set(subPkgPath, {
+        elementId: existing?.id ?? crypto.randomUUID(),
+        viewNodeId: crypto.randomUUID(),
+        isNew: !existing,
+      });
+    }
+
+    const parentElViewNodeIds = new Map<string, string>();
+    for (const el of parentElements) parentElViewNodeIds.set(el.id, crypto.randomUUID());
+
+    const subPkgElViewNodeIds = new Map<string, Map<string, string>>();
+    for (const subPkgPath of directSubPkgPaths) {
+      const m = new Map<string, string>();
+      for (const el of subPkgElements.get(subPkgPath) ?? []) m.set(el.id, crypto.randomUUID());
+      subPkgElViewNodeIds.set(subPkgPath, m);
+    }
+
+    // Relations between placed elements
+    const allPlacedIds = new Set([
+      ...parentElements.map((el) => el.id),
+      ...[...subPkgElements.values()].flatMap((els) => els.map((el) => el.id)),
+    ]);
+    const relevantRelations = Object.values(currentModel.relations ?? {}).filter(
+      (rel) => allPlacedIds.has(rel.sourceId) && allPlacedIds.has(rel.targetId),
+    );
+
+    const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
+
+    // Build flat view nodes array with absolute canvas coordinates
+    const buildViewNodes = () => {
+      const nodes: Array<Record<string, unknown>> = [];
+      nodes.push({ id: parentPkgViewNodeId, elementId: parentPkgElementId, x: position.x, y: position.y, width: parentW, height: parentH, collapsed: false, parentPackageId: null });
+      for (const el of parentElements) {
+        const off = parentElOffsets.get(el.id);
+        if (!off) continue;
+        nodes.push({ id: parentElViewNodeIds.get(el.id)!, elementId: el.id, x: position.x + off.x, y: position.y + off.y, parentPackageId: parentPkgViewNodeId });
+      }
+      for (const subPkgPath of directSubPkgPaths) {
+        const info = subPkgInfo.get(subPkgPath)!;
+        const off = subPkgOffsets.get(subPkgPath)!;
+        const dims = subPkgDims.get(subPkgPath)!;
+        nodes.push({ id: info.viewNodeId, elementId: info.elementId, x: position.x + off.x, y: position.y + off.y, width: dims.w, height: dims.h, collapsed: false, parentPackageId: parentPkgViewNodeId });
+        const elVNIds = subPkgElViewNodeIds.get(subPkgPath)!;
+        const elOffs = subPkgElOffsets.get(subPkgPath)!;
+        for (const el of subPkgElements.get(subPkgPath) ?? []) {
+          const elOff = elOffs.get(el.id);
+          if (!elOff) continue;
+          nodes.push({ id: elVNIds.get(el.id)!, elementId: el.id, x: position.x + off.x + elOff.x, y: position.y + off.y + elOff.y, parentPackageId: info.viewNodeId });
+        }
+      }
+      return nodes;
+    };
+
+    const viewEdges = relevantRelations.map((rel) => ({ id: crypto.randomUUID(), relationId: rel.id, waypoints: [] }));
+
+    if (isStandaloneFile) {
+      undoTransaction({
+        label: `Place Hierarchy: ${parentPath}`,
+        scope: activeTabId,
+        mutations: [{
+          store: 'vfs',
+          mutate: (draft: any) => {
+            const file = draft.project?.nodes[activeTabId];
+            if (!file || file.type !== 'FILE') return;
+            if (!file.localModel) {
+              const now = Date.now();
+              file.localModel = {
+                id: crypto.randomUUID(), name: `${file.name} (standalone)`, version: '1.0.0',
+                packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                packageNames: [],
+                createdAt: now, updatedAt: now,
+              };
+            }
+            // Ensure packageNames array exists
+            if (!file.localModel.packageNames) file.localModel.packageNames = [];
+            
+            if (parentPkgIsNew) {
+              file.localModel.packages[parentPkgElementId] = {
+                id: parentPkgElementId, name: parentPath, kind: 'PACKAGE',
+                packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+              };
+              // Remove from packageNames to avoid duplication in sidebar
+              file.localModel.packageNames = file.localModel.packageNames.filter(
+                (name: string) => name !== parentPath
+              );
+            }
+            for (const subPkgPath of directSubPkgPaths) {
+              const info = subPkgInfo.get(subPkgPath)!;
+              if (info.isNew) {
+                file.localModel.packages[info.elementId] = {
+                  id: info.elementId, name: subPkgPath, kind: 'PACKAGE',
+                  packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+                };
+                // Remove from packageNames to avoid duplication in sidebar
+                file.localModel.packageNames = file.localModel.packageNames.filter(
+                  (name: string) => name !== subPkgPath
+                );
+              }
+            }
+            file.localModel.updatedAt = Date.now();
+            if (!isDiagramView(file.content)) return;
+            const existingEls = new Set(file.content.nodes.map((vn: any) => vn.elementId));
+            for (const vn of buildViewNodes()) {
+              if (existingEls.has(vn.elementId)) continue;
+              file.content.nodes.push(vn);
+            }
+            file.content.edges.push(...viewEdges);
+          },
+        }],
+      });
+    } else {
+      undoTransaction({
+        label: `Place Hierarchy: ${parentPath}`,
+        scope: 'global',
+        mutations: [
+          {
+            store: 'model',
+            mutate: (draft: any) => {
+              if (!draft.model) {
+                const now = Date.now();
+                draft.model = {
+                  id: domainModelId, name: 'Domain Model', version: '1.0.0',
+                  packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                  attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                  objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                  packageNames: [], createdAt: now, updatedAt: now,
+                };
+              }
+              // Ensure packageNames array exists
+              if (!draft.model.packageNames) draft.model.packageNames = [];
+              
+              if (parentPkgIsNew) {
+                draft.model.packages[parentPkgElementId] = {
+                  id: parentPkgElementId, name: parentPath, kind: 'PACKAGE',
+                  packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+                };
+                // Remove from packageNames to avoid duplication in sidebar
+                draft.model.packageNames = draft.model.packageNames.filter(
+                  (name: string) => name !== parentPath
+                );
+              }
+              for (const subPkgPath of directSubPkgPaths) {
+                const info = subPkgInfo.get(subPkgPath)!;
+                if (info.isNew) {
+                  draft.model.packages[info.elementId] = {
+                    id: info.elementId, name: subPkgPath, kind: 'PACKAGE',
+                    packageIds: [], classIds: [], interfaceIds: [], enumIds: [], dataTypeIds: [],
+                  };
+                  // Remove from packageNames to avoid duplication in sidebar
+                  draft.model.packageNames = draft.model.packageNames.filter(
+                    (name: string) => name !== subPkgPath
+                  );
+                }
+              }
+              draft.model.updatedAt = Date.now();
+            },
+          },
+          {
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+              const existingEls = new Set(node.content.nodes.map((vn: any) => vn.elementId));
+              for (const vn of buildViewNodes()) {
+                if (existingEls.has(vn.elementId)) continue;
+                node.content.nodes.push(vn);
+              }
+              node.content.edges.push(...viewEdges);
+            },
+          },
+        ],
+      });
+    }
+  }, [hierarchyModal, activeTabId]);
+
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
@@ -370,9 +839,29 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           if (pkg) existingPackageId = pkg.id;
         }
 
+        // Check if we should show hierarchy modal BEFORE placing
+        const segments = packageFullPath.split('.');
+        const parentViewNodeId = findParentPackageViewNode(packageFullPath);
+        
+        if (segments.length > 1 && !parentViewNodeId) {
+          const parentPath = segments.slice(0, -1).join('.');
+          const { classCount, subPackageCount, siblingCount } = getParentContent(parentPath, packageFullPath, currentModel);
+          if (classCount > 0 || siblingCount > 0) {
+            setHierarchyModal({
+              isOpen: true,
+              packageFullPath,
+              parentPath,
+              classCount,
+              subPackageCount,
+              position,
+              isStandaloneFile,
+            });
+            return;
+          }
+        }
+
+        // If package exists in model but not on canvas, just add view node
         if (existingPackageId) {
-          const parentViewNodeId = findParentPackageViewNode(packageFullPath);
-          
           undoTransaction({
             label: `Add to canvas: ${packageFullPath}`,
             scope: isStandaloneFile ? activeTabId : 'global',
@@ -397,17 +886,10 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           return;
         }
 
+        // Create new package
         const newElementId = crypto.randomUUID();
         const newViewNodeId = crypto.randomUUID();
-        const packageName = packageFullPath.split('.').pop() || packageFullPath;
-        const parentViewNodeId = findParentPackageViewNode(packageFullPath);
-        
-        const segments = packageFullPath.split('.');
-        if (segments.length > 1 && !parentViewNodeId) {
-          const parentPath = segments.slice(0, -1).join('.');
-          showToast(`Parent package "${parentPath}" must be on canvas first`);
-          return;
-        }
+        const packageName = packageFullPath;
 
         if (isStandaloneFile) {
           undoTransaction({
@@ -662,6 +1144,16 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       onReplace: handleModalReplace,
       onCancel: handleModalCancel,
       onDontShowAgain: handleDontShowAgain,
+    },
+    hierarchyModal: {
+      isOpen: hierarchyModal.isOpen,
+      packageFullPath: hierarchyModal.packageFullPath,
+      parentPath: hierarchyModal.parentPath,
+      classCount: hierarchyModal.classCount,
+      subPackageCount: hierarchyModal.subPackageCount,
+      onPlaceSimple: handleHierarchyPlaceSimple,
+      onPlaceHierarchy: handleHierarchyPlaceHierarchy,
+      onCancel: handleHierarchyCancel,
     },
   };
 }

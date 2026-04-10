@@ -222,7 +222,12 @@ export default function PackageExplorer() {
         return pkg.name;
       }
 
-      const path = `${resolve(parentPkgId, new Set([...visiting, pkgId]))}.${pkg.name}`;
+      const parentEffective = resolve(parentPkgId, new Set([...visiting, pkgId]));
+      // If pkg.name is already a full qualified path that starts with the parent's effective
+      // path (e.g. pkg.name="com.models", parent="com"), avoid double-prefixing to "com.com.models".
+      const path = pkg.name.startsWith(parentEffective + '.')
+        ? pkg.name
+        : `${parentEffective}.${pkg.name}`;
       result.set(pkgId, path);
       return path;
     };
@@ -252,6 +257,7 @@ export default function PackageExplorer() {
     });
 
     // Auto-discover implicit packages from element packageName fields
+    // BUT skip if already exists in pkgSet (from IRPackage or packageNames)
     transformedNodes.forEach((node) => {
       const pkgName = node.data.package;
       if (!pkgName || pkgName.trim() === "") return;
@@ -259,13 +265,39 @@ export default function PackageExplorer() {
       let currentPath = "";
       segments.forEach((segment) => {
         currentPath = currentPath ? `${currentPath}.${segment}` : segment;
+        // Only add if not already in pkgSet (prevents duplicates with IRPackages)
         if (!pkgSet.has(currentPath)) {
           pkgSet.set(currentPath, { id: `implicit-${currentPath}`, name: currentPath });
         }
       });
     });
 
-    return Array.from(pkgSet.values());
+    // Strong deduplication: prefer IRPackages over implicit/semantic packages
+    // This handles cases where effectiveName differs from pkg.name
+    const packages = Array.from(pkgSet.values());
+    const deduped = new Map<string, { id: string; name: string }>();
+    
+    // First pass: add all packages
+    packages.forEach(pkg => {
+      deduped.set(pkg.name, pkg);
+    });
+    
+    // Second pass: if there are duplicates, prefer IRPackages (UUID ids) over others
+    packages.forEach(pkg => {
+      const existing = deduped.get(pkg.name);
+      if (existing && existing.id !== pkg.id) {
+        // Prefer IRPackage (UUID) over pkg-* or implicit-* ids
+        const isExistingIRPackage = !existing.id.startsWith('pkg-') && !existing.id.startsWith('implicit-');
+        const isCurrentIRPackage = !pkg.id.startsWith('pkg-') && !pkg.id.startsWith('implicit-');
+        
+        if (isCurrentIRPackage && !isExistingIRPackage) {
+          // Replace with IRPackage
+          deduped.set(pkg.name, pkg);
+        }
+      }
+    });
+
+    return Array.from(deduped.values());
   }, [activeModel, transformedNodes, pkgEffectivePaths]);
 
   // Resolve visual containment: if a node's ViewNode has parentPackageId,

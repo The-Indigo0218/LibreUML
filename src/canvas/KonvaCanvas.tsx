@@ -26,6 +26,7 @@ import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
 import DuplicateFileModal from '../components/shared/DuplicateFileModal';
+import PackageHierarchyModal from './overlays/PackageHierarchyModal';
 import ConfirmationModal from '../components/shared/ConfirmationModal';
 import { DeletePackageModal } from '../features/diagram/components/layout/packageExplorer/DeletePackageModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -464,7 +465,7 @@ export default function KonvaCanvas() {
     onSelectAll: selectAll,
   });
 
-  const { onDragOver: handleDragOver, onDrop: handleDrop, duplicateModal } = useKonvaDnD({ stageRef });
+  const { onDragOver: handleDragOver, onDrop: handleDrop, duplicateModal, hierarchyModal } = useKonvaDnD({ stageRef });
 
   const startInlineEditing = useInlineEditorStore((s) => s.startEditing);
   const updateEditorPosition = useInlineEditorStore((s) => s.updatePosition);
@@ -1068,6 +1069,23 @@ export default function KonvaCanvas() {
               const nonPackageIds = new Set(
                 shapes.filter((s) => s.type !== 'package').map((s) => s.id),
               );
+              
+              // Helper to check if a node is inside a collapsed package
+              const isNodeInCollapsedPackage = (nodeId: string): boolean => {
+                const nodeShape = shapes.find((s) => s.id === nodeId);
+                if (!nodeShape || !nodeShape.parentPackageId) return false;
+                
+                let parentId: string | null | undefined = nodeShape.parentPackageId;
+                while (parentId) {
+                  const parentShape = shapes.find((s) => s.id === parentId);
+                  if (parentShape && isPackageViewModel(parentShape.data) && parentShape.data.collapsed) {
+                    return true;
+                  }
+                  parentId = parentShape?.parentPackageId;
+                }
+                return false;
+              };
+              
               return edges.map((edge) => {
               const isSelfLoop = edge.sourceId === edge.targetId;
               const sourceBounds = boundsMap.get(edge.sourceId);
@@ -1077,6 +1095,11 @@ export default function KonvaCanvas() {
               if (!sourceBounds || !targetBounds) return null;
 
               const isVisible = visibleNodeIds.has(edge.sourceId) || visibleNodeIds.has(edge.targetId);
+              
+              // Hide edge if either endpoint is inside a collapsed package
+              const sourceInCollapsed = isNodeInCollapsedPackage(edge.sourceId);
+              const targetInCollapsed = isNodeInCollapsedPackage(edge.targetId);
+              const shouldHideEdge = sourceInCollapsed || targetInCollapsed;
 
               const obstacles = isSelfLoop
                 ? []
@@ -1103,7 +1126,7 @@ export default function KonvaCanvas() {
                   onContextMenu={handleEdgeContextMenu}
                   onMouseEnter={handleEdgeMouseEnter}
                   onMouseLeave={handleEdgeMouseLeave}
-                  visible={isVisible}
+                  visible={isVisible && !shouldHideEdge}
                 />
               );
             });
@@ -1279,6 +1302,18 @@ export default function KonvaCanvas() {
         onCancel={duplicateModal.onCancel}
         onDontShowAgain={duplicateModal.onDontShowAgain}
       />
+
+      {hierarchyModal.isOpen && (
+        <PackageHierarchyModal
+          packageFullPath={hierarchyModal.packageFullPath}
+          parentPath={hierarchyModal.parentPath}
+          classCount={hierarchyModal.classCount}
+          subPackageCount={hierarchyModal.subPackageCount}
+          onPlaceSimple={hierarchyModal.onPlaceSimple}
+          onPlaceHierarchy={hierarchyModal.onPlaceHierarchy}
+          onCancel={hierarchyModal.onCancel}
+        />
+      )}
 
       <ConfirmationModal
         isOpen={clearCanvasModal}

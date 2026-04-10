@@ -593,19 +593,22 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       for (const el of parentElements) {
         const off = parentElOffsets.get(el.id);
         if (!off) continue;
-        nodes.push({ id: parentElViewNodeIds.get(el.id)!, elementId: el.id, x: position.x + off.x, y: position.y + off.y, parentPackageId: parentPkgViewNodeId });
+        // Store position relative to parent package
+        nodes.push({ id: parentElViewNodeIds.get(el.id)!, elementId: el.id, x: off.x, y: off.y, parentPackageId: parentPkgViewNodeId });
       }
       for (const subPkgPath of directSubPkgPaths) {
         const info = subPkgInfo.get(subPkgPath)!;
         const off = subPkgOffsets.get(subPkgPath)!;
         const dims = subPkgDims.get(subPkgPath)!;
-        nodes.push({ id: info.viewNodeId, elementId: info.elementId, x: position.x + off.x, y: position.y + off.y, width: dims.w, height: dims.h, collapsed: false, parentPackageId: parentPkgViewNodeId });
+        // Store position relative to parent package
+        nodes.push({ id: info.viewNodeId, elementId: info.elementId, x: off.x, y: off.y, width: dims.w, height: dims.h, collapsed: false, parentPackageId: parentPkgViewNodeId });
         const elVNIds = subPkgElViewNodeIds.get(subPkgPath)!;
         const elOffs = subPkgElOffsets.get(subPkgPath)!;
         for (const el of subPkgElements.get(subPkgPath) ?? []) {
           const elOff = elOffs.get(el.id);
           if (!elOff) continue;
-          nodes.push({ id: elVNIds.get(el.id)!, elementId: el.id, x: position.x + off.x + elOff.x, y: position.y + off.y + elOff.y, parentPackageId: info.viewNodeId });
+          // Store position relative to sub-package
+          nodes.push({ id: elVNIds.get(el.id)!, elementId: el.id, x: elOff.x, y: elOff.y, parentPackageId: info.viewNodeId });
         }
       }
       return nodes;

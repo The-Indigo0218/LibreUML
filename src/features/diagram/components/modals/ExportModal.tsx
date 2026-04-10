@@ -20,8 +20,8 @@ import { useModelStore } from "../../../../store/model.store";
 import { ExportService } from "../../../../services/export.service";
 import {
   downloadVfsDiagramXmi,
-  downloadVfsDiagramJson,
 } from "../../../../services/vfsExport.service";
+import { exportDiagram } from "../../../../services/projectIO.service";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import { useKonvaCanvasController } from "../../../../canvas/hooks/useKonvaCanvasController";
 import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
@@ -179,7 +179,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     legacyDiagramName,
   ]);
 
-  const executeVfsExport = () => {
+  const executeVfsExport = async () => {
     if (!model) {
       alert("No semantic model loaded. Cannot export.");
       return;
@@ -188,14 +188,15 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       downloadVfsDiagramXmi(model, selectedDiagramView, selectedFileName);
       onClose();
     } else if (format === "json") {
-      downloadVfsDiagramJson(selectedDiagramView, selectedFileName);
+      // Use exportDiagram instead of downloadVfsDiagramJson to include semantic model
+      await exportDiagram(selectedFileId);
       onClose();
     }
   };
 
-  const handleExportClick = () => {
+  const handleExportClick = async () => {
     if (format === "xmi" || format === "json") {
-      executeVfsExport();
+      await executeVfsExport();
       return;
     }
     if (format === "svg" && !suppressSvgWarning) {
@@ -399,7 +400,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
               {/* JSON info */}
               {format === "json" && isVFSMode && (
                 <p className="text-xs text-text-muted">
-                  Downloads the DiagramView (node positions and edge layout) of the selected diagram as JSON.
+                  Exports the selected diagram with its semantic model as a portable .luml file that can be imported into other projects.
                 </p>
               )}
             </div>

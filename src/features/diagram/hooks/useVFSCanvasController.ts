@@ -215,12 +215,44 @@ function resolveSemanticElement(model: SemanticModel, elementId: string): Resolv
 
 // ─── Node builders ────────────────────────────────────────────────────────────
 
+/**
+ * Converts ViewNode position to absolute canvas coordinates.
+ * If the node has a parentPackageId, its stored x/y are relative to the parent.
+ * This function adds the parent's position to get absolute coordinates.
+ */
+function getAbsolutePosition(
+  viewNode: ViewNode,
+  allViewNodes: ViewNode[],
+): { x: number; y: number } {
+  if (!viewNode.parentPackageId) {
+    // Root-level node, position is already absolute
+    return { x: viewNode.x, y: viewNode.y };
+  }
+  
+  // Find parent package
+  const parentNode = allViewNodes.find((n) => n.id === viewNode.parentPackageId);
+  if (!parentNode) {
+    // Parent not found, use stored position as-is
+    return { x: viewNode.x, y: viewNode.y };
+  }
+  
+  // Recursively get parent's absolute position (in case parent is also nested)
+  const parentPos = getAbsolutePosition(parentNode, allViewNodes);
+  
+  // Add relative position to parent's absolute position
+  return {
+    x: parentPos.x + viewNode.x,
+    y: parentPos.y + viewNode.y,
+  };
+}
+
 function makeReactFlowNode(
   viewNode: ViewNode,
   label: string,
   displayConfig: ElementDisplayConfig,
   sections: NodeSection[],
   onRename: (name: string, generics?: string) => void,
+  allViewNodes: ViewNode[],
   badge?: string,
 ) {
   const viewModel: NodeViewModel = {
@@ -239,7 +271,7 @@ function makeReactFlowNode(
   return {
     id: viewNode.id,
     type: 'umlClass',
-    position: { x: viewNode.x, y: viewNode.y },
+    position: getAbsolutePosition(viewNode, allViewNodes),
     data: viewModel,
     domainId: viewNode.elementId,
   };
@@ -253,6 +285,7 @@ function makeReactFlowNode(
 function makeReactFlowNoteNode(
   viewNode: ViewNode,
   onSave: (viewNodeId: string, update: { content?: string; title?: string }) => void,
+  allViewNodes: ViewNode[],
 ) {
   const viewModel: NoteViewModel = {
     id: viewNode.id,
@@ -265,7 +298,7 @@ function makeReactFlowNoteNode(
   return {
     id: viewNode.id,
     type: 'umlNote',
-    position: { x: viewNode.x, y: viewNode.y },
+    position: getAbsolutePosition(viewNode, allViewNodes),
     data: viewModel,
   };
 }
@@ -328,7 +361,7 @@ function makeReactFlowPackageNode(
   return {
     id: viewNode.id,
     type: 'umlPackage',
-    position: { x: viewNode.x, y: viewNode.y },
+    position: getAbsolutePosition(viewNode, allViewNodes),
     data: viewModel,
     domainId: viewNode.elementId,
   };
@@ -591,7 +624,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
       const { element, kind } = resolveSemanticElement(model, viewNode.elementId);
 
       if (kind === 'NOTE') {
-        return makeReactFlowNoteNode(viewNode, handleNoteUpdate);
+        return makeReactFlowNoteNode(viewNode, handleNoteUpdate, diagramView.nodes);
       }
 
       if (kind === 'PACKAGE') {
@@ -642,7 +675,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
         }
       };
 
-      return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename, badge);
+      return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename, diagramView.nodes, badge);
     });
   }, [diagramView, model, isStandalone, activeTabId, handleNoteUpdate]);
 

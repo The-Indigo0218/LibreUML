@@ -61,9 +61,24 @@ export function useCanvasEventHandlers({
 
       for (const change of changes) {
         if (change.type === 'position') {
-          updatedViewNodes = updatedViewNodes.map((vn) =>
-            vn.id === change.id ? { ...vn, x: change.position.x, y: change.position.y } : vn,
-          );
+          updatedViewNodes = updatedViewNodes.map((vn) => {
+            if (vn.id !== change.id) return vn;
+            
+            // If node has a parent package, store position relative to parent
+            if (vn.parentPackageId) {
+              const parentNode = currentView.nodes.find((n) => n.id === vn.parentPackageId);
+              if (parentNode) {
+                return {
+                  ...vn,
+                  x: change.position.x - parentNode.x,
+                  y: change.position.y - parentNode.y,
+                };
+              }
+            }
+            
+            // Root-level node or parent not found, store absolute position
+            return { ...vn, x: change.position.x, y: change.position.y };
+          });
           hasPosition = true;
         } else if (change.type === 'remove') {
           const removedVN = currentView.nodes.find((vn) => vn.id === change.id);

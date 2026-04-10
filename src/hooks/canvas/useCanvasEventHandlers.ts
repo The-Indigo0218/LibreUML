@@ -68,7 +68,10 @@ export function useCanvasEventHandlers({
         } else if (change.type === 'remove') {
           const removedVN = currentView.nodes.find((vn) => vn.id === change.id);
           if (removedVN) {
-            updatedViewNodes = updatedViewNodes.filter((vn) => vn.id !== change.id);
+            // Remove the ViewNode and un-nest any children that had it as their package parent.
+            updatedViewNodes = updatedViewNodes
+              .filter((vn) => vn.id !== change.id)
+              .map((vn) => vn.parentPackageId === change.id ? { ...vn, parentPackageId: null } : vn);
             if (removedVN.elementId) {
               const activeModel = isStandalone ? getLocalModel(activeTabId) : useModelStore.getState().model;
               if (activeModel) {

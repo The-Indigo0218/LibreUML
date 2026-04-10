@@ -6,6 +6,8 @@ import type { NodeBounds } from '../edges/geometry';
 import type { ShapeDescriptor } from '../types/canvas.types';
 import { undoTransaction } from '../../core/undo/undoBridge';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+import { useVFSStore } from '../../store/project-vfs.store';
+import { useModelStore } from '../../store/model.store';
 import PackageDropPicker, { type PackageCandidate } from '../overlays/PackageDropPicker';
 
 const AMBIGUOUS_THRESHOLD = 50;
@@ -20,6 +22,7 @@ export interface UsePackageDropOptions {
   shapes: ShapeDescriptor[];
   boundsMap: Map<string, NodeBounds>;
   activeTabId: string;
+  isStandalone?: boolean;
 }
 
 export interface UsePackageDropReturn {
@@ -29,6 +32,31 @@ export interface UsePackageDropReturn {
 }
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Walks the package ViewNode hierarchy to compute the full dotted package path
+ * (e.g. "Infrastructure.ServiceLayer") for a given target ViewNode.
+ * This is the value that should be written to element.packageName.
+ */
+function computeEffectivePkgPath(
+  targetViewNodeId: string | null,
+  viewNodes: Array<{ id: string; elementId: string; parentPackageId?: string | null }>,
+  packages: Record<string, { name: string }>,
+): string | undefined {
+  if (!targetViewNodeId) return undefined;
+  const vnMap = new Map(viewNodes.map((vn) => [vn.id, vn]));
+  const path: string[] = [];
+  let currentId: string | null = targetViewNodeId;
+  for (let depth = 0; currentId && depth < 10; depth++) {
+    const vn = vnMap.get(currentId);
+    if (!vn) break;
+    const pkg = packages[vn.elementId];
+    if (!pkg) break;
+    path.unshift(pkg.name);
+    currentId = vn.parentPackageId ?? null;
+  }
+  return path.length > 0 ? path.join('.') : undefined;
+}
 
 function collectDescendantIds(nodeId: string, shapes: ShapeDescriptor[]): Set<string> {
   const result = new Set<string>([nodeId]);
@@ -81,6 +109,7 @@ export function usePackageDrop({
   shapes,
   boundsMap,
   activeTabId,
+  isStandalone = false,
 }: UsePackageDropOptions): UsePackageDropReturn {
   const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null);
 
@@ -90,28 +119,99 @@ export function usePackageDrop({
       const currentParentId = droppedShape?.parentPackageId ?? null;
       if (currentParentId === targetPackageId) return;
 
+      const isPackageDrop = isPackageViewModel(droppedShape?.data);
+
+      // Pre-compute the effective package path (walks ViewNode hierarchy) so we can
+      // write element.packageName and keep the Model Explorer in sync.
+      let effectivePkgPath: string | undefined;
+      if (!isPackageDrop) {
+        const vfsProject = useVFSStore.getState().project;
+        const file = vfsProject?.nodes[activeTabId] as any;
+        if (file && isDiagramView(file.content)) {
+          const model = isStandalone
+            ? file.localModel
+            : useModelStore.getState().model;
+          if (model?.packages) {
+            effectivePkgPath = computeEffectivePkgPath(
+              targetPackageId,
+              file.content.nodes,
+              model.packages,
+            );
+          }
+        }
+      }
+
       const label = targetPackageId
         ? `Move into package: ${packageName ?? targetPackageId}`
         : 'Remove from package';
 
-      undoTransaction({
-        label,
-        scope: activeTabId,
-        mutations: [
+      if (isStandalone) {
+        // Standalone: all mutations live in the VFS store (localModel + content).
+        undoTransaction({
+          label,
+          scope: activeTabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const file = draft.project.nodes[activeTabId];
+              if (!isDiagramView(file.content)) return;
+              const viewNode = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
+              if (viewNode) viewNode.parentPackageId = targetPackageId;
+              // Sync element.packageName in localModel
+              if (!isPackageDrop && file.localModel) {
+                const droppedVN = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
+                if (droppedVN) {
+                  const el = file.localModel.classes?.[droppedVN.elementId]
+                    ?? file.localModel.interfaces?.[droppedVN.elementId]
+                    ?? file.localModel.enums?.[droppedVN.elementId];
+                  if (el) { el.packageName = effectivePkgPath; file.localModel.updatedAt = Date.now(); }
+                }
+              }
+            },
+          }],
+          affectedElementIds: [droppedNodeId],
+        });
+      } else {
+        // Global: VFS mutation for parentPackageId, model mutation for packageName.
+        const mutations: Array<{ store: string; mutate: (draft: any) => void }> = [
           {
             store: 'vfs',
-            mutate: (draft) => {
+            mutate: (draft: any) => {
               const file = draft.project.nodes[activeTabId];
               if (!isDiagramView(file.content)) return;
               const viewNode = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
               if (viewNode) viewNode.parentPackageId = targetPackageId;
             },
           },
-        ],
-        affectedElementIds: [droppedNodeId],
-      });
+        ];
+
+        if (!isPackageDrop) {
+          mutations.push({
+            store: 'model',
+            mutate: (draft: any) => {
+              if (!draft.model) return;
+              const vfsProject = useVFSStore.getState().project;
+              const file = vfsProject?.nodes[activeTabId] as any;
+              if (!file || !isDiagramView(file.content)) return;
+              const droppedVN = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
+              if (!droppedVN) return;
+              const el = draft.model.classes[droppedVN.elementId]
+                ?? draft.model.interfaces[droppedVN.elementId]
+                ?? draft.model.enums[droppedVN.elementId];
+              if (el) { el.packageName = effectivePkgPath; draft.model.updatedAt = Date.now(); }
+            },
+          });
+        }
+
+        undoTransaction({
+          label,
+          scope: 'global',
+          mutations,
+          affectedElementIds: [droppedNodeId],
+        });
+      }
     },
-    [shapes, activeTabId],
+    [shapes, activeTabId, isStandalone],
   );
 
   const onDragEndWithPackageDetection = useCallback(

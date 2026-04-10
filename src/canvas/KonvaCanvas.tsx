@@ -308,6 +308,7 @@ export default function KonvaCanvas() {
     shapes,
     boundsMap,
     activeTabId: activeTabId ?? '',
+    isStandalone: vfsController.isStandalone,
   });
 
   const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap);

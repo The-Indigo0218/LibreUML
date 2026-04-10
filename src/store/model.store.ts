@@ -12,6 +12,7 @@ import type {
   IROperation,
 } from '../core/domain/vfs/vfs.types';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
+import { getPackageHierarchy } from '../utils/packageHelpers';
 
 const newId = () => crypto.randomUUID();
 
@@ -100,6 +101,18 @@ export const useModelStore = create<ModelStoreState>()(
       const id = newId();
       withUndo('model', `Create Class: ${data.name}`, 'global', (draft) => {
         if (!draft.model) return;
+        
+        // Auto-create intermediate packages if packageName contains dots
+        if (data.packageName) {
+          const hierarchy = getPackageHierarchy(data.packageName);
+          if (!draft.model.packageNames) draft.model.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (!draft.model.packageNames.includes(pkg)) {
+              draft.model.packageNames.push(pkg);
+            }
+          });
+        }
+        
         draft.model.classes[id] = { ...data, id, kind: 'CLASS' };
         draft.model.updatedAt = Date.now();
       });
@@ -110,6 +123,18 @@ export const useModelStore = create<ModelStoreState>()(
       const id = newId();
       withUndo('model', `Create Abstract Class: ${data.name}`, 'global', (draft) => {
         if (!draft.model) return;
+        
+        // Auto-create intermediate packages if packageName contains dots
+        if (data.packageName) {
+          const hierarchy = getPackageHierarchy(data.packageName);
+          if (!draft.model.packageNames) draft.model.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (!draft.model.packageNames.includes(pkg)) {
+              draft.model.packageNames.push(pkg);
+            }
+          });
+        }
+        
         draft.model.classes[id] = { ...data, id, kind: 'CLASS', isAbstract: true };
         draft.model.updatedAt = Date.now();
       });
@@ -139,6 +164,18 @@ export const useModelStore = create<ModelStoreState>()(
       const id = newId();
       withUndo('model', `Create Interface: ${data.name}`, 'global', (draft) => {
         if (!draft.model) return;
+        
+        // Auto-create intermediate packages if packageName contains dots
+        if (data.packageName) {
+          const hierarchy = getPackageHierarchy(data.packageName);
+          if (!draft.model.packageNames) draft.model.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (!draft.model.packageNames.includes(pkg)) {
+              draft.model.packageNames.push(pkg);
+            }
+          });
+        }
+        
         draft.model.interfaces[id] = { ...data, id, kind: 'INTERFACE' };
         draft.model.updatedAt = Date.now();
       });
@@ -168,6 +205,18 @@ export const useModelStore = create<ModelStoreState>()(
       const id = newId();
       withUndo('model', `Create Enum: ${data.name}`, 'global', (draft) => {
         if (!draft.model) return;
+        
+        // Auto-create intermediate packages if packageName contains dots
+        if (data.packageName) {
+          const hierarchy = getPackageHierarchy(data.packageName);
+          if (!draft.model.packageNames) draft.model.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (!draft.model.packageNames.includes(pkg)) {
+              draft.model.packageNames.push(pkg);
+            }
+          });
+        }
+        
         draft.model.enums[id] = { ...data, id, kind: 'ENUM' };
         draft.model.updatedAt = Date.now();
       });
@@ -315,6 +364,18 @@ export const useModelStore = create<ModelStoreState>()(
       const dest = packageName ?? 'default';
       withUndo('model', `Move ${elName} to Package: ${dest}`, 'global', (draft) => {
         if (!draft.model) return;
+        
+        // Auto-create intermediate packages if packageName contains dots
+        if (packageName) {
+          const hierarchy = getPackageHierarchy(packageName);
+          if (!draft.model.packageNames) draft.model.packageNames = [];
+          hierarchy.forEach(pkg => {
+            if (!draft.model.packageNames.includes(pkg)) {
+              draft.model.packageNames.push(pkg);
+            }
+          });
+        }
+        
         if (draft.model.classes[elementId]) {
           draft.model.classes[elementId].packageName = packageName;
         } else if (draft.model.interfaces[elementId]) {

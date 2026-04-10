@@ -297,6 +297,7 @@ export default function PackageExplorer() {
   const totalElements = resolvedNodes.length;
   const unassignedCount = packageTree.classes.length;
   const displayedPackageCount = allPackages.length + (unassignedCount > 0 ? 1 : 0);
+  const hasPackages = allPackages.length > 0;
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [expandedClasses, setExpandedClasses] = useState<Set<string>>(new Set());
@@ -882,7 +883,7 @@ export default function PackageExplorer() {
           />
         )}
 
-        {!activeModel || (totalElements === 0 && !isAddingGlobal) ? (
+        {!activeModel || (totalElements === 0 && !hasPackages && !isAddingGlobal) ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-4">
             <Package className="w-12 h-12 text-text-muted/30 mb-3" />
             <p className="text-sm text-text-muted">{t('packageExplorer.noPackages')}</p>

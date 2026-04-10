@@ -373,55 +373,126 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
         const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
         const packageFullPath = packageData;
         let existingPackageId: string | null = null;
+        let existingViewNodeId: string | null = null;
         
-        if (isStandaloneFile) {
-          const currentLocalModel = getLocalModel(activeTabId);
-          if (currentLocalModel) {
-            let pkg = Object.values(currentLocalModel.packages).find(p => p.name === packageFullPath);
-            if (!pkg) {
-              const lastSegment = packageFullPath.split('.').pop();
-              pkg = Object.values(currentLocalModel.packages).find(p => p.name === lastSegment);
-            }
-            if (pkg) existingPackageId = pkg.id;
-          }
-        } else {
-          const modelState = useModelStore.getState();
-          const currentModel = modelState.model;
-          if (currentModel) {
-            let pkg = Object.values(currentModel.packages).find(p => p.name === packageFullPath);
-            if (!pkg) {
-              const lastSegment = packageFullPath.split('.').pop();
-              pkg = Object.values(currentModel.packages).find(p => p.name === lastSegment);
-            }
-            if (pkg) existingPackageId = pkg.id;
-          }
-        }
-
-        if (existingPackageId) {
-          const existingNode = checkDuplicateElement(existingPackageId);
+        // Helper to find parent package ViewNode if this is a nested package
+        const findParentPackageViewNode = (fullPath: string): string | null => {
+          const segments = fullPath.split('.');
+          if (segments.length <= 1) return null; // No parent
           
-          if (existingNode) {
-            if (hideDuplicateFileWarning) {
-              showToast(`"${packageFullPath}" is already in the diagram`);
-              return;
+          const parentPath = segments.slice(0, -1).join('.');
+          const currentModel = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
+          if (!currentModel) return null;
+          
+          // Find parent package by matching effective path
+          for (const vn of freshContent.nodes) {
+            const pkg = currentModel.packages?.[vn.elementId];
+            if (!pkg) continue;
+            
+            // Build effective path for this package considering its visual nesting
+            let effectivePath = pkg.name;
+            let currentVN = vn;
+            while (currentVN.parentPackageId) {
+              const parentVN = freshContent.nodes.find((n: ViewNode) => n.id === currentVN.parentPackageId);
+              if (!parentVN) break;
+              const parentPkg = currentModel.packages?.[parentVN.elementId];
+              if (!parentPkg) break;
+              effectivePath = `${parentPkg.name}.${effectivePath}`;
+              currentVN = parentVN;
             }
             
-            setDuplicateModal({
-              isOpen: true,
-              fileName: packageFullPath,
-              elementId: existingPackageId,
-              position,
-            });
-            return;
+            if (effectivePath === parentPath) {
+              return vn.id;
+            }
           }
-
-          addElementToDiagram(existingPackageId, position);
+          return null;
+        };
+        
+        // Check if package already exists on canvas by matching effective path
+        const currentModel = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
+        if (currentModel?.packages) {
+          for (const vn of freshContent.nodes) {
+            const pkg = currentModel.packages[vn.elementId];
+            if (!pkg) continue;
+            
+            // Build effective path for this package
+            let effectivePath = pkg.name;
+            let currentVN = vn;
+            while (currentVN.parentPackageId) {
+              const parentVN = freshContent.nodes.find((n: ViewNode) => n.id === currentVN.parentPackageId);
+              if (!parentVN) break;
+              const parentPkg = currentModel.packages[parentVN.elementId];
+              if (!parentPkg) break;
+              effectivePath = `${parentPkg.name}.${effectivePath}`;
+              currentVN = parentVN;
+            }
+            
+            if (effectivePath === packageFullPath) {
+              existingPackageId = pkg.id;
+              existingViewNodeId = vn.id;
+              break;
+            }
+          }
+        }
+        
+        // If package already exists on canvas, show message and don't create duplicate
+        if (existingViewNodeId) {
+          showToast(`"${packageFullPath}" is already on canvas. Drag it directly to move it.`);
+          return;
+        }
+        
+        // If package doesn't exist on canvas but exists in model, find its ID
+        if (!existingPackageId && currentModel) {
+          let pkg = Object.values(currentModel.packages ?? {}).find(p => p.name === packageFullPath);
+          if (!pkg) {
+            const lastSegment = packageFullPath.split('.').pop();
+            pkg = Object.values(currentModel.packages ?? {}).find(p => p.name === lastSegment);
+          }
+          if (pkg) existingPackageId = pkg.id;
+        }
+        // If package exists in model but not on canvas, add it
+        if (existingPackageId) {
+          // Find parent package ViewNode for nested packages
+          const parentViewNodeId = findParentPackageViewNode(packageFullPath);
+          
+          // Add with parent relationship if applicable
+          undoTransaction({
+            label: `Add to canvas: ${packageFullPath}`,
+            scope: isStandaloneFile ? activeTabId : 'global',
+            mutations: [{
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const node = draft.project?.nodes[activeTabId];
+                if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+                const newViewNodeId = crypto.randomUUID();
+                node.content.nodes.push({
+                  id: newViewNodeId,
+                  elementId: existingPackageId,
+                  x: position.x,
+                  y: position.y,
+                  collapsed: false,
+                  parentPackageId: parentViewNodeId,
+                });
+              },
+            }],
+            affectedElementIds: [existingPackageId],
+          });
           return;
         }
 
+        // Package doesn't exist in model, create it
         const newElementId = crypto.randomUUID();
         const newViewNodeId = crypto.randomUUID();
         const packageName = packageFullPath.split('.').pop() || packageFullPath;
+        const parentViewNodeId = findParentPackageViewNode(packageFullPath);
+        
+        // If this is a nested package but parent is not on canvas, warn the user
+        const segments = packageFullPath.split('.');
+        if (segments.length > 1 && !parentViewNodeId) {
+          const parentPath = segments.slice(0, -1).join('.');
+          showToast(`Parent package "${parentPath}" must be on canvas first`);
+          return;
+        }
 
         if (isStandaloneFile) {
           undoTransaction({
@@ -460,6 +531,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
                     x: position.x,
                     y: position.y,
                     collapsed: false,
+                    parentPackageId: parentViewNodeId,
                   });
                 }
               },
@@ -510,6 +582,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
                     x: position.x,
                     y: position.y,
                     collapsed: false,
+                    parentPackageId: parentViewNodeId,
                   });
                 },
               },

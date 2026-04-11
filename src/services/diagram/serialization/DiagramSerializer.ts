@@ -45,9 +45,11 @@ export interface DiagramPayload {
  * Serialization error
  */
 export class SerializationError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
+  readonly cause?: unknown;
+  constructor(message: string, cause?: unknown) {
     super(message);
     this.name = 'SerializationError';
+    this.cause = cause;
   }
 }
 

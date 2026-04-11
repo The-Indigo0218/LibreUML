@@ -48,9 +48,11 @@ export interface ParsedDiagram {
  * Diagram export error
  */
 export class DiagramExportError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
+  readonly cause?: unknown;
+  constructor(message: string, cause?: unknown) {
     super(message);
     this.name = 'DiagramExportError';
+    this.cause = cause;
   }
 }
 
@@ -58,21 +60,37 @@ export class DiagramExportError extends Error {
  * Diagram import error
  */
 export class DiagramImportError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
+  readonly cause?: unknown;
+  constructor(message: string, cause?: unknown) {
     super(message);
     this.name = 'DiagramImportError';
+    this.cause = cause;
   }
 }
 
 export class DiagramIOService {
+  private readonly serializer: DiagramSerializer;
+  private readonly deserializer: DiagramDeserializer;
+  private readonly validator: DiagramValidator;
+  private readonly extractor: ModelExtractor;
+  private readonly getVFSStore: () => VFSStore;
+  private readonly getModelStore: () => ModelStore;
+
   constructor(
-    private readonly serializer: DiagramSerializer,
-    private readonly deserializer: DiagramDeserializer,
-    private readonly validator: DiagramValidator,
-    private readonly extractor: ModelExtractor,
-    private readonly getVFSStore: () => VFSStore,
-    private readonly getModelStore: () => ModelStore,
-  ) {}
+    serializer: DiagramSerializer,
+    deserializer: DiagramDeserializer,
+    validator: DiagramValidator,
+    extractor: ModelExtractor,
+    getVFSStore: () => VFSStore,
+    getModelStore: () => ModelStore,
+  ) {
+    this.serializer = serializer;
+    this.deserializer = deserializer;
+    this.validator = validator;
+    this.extractor = extractor;
+    this.getVFSStore = getVFSStore;
+    this.getModelStore = getModelStore;
+  }
 
   /**
    * Exports a single diagram as flat JSON

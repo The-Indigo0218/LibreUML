@@ -61,6 +61,8 @@ export interface ViewNode {
   noteTitle?: string;
   parentPackageId?: string | null;
   collapsed?: boolean;
+  /** Package name for package container nodes. */
+  packageName?: string;
 }
 
 export interface ViewEdge {

@@ -1,30 +1,24 @@
 /**
  * DiagramDeserializer.test.ts
- * 
+ *
  * Unit tests for DiagramDeserializer service
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { DiagramDeserializer } from '../serialization/DiagramDeserializer';
-import { FormatDetector } from '../serialization/FormatDetector';
+import type { FormatDetector } from '../serialization/FormatDetector';
 import type { DiagramPayload } from '../serialization/DiagramSerializer';
 
-// Mock FormatDetector
-vi.mock('../serialization/FormatDetector', () => {
-  return {
-    FormatDetector: vi.fn().mockImplementation(() => ({
-      detectFormat: vi.fn(),
-      isJsonFormat: vi.fn(),
-      isZipFormat: vi.fn(),
-    })),
-  };
-});
+const createMockFormatDetector = (): FormatDetector =>
+  ({
+    detect: vi.fn(),
+    detectFormat: vi.fn(),
+    isJsonFormat: vi.fn(),
+    isZipFormat: vi.fn(),
+    detectWithInfo: vi.fn(),
+  }) as unknown as FormatDetector;
 
 describe('DiagramDeserializer', () => {
-  const createMockFormatDetector = () => {
-    return new FormatDetector() as any;
-  };
-
   describe('deserialize - JSON format', () => {
     it('should deserialize valid JSON payload', async () => {
       const payload: DiagramPayload = {
@@ -110,7 +104,7 @@ describe('DiagramDeserializer', () => {
     it('should validate exportType is "diagram"', async () => {
       const wrongTypePayload = {
         _lumlVersion: '2.0',
-        exportType: 'project', // Wrong type
+        exportType: 'project',
         diagramId: 'test-123',
         diagramName: 'Test',
         model: {},
@@ -134,7 +128,7 @@ describe('DiagramDeserializer', () => {
       const file = new File([blob], 'test.luml');
 
       const formatDetector = createMockFormatDetector();
-      formatDetector.detectFormat.mockResolvedValue('json');
+      vi.mocked(formatDetector.detectFormat).mockResolvedValue('json');
 
       const deserializer = new DiagramDeserializer(formatDetector);
       const format = await deserializer.detectFormat(file);

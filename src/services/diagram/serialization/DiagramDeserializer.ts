@@ -23,16 +23,20 @@ import { FormatDetector, type DiagramFormat } from './FormatDetector';
  * Error de deserialización
  */
 export class DeserializationError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
+  readonly cause?: unknown;
+  constructor(message: string, cause?: unknown) {
     super(message);
     this.name = 'DeserializationError';
+    this.cause = cause;
   }
 }
 
 export class DiagramDeserializer {
-  constructor(
-    private readonly formatDetector: FormatDetector,
-  ) {}
+  private readonly formatDetector: FormatDetector;
+
+  constructor(formatDetector: FormatDetector) {
+    this.formatDetector = formatDetector;
+  }
 
   /**
    * Detecta el formato del archivo
@@ -41,7 +45,7 @@ export class DiagramDeserializer {
    * @returns Promise<DiagramFormat> - Formato detectado
    */
   async detectFormat(file: File | Blob): Promise<DiagramFormat> {
-    return this.formatDetector.detect(file);
+    return this.formatDetector.detectFormat(file);
   }
 
   /**
@@ -148,7 +152,7 @@ export class DiagramDeserializer {
         );
       }
       
-      return payload as DiagramPayload;
+      return payload as unknown as DiagramPayload;
     } catch (error) {
       if (error instanceof DeserializationError) {
         throw error;

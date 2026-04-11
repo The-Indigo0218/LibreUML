@@ -1,75 +1,51 @@
 /**
  * FormatDetector.ts
- * 
- * Detecta automáticamente el formato de un archivo .luml
- * 
- * Responsabilidades:
- * - Distinguir entre JSON plano y ZIP
- * - Validar que sea un formato soportado
- * - Retornar formato para deserialización
- * 
- * Estrategia de detección:
- * 1. Leer primeros 4 bytes del archivo
- * 2. Si empieza con 'PK' (0x50 0x4B) → ZIP
- * 3. Si empieza con '{' (0x7B) → JSON
- * 4. Sino → Error
- * 
- * Magic numbers:
- * - ZIP: 0x50 0x4B 0x03 0x04 (PK..)
- * - JSON: 0x7B ({)
+ *
+ * Detects the format of a .luml file automatically.
+ *
+ * Detection strategy:
+ * 1. Read the first 4 bytes
+ * 2. If starts with 'PK' (0x50 0x4B 0x03 0x04) → ZIP
+ * 3. If starts with '{' (0x7B) → JSON
+ * 4. Otherwise → Error
  */
 
-/**
- * Formatos soportados
- */
 export type DiagramFormat = 'json' | 'zip';
 
-/**
- * Error de detección de formato
- */
 export class FormatDetectionError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
+  readonly cause?: unknown;
+  constructor(message: string, cause?: unknown) {
     super(message);
     this.name = 'FormatDetectionError';
+    this.cause = cause;
   }
 }
 
 export class FormatDetector {
   /**
-   * Detecta el formato del archivo
-   * 
-   * @param file - Archivo a analizar
-   * @returns Promise<DiagramFormat> - Formato detectado ('json' | 'zip')
-   * @throws FormatDetectionError si el formato no es soportado
-   * 
-   * @example
-   * ```typescript
-   * const detector = new FormatDetector();
-   * const format = await detector.detect(file);
-   * if (format === 'json') {
-   *   // Procesar como JSON
-   * } else {
-   *   // Procesar como ZIP
-   * }
-   * ```
+   * Detects the file format (alias for detectFormat).
    */
   async detect(file: File | Blob): Promise<DiagramFormat> {
+    return this.detectFormat(file);
+  }
+
+  /**
+   * Detects the file format.
+   *
+   * @throws FormatDetectionError if the format is not supported
+   */
+  async detectFormat(file: File | Blob): Promise<DiagramFormat> {
     try {
-      // Leer primeros 4 bytes
       const header = await this.readHeader(file, 4);
-      
-      // ZIP magic number: 0x50 0x4B 0x03 0x04 (PK..)
-      // Solo verificamos los primeros 2 bytes (PK) para mayor compatibilidad
+
       if (header[0] === 0x50 && header[1] === 0x4B) {
         return 'zip';
       }
-      
-      // JSON: empieza con '{'
-      if (header[0] === 0x7B) { // 0x7B = '{'
+
+      if (header[0] === 0x7B) {
         return 'json';
       }
-      
-      // Formato no reconocido
+
       throw new FormatDetectionError(
         `Unsupported file format. Expected JSON or ZIP.\n` +
         `File header: [${Array.from(header).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`
@@ -78,45 +54,59 @@ export class FormatDetector {
       if (error instanceof FormatDetectionError) {
         throw error;
       }
-      throw new FormatDetectionError(
-        'Failed to detect file format',
-        error
-      );
+      throw new FormatDetectionError('Failed to detect file format', error);
     }
   }
 
   /**
-   * Lee los primeros N bytes de un archivo
-   * 
-   * @param file - Archivo a leer
-   * @param bytes - Número de bytes a leer
-   * @returns Promise<Uint8Array> - Bytes leídos
+   * Returns true only if the file starts with '{' AND is valid JSON.
    */
-  private async readHeader(file: File | Blob, bytes: number): Promise<Uint8Array> {
+  async isJsonFormat(file: File | Blob): Promise<boolean> {
     try {
-      const slice = file.slice(0, bytes);
-      const buffer = await slice.arrayBuffer();
-      return new Uint8Array(buffer);
-    } catch (error) {
-      throw new FormatDetectionError(
-        'Failed to read file header',
-        error
+      const header = await this.readHeader(file, 1);
+      if (header.length < 1 || header[0] !== 0x7B) return false;
+      const text = await this.readAsText(file);
+      JSON.parse(text);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private readAsText(file: File | Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read file as text'));
+      reader.readAsText(file);
+    });
+  }
+
+  /**
+   * Returns true only if the file has the ZIP magic number (all 4 bytes) and is at least 4 bytes.
+   */
+  async isZipFormat(file: File | Blob): Promise<boolean> {
+    try {
+      if (file.size < 4) return false;
+      const header = await this.readHeader(file, 4);
+      return (
+        header[0] === 0x50 &&
+        header[1] === 0x4B &&
+        header[2] === 0x03 &&
+        header[3] === 0x04
       );
+    } catch {
+      return false;
     }
   }
 
   /**
-   * Detecta el formato y retorna información adicional
-   * 
-   * Útil para debugging y logging
-   * 
-   * @param file - Archivo a analizar
-   * @returns Promise<DetectedFormatInfo> - Información del formato detectado
+   * Detects the format and returns additional debug info.
    */
   async detectWithInfo(file: File | Blob): Promise<DetectedFormatInfo> {
     const header = await this.readHeader(file, 4);
-    const format = await this.detect(file);
-    
+    const format = await this.detectFormat(file);
+
     return {
       format,
       fileSize: file.size,
@@ -125,11 +115,29 @@ export class FormatDetector {
       headerHex: Array.from(header).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' '),
     };
   }
+
+  private readHeader(file: File | Blob, bytes: number): Promise<Uint8Array> {
+    return new Promise((resolve, reject) => {
+      try {
+        const slice = file.slice(0, bytes);
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (reader.result instanceof ArrayBuffer) {
+            resolve(new Uint8Array(reader.result));
+          } else {
+            reject(new FormatDetectionError('Failed to read file header'));
+          }
+        };
+        reader.onerror = () =>
+          reject(new FormatDetectionError('Failed to read file header', reader.error));
+        reader.readAsArrayBuffer(slice);
+      } catch (error) {
+        reject(new FormatDetectionError('Failed to read file header', error));
+      }
+    });
+  }
 }
 
-/**
- * Información detallada del formato detectado
- */
 export interface DetectedFormatInfo {
   format: DiagramFormat;
   fileSize: number;

@@ -60,6 +60,8 @@ interface VFSStoreState {
   updateLocalModel: (fileId: string, updater: (draft: SemanticModel) => void) => void;
 }
 
+export type VFSStore = VFSStoreState;
+
 export const useVFSStore = create<VFSStoreState>()(
   persist(
     immer((set) => ({

@@ -95,13 +95,27 @@ export class ModelExtractor {
     for (const relationId of relationIds) {
       const relation = fullModel.relations[relationId];
       if (relation) {
-        // Verify both ends are in the diagram
         if (elementIds.has(relation.sourceId) && elementIds.has(relation.targetId)) {
           partial.relations[relationId] = relation;
         }
       }
     }
-    
+
+    // 6. Collect packageNames from extracted elements
+    const packageNames = new Set<string>();
+    for (const cls of Object.values(partial.classes)) {
+      if (cls.packageName) packageNames.add(cls.packageName);
+    }
+    for (const iface of Object.values(partial.interfaces)) {
+      if (iface.packageName) packageNames.add(iface.packageName);
+    }
+    for (const enm of Object.values(partial.enums)) {
+      if (enm.packageName) packageNames.add(enm.packageName);
+    }
+    if (packageNames.size > 0) {
+      partial.packageNames = Array.from(packageNames);
+    }
+
     return partial;
   }
 

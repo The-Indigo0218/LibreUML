@@ -372,7 +372,7 @@ describe('DiagramIOService - Integration', () => {
 
   describe('Round-trip (Export + Import)', () => {
     it('should preserve all data in round-trip', async () => {
-      // Mock download to capture exported content
+      const RealBlob = global.Blob;
       let exportedContent = '';
       global.Blob = class MockBlob {
         constructor(parts: any[]) {
@@ -383,8 +383,8 @@ describe('DiagramIOService - Integration', () => {
       // Export
       await service.exportDiagram('file-1');
 
-      // Parse exported content
-      const exported = JSON.parse(exportedContent);
+      // Restore real Blob before import
+      global.Blob = RealBlob;
 
       // Import
       const blob = new Blob([exportedContent], { type: 'application/json' });

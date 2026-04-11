@@ -39,7 +39,15 @@ export interface PartialSemanticModel {
   dataTypes: Record<string, any>;
   attributes: Record<string, any>;
   operations: Record<string, any>;
+  actors?: Record<string, any>;
+  useCases?: Record<string, any>;
+  activityNodes?: Record<string, any>;
+  objectInstances?: Record<string, any>;
+  components?: Record<string, any>;
+  nodes?: Record<string, any>;
+  artifacts?: Record<string, any>;
   relations: Record<string, any>;
+  packageNames?: string[];
   createdAt: number;
   updatedAt: number;
 }

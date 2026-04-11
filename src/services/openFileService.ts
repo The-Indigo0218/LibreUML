@@ -47,6 +47,7 @@ import { useToastStore } from '../store/toast.store';
 import { standaloneModelOps } from '../store/standaloneModelOps';
 import { XmiImporterService } from './xmiImporter.service';
 import { parseLumlFile, loadParsedProject } from './projectIO.service';
+import { getDiagramIOService } from './diagram';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -162,6 +163,26 @@ function findDiagramsFolderId(): string | null {
  *   "diagram"  → injects the single diagram based on mode
  */
 export async function openLumlFile(file: File, mode: OpenMode): Promise<void> {
+  // Try new DiagramIOService first for single diagram imports
+  try {
+    const diagramService = getDiagramIOService();
+    const parsed = await diagramService.importDiagram(file);
+    
+    // Successfully parsed as diagram - inject it
+    await injectDiagramIntoVFS(
+      parsed.view,
+      parsed.model,
+      parsed.name,
+      mode,
+    );
+    return;
+  } catch (error) {
+    // If it's not a diagram format, fall back to legacy parser
+    // This handles full project imports
+    console.info('[LibreUML] Falling back to legacy parser for project import');
+  }
+
+  // Legacy path: use parseLumlFile for full project imports
   const result = await parseLumlFile(file);
 
   if (result.exportType === 'project') {

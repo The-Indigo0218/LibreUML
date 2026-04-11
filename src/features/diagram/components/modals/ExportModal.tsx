@@ -21,7 +21,7 @@ import { ExportService } from "../../../../services/export.service";
 import {
   downloadVfsDiagramXmi,
 } from "../../../../services/vfsExport.service";
-import { exportDiagram } from "../../../../services/projectIO.service";
+import { getDiagramIOService } from "../../../../services/diagram";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import { useKonvaCanvasController } from "../../../../canvas/hooks/useKonvaCanvasController";
 import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
@@ -188,9 +188,18 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       downloadVfsDiagramXmi(model, selectedDiagramView, selectedFileName);
       onClose();
     } else if (format === "json") {
-      // Use exportDiagram instead of downloadVfsDiagramJson to include semantic model
-      await exportDiagram(selectedFileId);
-      onClose();
+      // Use new DiagramIOService for JSON export
+      try {
+        const service = getDiagramIOService();
+        await service.exportDiagram(selectedFileId);
+        onClose();
+      } catch (error) {
+        alert(
+          t("alerts.exportError") ||
+          "Error exporting diagram" +
+          (error instanceof Error ? `: ${error.message}` : "")
+        );
+      }
     }
   };
 

@@ -306,26 +306,14 @@ function makeReactFlowNoteNode(
 function computePackageDisplayName(
   viewNode: ViewNode,
   pkg: IRPackage,
-  allViewNodes: ViewNode[],
-  allPackages: Record<string, IRPackage>,
 ): string {
   if (!viewNode.parentPackageId) {
-    // Standalone package — use stored name as-is (may already be full qualified)
+    // Root-level package — show the full stored name (e.g. "com")
     return pkg.name;
   }
-  // Walk parent chain, collecting last segments to build full qualified name
-  const segments: string[] = [];
-  let currentId: string | null | undefined = viewNode.parentPackageId;
-  while (currentId) {
-    const parentVN = allViewNodes.find((vn) => vn.id === currentId);
-    if (!parentVN) break;
-    const parentPkg = allPackages[parentVN.elementId];
-    if (!parentPkg) break;
-    segments.unshift(parentPkg.name.split('.').pop() || parentPkg.name);
-    currentId = parentVN.parentPackageId;
-  }
-  segments.push(pkg.name.split('.').pop() || pkg.name);
-  return segments.join('.');
+  // Nested package — show only the simple name (last segment).
+  // The parent is already visible on the canvas so the prefix is redundant.
+  return pkg.name.split('.').pop() || pkg.name;
 }
 
 function makeReactFlowPackageNode(
@@ -351,7 +339,7 @@ function makeReactFlowPackageNode(
   const viewModel: PackageViewModel = {
     __brand: 'package',
     id: viewNode.id,
-    name: computePackageDisplayName(viewNode, pkg, allViewNodes, allPackages),
+    name: computePackageDisplayName(viewNode, pkg),
     collapsed: viewNode.collapsed ?? false,
     color: viewNode.color,
     childCount,
@@ -634,7 +622,11 @@ export function useVFSCanvasController(): VFSCanvasResult {
       const label = element?.name ?? 'NewClass';
       const displayConfig = VFS_DISPLAY[kind] ?? VFS_DISPLAY.CLASS;
       const sections = element ? buildSections(model, element as IRClass | IRInterface | IREnum, kind) : [];
-      const badge = (element as IRClass | IRInterface | IREnum | null)?.packageName ?? undefined;
+      // Only show the package badge when the element is NOT already visually
+      // inside a package on the canvas — avoids redundant labelling.
+      const badge = viewNode.parentPackageId
+        ? undefined
+        : (element as IRClass | IRInterface | IREnum | null)?.packageName ?? undefined;
 
       const onRename = (name: string, generics?: string) => {
         if (isStandalone && activeTabId) {

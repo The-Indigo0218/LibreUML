@@ -293,44 +293,21 @@ export default function RightSidebar() {
 
   const packageNames: string[] = useMemo(() => {
     const names = new Set<string>();
-    
+
+    // Semantic packages (not yet placed on canvas as visual nodes)
     if (model?.packageNames) {
-      model.packageNames.forEach(name => names.add(name));
+      model.packageNames.forEach((name) => names.add(name));
     }
-    
-    if (model?.packages && activeTabId && project) {
-      const file = project.nodes[activeTabId];
-      if (file && file.type === 'FILE') {
-        const vfsFile = file as VFSFile;
-        const content = vfsFile.content;
-        
-        if (content && typeof content === 'object' && 'nodes' in content) {
-          const viewNodes = (content as any).nodes || [];
-          
-          for (const vn of viewNodes) {
-            const pkg = model.packages[vn.elementId];
-            if (!pkg) continue;
-            
-            let effectivePath = pkg.name;
-            let currentVN = vn;
-            
-            while (currentVN.parentPackageId) {
-              const parentVN = viewNodes.find((n: any) => n.id === currentVN.parentPackageId);
-              if (!parentVN) break;
-              const parentPkg = model.packages[parentVN.elementId];
-              if (!parentPkg) break;
-              effectivePath = `${parentPkg.name}.${effectivePath}`;
-              currentVN = parentVN;
-            }
-            
-            names.add(effectivePath);
-          }
-        }
-      }
+
+    // Visual/canvas packages — removed from packageNames when dropped on canvas,
+    // so we gather them from model.packages. pkg.name already stores the full
+    // qualified path (e.g. "com.model"), no parent-walk needed.
+    if (model?.packages) {
+      Object.values(model.packages).forEach((pkg) => names.add(pkg.name));
     }
-    
+
     return Array.from(names).sort();
-  }, [model, activeTabId, project]);
+  }, [model]);
 
   const DEFAULT_PKG = "__default__";
 

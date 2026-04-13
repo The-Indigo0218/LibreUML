@@ -25,6 +25,9 @@ import type {
   AggregationEdge,
   CompositionEdge,
   NoteLinkEdge,
+  PackageImportEdge,
+  PackageAccessEdge,
+  PackageMergeEdge,
 } from '../domain/models/edges/class-diagram.types';
 import type {
   UseCaseAssociationEdge,
@@ -160,6 +163,24 @@ function createClassDiagramEdge(
         type: 'NOTE_LINK',
       } as NoteLinkEdge;
 
+    case 'PACKAGE_IMPORT':
+      return {
+        ...baseEdge,
+        type: 'PACKAGE_IMPORT',
+      } as PackageImportEdge;
+
+    case 'PACKAGE_ACCESS':
+      return {
+        ...baseEdge,
+        type: 'PACKAGE_ACCESS',
+      } as PackageAccessEdge;
+
+    case 'PACKAGE_MERGE':
+      return {
+        ...baseEdge,
+        type: 'PACKAGE_MERGE',
+      } as PackageMergeEdge;
+
     default:
       throw new Error(`Unknown Class Diagram edge type: ${type}`);
   }
@@ -274,6 +295,9 @@ const classDiagramRegistry: DiagramTypeRegistry = {
     'AGGREGATION',
     'COMPOSITION',
     'NOTE_LINK',
+    'PACKAGE_IMPORT',
+    'PACKAGE_ACCESS',
+    'PACKAGE_MERGE',
   ],
 
   defaultNodeType: 'CLASS',

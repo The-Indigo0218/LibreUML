@@ -320,7 +320,7 @@ function makeReactFlowPackageNode(
   viewNode: ViewNode,
   pkg: IRPackage,
   allViewNodes: ViewNode[],
-  allPackages: Record<string, IRPackage>,
+  _allPackages: Record<string, IRPackage>,
 ) {
   const childCount = allViewNodes.filter(vn => vn.parentPackageId === viewNode.id).length;
 

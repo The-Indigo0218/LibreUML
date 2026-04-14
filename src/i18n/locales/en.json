@@ -557,6 +557,7 @@
   },
   "vfsEdgeAction": {
     "title": "Edit Relation",
+    "titlePackage": "Package Relation",
     "relationType": "Relation Type",
     "origin": "Origin",
     "destination": "Destination",
@@ -568,7 +569,10 @@
     "lockAnchors": "Lock connection points",
     "delete": "Delete",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "packageLegend": {
+      "title": "UML Package Relation Legend"
+    }
   },
   "globalDeleteModal": {
     "title": "Delete from Project",

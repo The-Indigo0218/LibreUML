@@ -3,14 +3,17 @@ import type { BaseDomainEdge, Multiplicable, Labelable } from './base.types';
 /**
  * Class Diagram Edge Types (Discriminated Union)
  */
-export type ClassDiagramEdgeType = 
-  | 'ASSOCIATION' 
-  | 'INHERITANCE' 
-  | 'IMPLEMENTATION' 
-  | 'DEPENDENCY' 
-  | 'AGGREGATION' 
+export type ClassDiagramEdgeType =
+  | 'ASSOCIATION'
+  | 'INHERITANCE'
+  | 'IMPLEMENTATION'
+  | 'DEPENDENCY'
+  | 'AGGREGATION'
   | 'COMPOSITION'
-  | 'NOTE_LINK';
+  | 'NOTE_LINK'
+  | 'PACKAGE_IMPORT'
+  | 'PACKAGE_ACCESS'
+  | 'PACKAGE_MERGE';
 
 /**
  * Association Edge (SSOT Domain Model)
@@ -65,13 +68,34 @@ export interface NoteLinkEdge extends BaseDomainEdge {
 }
 
 /**
- * Discriminated Union of all Class Diagram edges
+ * Package Import Edge — «import» (public namespace import)
  */
-export type ClassDiagramEdge = 
-  | AssociationEdge 
-  | InheritanceEdge 
-  | ImplementationEdge 
-  | DependencyEdge 
-  | AggregationEdge 
+export interface PackageImportEdge extends BaseDomainEdge {
+  type: 'PACKAGE_IMPORT';
+}
+
+/**
+ * Package Access Edge — «access» (private namespace access)
+ */
+export interface PackageAccessEdge extends BaseDomainEdge {
+  type: 'PACKAGE_ACCESS';
+}
+
+/**
+ * Package Merge Edge — «merge» (extends/merges target package)
+ */
+export interface PackageMergeEdge extends BaseDomainEdge {
+  type: 'PACKAGE_MERGE';
+}
+
+export type ClassDiagramEdge =
+  | AssociationEdge
+  | InheritanceEdge
+  | ImplementationEdge
+  | DependencyEdge
+  | AggregationEdge
   | CompositionEdge
-  | NoteLinkEdge;
+  | NoteLinkEdge
+  | PackageImportEdge
+  | PackageAccessEdge
+  | PackageMergeEdge;

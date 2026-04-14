@@ -209,7 +209,13 @@ export function useCanvasEventHandlers({
 
       const wsState = useWorkspaceStore.getState();
       const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
-      const kind: RelationKind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
+      const activeModel = isStandalone ? getLocalModel(activeTabId) : useModelStore.getState().model;
+      const sourceIsPkg = !!(activeModel?.packages[sourceVN.elementId]);
+      const targetIsPkg = !!(activeModel?.packages[targetVN.elementId]);
+      const kind: RelationKind =
+        sourceIsPkg && targetIsPkg
+          ? 'DEPENDENCY'
+          : (TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION');
 
       const SELF_LOOP_FORBIDDEN = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);
       if (sourceVN.elementId === targetVN.elementId && SELF_LOOP_FORBIDDEN.has(kind)) {

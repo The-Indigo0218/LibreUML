@@ -43,6 +43,9 @@ describe('Diagram Registry', () => {
         'AGGREGATION',
         'COMPOSITION',
         'NOTE_LINK',
+        'PACKAGE_IMPORT',
+        'PACKAGE_ACCESS',
+        'PACKAGE_MERGE',
       ]);
     });
 

@@ -7,7 +7,10 @@ export type UmlRelationType =
   | "implementation"
   | "dependency"
   | "aggregation"
-  | "composition";
+  | "composition"
+  | "package_import"
+  | "package_access"
+  | "package_merge";
 export type visibility = "+" | "-" | "#" | "~";
 
 export interface UmlAttribute {

@@ -56,21 +56,39 @@ export const edgeConfig = {
     },
     aggregation: {
       style: { strokeWidth: 2, stroke: PALETTE.base },
-      marker: { color: PALETTE.aggregation, width: 25, height: 25 }, // Color propio
+      marker: { color: PALETTE.aggregation, width: 25, height: 25 }, 
       zIndex: 8,
-      highlight: PALETTE.aggregation, // Color al hacer hover
+      highlight: PALETTE.aggregation, 
     },
     composition: {
       style: { strokeWidth: 2.5, stroke: PALETTE.base },
-      marker: { color: PALETTE.composition, width: 25, height: 25 }, // Color propio
+      marker: { color: PALETTE.composition, width: 25, height: 25 }, 
       zIndex: 9,
-      highlight: PALETTE.composition, // Color al hacer hover
+      highlight: PALETTE.composition, 
     },
     note: {
       style: { strokeWidth: 1, strokeDasharray: "3,3", stroke: PALETTE.base },
       marker: { color: PALETTE.base, width: 15, height: 15 },
       zIndex: 1,
       highlight: PALETTE.note,
+    },
+    package_import: {
+      style: { strokeWidth: 1.5, strokeDasharray: "6,4", stroke: PALETTE.base },
+      marker: { color: PALETTE.base, width: 20, height: 20 },
+      zIndex: 3,
+      highlight: PALETTE.dependency,
+    },
+    package_access: {
+      style: { strokeWidth: 1.5, strokeDasharray: "6,4", stroke: PALETTE.base },
+      marker: { color: PALETTE.base, width: 20, height: 20 },
+      zIndex: 3,
+      highlight: PALETTE.dependency,
+    },
+    package_merge: {
+      style: { strokeWidth: 1.5, strokeDasharray: "6,4", stroke: PALETTE.base },
+      marker: { color: PALETTE.base, width: 20, height: 20 },
+      zIndex: 3,
+      highlight: PALETTE.dependency,
     },
   },
 };

@@ -1,10 +1,12 @@
 import type { stereotype, UmlRelationType } from "../features/diagram/types/diagram.types";
 
-/**
- * Definition of allowed relationships based on UML 2.5 standards and Java semantics.
- * Key: The relationship type.
- * Value: A set of rules defining valid source and target stereotypes.
- */
+const PACKAGE_RELATION_TYPES = new Set<UmlRelationType>([
+  "dependency",
+  "package_import",
+  "package_access",
+  "package_merge",
+]);
+
 const RELATIONSHIP_RULES: Record<
   UmlRelationType,
   {
@@ -14,13 +16,10 @@ const RELATIONSHIP_RULES: Record<
   }
 > = {
   inheritance: {
-    // Class extends Class, Interface extends Interface
     sources: ["class", "abstract", "interface"],
     targets: ["class", "abstract", "interface"],
     validator: (source, target) => {
-      const isSourceInterface = source === "interface";
-      const isTargetInterface = target === "interface";
-      return isSourceInterface === isTargetInterface;
+      return (source === "interface") === (target === "interface");
     },
   },
   implementation: {
@@ -43,14 +42,22 @@ const RELATIONSHIP_RULES: Record<
     sources: ["class", "abstract", "interface", "enum"],
     targets: ["class", "abstract", "interface", "enum"],
   },
+  package_import: {
+    sources: ["package"],
+    targets: ["package"],
+  },
+  package_access: {
+    sources: ["package"],
+    targets: ["package"],
+  },
+  package_merge: {
+    sources: ["package"],
+    targets: ["package"],
+  },
 };
 
 /**
  * Validates if a connection is semantically correct according to UML rules.
- * @param sourceStereotype The stereotype of the source node.
- * @param targetStereotype The stereotype of the target node.
- * @param relationType The type of relationship being attempted.
- * @returns {boolean} True if the connection is valid, false otherwise.
  */
 export const validateConnection = (
   sourceStereotype: stereotype,
@@ -60,7 +67,7 @@ export const validateConnection = (
   if (sourceStereotype === "note" || targetStereotype === "note") return true;
 
   if (sourceStereotype === "package" && targetStereotype === "package") {
-    return relationType === "dependency";
+    return PACKAGE_RELATION_TYPES.has(relationType);
   }
 
   const rule = RELATIONSHIP_RULES[relationType];

@@ -59,6 +59,8 @@ interface ModelStoreState {
   setElementPackage: (elementId: string, packageName: string | undefined) => void;
 }
 
+export type ModelStore = ModelStoreState;
+
 export const useModelStore = create<ModelStoreState>()(
   persist(
     immer((set) => ({

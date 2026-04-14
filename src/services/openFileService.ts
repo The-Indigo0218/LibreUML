@@ -47,6 +47,8 @@ import { useToastStore } from '../store/toast.store';
 import { standaloneModelOps } from '../store/standaloneModelOps';
 import { XmiImporterService } from './xmiImporter.service';
 import { parseLumlFile, loadParsedProject } from './projectIO.service';
+import { getDiagramIOService } from './diagram';
+import type { ParsedDiagram } from './diagram';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -156,12 +158,212 @@ function findDiagramsFolderId(): string | null {
 // ─── .luml routing ────────────────────────────────────────────────────────────
 
 /**
+ * Injects a diagram parsed by DiagramIOService, preserving the original layout.
+ *
+ * Unlike injectDiagramIntoVFS (legacy), this function:
+ * - Preserves x/y positions from the exported view (no grid reset)
+ * - Correctly remaps parentPackageId when node IDs are regenerated
+ *
+ * Used for the new v2.0 JSON format and legacy single-diagram ZIPs that pass
+ * through DiagramIOService successfully.
+ */
+async function injectParsedDiagram(
+  parsed: ParsedDiagram,
+  mode: OpenMode,
+): Promise<void> {
+  const { view, model: partialModel, name } = parsed;
+  ensureContext(mode, name);
+
+  // Build a node ID map first so parentPackageId can be remapped correctly
+  const nodeIdMap = new Map<string, string>();
+  for (const node of view.nodes) {
+    nodeIdMap.set(node.id, crypto.randomUUID());
+  }
+
+  if (mode === 'standalone') {
+    const fileId = useVFSStore.getState().createFile(
+      null,
+      name,
+      'CLASS_DIAGRAM',
+      '.luml',
+      false,
+      true,
+    );
+
+    const ops = standaloneModelOps(fileId);
+    const idMap = new Map<string, string>();
+
+    for (const [oldId, cls] of Object.entries(partialModel.classes)) {
+      const newAttrs: IRAttribute[] = cls.attributeIds
+        .map((id) => partialModel.attributes[id])
+        .filter(Boolean)
+        .map((a) => ({ ...a, id: crypto.randomUUID() }));
+      const newOps: IROperation[] = cls.operationIds
+        .map((id) => partialModel.operations[id])
+        .filter(Boolean)
+        .map((o) => ({ ...o, id: crypto.randomUUID(), parameters: o.parameters ?? [] }));
+      const newId = cls.isAbstract
+        ? ops.createAbstractClass({ name: cls.name, packageName: cls.packageName, attributeIds: [], operationIds: [], visibility: cls.visibility })
+        : ops.createClass({ name: cls.name, packageName: cls.packageName, attributeIds: [], operationIds: [], visibility: cls.visibility, isAbstract: false });
+      ops.setElementMembers(newId, newAttrs, newOps);
+      idMap.set(oldId, newId);
+    }
+
+    for (const [oldId, iface] of Object.entries(partialModel.interfaces)) {
+      const newOps: IROperation[] = iface.operationIds
+        .map((id) => partialModel.operations[id])
+        .filter(Boolean)
+        .map((o) => ({ ...o, id: crypto.randomUUID(), parameters: o.parameters ?? [] }));
+      const newId = ops.createInterface({ name: iface.name, packageName: iface.packageName, operationIds: [], visibility: iface.visibility });
+      ops.setElementMembers(newId, [], newOps);
+      idMap.set(oldId, newId);
+    }
+
+    for (const [oldId, enm] of Object.entries(partialModel.enums)) {
+      const newId = ops.createEnum({ name: enm.name, packageName: enm.packageName, literals: [...(enm.literals ?? [])], visibility: enm.visibility });
+      idMap.set(oldId, newId);
+    }
+
+    for (const [oldRelId, rel] of Object.entries(partialModel.relations)) {
+      const newSourceId = idMap.get(rel.sourceId);
+      const newTargetId = idMap.get(rel.targetId);
+      if (!newSourceId || !newTargetId) continue;
+      const { id: _id, ...relData } = rel;
+      const newRelId = ops.createRelation({
+        ...relData,
+        sourceId: newSourceId,
+        targetId: newTargetId,
+        ...(rel.sourceEnd ? { sourceEnd: { ...rel.sourceEnd, elementId: newSourceId } } : {}),
+        ...(rel.targetEnd ? { targetEnd: { ...rel.targetEnd, elementId: newTargetId } } : {}),
+      });
+      idMap.set(oldRelId, newRelId);
+    }
+
+    for (const pkgName of (partialModel.packageNames ?? [])) {
+      if (pkgName) ops.addPackageName(pkgName);
+    }
+
+    // Preserve original positions; remap node and parentPackage IDs
+    const viewNodes: ViewNode[] = view.nodes.flatMap((n) => {
+      const newId = nodeIdMap.get(n.id)!;
+      const newParentId = n.parentPackageId ? (nodeIdMap.get(n.parentPackageId) ?? null) : null;
+      if (!n.elementId) {
+        return [{ ...n, id: newId, parentPackageId: newParentId }];
+      }
+      if (!idMap.has(n.elementId)) return [];
+      return [{ ...n, id: newId, elementId: idMap.get(n.elementId)!, parentPackageId: newParentId }];
+    });
+
+    const viewEdges: ViewEdge[] = view.edges
+      .filter((e) => idMap.has(e.relationId))
+      .map((e) => ({ ...e, id: crypto.randomUUID(), relationId: idMap.get(e.relationId)! }));
+
+    useVFSStore.getState().updateFileContent(fileId, { diagramId: fileId, nodes: viewNodes, edges: viewEdges });
+    useWorkspaceStore.getState().openTab(fileId);
+    useToastStore.getState().show(`"${name}" opened as standalone`);
+    return;
+  }
+
+  // Project path
+  const modelStore = useModelStore.getState();
+  const idMap = new Map<string, string>();
+
+  for (const [oldId, cls] of Object.entries(partialModel.classes)) {
+    const newAttrs: IRAttribute[] = cls.attributeIds
+      .map((id) => partialModel.attributes[id])
+      .filter(Boolean)
+      .map((a) => ({ ...a, id: crypto.randomUUID() }));
+    const newOps: IROperation[] = cls.operationIds
+      .map((id) => partialModel.operations[id])
+      .filter(Boolean)
+      .map((o) => ({ ...o, id: crypto.randomUUID(), parameters: o.parameters ?? [] }));
+    const newId = cls.isAbstract
+      ? modelStore.createAbstractClass({ name: cls.name, packageName: cls.packageName, attributeIds: [], operationIds: [], visibility: cls.visibility })
+      : modelStore.createClass({ name: cls.name, packageName: cls.packageName, attributeIds: [], operationIds: [], visibility: cls.visibility, isAbstract: false });
+    modelStore.setElementMembers(newId, newAttrs, newOps);
+    idMap.set(oldId, newId);
+  }
+
+  for (const [oldId, iface] of Object.entries(partialModel.interfaces)) {
+    const newOps: IROperation[] = iface.operationIds
+      .map((id) => partialModel.operations[id])
+      .filter(Boolean)
+      .map((o) => ({ ...o, id: crypto.randomUUID(), parameters: o.parameters ?? [] }));
+    const newId = modelStore.createInterface({ name: iface.name, packageName: iface.packageName, operationIds: [], visibility: iface.visibility });
+    modelStore.setElementMembers(newId, [], newOps);
+    idMap.set(oldId, newId);
+  }
+
+  for (const [oldId, enm] of Object.entries(partialModel.enums)) {
+    const newId = modelStore.createEnum({ name: enm.name, packageName: enm.packageName, literals: [...(enm.literals ?? [])], visibility: enm.visibility });
+    idMap.set(oldId, newId);
+  }
+
+  for (const pkgName of (partialModel.packageNames ?? [])) {
+    if (pkgName) modelStore.addPackageName(pkgName);
+  }
+
+  for (const [oldRelId, rel] of Object.entries(partialModel.relations)) {
+    const newSourceId = idMap.get(rel.sourceId);
+    const newTargetId = idMap.get(rel.targetId);
+    if (!newSourceId || !newTargetId) continue;
+    const newRelId = modelStore.createRelation({
+      kind: rel.kind,
+      sourceId: newSourceId,
+      targetId: newTargetId,
+      name: rel.name,
+      stereotypes: rel.stereotypes,
+      ...(rel.sourceEnd || rel.targetEnd
+        ? {
+            sourceEnd: rel.sourceEnd ? { ...rel.sourceEnd, elementId: newSourceId } : undefined,
+            targetEnd: rel.targetEnd ? { ...rel.targetEnd, elementId: newTargetId } : undefined,
+          }
+        : {}),
+    });
+    idMap.set(oldRelId, newRelId);
+  }
+
+  const parentId = findDiagramsFolderId();
+  const fileId = useVFSStore.getState().createFile(parentId, name, 'CLASS_DIAGRAM', '.luml', false);
+
+  // Preserve original positions; remap node and parentPackage IDs
+  const viewNodes: ViewNode[] = view.nodes.flatMap((n) => {
+    const newId = nodeIdMap.get(n.id)!;
+    const newParentId = n.parentPackageId ? (nodeIdMap.get(n.parentPackageId) ?? null) : null;
+    if (!n.elementId) {
+      return [{ ...n, id: newId, parentPackageId: newParentId }];
+    }
+    if (!idMap.has(n.elementId)) return [];
+    return [{ ...n, id: newId, elementId: idMap.get(n.elementId)!, parentPackageId: newParentId }];
+  });
+
+  const viewEdges: ViewEdge[] = view.edges
+    .filter((e) => idMap.has(e.relationId))
+    .map((e) => ({ ...e, id: crypto.randomUUID(), relationId: idMap.get(e.relationId)! }));
+
+  useVFSStore.getState().updateFileContent(fileId, { diagramId: fileId, nodes: viewNodes, edges: viewEdges });
+  useWorkspaceStore.getState().openTab(fileId);
+}
+
+/**
  * Opens a .luml file, routing by its embedded exportType:
  *
  *   "project"  → loads the full workspace (mode is ignored)
  *   "diagram"  → injects the single diagram based on mode
  */
 export async function openLumlFile(file: File, mode: OpenMode): Promise<void> {
+  // New format path: DiagramIOService handles JSON v2.0 and legacy single-diagram ZIPs.
+  // Uses injectParsedDiagram to preserve layout and remap parentPackageId correctly.
+  try {
+    const diagramService = getDiagramIOService();
+    const parsed = await diagramService.importDiagram(file);
+    await injectParsedDiagram(parsed, mode);
+    return;
+  } catch {
+    // Falls through to the legacy parser for full project ZIPs and v1 JSON
+  }
+
+  // Legacy path: handles full project ZIPs and very old v1 JSON format
   const result = await parseLumlFile(file);
 
   if (result.exportType === 'project') {

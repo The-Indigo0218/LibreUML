@@ -480,6 +480,21 @@ export async function downloadProject(): Promise<void> {
  * Exports just the active diagram as a standalone .luml file.
  * Sets exportType: "diagram" and bundles only the semantic elements
  * referenced by that diagram — does NOT include the rest of the workspace.
+ * 
+ * @deprecated Use DiagramIOService.exportDiagram() instead.
+ * This function is kept for backward compatibility but will be removed in a future version.
+ * 
+ * Migration:
+ * ```typescript
+ * // Old way
+ * import { exportDiagram } from './projectIO.service';
+ * await exportDiagram(fileId);
+ * 
+ * // New way
+ * import { getDiagramIOService } from './diagram';
+ * const service = getDiagramIOService();
+ * await service.exportDiagram(fileId);
+ * ```
  */
 export async function exportDiagram(fileId: string): Promise<void> {
   const project = useVFSStore.getState().project;

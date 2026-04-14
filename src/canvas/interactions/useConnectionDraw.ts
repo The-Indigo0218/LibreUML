@@ -331,18 +331,22 @@ export function useConnectionDraw({
               const srcStereotype = resolveStereotype(srcNode.data);
               const tgtStereotype = resolveStereotype(tgtNode.data);
 
-              // Determine current connection kind from WorkspaceStore.
-              const wsState = useWorkspaceStore.getState();
-              const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
-              const kind: RelationKind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
-              const umlType = RELATION_TO_UML[kind] ?? 'association';
-
-              if (!validateConnection(srcStereotype, tgtStereotype, umlType)) {
-                useToastStore.getState().show(
-                  '⚠️ Relación inválida según estereotipos UML',
-                );
-              } else {
+              // Package→package: always allowed. Kind is forced to DEPENDENCY in the handler.
+              if (srcStereotype === 'package' && tgtStereotype === 'package') {
                 onConnect(src.nodeId, snap.nodeId);
+              } else {
+                const wsState = useWorkspaceStore.getState();
+                const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
+                const kind: RelationKind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
+                const umlType = RELATION_TO_UML[kind] ?? 'association';
+
+                if (!validateConnection(srcStereotype, tgtStereotype, umlType)) {
+                  useToastStore.getState().show(
+                    '⚠️ Relación inválida según estereotipos UML',
+                  );
+                } else {
+                  onConnect(src.nodeId, snap.nodeId);
+                }
               }
             } else {
               // Fallback: let onConnect handle validation if nodes not found.

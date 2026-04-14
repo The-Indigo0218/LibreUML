@@ -19,6 +19,13 @@ const CLASS_RELATION_KINDS: { value: RelationKind; label: string }[] = [
   { value: 'COMPOSITION',    label: 'Composition' },
 ];
 
+const PACKAGE_RELATION_KINDS: { value: RelationKind; label: string; stereotype: string | null; description: string }[] = [
+  { value: 'DEPENDENCY',     label: 'Dependency',      stereotype: null,       description: 'Generic dependency between packages' },
+  { value: 'PACKAGE_IMPORT', label: '«import»',        stereotype: '«import»', description: 'Public namespace import — exported members are visible to importing package' },
+  { value: 'PACKAGE_ACCESS', label: '«access»',        stereotype: '«access»', description: 'Private namespace access — not re-exported to further importers' },
+  { value: 'PACKAGE_MERGE',  label: '«merge»',         stereotype: '«merge»',  description: 'Package merge — elements of target are conceptually merged into source' },
+];
+
 const MULTIPLICITY_KINDS = new Set<RelationKind>([
   'ASSOCIATION', 'AGGREGATION', 'COMPOSITION',
 ]);
@@ -38,6 +45,7 @@ function getElementName(model: SemanticModel, elementId: string): string {
     model.classes[elementId]?.name ??
     model.interfaces[elementId]?.name ??
     model.enums[elementId]?.name ??
+    model.packages[elementId]?.name ??
     elementId
   );
 }
@@ -99,12 +107,15 @@ export default function VfsEdgeActionModal() {
 
   if (!isOpen || !viewEdge || !relation || !activeModel) return null;
 
+  const isPackageRelation =
+    !!(activeModel.packages[relation.sourceId] && activeModel.packages[relation.targetId]);
+
   const sourceName = getElementName(activeModel, relation.sourceId);
   const targetName = getElementName(activeModel, relation.targetId);
   const displaySource = reversed ? targetName : sourceName;
   const displayTarget = reversed ? sourceName : targetName;
 
-  const showMultiplicity = MULTIPLICITY_KINDS.has(kind);
+  const showMultiplicity = !isPackageRelation && MULTIPLICITY_KINDS.has(kind);
   const srcMulValid = isValidMultiplicity(sourceMul);
   const tgtMulValid = isValidMultiplicity(targetMul);
   const canSave = srcMulValid && tgtMulValid;
@@ -178,7 +189,7 @@ export default function VfsEdgeActionModal() {
 
         <div className="px-5 py-3 border-b border-surface-border flex justify-between items-center bg-surface-secondary/50">
           <h2 className="text-sm font-bold text-text-primary uppercase tracking-wide">
-            Editar Relación
+            {isPackageRelation ? t('vfsEdgeAction.titlePackage') : t('vfsEdgeAction.title')}
           </h2>
           <button onClick={closeModals} className="text-text-secondary hover:text-text-primary transition-colors">
             <X className="w-5 h-5" />
@@ -189,17 +200,55 @@ export default function VfsEdgeActionModal() {
 
           <div className="space-y-3">
             <label className="block text-xs font-bold text-text-secondary uppercase tracking-wider">
-              Tipo de Relación
+              {t('vfsEdgeAction.relationType')}
             </label>
-            <select
-              className="w-full bg-surface-secondary border border-surface-border rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-uml-class-border"
-              value={kind}
-              onChange={(e) => setKind(e.target.value as RelationKind)}
-            >
-              {CLASS_RELATION_KINDS.map(({ value, label }) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
+
+            {isPackageRelation ? (
+              <div className="flex flex-col gap-1.5">
+                {PACKAGE_RELATION_KINDS.map(({ value, label, stereotype: stereo }) => (
+                  <button
+                    key={value}
+                    onClick={() => setKind(value)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+                      kind === value
+                        ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300'
+                        : 'bg-surface-secondary border-surface-border text-text-secondary hover:border-indigo-400/50 hover:text-text-primary'
+                    }`}
+                  >
+                    <span className="w-20 text-center font-mono text-xs font-bold shrink-0 italic">
+                      {stereo ?? '→'}
+                    </span>
+                    <span className="text-sm font-medium">{label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <select
+                className="w-full bg-surface-secondary border border-surface-border rounded px-3 py-2 text-sm text-text-primary outline-none focus:border-uml-class-border"
+                value={kind}
+                onChange={(e) => setKind(e.target.value as RelationKind)}
+              >
+                {CLASS_RELATION_KINDS.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            )}
+
+            {isPackageRelation && (
+              <div className="mt-2 rounded-lg border border-surface-border bg-surface-secondary/30 p-3 space-y-2">
+                <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">
+                  {t('vfsEdgeAction.packageLegend.title')}
+                </div>
+                {PACKAGE_RELATION_KINDS.map(({ stereotype: stereo, description }) => (
+                  <div key={description} className="flex items-start gap-2 text-xs text-text-secondary">
+                    <span className="font-mono italic text-indigo-400 w-20 shrink-0 text-center">
+                      {stereo ?? '→'}
+                    </span>
+                    <span>{description}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="flex items-center gap-3 bg-surface-secondary/50 rounded-lg p-3 border border-surface-border">
               <div className="flex-1 text-center min-w-0">

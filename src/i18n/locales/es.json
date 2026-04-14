@@ -550,6 +550,7 @@
   },
   "vfsEdgeAction": {
     "title": "Editar Relación",
+    "titlePackage": "Relación de Paquetes",
     "relationType": "Tipo de Relación",
     "origin": "Origen",
     "destination": "Destino",
@@ -561,7 +562,10 @@
     "lockAnchors": "Bloquear puntos de conexión",
     "delete": "Eliminar",
     "cancel": "Cancelar",
-    "save": "Guardar"
+    "save": "Guardar",
+    "packageLegend": {
+      "title": "Leyenda de Relaciones de Paquete"
+    }
   },
   "globalDeleteModal": {
     "title": "Eliminar del Proyecto",

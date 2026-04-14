@@ -52,6 +52,11 @@ function EditorLogic() {
   
   const { project } = useVFSStore();
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const openTabs = useWorkspaceStore((s) => s.openTabs);
+  const hasActiveDiagram =
+    !!activeTabId &&
+    openTabs.includes(activeTabId) &&
+    !!project?.nodes[activeTabId];
   const { isLeftPanelOpen, isRightPanelOpen, isBottomPanelOpen } = useLayoutStore();
   const { activeModal, editingId, closeModals } = useUiStore();
   const javaImportPreference = useSettingsStore((s) => s.javaImportPreference);
@@ -159,7 +164,7 @@ function EditorLogic() {
           <TabBar />
           <div className="flex flex-1 min-h-0 overflow-hidden">
             <div className="flex-1 overflow-hidden">
-              {activeTabId ? <KonvaCanvas /> : <SleepScreen />}
+              {hasActiveDiagram ? <KonvaCanvas /> : <SleepScreen />}
             </div>
             <div
               className={`overflow-hidden transition-all duration-200 ease-in-out shrink-0 ${

@@ -20,6 +20,7 @@ import type { DeletePackageState, TreeNode } from "./packageExplorer/types";
 import type { SemanticModel, VFSFile, ViewNode } from "../../../../core/domain/vfs/vfs.types";
 
 const SIDEBAR_DND_TYPE = 'application/libreuml-sidebar-class';
+const EMPTY_VIEW_NODES: ViewNode[] = [];
 
 
 function irVisToSymbol(v: string | undefined): UmlVisibility {
@@ -166,11 +167,11 @@ export default function PackageExplorer() {
   const activeModel = isStandalone ? localModel : model;
 
   const viewNodes = useVFSStore((s): ViewNode[] => {
-    if (!activeTabId || !s.project) return [];
+    if (!activeTabId || !s.project) return EMPTY_VIEW_NODES;
     const node = s.project.nodes[activeTabId];
-    if (!node || node.type !== 'FILE') return [];
+    if (!node || node.type !== 'FILE') return EMPTY_VIEW_NODES;
     const content = (node as VFSFile).content;
-    if (!isDiagramView(content)) return [];
+    if (!isDiagramView(content)) return EMPTY_VIEW_NODES;
     return content.nodes;
   });
 

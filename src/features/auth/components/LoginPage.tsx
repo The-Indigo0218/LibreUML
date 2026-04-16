@@ -41,14 +41,34 @@ export default function LoginPage() {
     }
   };
 
+  const validatePassword = (pwd: string): string | null => {
+    if (pwd.length < 8) return t('auth.error.passwordTooShort');
+    if (!/[a-z]/.test(pwd)) return t('auth.error.passwordNoLowercase');
+    if (!/[A-Z]/.test(pwd)) return t('auth.error.passwordNoUppercase');
+    if (!/[0-9]/.test(pwd)) return t('auth.error.passwordNoDigit');
+    if (!/[@#$%^&+=!]/.test(pwd)) return t('auth.error.passwordNoSpecial');
+    return null;
+  };
+
   const validate = (): boolean => {
     if (!email.trim() || !password.trim()) {
       setFormError(t('auth.requiredField'));
       return false;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setFormError(t('auth.error.invalidEmail'));
+      return false;
+    }
     if (mode === 'register' && !fullName.trim()) {
       setFormError(t('auth.requiredField'));
       return false;
+    }
+    if (mode === 'register') {
+      const pwdError = validatePassword(password);
+      if (pwdError) {
+        setFormError(pwdError);
+        return false;
+      }
     }
     return true;
   };
@@ -64,15 +84,56 @@ export default function LoginPage() {
         try {
           await apiRegister({ fullName, email, password, role });
         } catch (regErr: unknown) {
-          const data = (regErr as { response?: { data?: { message?: string } } })?.response?.data;
-          setFormError(data?.message ?? t('auth.errorTitle'));
+          type FieldError = { field?: string; message?: string; defaultMessage?: string };
+          type ApiResponse = { status?: number; data?: { errors?: FieldError[]; message?: string } };
+          const resp = (regErr as { response?: ApiResponse })?.response;
+          if (!resp) {
+            setFormError(t('auth.error.networkError'));
+            return;
+          }
+          if (resp.status === 400) {
+            const errors = resp.data?.errors;
+            if (Array.isArray(errors) && errors.length > 0) {
+              const messages = errors
+                .map((e) => e.message ?? e.defaultMessage)
+                .filter(Boolean)
+                .join('. ');
+              setFormError(messages || t('auth.validation.failed'));
+            } else {
+              setFormError(resp.data?.message ?? t('auth.validation.failed'));
+            }
+            return;
+          }
+          if (resp.status === 409) {
+            setFormError(t('auth.error.emailExists'));
+            return;
+          }
+          if (resp.status === 500) {
+            setFormError(t('auth.error.serverError'));
+            return;
+          }
+          setFormError(resp.data?.message ?? t('auth.errorTitle'));
           return;
         }
       }
       await login(email, password);
       navigate('/', { replace: true });
-    } catch {
-      // login() sets error in auth store — displayed via `error` from useAuth
+    } catch (loginErr: unknown) {
+      type ApiResponse = { status?: number; data?: { message?: string } };
+      const resp = (loginErr as { response?: ApiResponse })?.response;
+      if (!resp) {
+        setFormError(t('auth.error.networkError'));
+        return;
+      }
+      if (resp.status === 401) {
+        setFormError(t('auth.error.invalidCredentials'));
+        return;
+      }
+      if (resp.status === 500) {
+        setFormError(t('auth.error.serverError'));
+        return;
+      }
+      // Other statuses: auth store error shown via `error` from useAuth
     }
   };
 
@@ -227,6 +288,9 @@ export default function LoginPage() {
                   className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-surface-primary border border-surface-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-colors"
                 />
               </div>
+              {mode === 'register' && (
+                <p className="text-xs text-text-muted mt-1">{t('auth.password.requirements')}</p>
+              )}
             </div>
 
             {displayError && (

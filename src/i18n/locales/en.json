@@ -427,6 +427,24 @@
     "redirecting": "Redirecting to {{provider}}...",
     "errorTitle": "Authentication failed",
     "requiredField": "All required fields must be filled in",
+    "password": {
+      "requirements": "Must contain 8+ characters, uppercase, lowercase, digit, and special character (@#$%^&+=!)"
+    },
+    "error": {
+      "emailExists": "This email is already registered. Try logging in instead.",
+      "invalidCredentials": "Invalid email or password. Please try again.",
+      "serverError": "Something went wrong on our end. Please try again later.",
+      "networkError": "Cannot connect to server. Check your internet connection.",
+      "invalidEmail": "Please enter a valid email address",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "passwordNoDigit": "Password must contain at least one digit",
+      "passwordNoLowercase": "Password must contain at least one lowercase letter",
+      "passwordNoUppercase": "Password must contain at least one uppercase letter",
+      "passwordNoSpecial": "Password must contain at least one special character (@#$%^&+=!)"
+    },
+    "validation": {
+      "failed": "Please check your input and try again"
+    },
     "userMenu": {
       "profile": "Profile",
       "settings": "Settings",

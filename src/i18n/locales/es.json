@@ -420,6 +420,24 @@
     "redirecting": "Redirigiendo a {{provider}}...",
     "errorTitle": "Error de autenticación",
     "requiredField": "Todos los campos requeridos deben completarse",
+    "password": {
+      "requirements": "Debe contener 8+ caracteres, mayúscula, minúscula, dígito y carácter especial (@#$%^&+=!)"
+    },
+    "error": {
+      "emailExists": "Este correo ya está registrado. Intenta iniciar sesión.",
+      "invalidCredentials": "Correo o contraseña incorrectos. Por favor intenta de nuevo.",
+      "serverError": "Algo salió mal en nuestro servidor. Por favor intenta más tarde.",
+      "networkError": "No se puede conectar al servidor. Verifica tu conexión a internet.",
+      "invalidEmail": "Por favor ingresa un correo electrónico válido",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+      "passwordNoDigit": "La contraseña debe contener al menos un dígito",
+      "passwordNoLowercase": "La contraseña debe contener al menos una letra minúscula",
+      "passwordNoUppercase": "La contraseña debe contener al menos una letra mayúscula",
+      "passwordNoSpecial": "La contraseña debe contener al menos un carácter especial (@#$%^&+=!)"
+    },
+    "validation": {
+      "failed": "Por favor verifica tu información e intenta de nuevo"
+    },
     "userMenu": {
       "profile": "Perfil",
       "settings": "Ajustes",

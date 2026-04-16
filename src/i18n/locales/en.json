@@ -439,6 +439,16 @@
       "loginButton": "Log In"
     }
   },
+  "quota": {
+    "storage": "Cloud Storage",
+    "usage": "{{used}} / {{total}}",
+    "warning": "You're using 70% of your cloud storage.",
+    "alert": "You're using 90% of your cloud storage. Consider deleting old diagrams.",
+    "blocked": "Storage almost full. Delete old diagrams to continue saving.",
+    "dialogTitle": "Storage Almost Full",
+    "dialogBody": "You're using 95% or more of your 5 MB cloud quota. Delete old diagrams to free space before your next save.",
+    "dialogDismiss": "Got it"
+  },
   "statusbar": {
     "problems": "Problems",
     "activeFile": "Active file",

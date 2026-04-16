@@ -432,6 +432,16 @@
       "loginButton": "Iniciar Sesión"
     }
   },
+  "quota": {
+    "storage": "Almacenamiento en Nube",
+    "usage": "{{used}} / {{total}}",
+    "warning": "Estás usando el 70% de tu almacenamiento en nube.",
+    "alert": "Estás usando el 90% de tu almacenamiento. Considera eliminar diagramas viejos.",
+    "blocked": "Almacenamiento casi lleno. Elimina diagramas viejos para continuar guardando.",
+    "dialogTitle": "Almacenamiento Casi Lleno",
+    "dialogBody": "Estás usando el 95% o más de tu cuota de 5 MB en la nube. Elimina diagramas viejos para liberar espacio antes de tu próximo guardado.",
+    "dialogDismiss": "Entendido"
+  },
   "statusbar": {
     "problems": "Problemas",
     "activeFile": "Archivo activo",

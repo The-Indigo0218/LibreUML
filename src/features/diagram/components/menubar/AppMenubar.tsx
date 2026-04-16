@@ -1,9 +1,10 @@
-import { Pencil, FileOutput, Settings, GraduationCap, HelpCircle, SlidersHorizontal, PanelLeft, PanelBottom, PanelRight } from "lucide-react";
+import { Pencil, FileOutput, Settings, GraduationCap, HelpCircle, SlidersHorizontal, PanelLeft, PanelBottom, PanelRight, LogIn } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import WindowControls from "../../../../components/ui/menubar/WindowControls";
 import { useDiagramActions } from "../../hooks/useDiagramActions";
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import ProjectPropertiesModal from "../modals/ProjectPropertiesModal";
@@ -22,13 +23,17 @@ import { HelpMenu, HelpMenuContent } from "./modules/HelpMenu";
 import HelpDocumentationModal from "../modals/HelpDocumentationModal";
 import { useTranslation } from "react-i18next";
 import { useLayoutStore } from "../../../../store/layout.store";
+import { useAuthStore } from "../../../../features/auth/store/auth.store";
+import UserMenu from "../../../auth/components/UserMenu";
 
 export default function AppMenubar() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const getActiveFile = useWorkspaceStore((s) => s.getActiveFile);
   const updateFile = useWorkspaceStore((s) => s.updateFile);
   const vfsProjectName = useVFSStore((s) => s.project?.projectName ?? null);
   const renameProject = useVFSStore((s) => s.renameProject);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const activeFile = getActiveFile();
   const isVFSProject = vfsProjectName !== null;
@@ -215,6 +220,23 @@ export default function AppMenubar() {
               <PanelRight className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          {/* Auth section */}
+          <div className="flex items-center px-2 border-r border-surface-border mr-0.5">
+            {isAuthenticated ? (
+              <UserMenu />
+            ) : (
+              <button
+                onClick={() => navigate('/login')}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-text-muted hover:text-text-primary hover:bg-white/5 transition-colors"
+                title={t('auth.welcomeCta.loginButton')}
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{t('auth.welcomeCta.loginButton')}</span>
+              </button>
+            )}
+          </div>
+
           <WindowControls />
         </div>
       </header>

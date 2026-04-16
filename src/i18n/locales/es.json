@@ -391,6 +391,47 @@
     "bugReport": "Reportar Error",
     "getStarted": "Primeros Pasos / Tutorial"
   },
+  "auth": {
+    "loginTitle": "Bienvenido de vuelta",
+    "loginSubtitle": "Inicia sesión para sincronizar tus diagramas en la nube",
+    "registerTitle": "Crear una cuenta",
+    "registerSubtitle": "Empieza a diseñar y sincronizar tus diagramas UML",
+    "continueWithGithub": "Continuar con GitHub",
+    "continueWithGoogle": "Continuar con Google",
+    "orContinueWith": "O continuar con email",
+    "emailLabel": "Correo electrónico",
+    "emailPlaceholder": "tu@ejemplo.com",
+    "passwordLabel": "Contraseña",
+    "passwordPlaceholder": "••••••••",
+    "fullNameLabel": "Nombre completo",
+    "fullNamePlaceholder": "Tu nombre completo",
+    "roleLabel": "Rol",
+    "roleStudent": "Estudiante",
+    "roleTeacher": "Docente",
+    "roleDeveloper": "Desarrollador",
+    "loginButton": "Iniciar sesión",
+    "registerButton": "Crear cuenta",
+    "signingIn": "Iniciando sesión...",
+    "registering": "Creando cuenta...",
+    "switchToRegister": "¿No tienes cuenta? Regístrate",
+    "switchToLogin": "¿Ya tienes cuenta? Inicia sesión",
+    "continueOffline": "Continuar sin cuenta",
+    "offlineNote": "Tus diagramas solo se guardarán localmente",
+    "redirecting": "Redirigiendo a {{provider}}...",
+    "errorTitle": "Error de autenticación",
+    "requiredField": "Todos los campos requeridos deben completarse",
+    "userMenu": {
+      "profile": "Perfil",
+      "settings": "Ajustes",
+      "logout": "Cerrar sesión",
+      "avatarAlt": "Avatar de usuario"
+    },
+    "welcomeCta": {
+      "signInTitle": "Sincroniza en la nube",
+      "signInSubtitle": "Inicia sesión para obtener 10 MB de almacenamiento gratuito",
+      "loginButton": "Iniciar Sesión"
+    }
+  },
   "statusbar": {
     "problems": "Problemas",
     "activeFile": "Archivo activo",

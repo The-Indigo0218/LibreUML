@@ -3,11 +3,13 @@ import { useAuthStore } from '../store/auth.store';
 
 /**
  * Wraps private routes. While the session check is in-flight, shows a
- * centered spinner. On confirmed 401 (no session), redirects to /login.
+ * centered spinner. On confirmed 401 (no session), redirects to /login —
+ * unless the user explicitly chose local (offline) mode from the login page.
  */
 export default function ProtectedRoute() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoading = useAuthStore((s) => s.isLoading);
+  const isLocalMode = useAuthStore((s) => s.isLocalMode);
 
   if (isLoading) {
     return (
@@ -17,7 +19,7 @@ export default function ProtectedRoute() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isLocalMode) {
     return <Navigate to="/login" replace />;
   }
 

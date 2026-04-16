@@ -1,12 +1,14 @@
 import { useState, useRef } from "react";
-import { FolderOpen, Plus, Github, Star, BookOpen, Play, Clock, Sun, Moon, Globe, ChevronDown } from "lucide-react";
+import { FolderOpen, Plus, Github, Star, BookOpen, Play, Clock, Sun, Moon, Globe, ChevronDown, LogIn, CloudOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { useSettingsStore } from "../../../store/settingsStore";
 import { useThemeSystem } from "../../../hooks/useThemeSystem";
 import CreateProjectModal from "../../diagram/components/layout/CreateProjectModal";
 import { ProjectImportError } from "../../../services/projectIO.service";
 import { openLumlFile } from "../../../services/openFileService";
 import { useVFSStore } from "../../../store/project-vfs.store";
+import { useAuthStore } from "../../../features/auth/store/auth.store";
 import type { LibreUMLProject } from "../../../core/domain/vfs/vfs.types";
 
 interface WelcomeScreenProps {
@@ -15,9 +17,11 @@ interface WelcomeScreenProps {
 
 export default function WelcomeScreen({ onOpenProject: _onOpenProject }: WelcomeScreenProps) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { theme, setTheme, setLanguage, language } = useSettingsStore();
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   const lumlInputRef = useRef<HTMLInputElement>(null);
   const activeProject = useVFSStore((s: { project: LibreUMLProject | null }) => s.project);
@@ -174,7 +178,31 @@ export default function WelcomeScreen({ onOpenProject: _onOpenProject }: Welcome
           </div>
 
           <div className="flex flex-col space-y-8">
-            
+
+            {/* Cloud sign-in CTA — only shown when not authenticated */}
+            {!isAuthenticated && (
+              <div className="flex items-center justify-between p-4 rounded-lg bg-surface-secondary border border-surface-border">
+                <div className="flex items-center gap-3 min-w-0">
+                  <CloudOff className="w-5 h-5 text-text-muted shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-text-primary">
+                      {t("auth.welcomeCta.signInTitle")}
+                    </p>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      {t("auth.welcomeCta.signInSubtitle")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-xs font-medium text-white transition-colors shrink-0 ml-3"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  {t("auth.welcomeCta.loginButton")}
+                </button>
+              </div>
+            )}
+
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4">
                 {t("welcome.recentProjects")}

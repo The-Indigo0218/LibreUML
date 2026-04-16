@@ -6,12 +6,14 @@ interface AuthStoreState {
   user: UserResponse | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isLocalMode: boolean;
   error: string | null;
 
   checkSession: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  enterLocalMode: () => void;
 }
 
 export const useAuthStore = create<AuthStoreState>()((set) => ({
@@ -20,6 +22,7 @@ export const useAuthStore = create<AuthStoreState>()((set) => ({
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  isLocalMode: false,
   error: null,
 
   checkSession: async () => {
@@ -56,10 +59,12 @@ export const useAuthStore = create<AuthStoreState>()((set) => ({
     } catch {
       // intentionally swallowed
     }
-    set({ user: null, isAuthenticated: false, isLoading: false, error: null });
+    set({ user: null, isAuthenticated: false, isLoading: false, error: null, isLocalMode: false });
   },
 
   clearError: () => set({ error: null }),
+
+  enterLocalMode: () => set({ isLocalMode: true }),
 }));
 
 // Subscribe to the session-expired event fired by client.ts on refresh failure

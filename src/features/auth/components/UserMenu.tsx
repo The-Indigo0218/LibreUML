@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Settings, LogOut } from 'lucide-react';
+import { User, Settings, LogOut, Key } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 
@@ -84,6 +84,14 @@ export default function UserMenu() {
             >
               <Settings className="w-4 h-4 shrink-0" />
               {t('auth.userMenu.settings')}
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => { setIsOpen(false); navigate('/settings/api-keys'); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors text-left"
+            >
+              <Key className="w-4 h-4 shrink-0" />
+              {t('auth.userMenu.apiKeys')}
             </button>
           </div>
 

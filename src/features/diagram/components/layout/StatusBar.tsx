@@ -9,8 +9,12 @@ import { useUndoManager } from "../../../../core/undo/useUndoManager";
 import { undoManager } from "../../../../core/undo/instance";
 import { useAuthStore } from "../../../auth/store/auth.store";
 import { useQuota } from "../../../cloud/hooks/useQuota";
+import { useAutoSave } from "../../../cloud/hooks/useAutoSave";
 import StorageQuotaBar from "../../../../components/shared/StorageQuotaBar";
+import SyncStatusIndicator from "../../../../components/shared/SyncStatusIndicator";
 import QuotaWarningDialog from "../../../cloud/components/QuotaWarningDialog";
+import ConflictResolutionDialog from "../../../cloud/components/ConflictResolutionDialog";
+import UploadLocalProject from "../../../cloud/components/UploadLocalProject";
 
 export default function StatusBar() {
   const { t } = useTranslation();
@@ -29,15 +33,18 @@ export default function StatusBar() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { quota } = useQuota();
 
+  // Activate cloud auto-save pipeline (5 s debounce + flush on unload/blur)
+  useAutoSave();
+
   const targetLanguage = useCodeGenerationStore((s) => s.config.targetLanguage);
   const languageLabel  = LANGUAGE_OPTIONS.find((o) => o.value === targetLanguage)?.label ?? 'Java';
 
   return (
     <>
-      {/* Quota warning dialog — renders at most once per session at 95 % */}
-      {isAuthenticated && quota && (
-        <QuotaWarningDialog quota={quota} />
-      )}
+      {/* Cloud dialogs — all render conditionally based on store state */}
+      {isAuthenticated && quota && <QuotaWarningDialog quota={quota} />}
+      <ConflictResolutionDialog />
+      <UploadLocalProject />
 
       <footer className="h-8 w-full bg-surface-primary border-t border-surface-border flex justify-between items-center px-4 py-1 select-none shrink-0">
         <div className="flex items-center gap-4">
@@ -110,6 +117,8 @@ export default function StatusBar() {
           </button>
 
           <div className="h-4 w-px bg-surface-border" />
+
+          <SyncStatusIndicator />
 
           {isAuthenticated && quota ? (
             <StorageQuotaBar quota={quota} variant="compact" />

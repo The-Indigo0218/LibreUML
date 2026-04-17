@@ -11,6 +11,8 @@ import {
   FileDown,
   FolderX,
   SlidersHorizontal,
+  CloudUpload,
+  CloudDownload,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
@@ -29,6 +31,10 @@ import CloseProjectModal, {
   isCloseProjectWarningSuppressed,
 } from "../../modals/CloseProjectModal";
 import SaveProjectWarningModal from "../../modals/SaveProjectWarningModal";
+import { useAuthStore } from "../../../../auth/store/auth.store";
+import { useSyncStore } from "../../../../../store/sync.store";
+import { cloudSyncService } from "../../../../cloud/services/cloudSync.service";
+import CloudDiagramPicker from "../../../../cloud/components/CloudDiagramPicker";
 
 interface FileMenuProps {
   actions: ReturnType<typeof useDiagramActions>;
@@ -45,6 +51,10 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
   const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
   const [isCloseProjectModalOpen, setIsCloseProjectModalOpen] = useState(false);
   const [isSaveProjectWarningOpen, setIsSaveProjectWarningOpen] = useState(false);
+  const [isCloudPickerOpen, setIsCloudPickerOpen] = useState(false);
+
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { storageMode, cloudDiagramId } = useSyncStore();
 
   const {
     handleNew,
@@ -115,6 +125,10 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
   const isSaveDisabled = isElectron ? !hasFilePath : false;
   const isSaveAsDisabled = !isElectron;
 
+  const handleSaveToCloud = () => {
+    void cloudSyncService.saveToCloud();
+  };
+
   return (
     <>
       <MenubarTrigger label={t("menubar.file.title") || "File"}>
@@ -137,6 +151,26 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
           onClick={handleSaveProject}
           disabled={!activeProject}
         />
+
+        {isAuthenticated && (
+          <>
+            <MenubarItem
+              label={
+                storageMode === 'cloud' && cloudDiagramId
+                  ? t('menubar.file.syncToCloud')
+                  : t('menubar.file.saveToCloud')
+              }
+              icon={<CloudUpload className="w-4 h-4 text-blue-400" />}
+              onClick={handleSaveToCloud}
+              disabled={!activeProject}
+            />
+            <MenubarItem
+              label={t('menubar.file.openFromCloud')}
+              icon={<CloudDownload className="w-4 h-4 text-blue-400" />}
+              onClick={() => setIsCloudPickerOpen(true)}
+            />
+          </>
+        )}
 
         <MenubarItem
           label="Export Diagram (.luml)"
@@ -215,6 +249,11 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
         standaloneFileNames={standaloneFileNames}
         onClose={() => setIsSaveProjectWarningOpen(false)}
         onConfirm={executeProjectSave}
+      />
+
+      <CloudDiagramPicker
+        isOpen={isCloudPickerOpen}
+        onClose={() => setIsCloudPickerOpen(false)}
       />
     </>
   );

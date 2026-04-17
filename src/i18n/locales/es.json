@@ -31,7 +31,10 @@
       "saveAs": "Guardar Como...",
       "discard": "Descartar Cambios",
       "close": "Cerrar Editor",
-      "exit": "Salir"
+      "exit": "Salir",
+      "saveToCloud": "Guardar en Nube",
+      "syncToCloud": "Sincronizar con Nube",
+      "openFromCloud": "Abrir desde Nube..."
     },
     "settings": {
       "title": "Ajustes",
@@ -441,6 +444,7 @@
     "userMenu": {
       "profile": "Perfil",
       "settings": "Ajustes",
+      "apiKeys": "Claves de API",
       "logout": "Cerrar sesión",
       "avatarAlt": "Avatar de usuario"
     },
@@ -470,6 +474,51 @@
     "cloudSynced": "Nube sincronizada",
     "cloudDisconnected": "Nube desconectada"
   },
+  "cloud": {
+    "sync": {
+      "saving": "Guardando…",
+      "saved": "Guardado",
+      "error": "Error de sincronización",
+      "conflict": "Conflicto",
+      "offline": "Sin conexión",
+      "conflictHint": "Conflicto de versión — haz clic para resolver",
+      "offlineHint": "Cambios en cola — se reintentará al recuperar conexión"
+    },
+    "conflict": {
+      "title": "Conflicto de Versión",
+      "body": "Tus cambios locales entran en conflicto con una versión más reciente guardada desde otra sesión.",
+      "keepMine": "Mantener los míos (sobrescribir nube)",
+      "keepTheirs": "Mantener los suyos (descartar local)",
+      "resolveLater": "Resolver después",
+      "hint": "Elegir 'Mantener los míos' sobrescribirá la versión en la nube. 'Mantener los suyos' reemplazará tus cambios locales no guardados.",
+      "keepMineFailed": "Error al sobrescribir — inténtalo de nuevo.",
+      "keepTheirsFailed": "Error al recargar desde la nube — inténtalo de nuevo.",
+      "pendingResolution": "Conflicto sin resolver — sincronización automática pausada."
+    },
+    "upload": {
+      "title": "¿Mover tu trabajo a la nube?",
+      "body": "Encontramos un proyecto local: \"{{projectName}}\" ({{size}}). Súbelo a tu almacenamiento en la nube ({{quota}} disponible) o mantenlo local.",
+      "confirm": "Subir a la nube ({{size}})",
+      "uploading": "Subiendo…",
+      "keepLocal": "Mantener local",
+      "askLater": "Preguntar después",
+      "hint": "Siempre puedes subir más tarde a través de Archivo → Guardar en Nube.",
+      "tooBig": "Este proyecto supera el 95% de tu cuota de {{quota}} y no puede subirse ahora. Elimina diagramas viejos para liberar espacio.",
+      "error": "Error al subir. Por favor, inténtalo de nuevo."
+    },
+    "picker": {
+      "title": "Abrir desde Nube",
+      "refresh": "Actualizar lista",
+      "empty": "Aún no hay diagramas en la nube. Guarda primero un proyecto en la nube.",
+      "open": "Abrir",
+      "delete": "Eliminar de la nube",
+      "loadMore": "Cargar más",
+      "loading": "Cargando…",
+      "fetchError": "No se pudieron cargar los diagramas. Verifica tu conexión.",
+      "openError": "No se pudo abrir el diagrama. Por favor, inténtalo de nuevo.",
+      "deleteError": "No se pudo eliminar el diagrama. Por favor, inténtalo de nuevo."
+    }
+  },
   "welcome": {
     "subtitle": "Diseña, Genera y Evoluciona tu arquitectura de software.",
     "recentProjects": "Proyectos Recientes",
@@ -497,6 +546,58 @@
       "export": "Exportar Diagrama"
     },
     "quote": "\"Una buena arquitectura hace que el sistema sea fácil de entender, desarrollar, mantener y desplegar. El objetivo es minimizar el costo de vida útil y maximizar la productividad del programador.\" — Robert C. Martin"
+  },
+  "apiKeys": {
+    "pageTitle": "Claves de API",
+    "backToEditor": "Volver al editor",
+    "description": "Las claves de API permiten que herramientas externas (como integraciones MCP) interactúen con tus diagramas en tu nombre. Cada clave tiene un ámbito que limita lo que puede hacer.",
+    "sectionTitle": "Tus claves de API",
+    "generateButton": "Nueva clave",
+    "refresh": "Actualizar lista",
+    "empty": "Aún no tienes claves de API. Genera una para integrar con herramientas externas.",
+    "mcpHint": "Usa estas claves con las integraciones compatibles con MCP de LibreUML. Trátelas como contraseñas — nunca las compartas públicamente.",
+    "revokeAriaLabel": "Revocar clave \"{{name}}\"",
+    "table": {
+      "name": "Nombre",
+      "scope": "Ámbito",
+      "created": "Creada",
+      "lastUsed": "Último uso",
+      "never": "Nunca"
+    },
+    "scope": {
+      "read": "read",
+      "readDesc": "acceso de solo lectura",
+      "write": "write",
+      "writeDesc": "acceso de lectura y escritura"
+    },
+    "form": {
+      "title": "Generar nueva clave de API",
+      "nameLabel": "Nombre de la clave",
+      "namePlaceholder": "p. ej. Mi integración MCP",
+      "scopeLabel": "Ámbito",
+      "generate": "Generar",
+      "generating": "Generando…"
+    },
+    "revokeConfirm": {
+      "message": "¿Revocar \"{{name}}\"? Esta acción no se puede deshacer — cualquier integración que use esta clave dejará de funcionar inmediatamente.",
+      "confirm": "Revocar",
+      "revoking": "Revocando…"
+    },
+    "created": {
+      "title": "Clave de API creada",
+      "warning": "Copia esta clave ahora — no se mostrará de nuevo. El servidor solo almacena el hash.",
+      "keyLabel": "Tu clave de API",
+      "copy": "Copiar al portapapeles",
+      "copied": "¡Copiado!",
+      "nameLabel": "Nombre",
+      "scopeLabel": "Ámbito",
+      "done": "He guardado mi clave"
+    },
+    "errors": {
+      "fetchError": "No se pudieron cargar las claves de API. Verifica tu conexión e inténtalo de nuevo.",
+      "createError": "No se pudo generar la clave. Por favor, inténtalo de nuevo.",
+      "revokeError": "No se pudo revocar la clave. Por favor, inténtalo de nuevo."
+    }
   },
   "terminal": {
     "tabs": {

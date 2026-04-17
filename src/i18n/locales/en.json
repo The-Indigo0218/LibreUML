@@ -31,7 +31,10 @@
       "saveAs": "Save As...",
       "discard": "Discard Changes",
       "close": "Close Editor",
-      "exit": "Exit"
+      "exit": "Exit",
+      "saveToCloud": "Save to Cloud",
+      "syncToCloud": "Sync to Cloud",
+      "openFromCloud": "Open from Cloud..."
     },
     "settings": {
       "title": "Settings",
@@ -448,6 +451,7 @@
     "userMenu": {
       "profile": "Profile",
       "settings": "Settings",
+      "apiKeys": "API Keys",
       "logout": "Sign out",
       "avatarAlt": "User avatar"
     },
@@ -477,6 +481,51 @@
     "cloudSynced": "Cloud synced",
     "cloudDisconnected": "Cloud disconnected"
   },
+  "cloud": {
+    "sync": {
+      "saving": "Saving…",
+      "saved": "Saved",
+      "error": "Sync error",
+      "conflict": "Conflict",
+      "offline": "Offline",
+      "conflictHint": "Version conflict — click to resolve",
+      "offlineHint": "Changes queued — will retry when online"
+    },
+    "conflict": {
+      "title": "Version Conflict",
+      "body": "Your local changes conflict with a newer version saved from another session.",
+      "keepMine": "Keep Mine (overwrite cloud)",
+      "keepTheirs": "Keep Theirs (discard local)",
+      "resolveLater": "Resolve Later",
+      "hint": "Choosing 'Keep Mine' will overwrite the cloud version. 'Keep Theirs' will replace your unsaved local changes.",
+      "keepMineFailed": "Failed to overwrite — please try again.",
+      "keepTheirsFailed": "Failed to reload from cloud — please try again.",
+      "pendingResolution": "Conflict unresolved — auto-sync paused."
+    },
+    "upload": {
+      "title": "Move your work to the cloud?",
+      "body": "We found a local project: \"{{projectName}}\" ({{size}}). Upload it to your cloud storage ({{quota}} available) or keep it local.",
+      "confirm": "Upload to Cloud ({{size}})",
+      "uploading": "Uploading…",
+      "keepLocal": "Keep Local",
+      "askLater": "Ask Later",
+      "hint": "You can always upload later via File → Save to Cloud.",
+      "tooBig": "This project exceeds 95% of your {{quota}} quota and cannot be uploaded right now. Delete old diagrams to free space.",
+      "error": "Upload failed. Please try again."
+    },
+    "picker": {
+      "title": "Open from Cloud",
+      "refresh": "Refresh list",
+      "empty": "No cloud diagrams yet. Save a project to the cloud first.",
+      "open": "Open",
+      "delete": "Delete from cloud",
+      "loadMore": "Load more",
+      "loading": "Loading…",
+      "fetchError": "Failed to load diagrams. Check your connection.",
+      "openError": "Failed to open diagram. Please try again.",
+      "deleteError": "Failed to delete diagram. Please try again."
+    }
+  },
   "welcome": {
     "subtitle": "Design, Generate, and Evolve your software architecture.",
     "recentProjects": "Recent Projects",
@@ -504,6 +553,58 @@
       "export": "Export Diagram"
     },
     "quote": "\"Good architecture makes the system easy to understand, easy to develop, easy to maintain, and easy to deploy. The goal is to minimize lifetime cost and maximize programmer productivity.\" — Robert C. Martin"
+  },
+  "apiKeys": {
+    "pageTitle": "API Keys",
+    "backToEditor": "Back to Editor",
+    "description": "API keys let external tools (such as MCP integrations) interact with your diagrams on your behalf. Each key has a scope that limits what it can do.",
+    "sectionTitle": "Your API Keys",
+    "generateButton": "New Key",
+    "refresh": "Refresh list",
+    "empty": "No API keys yet. Generate one to integrate with external tools.",
+    "mcpHint": "Use these keys with LibreUML MCP-compatible integrations. Treat them like passwords — never share them publicly.",
+    "revokeAriaLabel": "Revoke key \"{{name}}\"",
+    "table": {
+      "name": "Name",
+      "scope": "Scope",
+      "created": "Created",
+      "lastUsed": "Last used",
+      "never": "Never"
+    },
+    "scope": {
+      "read": "read",
+      "readDesc": "read-only access",
+      "write": "write",
+      "writeDesc": "read & write access"
+    },
+    "form": {
+      "title": "Generate New API Key",
+      "nameLabel": "Key name",
+      "namePlaceholder": "e.g. My MCP Integration",
+      "scopeLabel": "Scope",
+      "generate": "Generate",
+      "generating": "Generating…"
+    },
+    "revokeConfirm": {
+      "message": "Revoke \"{{name}}\"? This cannot be undone — any integration using this key will stop working immediately.",
+      "confirm": "Revoke",
+      "revoking": "Revoking…"
+    },
+    "created": {
+      "title": "API Key Created",
+      "warning": "Copy this key now — it will not be shown again. The backend only stores a hash.",
+      "keyLabel": "Your API key",
+      "copy": "Copy to clipboard",
+      "copied": "Copied!",
+      "nameLabel": "Name",
+      "scopeLabel": "Scope",
+      "done": "I've saved my key"
+    },
+    "errors": {
+      "fetchError": "Failed to load API keys. Check your connection and try again.",
+      "createError": "Failed to generate key. Please try again.",
+      "revokeError": "Failed to revoke key. Please try again."
+    }
   },
   "terminal": {
     "tabs": {

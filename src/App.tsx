@@ -6,6 +6,7 @@ import MobileGuard from './features/diagram/components/layout/MobileGuard';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
 import OAuthCallback from './features/auth/components/OAuthCallback';
 import LoginPage from './features/auth/components/LoginPage';
+import ApiKeysPage from './features/cloud/components/ApiKeysPage';
 import { useAuthStore } from './features/auth/store/auth.store';
 
 function AppRoutes() {
@@ -26,8 +27,7 @@ function AppRoutes() {
           redirects to /login if unauthenticated */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<DiagramEditor />} />
-        {/* /settings route — placeholder; full page wired in Phase 2 Task 3 */}
-        <Route path="/settings" element={<DiagramEditor />} />
+        <Route path="/settings/api-keys" element={<ApiKeysPage />} />
       </Route>
     </Routes>
   );

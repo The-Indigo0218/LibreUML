@@ -103,3 +103,31 @@ export interface PagedResult<T> {
 export interface OAuthAuthorizeResponse {
   authorizationUrl: string;
 }
+
+// ── API Keys ──────────────────────────────────────────────────────────────────
+
+export type ApiKeyScope = 'read' | 'write';
+
+export interface CreateApiKeyRequest {
+  name: string;
+  scope: ApiKeyScope;
+}
+
+/** Shape returned by GET /api-keys — raw key is NOT included. */
+export interface ApiKeyResponse {
+  id: string;
+  name: string;
+  scope: ApiKeyScope;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revoked: boolean;
+}
+
+/** Shape returned by POST /api-keys — raw key shown once, then only hash stored. */
+export interface ApiKeyCreatedResponse {
+  id: string;
+  name: string;
+  scope: ApiKeyScope;
+  key: string;
+  createdAt: string;
+}

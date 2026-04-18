@@ -205,7 +205,7 @@ export const useSyncStore = create<SyncStoreState>()(
         lastSyncedAt: state.lastSyncedAt,
         offlineQueue: state.offlineQueue,
         declinedUploadProjectIds: state.declinedUploadProjectIds,
-      }),
+      }) as SyncStoreState,
     },
   ),
 );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Github, Mail, Lock, User, ChevronDown, HelpCircle, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { getOAuthUrl, register as apiRegister } from '../../../api/auth.api';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
 import HelpModal from './HelpModal';
+import { useThemeSystem } from '../../../hooks/useThemeSystem';
 
 type Mode = 'login' | 'register';
 type OAuthProvider = 'github' | 'google';
@@ -151,14 +152,29 @@ export default function LoginPage() {
     setFormError(null);
   };
 
+  useThemeSystem();
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const root = document.getElementById('root') as HTMLElement;
+    const prev = { html: html.style.overflow, body: body.style.overflow, root: root.style.overflow };
+    html.style.overflow = 'auto';
+    body.style.overflow = 'auto';
+    root.style.overflow = 'auto';
+    return () => {
+      html.style.overflow = prev.html;
+      body.style.overflow = prev.body;
+      root.style.overflow = prev.root;
+    };
+  }, []);
+
   const displayError = formError ?? error;
   const isSubmitting = isLoading && oauthLoading === null;
 
   return (
-    /* Scrollable full-screen container — content remains accessible at 1366×768 */
-    <div className="min-h-screen w-screen bg-surface-primary overflow-y-auto">
+    <div className="min-h-screen w-full bg-surface-primary overflow-y-auto">
 
-      {/* Utility bar — fixed to top-right of the page flow (not viewport-fixed) */}
       <div className="sticky top-0 z-10 flex justify-end items-center gap-1 px-4 py-2 bg-surface-primary border-b border-surface-border/50">
         <LanguageSwitcher />
         <ThemeSwitcher />
@@ -173,11 +189,9 @@ export default function LoginPage() {
         </button>
       </div>
 
-      {/* Centred content — py-8 gives breathing room when scrolling */}
       <div className="flex items-start justify-center px-4 py-8 min-h-[calc(100vh-3rem)]">
         <div className="w-full max-w-md">
 
-          {/* Branding */}
           <div className="flex flex-col items-center mb-8">
             <img
               src="/logoTitle.svg"
@@ -194,7 +208,6 @@ export default function LoginPage() {
 
           <div className="bg-surface-secondary border border-surface-border rounded-xl p-6 space-y-4">
 
-            {/* OAuth buttons */}
             <div className="space-y-2">
               <button
                 type="button"
@@ -236,14 +249,12 @@ export default function LoginPage() {
               </button>
             </div>
 
-            {/* Divider */}
             <div className="flex items-center gap-3" aria-hidden="true">
               <div className="flex-1 h-px bg-surface-border" />
               <span className="text-xs text-text-muted">{t('auth.orContinueWith')}</span>
               <div className="flex-1 h-px bg-surface-border" />
             </div>
 
-            {/* Email / password form */}
             <form onSubmit={handleSubmit} noValidate className="space-y-3">
               {mode === 'register' && (
                 <>
@@ -343,7 +354,6 @@ export default function LoginPage() {
                 )}
               </div>
 
-              {/* Error message — role="alert" announces to screen readers */}
               {displayError && (
                 <div
                   role="alert"
@@ -369,7 +379,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Mode toggle */}
             <button
               type="button"
               onClick={handleModeToggle}
@@ -379,7 +388,6 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Continue offline */}
           <div className="mt-4 text-center pb-4">
             <button
               type="button"

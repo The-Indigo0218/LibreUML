@@ -22,7 +22,6 @@ export const useAutoRestore = () => {
     try {
       const backupRaw = storageAdapter.getItem(STORAGE_KEY);
       if (backupRaw) {
-        console.log("[AutoRestore] Backup found, Zustand persist handles restoration");
         hasRestoredRef.current = true;
       }
     } catch (error) {

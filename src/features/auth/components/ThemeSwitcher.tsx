@@ -1,8 +1,3 @@
-// src/features/auth/components/ThemeSwitcher.tsx
-//
-// Toggles between light/dark theme in useSettingsStore.
-// Visual CSS implementation is deferred to Phase 4; this just persists the preference.
-
 import { Sun, Moon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../../store/settingsStore';

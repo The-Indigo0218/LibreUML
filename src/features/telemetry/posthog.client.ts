@@ -60,10 +60,7 @@ export function disableTracking(): void {
  */
 export function identify(userId: string): void {
   if (!isOptedIn()) return;
-  if (IS_DEV) {
-    console.log('[Telemetry] identify', { userId });
-    return;
-  }
+  if (IS_DEV) return;
   if (_initialized) posthog.identify(userId);
 }
 
@@ -73,10 +70,7 @@ export function identify(userId: string): void {
  */
 export function track(event: TelemetryEvent, properties?: Record<string, unknown>): void {
   if (!isOptedIn()) return;
-  if (IS_DEV) {
-    console.log('[Telemetry] track', event, properties ?? {});
-    return;
-  }
+  if (IS_DEV) return;
   if (_initialized) posthog.capture(event, properties);
 }
 

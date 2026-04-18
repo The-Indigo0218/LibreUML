@@ -85,7 +85,6 @@ export default function WelcomeScreen({ onOpenProject: _onOpenProject }: Welcome
   };
 
   const handleOpenGithubProject = () => {
-    console.log("Open GitHub project");
   };
 
   const recentProjects = [

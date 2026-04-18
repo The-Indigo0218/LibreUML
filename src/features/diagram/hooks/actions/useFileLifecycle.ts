@@ -85,7 +85,6 @@ export const useFileLifecycle = () => {
         setLastFilePath(result.filePath);
       }
 
-      console.log(`[FileLifecycle] Opened diagram from: ${result.filePath}`);
     } catch (error) {
       console.error("[FileLifecycle] Error opening diagram:", error);
       throw error;
@@ -132,7 +131,6 @@ export const useFileLifecycle = () => {
         // Add file to workspace
         addFile(newFile);
 
-        console.log(`[FileLifecycle] Imported diagram from web: ${file.name}`);
       } catch (error) {
         console.error("[FileLifecycle] Error importing diagram:", error);
         throw error;
@@ -196,7 +194,6 @@ export const useFileLifecycle = () => {
       }
 
       markFileClean(file.id);
-      console.log(`[FileLifecycle] Saved diagram to: ${result.filePath}`);
       return true;
     } catch (error) {
       console.error("[FileLifecycle] Error saving diagram:", error);
@@ -259,7 +256,6 @@ export const useFileLifecycle = () => {
       }
 
       markFileClean(file.id);
-      console.log(`[FileLifecycle] Saved diagram as: ${result.filePath}`);
     } catch (error) {
       console.error("[FileLifecycle] Error saving diagram as:", error);
       throw error;
@@ -319,7 +315,6 @@ export const useFileLifecycle = () => {
         isDirty: false,
       });
 
-      console.log(`[FileLifecycle] Reverted diagram from: ${filePath}`);
     } catch (error) {
       console.error("[FileLifecycle] Error reverting diagram:", error);
       throw error;

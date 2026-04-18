@@ -457,7 +457,7 @@
     },
     "welcomeCta": {
       "signInTitle": "Sync to the cloud",
-      "signInSubtitle": "Sign in to get 10 MB of free cloud storage",
+      "signInSubtitle": "Sign in to get 5 MB of free cloud storage",
       "loginButton": "Log In"
     }
   },

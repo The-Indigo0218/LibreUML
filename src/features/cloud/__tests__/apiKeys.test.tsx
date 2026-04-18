@@ -110,7 +110,7 @@ beforeEach(() => {
   vi.mocked(apiKeysApi.generateKey).mockResolvedValue(CREATED);
   vi.mocked(apiKeysApi.revokeKey).mockResolvedValue(undefined);
 
-  if (navigator.clipboard?.writeText) {
+  if (typeof navigator.clipboard?.writeText === 'function') {
     // jsdom has a native Clipboard — spy on the existing writeText method
     mockClipboardWrite = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined) as ReturnType<typeof vi.fn>;
   } else {

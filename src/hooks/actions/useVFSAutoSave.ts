@@ -35,18 +35,11 @@ export function useVFSAutoSave(): UseVFSAutoSaveResult {
 
   const provideSaveFeedback = useCallback((): boolean => {
     const project = useVFSStore.getState().project;
-    if (!project) {
-      console.log('[VFSAutoSave] No active project');
-      return false;
-    }
+    if (!project) return false;
 
-    if (project.updatedAt === lastUpdatedAtRef.current) {
-      console.log('[VFSAutoSave] No changes since last save feedback');
-      return false;
-    }
+    if (project.updatedAt === lastUpdatedAtRef.current) return false;
 
     lastUpdatedAtRef.current = project.updatedAt;
-    console.log(`[VFSAutoSave] ✓ Project "${project.projectName}" persisted (Zustand middleware)`);
     return true;
   }, []);
 
@@ -79,7 +72,6 @@ export function useVFSAutoSave(): UseVFSAutoSaveResult {
       if (updatedAt === undefined) return; 
       if (updatedAt === prevUpdatedAt) return; 
 
-      console.log('[VFSAutoSave] Project updated (auto-persisted by Zustand)');
       debouncedSaveFeedback();
     });
 

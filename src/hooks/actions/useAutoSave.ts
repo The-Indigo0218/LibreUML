@@ -27,27 +27,14 @@ export const useAutoSave = () => {
   const isSavingRef = useRef<boolean>(false);
 
   const performSave = useCallback(async () => {
-    if (isSavingRef.current) {
-      console.log("[AutoSave] Save already in progress, skipping");
-      return;
-    }
+    if (isSavingRef.current) return;
 
     const activeFile = getActiveFile();
-    
-    if (!activeFile) {
-      console.log("[AutoSave] No active file, skipping");
-      return;
-    }
-
-    if (!activeFile.isDirty) {
-      console.log("[AutoSave] File not dirty, skipping");
-      return;
-    }
+    if (!activeFile) return;
+    if (!activeFile.isDirty) return;
 
     try {
       isSavingRef.current = true;
-      const startTime = Date.now();
-
       const nodes = getNodes(activeFile.nodeIds);
       const edges = getEdges(activeFile.edgeIds);
 
@@ -72,10 +59,8 @@ export const useAutoSave = () => {
 
       markFileClean(activeFile.id);
 
-      const duration = Date.now() - startTime;
       lastSaveTimeRef.current = Date.now();
 
-      console.log(`[AutoSave] ✓ Saved ${nodes.length} nodes, ${edges.length} edges (${duration}ms)`);
     } catch (error) {
       console.error("[AutoSave] Error saving backup:", error);
     } finally {
@@ -127,7 +112,6 @@ export const useAutoSave = () => {
       checkAndSave();
     }, AUTO_SAVE_INTERVAL);
 
-    console.log("[AutoSave] Enabled (interval: 30s, debounce: 2s)");
 
     return () => {
       if (intervalRef.current) {

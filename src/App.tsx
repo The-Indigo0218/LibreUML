@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import DiagramEditor from './features/diagram/components/layout/DiagramEditor';
@@ -6,8 +6,9 @@ import MobileGuard from './features/diagram/components/layout/MobileGuard';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
 import OAuthCallback from './features/auth/components/OAuthCallback';
 import LoginPage from './features/auth/components/LoginPage';
-import ApiKeysPage from './features/cloud/components/ApiKeysPage';
 import { useAuthStore } from './features/auth/store/auth.store';
+
+const ApiKeysPage = lazy(() => import('./features/cloud/components/ApiKeysPage'));
 
 function AppRoutes() {
   const checkSession = useAuthStore((s) => s.checkSession);
@@ -27,7 +28,14 @@ function AppRoutes() {
           redirects to /login if unauthenticated */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<DiagramEditor />} />
-        <Route path="/settings/api-keys" element={<ApiKeysPage />} />
+        <Route
+          path="/settings/api-keys"
+          element={
+            <Suspense fallback={null}>
+              <ApiKeysPage />
+            </Suspense>
+          }
+        />
       </Route>
     </Routes>
   );

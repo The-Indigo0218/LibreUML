@@ -12,7 +12,8 @@
     "dist": "npm run build && electron-builder",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"npm run electron:build -- --watch\"",
     "electron:build": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\": \\\"commonjs\\\"}')\" && electron .",
-    "test": "vitest"
+    "test": "vitest",
+    "i18n:check": "node scripts/i18n-check.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",

@@ -35,7 +35,6 @@ export function normalizeNodeType(node: DomainNode): DomainNode {
   const normalizedType = TYPE_NORMALIZATION_MAP[currentType] || currentType;
 
   if (normalizedType !== currentType) {
-    console.log(`[Migration] Normalizing node ${node.id}: "${currentType}" -> "${normalizedType}"`);
     return {
       ...node,
       type: normalizedType as any,
@@ -61,9 +60,6 @@ export function normalizeAllNodeTypes(
     }
   }
 
-  if (changeCount > 0) {
-    console.log(`[Migration] Normalized ${changeCount} node(s) with incorrect types`);
-  }
 
   return normalizedNodes;
 }

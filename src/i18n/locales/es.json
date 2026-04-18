@@ -253,6 +253,8 @@
       "exitMessage": "¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.",
       "clearTitle": "¿Limpiar todo el Lienzo?",
       "clearMessage": "Esta acción no se puede deshacer y perderás los cambios no guardados.",
+      "clearCanvasTitle": "Limpiar Lienzo",
+      "clearCanvasMessage": "¿Estás seguro de que deseas limpiar todo el lienzo? Esta acción no se puede deshacer.",
       "newTitle": "Crear Nuevo Diagrama",
       "newMessage": "¿Estás seguro? Se perderán los cambios no guardados del diagrama actual.",
       "discardTitle": "¿Descartar Cambios?",
@@ -347,6 +349,20 @@
       "generateGettersSetters": "Getters y Setters",
       "generateConstructor": "Constructor",
       "generateAll": "Generar Todo",
+      "cancel": "Cancelar"
+    },
+    "packageHierarchy": {
+      "title": "Colocar Jerarquía de Paquetes",
+      "parentContains": "El paquete padre '{{parentPath}}' contiene {{content}}. ¿Cómo deseas colocarlo?",
+      "class_one": "1 clase",
+      "class_other": "{{count}} clases",
+      "subPackage_one": "1 sub-paquete",
+      "subPackage_other": "{{count}} sub-paquetes",
+      "and": "y",
+      "placeOnlyTitle": "Colocar solo '{{packagePath}}'",
+      "placeOnlyDesc": "Colocar este paquete de forma independiente con nombre completo",
+      "placeHierarchyTitle": "Colocar jerarquía completa de '{{parentPath}}'",
+      "placeHierarchyDesc": "Colocar paquete padre con todas las clases, sub-paquetes y relaciones",
       "cancel": "Cancelar"
     }
   },
@@ -450,7 +466,7 @@
     },
     "welcomeCta": {
       "signInTitle": "Sincroniza en la nube",
-      "signInSubtitle": "Inicia sesión para obtener 10 MB de almacenamiento gratuito",
+      "signInSubtitle": "Inicia sesión para obtener 5 MB de almacenamiento gratuito",
       "loginButton": "Iniciar Sesión"
     }
   },

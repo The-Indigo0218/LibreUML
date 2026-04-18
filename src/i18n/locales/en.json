@@ -1144,5 +1144,58 @@
       "label": "Anonymous usage analytics",
       "description": "Share anonymous feature-usage data to help improve LibreUML. No personal information is collected."
     }
+  },
+  "help": {
+    "title": "Help & Information",
+    "close": "Close",
+    "gettingStarted": {
+      "title": "Getting Started",
+      "content": "LibreUML is a free, open-source UML modeling tool. Design class diagrams, use case diagrams, sequence diagrams, and more — then generate code automatically.",
+      "feature1": "Create UML diagrams with an intuitive drag-and-drop canvas",
+      "feature2": "Generate code in Java, Python, TypeScript, C++, and more",
+      "feature3": "Sync your diagrams to the cloud and access them anywhere",
+      "quickStartTitle": "Quick start",
+      "quickStart": "Sign in or create an account to get started. You can also continue without an account to work locally."
+    },
+    "passwordRequirements": {
+      "title": "Password Requirements",
+      "intro": "Your password must contain:",
+      "rule1": "At least 8 characters",
+      "rule2": "One uppercase letter (A–Z)",
+      "rule3": "One lowercase letter (a–z)",
+      "rule4": "One digit (0–9)",
+      "rule5": "One special character (@#$%^&+=!)",
+      "examples": "Examples",
+      "validExample": "Pass123!  ← valid",
+      "invalidExample": "Pass123  ← missing special character"
+    },
+    "oauthLogin": {
+      "title": "OAuth Login",
+      "what": "What is OAuth?",
+      "whatContent": "OAuth lets you sign in using your existing GitHub or Google account. You are redirected to their secure login page and then returned to LibreUML — no password stored on our servers.",
+      "benefits": "Benefits",
+      "benefit1": "No extra password to remember",
+      "benefit2": "Industry-standard secure authentication",
+      "benefit3": "Quick one-click sign-in",
+      "privacy": "Privacy",
+      "privacyContent": "We only access your email address and display name. We never access your repositories, files, or any private data."
+    },
+    "offlineMode": {
+      "title": "Offline Mode",
+      "what": "What is offline mode?",
+      "whatContent": "You can use LibreUML without creating an account. Your diagrams are saved locally in your browser and are only available on this device.",
+      "features": "Available offline",
+      "feature1": "Create and edit UML diagrams",
+      "feature2": "Export to PNG, SVG, and code",
+      "feature3": "Save projects as .luml files",
+      "upgrade": "Why create an account?",
+      "upgradeContent": "With an account you get cloud sync, 5 MB of storage, and access to your diagrams from any device."
+    }
+  },
+  "settings": {
+    "language": "Language",
+    "theme": "Theme",
+    "themeLight": "Switch to light mode",
+    "themeDark": "Switch to dark mode"
   }
 }

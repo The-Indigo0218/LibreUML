@@ -1137,5 +1137,58 @@
       "label": "Análisis de uso anónimos",
       "description": "Comparte datos anónimos de uso de funciones para ayudar a mejorar LibreUML. No se recopila información personal."
     }
+  },
+  "help": {
+    "title": "Ayuda e información",
+    "close": "Cerrar",
+    "gettingStarted": {
+      "title": "Primeros pasos",
+      "content": "LibreUML es una herramienta de modelado UML gratuita y de código abierto. Diseña diagramas de clases, casos de uso, secuencia y más, y luego genera código automáticamente.",
+      "feature1": "Crea diagramas UML con un lienzo intuitivo de arrastrar y soltar",
+      "feature2": "Genera código en Java, Python, TypeScript, C++ y más",
+      "feature3": "Sincroniza tus diagramas en la nube y accede desde cualquier lugar",
+      "quickStartTitle": "Inicio rápido",
+      "quickStart": "Inicia sesión o crea una cuenta para comenzar. También puedes continuar sin cuenta para trabajar localmente."
+    },
+    "passwordRequirements": {
+      "title": "Requisitos de contraseña",
+      "intro": "Tu contraseña debe contener:",
+      "rule1": "Al menos 8 caracteres",
+      "rule2": "Una letra mayúscula (A–Z)",
+      "rule3": "Una letra minúscula (a–z)",
+      "rule4": "Un dígito (0–9)",
+      "rule5": "Un carácter especial (@#$%^&+=!)",
+      "examples": "Ejemplos",
+      "validExample": "Pass123!  ← válida",
+      "invalidExample": "Pass123  ← falta carácter especial"
+    },
+    "oauthLogin": {
+      "title": "Inicio con OAuth",
+      "what": "¿Qué es OAuth?",
+      "whatContent": "OAuth te permite iniciar sesión usando tu cuenta de GitHub o Google. Serás redirigido a su página segura de inicio de sesión y luego de vuelta a LibreUML — sin contraseñas almacenadas en nuestros servidores.",
+      "benefits": "Ventajas",
+      "benefit1": "Sin contraseña adicional que recordar",
+      "benefit2": "Autenticación segura estándar de la industria",
+      "benefit3": "Inicio de sesión rápido con un clic",
+      "privacy": "Privacidad",
+      "privacyContent": "Solo accedemos a tu dirección de correo y nombre de visualización. Nunca accedemos a tus repositorios, archivos ni datos privados."
+    },
+    "offlineMode": {
+      "title": "Modo sin conexión",
+      "what": "¿Qué es el modo sin conexión?",
+      "whatContent": "Puedes usar LibreUML sin crear una cuenta. Tus diagramas se guardan localmente en tu navegador y solo están disponibles en este dispositivo.",
+      "features": "Disponible sin conexión",
+      "feature1": "Crear y editar diagramas UML",
+      "feature2": "Exportar a PNG, SVG y código",
+      "feature3": "Guardar proyectos como archivos .luml",
+      "upgrade": "¿Por qué crear una cuenta?",
+      "upgradeContent": "Con una cuenta obtienes sincronización en la nube, 5 MB de almacenamiento y acceso a tus diagramas desde cualquier dispositivo."
+    }
+  },
+  "settings": {
+    "language": "Idioma",
+    "theme": "Tema",
+    "themeLight": "Cambiar a modo claro",
+    "themeDark": "Cambiar a modo oscuro"
   }
 }

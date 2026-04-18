@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getMe, login as apiLogin, logout as apiLogout } from '../../../api/auth.api';
 import type { UserResponse } from '../../../api/types';
+import { track, identify, resetIdentity } from '../../telemetry/posthog.client';
 
 interface AuthStoreState {
   user: UserResponse | null;
@@ -42,6 +43,8 @@ export const useAuthStore = create<AuthStoreState>()((set) => ({
       await apiLogin({ email, password });
       const user = await getMe();
       set({ user, isAuthenticated: true, isLoading: false });
+      identify(user.id);
+      track('login_success', { method: 'email' });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Login failed. Please try again.';
@@ -60,6 +63,7 @@ export const useAuthStore = create<AuthStoreState>()((set) => ({
       // intentionally swallowed
     }
     set({ user: null, isAuthenticated: false, isLoading: false, error: null, isLocalMode: false });
+    resetIdentity();
   },
 
   clearError: () => set({ error: null }),

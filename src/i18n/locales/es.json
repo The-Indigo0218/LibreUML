@@ -711,12 +711,7 @@
     "cancel": "Cancelar"
   },
   "ssotElementEditor": {
-    "title": "Editar",
-    "name": "Nombre",
-    "visibility": "Visibilidad",
-    "abstractClass": "Clase abstracta",
-    "cancel": "Cancelar",
-    "save": "Guardar"
+    "editTitle": "Editar"
   },
   "vfsEdgeAction": {
     "title": "Editar Relación",
@@ -901,9 +896,6 @@
     "titlePlaceholder": "Doble clic para añadir título",
     "contentPlaceholder": "Doble clic para editar..."
   },
-  "ssotElementEditor": {
-    "editTitle": "Editar"
-  },
   "exportFormats": {
     "png": "PNG",
     "svg": "SVG",
@@ -919,6 +911,40 @@
     "startFromScratch": "Empezar desde cero",
     "loadHospital": "Cargar Sistema de Hospital",
     "hint": "Presiona Ctrl+H para abrir el Diccionario UML en cualquier momento."
+  },
+  "feedback": {
+    "title": "Reportar un Problema",
+    "buttonTitle": "Reportar Error",
+    "close": "Cerrar",
+    "cancel": "Cancelar",
+    "submit": "Enviar Reporte",
+    "submitting": "Enviando…",
+    "typeLabel": "Tipo",
+    "types": {
+      "bug": "Error",
+      "feedback": "Sugerencia",
+      "other": "Otro"
+    },
+    "titleLabel": "Título",
+    "titlePlaceholder": "Resumen breve del problema…",
+    "descriptionLabel": "Descripción",
+    "descriptionPlaceholder": "Describe qué ocurrió, qué esperabas y los pasos para reproducirlo…",
+    "screenshotLabel": "Captura de pantalla",
+    "includeScreenshot": "Incluir",
+    "recapture": "Re-capturar",
+    "capturingScreenshot": "Capturando lienzo…",
+    "screenshotAlt": "Captura del lienzo",
+    "noCanvas": "Sin diagrama activo — captura no disponible",
+    "errors": {
+      "titleRequired": "El título es obligatorio",
+      "titleTooLong": "El título no puede superar {{max}} caracteres",
+      "descriptionRequired": "La descripción es obligatoria",
+      "descriptionTooLong": "La descripción no puede superar {{max}} caracteres"
+    },
+    "toast": {
+      "sent": "¡Reporte enviado — gracias!",
+      "error": "No se pudo enviar el reporte. Por favor, inténtalo de nuevo."
+    }
   },
   "wiki": {
     "title": "Wiki UML",
@@ -1098,6 +1124,18 @@
         ],
         "tip": "Ctrl+S guarda inmediatamente. También puedes usar File → Save."
       }
+    }
+  },
+  "telemetry": {
+    "banner": {
+      "title": "Ayuda a mejorar LibreUML",
+      "body": "Nos gustaría recopilar datos de uso anónimos (sin correo ni nombre) para entender cómo se usan las funciones. Puedes cambiarlo en cualquier momento en Ajustes.",
+      "accept": "Aceptar",
+      "decline": "No, gracias"
+    },
+    "settings": {
+      "label": "Análisis de uso anónimos",
+      "description": "Comparte datos anónimos de uso de funciones para ayudar a mejorar LibreUML. No se recopila información personal."
     }
   }
 }

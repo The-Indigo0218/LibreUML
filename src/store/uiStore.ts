@@ -21,6 +21,7 @@ export type ActiveModal =
   | "code-export-config"
   | "keyboard-shortcuts"
   | "wiki"
+  | "feedback"
   | null;
 
 interface UiStoreState {
@@ -48,6 +49,7 @@ interface UiStoreState {
   openCodeExportConfig: () => void;
   openKeyboardShortcuts: () => void;
   openWiki: () => void;
+  openFeedback: () => void;
   closeModals: () => void;
   openGetStarted: () => void;
   closeGetStarted: () => void;
@@ -110,6 +112,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
     set({ activeModal: "keyboard-shortcuts", editingId: null }),
 
   openWiki: () => set({ activeModal: "wiki", editingId: null }),
+
+  openFeedback: () => set({ activeModal: "feedback", editingId: null }),
 
   closeModals: () => set({ activeModal: null, editingId: null }),
 

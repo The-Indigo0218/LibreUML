@@ -26,6 +26,7 @@
     "jszip": "^3.10.1",
     "konva": "^10.2.3",
     "lucide-react": "^0.562.0",
+    "posthog-js": "^1.369.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-i18next": "^16.5.3",

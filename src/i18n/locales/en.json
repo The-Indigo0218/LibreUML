@@ -319,7 +319,7 @@
       "zipping": "Zipping...",
       "download": "Download .zip"
     },
-   "codePreview": {
+    "codePreview": {
       "title": "Code Preview",
       "subtitle": "Generate code for a single class",
       "languageLabel": "Language:",
@@ -718,12 +718,7 @@
     "cancel": "Cancel"
   },
   "ssotElementEditor": {
-    "title": "Edit",
-    "name": "Name",
-    "visibility": "Visibility",
-    "abstractClass": "Abstract class",
-    "cancel": "Cancel",
-    "save": "Save"
+    "editTitle": "Edit"
   },
   "vfsEdgeAction": {
     "title": "Edit Relation",
@@ -908,9 +903,6 @@
     "titlePlaceholder": "Double-click to add title",
     "contentPlaceholder": "Double-click to edit..."
   },
-  "ssotElementEditor": {
-    "editTitle": "Edit"
-  },
   "exportFormats": {
     "png": "PNG",
     "svg": "SVG",
@@ -926,6 +918,40 @@
     "startFromScratch": "Start from scratch",
     "loadHospital": "Load Hospital System",
     "hint": "Press Ctrl+H to open the UML Dictionary at any time."
+  },
+  "feedback": {
+    "title": "Report an Issue",
+    "buttonTitle": "Report Issue",
+    "close": "Close",
+    "cancel": "Cancel",
+    "submit": "Send Report",
+    "submitting": "Sending…",
+    "typeLabel": "Type",
+    "types": {
+      "bug": "Bug",
+      "feedback": "Feedback",
+      "other": "Other"
+    },
+    "titleLabel": "Title",
+    "titlePlaceholder": "Brief summary of the issue…",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Describe what happened, what you expected, and any steps to reproduce…",
+    "screenshotLabel": "Screenshot",
+    "includeScreenshot": "Include",
+    "recapture": "Re-capture",
+    "capturingScreenshot": "Capturing canvas…",
+    "screenshotAlt": "Canvas screenshot",
+    "noCanvas": "No active diagram — screenshot unavailable",
+    "errors": {
+      "titleRequired": "Title is required",
+      "titleTooLong": "Title cannot exceed {{max}} characters",
+      "descriptionRequired": "Description is required",
+      "descriptionTooLong": "Description cannot exceed {{max}} characters"
+    },
+    "toast": {
+      "sent": "Report sent — thank you!",
+      "error": "Failed to send report. Please try again."
+    }
   },
   "wiki": {
     "title": "UML Wiki",
@@ -1105,6 +1131,18 @@
         ],
         "tip": "Ctrl+S saves immediately. You can also use File → Save."
       }
+    }
+  },
+  "telemetry": {
+    "banner": {
+      "title": "Help improve LibreUML",
+      "body": "We'd like to collect anonymous usage data (no email, no name) to understand how features are used. You can change this at any time in Settings.",
+      "accept": "Accept",
+      "decline": "No thanks"
+    },
+    "settings": {
+      "label": "Anonymous usage analytics",
+      "description": "Share anonymous feature-usage data to help improve LibreUML. No personal information is collected."
     }
   }
 }

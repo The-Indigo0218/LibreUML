@@ -22,8 +22,10 @@ import ImportCodeModal from "../modals/ImportCodeModal";
 import CodeExportConfigModal from "../modals/CodeExportConfigModal";
 import WikiModal from "../../../../components/Wiki/WikiModal";
 import VfsEdgeActionModal from "../modals/VfsEdgeActionModal";
+import FeedbackModal from "../../../feedback/components/FeedbackModal";
 import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 import JavaImportPreferenceModal from "../../../../components/shared/JavaImportPreferenceModal";
+import TelemetryConsentBanner from "../../../telemetry/components/TelemetryConsentBanner";
 import { useUiStore } from "../../../../store/uiStore";
 import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
 import { useVFSAutoSave } from "../../../../hooks/actions/useVFSAutoSave";
@@ -224,6 +226,10 @@ function EditorLogic() {
         isOpen={activeModal === 'wiki'}
         onClose={closeModals}
       />
+      <FeedbackModal
+        isOpen={activeModal === 'feedback'}
+        onClose={closeModals}
+      />
       <JavaImportPreferenceModal
         isOpen={javaImportModal.isOpen}
         fileName={javaImportModal.fileName}
@@ -238,6 +244,7 @@ function EditorLogic() {
           }
         }}
       />
+      <TelemetryConsentBanner />
     </div>
   );
 }

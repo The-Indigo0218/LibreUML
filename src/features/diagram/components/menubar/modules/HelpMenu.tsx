@@ -18,7 +18,8 @@ export function HelpMenuContent({ onOpenDocs }: { onOpenDocs: () => void }) {
   const openKeyboardShortcuts = useUiStore((s) => s.openKeyboardShortcuts);
   const toggleGetStarted = useUiStore((s) => s.toggleGetStarted);
 
-  const reportIssue = () => window.open("https://github.com/The-Indigo0218/LibreUML/issues", "_blank");
+  const openFeedback = useUiStore((s) => s.openFeedback);
+  const reportIssue = () => openFeedback();
   const openRoadmap = () => window.open("https://github.com/The-Indigo0218/LibreUML/blob/main/roadmap.md", "_blank");
 
   const showAbout = () => {

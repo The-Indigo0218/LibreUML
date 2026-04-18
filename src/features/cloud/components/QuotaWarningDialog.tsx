@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle } from 'lucide-react';
 import { classifyQuota } from '../utils/payloadSize';
+import { track } from '../../telemetry/posthog.client';
 import type { QuotaResponse } from '../../../api/types';
 
 // One dialog per page session — module scope resets on full reload.
@@ -23,6 +24,7 @@ export default function QuotaWarningDialog({ quota }: QuotaWarningDialogProps) {
     if (classifyQuota(quota.used) === 'blocked' && !_warningShownThisSession) {
       _warningShownThisSession = true;
       setVisible(true);
+      track('quota_warning_shown');
     }
   }, [quota.used]);
 

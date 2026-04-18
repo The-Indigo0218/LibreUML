@@ -13,6 +13,7 @@ export const useKeyboardShortcuts = () => {
   const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
   const openExportModal = useUiStore((s) => s.openExportModal);
   const openWiki = useUiStore((s) => s.openWiki);
+  const openFeedback = useUiStore((s) => s.openFeedback);
   const { createNewDiagram, saveDiagram } = useFileLifecycle();
   const showToast = useToastStore((s) => s.show);
   const hasVFSProject = useVFSStore((s) => !!s.project);
@@ -73,6 +74,11 @@ export const useKeyboardShortcuts = () => {
         openWiki();
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        openFeedback();
+      }
+
       if ((e.ctrlKey || e.metaKey) && e.key === "e") {
         e.preventDefault();
         openExportModal();
@@ -99,5 +105,5 @@ export const useKeyboardShortcuts = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [runLayout, openOpenFileModal, openExportModal, openWiki, createNewDiagram, saveDiagram, showToast, hasVFSProject]);
+  }, [runLayout, openOpenFileModal, openExportModal, openWiki, openFeedback, createNewDiagram, saveDiagram, showToast, hasVFSProject]);
 };

@@ -131,3 +131,27 @@ export interface ApiKeyCreatedResponse {
   key: string;
   createdAt: string;
 }
+
+// ── Reports (Feedback) ────────────────────────────────────────────────────────
+
+export type ReportType = 'BUG' | 'FEEDBACK' | 'OTHER';
+
+export type ReportStatus = 'OPEN' | 'IN_REVIEW' | 'RESOLVED' | 'CLOSED';
+
+export interface CreateReportRequest {
+  type: ReportType;
+  title: string;
+  description: string;
+  /** Base64-encoded JPEG screenshots (≤ 500 KB each). */
+  evidenceImages?: string[];
+}
+
+export interface ReportResponse {
+  id: string;
+  type: ReportType;
+  title: string;
+  description: string;
+  status: ReportStatus;
+  createdAt: string;
+  updatedAt: string;
+}

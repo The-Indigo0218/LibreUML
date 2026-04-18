@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Settings, LogOut, Key } from 'lucide-react';
+import { User, Settings, LogOut, Key, Bug } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
+import { useUiStore } from '../../../store/uiStore';
 
 function getInitials(fullName: string): string {
   return fullName
@@ -18,6 +19,7 @@ export default function UserMenu() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const openFeedback = useUiStore((s) => s.openFeedback);
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -92,6 +94,17 @@ export default function UserMenu() {
             >
               <Key className="w-4 h-4 shrink-0" />
               {t('auth.userMenu.apiKeys')}
+            </button>
+          </div>
+
+          <div className="border-t border-surface-border py-1">
+            <button
+              role="menuitem"
+              onClick={() => { setIsOpen(false); openFeedback(); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors text-left"
+            >
+              <Bug className="w-4 h-4 shrink-0" />
+              {t('feedback.buttonTitle')}
             </button>
           </div>
 

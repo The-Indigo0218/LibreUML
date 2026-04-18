@@ -31,6 +31,7 @@ import { cloudAdapter } from '../../../adapters/storage/cloud.adapter';
 import { canSaveToCloud } from '../utils/payloadSize';
 import { invalidateQuota } from '../hooks/useQuota';
 import { autoSaveQueue } from './autoSaveQueue';
+import { track } from '../../telemetry/posthog.client';
 import type { DiagramType as VfsDiagramType } from '../../../core/domain/vfs/vfs.types';
 import type { DiagramType as ApiDiagramType } from '../../../api/types';
 
@@ -186,6 +187,7 @@ class CloudSyncService {
       useSyncStore.getState().setCloudDiagram(response.id, response.version);
       useSyncStore.getState().setSyncStatus('saved');
       invalidateQuota();
+      track('diagram_saved_cloud', { trigger: 'manual' });
       return true;
     } catch (err: unknown) {
       const message = extractErrorMessage(err) ?? 'Cloud save failed';
@@ -244,6 +246,7 @@ class CloudSyncService {
       useSyncStore.getState().updateVersion(response.version);
       useSyncStore.getState().setSyncStatus('saved');
       invalidateQuota();
+      track('diagram_saved_cloud', { trigger: 'auto' });
       return true;
     } catch (err: unknown) {
       return this.handleSyncError(err, cloudDiagramId, payload);

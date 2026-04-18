@@ -16,6 +16,8 @@ interface SettingsState {
   snapToGrid: boolean;
   showAllEdges: boolean;
   lastFilePath?: string;
+  /** null = not yet asked, true = opted in, false = rejected */
+  telemetryOptIn: boolean | null;
 
   toggleAutoSave: () => void;
   toggleRestoreSession: () => void;
@@ -30,6 +32,7 @@ interface SettingsState {
   toggleSnapToGrid: () => void;
   toggleShowAllEdges: () => void;
   resetAllModalPreferences: () => void;
+  setTelemetryOptIn: (value: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -47,6 +50,7 @@ export const useSettingsStore = create<SettingsState>()(
       showGrid: true,
       snapToGrid: true,
       showAllEdges: false,
+      telemetryOptIn: null,
 
       toggleAutoSave: () => set((s) => ({ autoSave: !s.autoSave })),
       toggleRestoreSession: () => set((s) => ({ restoreSession: !s.restoreSession })),
@@ -63,6 +67,7 @@ export const useSettingsStore = create<SettingsState>()(
       toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
       toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
       toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
+      setTelemetryOptIn: (value) => set({ telemetryOptIn: value }),
       resetAllModalPreferences: () => {
         set({
           suppressSvgWarning: false,

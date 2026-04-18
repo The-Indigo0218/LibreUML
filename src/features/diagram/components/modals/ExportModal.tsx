@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../../../../store/settingsStore";
+import { useTelemetry } from "../../../telemetry/hooks/useTelemetry";
 import { useStageStore } from "../../../../canvas/store/stageStore";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
@@ -35,6 +36,7 @@ interface ExportModalProps {
 
 export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { t } = useTranslation();
+  const { track } = useTelemetry();
   const stage = useStageStore((s) => s.stage);
 
   const { shapes, edges } = useKonvaCanvasController();
@@ -152,6 +154,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
         setSuppressSvgWarning(true);
       }
 
+      track('export_completed', { format });
       onClose();
     } catch (error) {
       alert(
@@ -177,6 +180,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     isVFSMode,
     selectedFileName,
     legacyDiagramName,
+    track,
   ]);
 
   const executeVfsExport = async () => {
@@ -186,12 +190,14 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     }
     if (format === "xmi") {
       downloadVfsDiagramXmi(model, selectedDiagramView, selectedFileName);
+      track('export_completed', { format: 'xmi' });
       onClose();
     } else if (format === "json") {
       // Use new DiagramIOService for JSON export
       try {
         const service = getDiagramIOService();
         await service.exportDiagram(selectedFileId);
+        track('export_completed', { format: 'json' });
         onClose();
       } catch (error) {
         alert(

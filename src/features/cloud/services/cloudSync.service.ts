@@ -37,7 +37,7 @@ import type { DiagramType as ApiDiagramType } from '../../../api/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const DEBOUNCE_MS = 5_000;
+const DEBOUNCE_MS = 30_000;
 const MAX_OFFLINE_ATTEMPTS = 3;
 
 // ── Type mapping ──────────────────────────────────────────────────────────────

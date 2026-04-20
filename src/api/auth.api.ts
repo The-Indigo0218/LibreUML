@@ -27,6 +27,16 @@ export async function getMe(): Promise<UserResponse> {
   return response.data;
 }
 
+// POST /api/v1/auth/password/forgot → 204 No Content (sends reset email)
+export async function forgotPassword(email: string): Promise<void> {
+  await apiClient.post('/auth/password/forgot', { email });
+}
+
+// POST /api/v1/auth/password/reset → 204 No Content
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  await apiClient.post('/auth/password/reset', { token, newPassword });
+}
+
 // GET /api/v1/oauth/{provider}/authorize?redirectUri=...
 // redirectUri must be the backend callback URL registered with the OAuth provider,
 // e.g. https://api.libreuml.com/api/v1/oauth/github/callback

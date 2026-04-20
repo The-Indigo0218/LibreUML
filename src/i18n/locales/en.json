@@ -443,7 +443,10 @@
       "passwordNoDigit": "Password must contain at least one digit",
       "passwordNoLowercase": "Password must contain at least one lowercase letter",
       "passwordNoUppercase": "Password must contain at least one uppercase letter",
-      "passwordNoSpecial": "Password must contain at least one special character (@#$%^&+=!)"
+      "passwordNoSpecial": "Password must contain at least one special character (@#$%^&+=!)",
+      "passwordMismatch": "Passwords do not match",
+      "invalidResetToken": "This reset link is invalid or has expired. Please request a new one.",
+      "resetFailed": "Failed to reset password. Please request a new link."
     },
     "validation": {
       "failed": "Please check your input and try again"
@@ -459,7 +462,28 @@
       "signInTitle": "Sync to the cloud",
       "signInSubtitle": "Sign in to get 5 MB of free cloud storage",
       "loginButton": "Log In"
-    }
+    },
+    "forgotPasswordLink": "Forgot password?",
+    "forgotPasswordTitle": "Reset your password",
+    "forgotPasswordSubtitle": "Enter your email and we'll send you a reset link.",
+    "forgotPasswordButton": "Send reset link",
+    "forgotPasswordSending": "Sending…",
+    "forgotPasswordSent": "Check your inbox",
+    "forgotPasswordSentMessage": "If {{email}} is registered, you'll receive a reset link shortly.",
+    "forgotPasswordBackToLogin": "Back to sign in",
+    "resetPasswordTitle": "Set new password",
+    "resetPasswordSubtitle": "Choose a strong password for your account.",
+    "newPasswordLabel": "New password",
+    "newPasswordPlaceholder": "••••••••",
+    "confirmPasswordLabel": "Confirm password",
+    "confirmPasswordPlaceholder": "••••••••",
+    "resetPasswordButton": "Set new password",
+    "resetPasswordSaving": "Saving…",
+    "resetPasswordSuccess": "Password updated",
+    "resetPasswordSuccessMessage": "Your password has been changed. You can now sign in.",
+    "continueLocallyTitle": "Local-first & open source",
+    "continueLocallySubtitle": "No account needed. Your diagrams stay on your machine.",
+    "continueLocallyButton": "Continue locally →"
   },
   "quota": {
     "storage": "Cloud Storage",

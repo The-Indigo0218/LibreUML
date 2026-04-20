@@ -452,7 +452,10 @@
       "passwordNoDigit": "La contraseña debe contener al menos un dígito",
       "passwordNoLowercase": "La contraseña debe contener al menos una letra minúscula",
       "passwordNoUppercase": "La contraseña debe contener al menos una letra mayúscula",
-      "passwordNoSpecial": "La contraseña debe contener al menos un carácter especial (@#$%^&+=!)"
+      "passwordNoSpecial": "La contraseña debe contener al menos un carácter especial (@#$%^&+=!)",
+      "passwordMismatch": "Las contraseñas no coinciden",
+      "invalidResetToken": "Este enlace de restablecimiento no es válido o ha expirado. Solicita uno nuevo.",
+      "resetFailed": "No se pudo restablecer la contraseña. Por favor solicita un nuevo enlace."
     },
     "validation": {
       "failed": "Por favor verifica tu información e intenta de nuevo"
@@ -468,7 +471,28 @@
       "signInTitle": "Sincroniza en la nube",
       "signInSubtitle": "Inicia sesión para obtener 5 MB de almacenamiento gratuito",
       "loginButton": "Iniciar Sesión"
-    }
+    },
+    "forgotPasswordLink": "¿Olvidaste tu contraseña?",
+    "forgotPasswordTitle": "Restablecer contraseña",
+    "forgotPasswordSubtitle": "Ingresa tu correo y te enviaremos un enlace de recuperación.",
+    "forgotPasswordButton": "Enviar enlace",
+    "forgotPasswordSending": "Enviando…",
+    "forgotPasswordSent": "Revisa tu bandeja",
+    "forgotPasswordSentMessage": "Si {{email}} está registrado, recibirás un enlace de recuperación en breve.",
+    "forgotPasswordBackToLogin": "Volver a iniciar sesión",
+    "resetPasswordTitle": "Nueva contraseña",
+    "resetPasswordSubtitle": "Elige una contraseña segura para tu cuenta.",
+    "newPasswordLabel": "Nueva contraseña",
+    "newPasswordPlaceholder": "••••••••",
+    "confirmPasswordLabel": "Confirmar contraseña",
+    "confirmPasswordPlaceholder": "••••••••",
+    "resetPasswordButton": "Establecer contraseña",
+    "resetPasswordSaving": "Guardando…",
+    "resetPasswordSuccess": "Contraseña actualizada",
+    "resetPasswordSuccessMessage": "Tu contraseña ha sido cambiada. Ya puedes iniciar sesión.",
+    "continueLocallyTitle": "Local y de código abierto",
+    "continueLocallySubtitle": "Sin cuenta. Tus diagramas se guardan en tu máquina.",
+    "continueLocallyButton": "Continuar localmente →"
   },
   "quota": {
     "storage": "Almacenamiento en Nube",

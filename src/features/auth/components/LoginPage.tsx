@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Github, Mail, Lock, User, ChevronDown, HelpCircle, AlertCircle } from 'lucide-react';
+import {
+  Github, Mail, Lock, User, ChevronDown,
+  HelpCircle, AlertCircle, MessageSquare, ArrowLeft, CheckCircle2,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/auth.store';
-import { getOAuthUrl, register as apiRegister } from '../../../api/auth.api';
+import {
+  getOAuthUrl,
+  register as apiRegister,
+  forgotPassword as apiForgotPassword,
+} from '../../../api/auth.api';
 import LanguageSwitcher from './LanguageSwitcher';
 import ThemeSwitcher from './ThemeSwitcher';
 import HelpModal from './HelpModal';
 import { useThemeSystem } from '../../../hooks/useThemeSystem';
 
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'forgot' | 'forgot-sent';
 type OAuthProvider = 'github' | 'google';
 
 export default function LoginPage() {
@@ -27,6 +34,10 @@ export default function LoginPage() {
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [sentEmail, setSentEmail] = useState('');
 
   const handleOAuthLogin = async (provider: OAuthProvider) => {
     setOauthLoading(provider);
@@ -70,10 +81,7 @@ export default function LoginPage() {
     }
     if (mode === 'register') {
       const pwdError = validatePassword(password);
-      if (pwdError) {
-        setFormError(pwdError);
-        return false;
-      }
+      if (pwdError) { setFormError(pwdError); return false; }
     }
     return true;
   };
@@ -92,31 +100,19 @@ export default function LoginPage() {
           type FieldError = { field?: string; message?: string; defaultMessage?: string };
           type ApiResponse = { status?: number; data?: { errors?: FieldError[]; message?: string } };
           const resp = (regErr as { response?: ApiResponse })?.response;
-          if (!resp) {
-            setFormError(t('auth.error.networkError'));
-            return;
-          }
+          if (!resp) { setFormError(t('auth.error.networkError')); return; }
           if (resp.status === 400) {
             const errors = resp.data?.errors;
             if (Array.isArray(errors) && errors.length > 0) {
-              const messages = errors
-                .map((e) => e.message ?? e.defaultMessage)
-                .filter(Boolean)
-                .join('. ');
+              const messages = errors.map((e) => e.message ?? e.defaultMessage).filter(Boolean).join('. ');
               setFormError(messages || t('auth.validation.failed'));
             } else {
               setFormError(resp.data?.message ?? t('auth.validation.failed'));
             }
             return;
           }
-          if (resp.status === 409) {
-            setFormError(t('auth.error.emailExists'));
-            return;
-          }
-          if (resp.status === 500) {
-            setFormError(t('auth.error.serverError'));
-            return;
-          }
+          if (resp.status === 409) { setFormError(t('auth.error.emailExists')); return; }
+          if (resp.status === 500) { setFormError(t('auth.error.serverError')); return; }
           setFormError(resp.data?.message ?? t('auth.errorTitle'));
           return;
         }
@@ -126,18 +122,28 @@ export default function LoginPage() {
     } catch (loginErr: unknown) {
       type ApiResponse = { status?: number; data?: { message?: string } };
       const resp = (loginErr as { response?: ApiResponse })?.response;
-      if (!resp) {
-        setFormError(t('auth.error.networkError'));
-        return;
-      }
-      if (resp.status === 401) {
-        setFormError(t('auth.error.invalidCredentials'));
-        return;
-      }
-      if (resp.status === 500) {
-        setFormError(t('auth.error.serverError'));
-        return;
-      }
+      if (!resp) { setFormError(t('auth.error.networkError')); return; }
+      if (resp.status === 401) { setFormError(t('auth.error.invalidCredentials')); return; }
+      if (resp.status === 500) { setFormError(t('auth.error.serverError')); return; }
+    }
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!forgotEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail.trim())) {
+      setFormError(t('auth.error.invalidEmail'));
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      await apiForgotPassword(forgotEmail.trim());
+    } catch {
+      // Always show success — avoids email enumeration (OWASP)
+    } finally {
+      setForgotLoading(false);
+      setSentEmail(forgotEmail.trim());
+      setMode('forgot-sent');
     }
   };
 
@@ -150,6 +156,19 @@ export default function LoginPage() {
     setMode((m) => (m === 'login' ? 'register' : 'login'));
     clearError();
     setFormError(null);
+  };
+
+  const switchToForgot = () => {
+    setFormError(null);
+    clearError();
+    setForgotEmail(email);
+    setMode('forgot');
+  };
+
+  const backToLogin = () => {
+    setMode('login');
+    setFormError(null);
+    clearError();
   };
 
   useThemeSystem();
@@ -172,6 +191,9 @@ export default function LoginPage() {
   const displayError = formError ?? error;
   const isSubmitting = isLoading && oauthLoading === null;
 
+  const inputClass =
+    'w-full pl-9 pr-3 py-2.5 rounded-lg bg-surface-primary border border-surface-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/50 transition-colors';
+
   return (
     <div className="min-h-screen w-full bg-surface-primary overflow-y-auto">
 
@@ -192,211 +214,306 @@ export default function LoginPage() {
       <div className="flex items-start justify-center px-4 py-8 min-h-[calc(100vh-3rem)]">
         <div className="w-full max-w-md">
 
+          {/* Logo + title */}
           <div className="flex flex-col items-center mb-8">
-            <img
-              src="/logoTitle.svg"
-              alt="LibreUML"
-              className="w-14 h-14 mb-4 drop-shadow-lg"
-            />
+            <img src="/logoTitle.svg" alt="LibreUML" className="w-14 h-14 mb-4 drop-shadow-lg" />
             <h1 className="text-2xl font-bold text-text-primary">
-              {mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
+              {mode === 'login'       && t('auth.loginTitle')}
+              {mode === 'register'    && t('auth.registerTitle')}
+              {mode === 'forgot'      && t('auth.forgotPasswordTitle')}
+              {mode === 'forgot-sent' && t('auth.forgotPasswordSent')}
             </h1>
             <p className="text-sm text-text-muted mt-1 text-center">
-              {mode === 'login' ? t('auth.loginSubtitle') : t('auth.registerSubtitle')}
+              {mode === 'login'       && t('auth.loginSubtitle')}
+              {mode === 'register'    && t('auth.registerSubtitle')}
+              {mode === 'forgot'      && t('auth.forgotPasswordSubtitle')}
+              {mode === 'forgot-sent' && t('auth.forgotPasswordSentMessage', { email: sentEmail })}
             </p>
           </div>
 
           <div className="bg-surface-secondary border border-surface-border rounded-xl p-6 space-y-4">
 
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleOAuthLogin('github')}
-                disabled={oauthLoading !== null || isSubmitting}
-                aria-label={oauthLoading === 'github' ? t('auth.redirecting', { provider: 'GitHub' }) : t('auth.continueWithGithub')}
-                className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-surface-primary border border-surface-border hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-colors text-sm font-medium text-text-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {oauthLoading === 'github' ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-text-muted border-t-text-primary" aria-hidden="true" />
-                ) : (
-                  <Github className="w-4 h-4" aria-hidden="true" />
+            {/* ── Forgot-sent success ── */}
+            {mode === 'forgot-sent' && (
+              <div className="space-y-4">
+                <div className="flex justify-center py-4">
+                  <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center">
+                    <CheckCircle2 className="w-7 h-7 text-green-400" aria-hidden="true" />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={backToLogin}
+                  className="w-full py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-sm font-medium text-white transition-colors"
+                >
+                  {t('auth.forgotPasswordBackToLogin')}
+                </button>
+              </div>
+            )}
+
+            {/* ── Forgot password form ── */}
+            {mode === 'forgot' && (
+              <form onSubmit={handleForgotSubmit} noValidate className="space-y-3">
+                <div>
+                  <label
+                    htmlFor="forgot-email"
+                    className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-1"
+                  >
+                    {t('auth.emailLabel')}
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" aria-hidden="true" />
+                    <input
+                      id="forgot-email"
+                      type="email"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder={t('auth.emailPlaceholder')}
+                      autoComplete="email"
+                      autoFocus
+                      aria-required="true"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                {formError && (
+                  <div role="alert" aria-live="assertive" className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+                    <span>{formError}</span>
+                  </div>
                 )}
-                {oauthLoading === 'github'
-                  ? t('auth.redirecting', { provider: 'GitHub' })
-                  : t('auth.continueWithGithub')}
-              </button>
 
-              <button
-                type="button"
-                onClick={() => handleOAuthLogin('google')}
-                disabled={oauthLoading !== null || isSubmitting}
-                aria-label={oauthLoading === 'google' ? t('auth.redirecting', { provider: 'Google' }) : t('auth.continueWithGoogle')}
-                className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-surface-primary border border-surface-border hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-colors text-sm font-medium text-text-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {oauthLoading === 'google' ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-text-muted border-t-text-primary" aria-hidden="true" />
-                ) : (
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                  </svg>
-                )}
-                {oauthLoading === 'google'
-                  ? t('auth.redirecting', { provider: 'Google' })
-                  : t('auth.continueWithGoogle')}
-              </button>
-            </div>
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {forgotLoading && (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true" />
+                  )}
+                  {forgotLoading ? t('auth.forgotPasswordSending') : t('auth.forgotPasswordButton')}
+                </button>
 
-            <div className="flex items-center gap-3" aria-hidden="true">
-              <div className="flex-1 h-px bg-surface-border" />
-              <span className="text-xs text-text-muted">{t('auth.orContinueWith')}</span>
-              <div className="flex-1 h-px bg-surface-border" />
-            </div>
+                <button
+                  type="button"
+                  onClick={backToLogin}
+                  className="w-full flex items-center justify-center gap-1.5 text-sm text-text-muted hover:text-text-primary focus:outline-none transition-colors py-1"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
+                  {t('auth.forgotPasswordBackToLogin')}
+                </button>
+              </form>
+            )}
 
-            <form onSubmit={handleSubmit} noValidate className="space-y-3">
-              {mode === 'register' && (
-                <>
+            {/* ── Login / Register ── */}
+            {(mode === 'login' || mode === 'register') && (
+              <>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOAuthLogin('github')}
+                    disabled={oauthLoading !== null || isSubmitting}
+                    aria-label={oauthLoading === 'github' ? t('auth.redirecting', { provider: 'GitHub' }) : t('auth.continueWithGithub')}
+                    className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-surface-primary border border-surface-border hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-colors text-sm font-medium text-text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {oauthLoading === 'github' ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-text-muted border-t-text-primary" aria-hidden="true" />
+                    ) : (
+                      <Github className="w-4 h-4" aria-hidden="true" />
+                    )}
+                    {oauthLoading === 'github' ? t('auth.redirecting', { provider: 'GitHub' }) : t('auth.continueWithGithub')}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOAuthLogin('google')}
+                    disabled={oauthLoading !== null || isSubmitting}
+                    aria-label={oauthLoading === 'google' ? t('auth.redirecting', { provider: 'Google' }) : t('auth.continueWithGoogle')}
+                    className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-surface-primary border border-surface-border hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-violet-500/40 transition-colors text-sm font-medium text-text-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {oauthLoading === 'google' ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-text-muted border-t-text-primary" aria-hidden="true" />
+                    ) : (
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                    )}
+                    {oauthLoading === 'google' ? t('auth.redirecting', { provider: 'Google' }) : t('auth.continueWithGoogle')}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3" aria-hidden="true">
+                  <div className="flex-1 h-px bg-surface-border" />
+                  <span className="text-xs text-text-muted">{t('auth.orContinueWith')}</span>
+                  <div className="flex-1 h-px bg-surface-border" />
+                </div>
+
+                <form onSubmit={handleSubmit} noValidate className="space-y-3">
+                  {mode === 'register' && (
+                    <>
+                      <div>
+                        <label
+                          htmlFor="login-fullname"
+                          className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-1"
+                        >
+                          {t('auth.fullNameLabel')}
+                        </label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" aria-hidden="true" />
+                          <input
+                            id="login-fullname"
+                            type="text"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder={t('auth.fullNamePlaceholder')}
+                            autoComplete="name"
+                            aria-required="true"
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="login-role"
+                          className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-1"
+                        >
+                          {t('auth.roleLabel')}
+                        </label>
+                        <div className="relative">
+                          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" aria-hidden="true" />
+                          <select
+                            id="login-role"
+                            value={role}
+                            onChange={(e) => setRole(e.target.value as typeof role)}
+                            className="w-full px-3 py-2.5 rounded-lg bg-surface-primary border border-surface-border text-sm text-text-primary appearance-none focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-500/50 transition-colors"
+                          >
+                            <option value="STUDENT">{t('auth.roleStudent')}</option>
+                            <option value="TEACHER">{t('auth.roleTeacher')}</option>
+                            <option value="DEVELOPER">{t('auth.roleDeveloper')}</option>
+                          </select>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
                   <div>
                     <label
-                      htmlFor="login-fullname"
+                      htmlFor="login-email"
                       className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-1"
                     >
-                      {t('auth.fullNameLabel')}
+                      {t('auth.emailLabel')}
                     </label>
                     <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" aria-hidden="true" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" aria-hidden="true" />
                       <input
-                        id="login-fullname"
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder={t('auth.fullNamePlaceholder')}
-                        autoComplete="name"
+                        id="login-email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder={t('auth.emailPlaceholder')}
+                        autoComplete="email"
                         aria-required="true"
-                        className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-surface-primary border border-surface-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-colors"
+                        className={inputClass}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label
-                      htmlFor="login-role"
-                      className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-1"
-                    >
-                      {t('auth.roleLabel')}
-                    </label>
-                    <div className="relative">
-                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" aria-hidden="true" />
-                      <select
-                        id="login-role"
-                        value={role}
-                        onChange={(e) => setRole(e.target.value as typeof role)}
-                        className="w-full px-3 py-2.5 rounded-lg bg-surface-primary border border-surface-border text-sm text-text-primary appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-colors"
+                    <div className="flex items-center justify-between mb-1">
+                      <label
+                        htmlFor="login-password"
+                        className="text-xs font-medium text-text-muted uppercase tracking-wide"
                       >
-                        <option value="STUDENT">{t('auth.roleStudent')}</option>
-                        <option value="TEACHER">{t('auth.roleTeacher')}</option>
-                        <option value="DEVELOPER">{t('auth.roleDeveloper')}</option>
-                      </select>
+                        {t('auth.passwordLabel')}
+                      </label>
+                      {mode === 'login' && (
+                        <button
+                          type="button"
+                          onClick={switchToForgot}
+                          className="text-xs text-violet-400 hover:text-violet-300 focus:outline-none focus:underline transition-colors"
+                        >
+                          {t('auth.forgotPasswordLink')}
+                        </button>
+                      )}
                     </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" aria-hidden="true" />
+                      <input
+                        id="login-password"
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={t('auth.passwordPlaceholder')}
+                        autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                        aria-required="true"
+                        aria-describedby={mode === 'register' ? 'password-hint' : undefined}
+                        className={inputClass}
+                      />
+                    </div>
+                    {mode === 'register' && (
+                      <p id="password-hint" className="text-xs text-text-muted mt-1">
+                        {t('auth.password.requirements')}
+                      </p>
+                    )}
                   </div>
-                </>
-              )}
 
-              <div>
-                <label
-                  htmlFor="login-email"
-                  className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-1"
+                  {displayError && (
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400"
+                    >
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+                      <span>{displayError}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={oauthLoading !== null || isSubmitting}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500/50 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting && (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true" />
+                    )}
+                    {isSubmitting
+                      ? (mode === 'login' ? t('auth.signingIn') : t('auth.registering'))
+                      : (mode === 'login' ? t('auth.loginButton') : t('auth.registerButton'))}
+                  </button>
+                </form>
+
+                <button
+                  type="button"
+                  onClick={handleModeToggle}
+                  className="w-full text-sm text-text-muted hover:text-text-primary focus:outline-none focus:underline transition-colors text-center py-1"
                 >
-                  {t('auth.emailLabel')}
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" aria-hidden="true" />
-                  <input
-                    id="login-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={t('auth.emailPlaceholder')}
-                    autoComplete="email"
-                    aria-required="true"
-                    className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-surface-primary border border-surface-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="login-password"
-                  className="block text-xs font-medium text-text-muted uppercase tracking-wide mb-1"
-                >
-                  {t('auth.passwordLabel')}
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" aria-hidden="true" />
-                  <input
-                    id="login-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={t('auth.passwordPlaceholder')}
-                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                    aria-required="true"
-                    aria-describedby={mode === 'register' ? 'password-hint' : undefined}
-                    className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-surface-primary border border-surface-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-colors"
-                  />
-                </div>
-                {mode === 'register' && (
-                  <p id="password-hint" className="text-xs text-text-muted mt-1">
-                    {t('auth.password.requirements')}
-                  </p>
-                )}
-              </div>
-
-              {displayError && (
-                <div
-                  role="alert"
-                  aria-live="assertive"
-                  className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400"
-                >
-                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>{displayError}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={oauthLoading !== null || isSubmitting}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting && (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true" />
-                )}
-                {isSubmitting
-                  ? (mode === 'login' ? t('auth.signingIn') : t('auth.registering'))
-                  : (mode === 'login' ? t('auth.loginButton') : t('auth.registerButton'))}
-              </button>
-            </form>
-
-            <button
-              type="button"
-              onClick={handleModeToggle}
-              className="w-full text-sm text-text-muted hover:text-text-primary focus:outline-none focus:underline transition-colors text-center py-1"
-            >
-              {mode === 'login' ? t('auth.switchToRegister') : t('auth.switchToLogin')}
-            </button>
+                  {mode === 'login' ? t('auth.switchToRegister') : t('auth.switchToLogin')}
+                </button>
+              </>
+            )}
           </div>
 
-          <div className="mt-4 text-center pb-4">
+          {/* Continue locally card */}
+          <div className="mt-4 mb-4 border border-teal-500/25 bg-teal-500/5 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3 min-w-0">
+              <MessageSquare className="w-4 h-4 text-teal-400 mt-0.5 shrink-0" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-text-primary">{t('auth.continueLocallyTitle')}</p>
+                <p className="text-xs text-text-muted mt-0.5 leading-snug">{t('auth.continueLocallySubtitle')}</p>
+              </div>
+            </div>
             <button
               type="button"
               onClick={handleContinueOffline}
-              className="text-sm text-text-muted hover:text-text-secondary focus:outline-none focus:underline transition-colors underline decoration-dotted underline-offset-2"
+              className="shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium text-teal-400 border border-teal-500/50 hover:bg-teal-500/10 focus:outline-none focus:ring-2 focus:ring-teal-500/30 transition-colors whitespace-nowrap"
             >
-              {t('auth.continueOffline')}
+              {t('auth.continueLocallyButton')}
             </button>
-            <p className="text-xs text-text-muted mt-1">{t('auth.offlineNote')}</p>
           </div>
         </div>
       </div>

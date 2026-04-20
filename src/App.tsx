@@ -6,6 +6,7 @@ import MobileGuard from './features/diagram/components/layout/MobileGuard';
 import ProtectedRoute from './features/auth/components/ProtectedRoute';
 import OAuthCallback from './features/auth/components/OAuthCallback';
 import LoginPage from './features/auth/components/LoginPage';
+import ResetPasswordPage from './features/auth/components/ResetPasswordPage';
 import { useAuthStore } from './features/auth/store/auth.store';
 
 const ApiKeysPage = lazy(() => import('./features/cloud/components/ApiKeysPage'));
@@ -23,6 +24,7 @@ function AppRoutes() {
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/oauth/callback" element={<OAuthCallback />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* Protected routes — ProtectedRoute shows spinner while isLoading,
           redirects to /login if unauthenticated */}

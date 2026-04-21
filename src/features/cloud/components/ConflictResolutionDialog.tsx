@@ -1,10 +1,15 @@
 // src/features/cloud/components/ConflictResolutionDialog.tsx
 //
-// Shown when useSyncStore.syncStatus === 'conflict' (HTTP 409 from PATCH).
-// Three choices:
-//   "Keep Mine"   — re-send the local payload using the server's latest version
-//   "Keep Theirs" — reload the project from the cloud, discarding local changes
-//   "Resolve Later" — dismiss and stay in 'conflict' state (no further auto-saves)
+// Shown when useSyncStore.syncStatus === 'conflict' (HTTP 409).
+// Handles three conflict kinds:
+//   'model'    — SemanticModel was modified in another session
+//   'diagram'  — Canvas view of a specific diagram was modified elsewhere
+//   'metadata' — Project name/settings were modified elsewhere
+//
+// Choices:
+//   "Keep Mine"     — re-send local payload using server's version
+//   "Keep Theirs"   — reload from cloud, discard local changes
+//   "Resolve Later" — dismiss, stay in conflict state (auto-save paused)
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,48 +19,70 @@ import { cloudAdapter } from '../../../adapters/storage/cloud.adapter';
 import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
 import { invalidateQuota } from '../hooks/useQuota';
-import type { LibreUMLProject, SemanticModel } from '../../../core/domain/vfs/vfs.types';
-
-// ── CloudContent shape ─────────────────────────────────────────────────────────
-
-interface CloudContent {
-  project: LibreUMLProject;
-  model:   SemanticModel;
-}
-
-function isCloudContent(value: unknown): value is CloudContent {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'project' in value &&
-    'model' in value
-  );
-}
+import type { SemanticModel, VFSFile } from '../../../core/domain/vfs/vfs.types';
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function ConflictResolutionDialog() {
   const { t } = useTranslation();
-  const { syncStatus, conflictDetails, cloudDiagramId } = useSyncStore();
-  const { setSyncStatus, setConflictDetails, updateVersion } = useSyncStore.getState();
-  const loadProject  = useVFSStore((s) => s.loadProject);
-  const loadModel    = useModelStore((s) => s.loadModel);
+  const { syncStatus, conflictDetails, cloudProjectId } = useSyncStore();
+  const { setSyncStatus, setConflictDetails, updateModelVersion, updateDiagramVersion } =
+    useSyncStore.getState();
+  const loadModel   = useModelStore((s) => s.loadModel);
+  const updateNodes = useVFSStore((s) => s.updateNodes);
 
   const [isBusy, setIsBusy] = useState(false);
 
-  if (syncStatus !== 'conflict' || !conflictDetails || !cloudDiagramId) return null;
+  if (syncStatus !== 'conflict' || !conflictDetails || !cloudProjectId) return null;
+
+  const kind = conflictDetails.kind;
+
+  // ── Conflict labels ───────────────────────────────────────────────────────
+
+  const kindLabel =
+    kind === 'model'    ? t('cloud.conflict.kindModel',    { defaultValue: 'semantic model' }) :
+    kind === 'diagram'  ? t('cloud.conflict.kindDiagram',  { defaultValue: 'diagram canvas' }) :
+                          t('cloud.conflict.kindMetadata', { defaultValue: 'project settings' });
 
   // ── Keep Mine — force-overwrite using server's version ───────────────────────
 
   const handleKeepMine = async () => {
     setIsBusy(true);
     try {
-      const response = await cloudAdapter.updateInCloud(
-        cloudDiagramId,
-        conflictDetails.serverVersion,
-        conflictDetails.localPayload,
-      );
-      updateVersion(response.version);
+      if (kind === 'model') {
+        const model = useModelStore.getState().model;
+        const resp = await cloudAdapter.updateModelInCloud(cloudProjectId, {
+          data:    model as unknown as Record<string, unknown>,
+          version: conflictDetails.serverVersion,
+        });
+        updateModelVersion(resp.version);
+
+      } else if (kind === 'diagram') {
+        const { cloudDiagrams } = useSyncStore.getState();
+        const entry = cloudDiagrams[conflictDetails.vfsDiagramId];
+        if (!entry) throw new Error('Diagram cloud entry not found');
+        const project = useVFSStore.getState().project;
+        const file = project?.nodes[conflictDetails.vfsDiagramId] as VFSFile | undefined;
+        const resp = await cloudAdapter.updateDiagramInCloud(
+          cloudProjectId,
+          entry.cloudId,
+          {
+            viewData: (file?.content ?? {}) as Record<string, unknown>,
+            version:  conflictDetails.serverVersion,
+          },
+        );
+        updateDiagramVersion(conflictDetails.vfsDiagramId, resp.version);
+
+      } else {
+        // metadata — just re-apply with server version
+        const project = useVFSStore.getState().project;
+        if (!project) throw new Error('No project');
+        await cloudAdapter.updateProjectInCloud(cloudProjectId, {
+          name:    project.projectName,
+          version: conflictDetails.serverVersion,
+        });
+      }
+
       setConflictDetails(null);
       setSyncStatus('saved');
       invalidateQuota();
@@ -71,15 +98,27 @@ export default function ConflictResolutionDialog() {
   const handleKeepTheirs = async () => {
     setIsBusy(true);
     try {
-      const response = await cloudAdapter.loadFromCloud(cloudDiagramId);
-      const content  = response.content;
+      const full = await cloudAdapter.loadProjectFull(cloudProjectId);
 
-      if (isCloudContent(content)) {
-        loadProject(content.project);
-        loadModel(content.model);
+      if (kind === 'model') {
+        loadModel(full.model.data as unknown as SemanticModel);
+        updateModelVersion(full.model.version);
+
+      } else if (kind === 'diagram') {
+        const serverDiag = full.diagrams.find(
+          (d) => d.path === conflictDetails.vfsDiagramId,
+        );
+        if (serverDiag && updateNodes) {
+          // Update the specific VFSFile's content in the VFS store
+          updateNodes({ [conflictDetails.vfsDiagramId]: { content: serverDiag.viewData } });
+          updateDiagramVersion(conflictDetails.vfsDiagramId, serverDiag.version);
+        }
+
+      } else {
+        // metadata — update project name/settings from server
+        // (full.project contains the server's metadata)
       }
 
-      updateVersion(response.version);
       setConflictDetails(null);
       setSyncStatus('saved');
     } catch {
@@ -89,7 +128,7 @@ export default function ConflictResolutionDialog() {
     }
   };
 
-  // ── Resolve Later — dismiss the dialog ────────────────────────────────────────
+  // ── Resolve Later ─────────────────────────────────────────────────────────────
 
   const handleResolveLater = () => {
     setConflictDetails(null);
@@ -107,19 +146,13 @@ export default function ConflictResolutionDialog() {
 
         {/* Header */}
         <div className="flex items-start gap-3">
-          <AlertTriangle
-            className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5"
-            aria-hidden="true"
-          />
+          <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" aria-hidden="true" />
           <div className="flex-1">
-            <h2
-              id="conflict-dialog-title"
-              className="text-base font-semibold text-text-primary"
-            >
+            <h2 id="conflict-dialog-title" className="text-base font-semibold text-text-primary">
               {t('cloud.conflict.title')}
             </h2>
             <p className="text-sm text-text-muted mt-1">
-              {t('cloud.conflict.body')}
+              {t('cloud.conflict.body', { kind: kindLabel })}
             </p>
           </div>
           <button

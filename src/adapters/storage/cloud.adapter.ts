@@ -1,29 +1,37 @@
 // src/adapters/storage/cloud.adapter.ts
 //
-// CloudStorageAdapter — implements the synchronous StorageAdapter interface
-// (delegating all sync operations to the underlying local adapter so Zustand
-// persist middleware continues to work unchanged) while also exposing the
-// async cloud I/O methods that CloudSyncService uses.
-//
-// The local StorageAdapter is NEVER replaced. This adapter wraps it, adding
-// the async cloud pathway as an adjacent layer.
+// CloudStorageAdapter — wraps the synchronous local StorageAdapter (so Zustand
+// persist continues to work unchanged) and exposes async cloud I/O methods for
+// the three independent resources: project metadata, semantic model, and individual
+// diagram views.
 
 import {
   type StorageAdapter,
   createStorageAdapter,
 } from './storage.adapter';
 import {
-  createDiagram,
-  updateDiagram,
-  getDiagram,
-  deleteDiagram,
-} from '../../api/diagrams.api';
+  createProject,
+  updateProject,
+  getProjectFull,
+  deleteProject,
+  updateProjectModel,
+  createProjectDiagram,
+  updateProjectDiagram,
+  deleteProjectDiagram,
+} from '../../api/projects.api';
 import type {
-  CreateDiagramRequest,
-  UpdateDiagramRequest,
-  DiagramDetailResponse,
+  CreateProjectRequest,
+  CreateProjectResponse,
+  UpdateProjectRequest,
+  UpdateProjectResponse,
+  ProjectFullResponse,
+  UpdateModelRequest,
+  UpdateModelResponse,
+  CreateCloudDiagramRequest,
+  CreateCloudDiagramResponse,
+  UpdateCloudDiagramRequest,
+  UpdateCloudDiagramResponse,
 } from '../../api/types';
-import type { DiagramType as ApiDiagramType } from '../../api/types';
 
 // ── CloudStorageAdapter ───────────────────────────────────────────────────────
 
@@ -35,8 +43,6 @@ export class CloudStorageAdapter implements StorageAdapter {
   }
 
   // ── Synchronous StorageAdapter implementation ─────────────────────────────
-  // These delegate straight to the local adapter so Zustand persist continues
-  // to work exactly as before.
 
   getItem(key: string): string | null {
     return this.local.getItem(key);
@@ -58,54 +64,63 @@ export class CloudStorageAdapter implements StorageAdapter {
     return this.local.getAllKeys?.() ?? [];
   }
 
-  // ── Async cloud operations ────────────────────────────────────────────────
+  // ── Project metadata ──────────────────────────────────────────────────────
 
-  /**
-   * Creates a new diagram record on the backend and returns the full response
-   * (including the server-assigned `id` and initial `version`).
-   */
-  async createInCloud(
-    title: string,
-    type: ApiDiagramType,
-    content: Record<string, unknown>,
-  ): Promise<DiagramDetailResponse> {
-    const req: CreateDiagramRequest = { title, type, content };
-    return createDiagram(req);
+  async createProjectInCloud(
+    req: CreateProjectRequest,
+  ): Promise<CreateProjectResponse> {
+    return createProject(req);
   }
 
-  /**
-   * Sends a PATCH to update an existing diagram.
-   * `version` must match the server's current version (optimistic lock).
-   * Throws on 409 (conflict) or 422 (quota exceeded) — callers handle these.
-   */
-  async updateInCloud(
+  async updateProjectInCloud(
     id: string,
-    version: number,
-    content: Record<string, unknown>,
-    title?: string,
-  ): Promise<DiagramDetailResponse> {
-    const req: UpdateDiagramRequest = { version, content, ...(title ? { title } : {}) };
-    return updateDiagram(id, req);
+    req: UpdateProjectRequest,
+  ): Promise<UpdateProjectResponse> {
+    return updateProject(id, req);
   }
 
-  /**
-   * Fetches a diagram by ID. Used to reload the project after a conflict
-   * resolution choice of "Keep Theirs".
-   */
-  async loadFromCloud(id: string): Promise<DiagramDetailResponse> {
-    return getDiagram(id);
+  async loadProjectFull(id: string): Promise<ProjectFullResponse> {
+    return getProjectFull(id);
   }
 
-  /**
-   * Deletes a diagram from the backend. Frees quota.
-   */
-  async deleteFromCloud(id: string): Promise<void> {
-    return deleteDiagram(id);
+  async deleteProjectFromCloud(id: string): Promise<void> {
+    return deleteProject(id);
+  }
+
+  // ── Semantic model ────────────────────────────────────────────────────────
+
+  async updateModelInCloud(
+    projectId: string,
+    req: UpdateModelRequest,
+  ): Promise<UpdateModelResponse> {
+    return updateProjectModel(projectId, req);
+  }
+
+  // ── Diagram view (canvas) ─────────────────────────────────────────────────
+
+  async createDiagramInCloud(
+    projectId: string,
+    req: CreateCloudDiagramRequest,
+  ): Promise<CreateCloudDiagramResponse> {
+    return createProjectDiagram(projectId, req);
+  }
+
+  async updateDiagramInCloud(
+    projectId: string,
+    diagramId: string,
+    req: UpdateCloudDiagramRequest,
+  ): Promise<UpdateCloudDiagramResponse> {
+    return updateProjectDiagram(projectId, diagramId, req);
+  }
+
+  async deleteDiagramFromCloud(
+    projectId: string,
+    diagramId: string,
+  ): Promise<void> {
+    return deleteProjectDiagram(projectId, diagramId);
   }
 }
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
-// Created once and shared across CloudSyncService and any component that
-// needs direct cloud I/O (e.g. UploadLocalProject).
 
 export const cloudAdapter = new CloudStorageAdapter();

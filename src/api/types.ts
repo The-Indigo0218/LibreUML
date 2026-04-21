@@ -9,6 +9,13 @@ export type DiagramType =
   | 'DEPLOYMENT'
   | 'ER';
 
+// Extended type for the new projects API (includes PACKAGE, OBJECT, UNSPECIFIED)
+export type ProjectDiagramType =
+  | DiagramType
+  | 'PACKAGE'
+  | 'OBJECT'
+  | 'UNSPECIFIED';
+
 export type DiagramVisibility = 'PRIVATE' | 'SHARED' | 'PUBLIC';
 
 export type UserRole = 'TEACHER' | 'STUDENT' | 'DEVELOPER' | 'MODERATOR' | 'ADMIN';
@@ -76,12 +83,161 @@ export interface UpdateDiagramRequest {
   version: number;
 }
 
+// ── Projects ──────────────────────────────────────────────────────────────────
+
+export interface ProjectDiagramSummary {
+  id: string;
+  name: string;
+  diagramType: ProjectDiagramType;
+  path: string;
+  version: number;
+  updatedAt: string;
+}
+
+export interface ProjectSummaryResponse {
+  id: string;
+  name: string;
+  description?: string;
+  author?: string;
+  projectVersion: string;
+  targetLanguage?: string;
+  basePackage?: string;
+  visibility: DiagramVisibility;
+  version: number;
+  diagramCount: number;
+  diagramTypes: ProjectDiagramType[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectDetailResponse {
+  id: string;
+  name: string;
+  description?: string;
+  author?: string;
+  projectVersion: string;
+  targetLanguage?: string;
+  basePackage?: string;
+  visibility: DiagramVisibility;
+  version: number;
+  vfsSnapshot?: Record<string, unknown>;
+  diagrams: ProjectDiagramSummary[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  description?: string;
+  author?: string;
+  projectVersion?: string;
+  targetLanguage?: string;
+  basePackage?: string;
+  vfsSnapshot?: Record<string, unknown>;
+}
+
+export interface CreateProjectResponse {
+  id: string;
+  modelId: string;
+  version: number;
+  createdAt: string;
+}
+
+export interface UpdateProjectRequest {
+  name?: string;
+  description?: string;
+  author?: string;
+  targetLanguage?: string;
+  basePackage?: string;
+  vfsSnapshot?: Record<string, unknown>;
+  version: number;
+}
+
+export interface UpdateProjectResponse {
+  id: string;
+  version: number;
+  updatedAt: string;
+}
+
+// ── Project Model ─────────────────────────────────────────────────────────────
+
+export interface ModelResponse {
+  id: string;
+  projectId: string;
+  data: Record<string, unknown>;
+  version: number;
+  updatedAt: string;
+}
+
+export interface UpdateModelRequest {
+  data: Record<string, unknown>;
+  version: number;
+}
+
+export interface UpdateModelResponse {
+  id: string;
+  version: number;
+  updatedAt: string;
+}
+
+// ── Project Diagrams ──────────────────────────────────────────────────────────
+
+export interface CloudDiagramResponse {
+  id: string;
+  projectId: string;
+  name: string;
+  diagramType: ProjectDiagramType;
+  path: string;
+  viewData: Record<string, unknown>;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCloudDiagramRequest {
+  name: string;
+  diagramType: ProjectDiagramType;
+  path?: string;
+  viewData?: Record<string, unknown>;
+}
+
+export interface CreateCloudDiagramResponse {
+  id: string;
+  projectId: string;
+  version: number;
+  createdAt: string;
+}
+
+export interface UpdateCloudDiagramRequest {
+  name?: string;
+  viewData?: Record<string, unknown>;
+  version: number;
+}
+
+export interface UpdateCloudDiagramResponse {
+  id: string;
+  version: number;
+  updatedAt: string;
+}
+
+// ── Full project load ─────────────────────────────────────────────────────────
+
+export interface ProjectFullResponse {
+  project: ProjectDetailResponse;
+  model: ModelResponse;
+  diagrams: CloudDiagramResponse[];
+}
+
 // ── Quota ─────────────────────────────────────────────────────────────────────
 
 export interface QuotaResponse {
   quota: number;
   used: number;
   available: number;
+  breakdown?: {
+    models: number;
+    diagrams: number;
+  };
 }
 
 // ── Pagination ────────────────────────────────────────────────────────────────

@@ -54,7 +54,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
   const [isCloudPickerOpen, setIsCloudPickerOpen] = useState(false);
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { storageMode, cloudDiagramId } = useSyncStore();
+  const { storageMode, cloudProjectId } = useSyncStore();
 
   const {
     handleNew,
@@ -156,7 +156,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
           <>
             <MenubarItem
               label={
-                storageMode === 'cloud' && cloudDiagramId
+                storageMode === 'cloud' && cloudProjectId
                   ? t('menubar.file.syncToCloud')
                   : t('menubar.file.saveToCloud')
               }

@@ -1,13 +1,15 @@
 // src/store/sync.store.ts
 // Persisted cloud-sync state for the currently open project.
-// One entry per workspace session — the cloudDiagramId links the local
-// LibreUMLProject to a specific backend /diagrams record.
 //
-// Lifecycle:
-//   local-only  →  "Save to Cloud" → cloudDiagramId set → auto-sync active
-//   auto-sync   →  PATCH fires on every 5 s debounce → version increments
-//   conflict    →  409 → syncStatus = 'conflict' → ConflictResolutionDialog
-//   offline     →  network error → offlineQueue → retry on window.online
+// Cloud link uses cloudProjectId (new 3-table architecture):
+//   • cloudProjectId    → /projects/{id}
+//   • modelVersion      → optimistic lock for PATCH /projects/{id}/model
+//   • cloudDiagrams     → per-diagram {cloudId, version} keyed by VFS file UUID
+//
+// Legacy migration:
+//   Store version 1 had cloudDiagramId pointing to the old /diagrams endpoint.
+//   On first load after upgrade, legacyCloudDiagramId is set from that value
+//   so the migration banner can offer the user a one-time migration flow.
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -23,32 +25,57 @@ export type SyncStatus =
   | 'conflict'
   | 'offline';
 
+/** Per-diagram cloud link: the backend-assigned UUID and its current version. */
+export interface CloudDiagramEntry {
+  cloudId: string;
+  version: number;
+}
+
 export interface OfflineQueueItem {
-  /** Stable per-item ID for deduplication. */
+  /** Stable dedup key. */
   id: string;
-  /** Serialised project+model payload to retry. */
+  kind: 'metadata' | 'model' | 'diagram';
+  projectId: string;
+  /** Only present when kind === 'diagram'. VFS file UUID. */
+  vfsDiagramId?: string;
+  /** Only present when kind === 'diagram'. Backend diagram UUID. */
+  cloudDiagramId?: string;
+  /** Serialised payload to retry. */
   payload: Record<string, unknown>;
   attempts: number;
   lastAttemptAt: number;
 }
 
-export interface ConflictDetails {
-  /** Version the server returned in the 409 body (server's current version). */
-  serverVersion: number;
-  /** Snapshot of local payload that caused the conflict. */
-  localPayload: Record<string, unknown>;
-}
+export type ConflictDetails =
+  | {
+      kind: 'metadata';
+      serverVersion: number;
+      localPayload: Record<string, unknown>;
+    }
+  | {
+      kind: 'model';
+      serverVersion: number;
+      serverData: Record<string, unknown>;
+      localPayload: Record<string, unknown>;
+    }
+  | {
+      kind: 'diagram';
+      vfsDiagramId: string;
+      cloudDiagramId: string;
+      serverVersion: number;
+      localPayload: Record<string, unknown>;
+    };
 
 interface SyncStoreState {
-  // ── Cloud link ─────────────────────────────────────────────────────────────
-  /** null = project is local-only; UUID = linked to a backend diagram. */
-  cloudDiagramId: string | null;
-  /**
-   * Optimistic-lock version echoed back by the backend on every successful
-   * PATCH. Must be included in the next PATCH body unchanged.
-   */
-  version: number;
-  /** Whether the user has explicitly opted for cloud mode for this project. */
+  // ── Cloud link (new architecture) ──────────────────────────────────────────
+  cloudProjectId: string | null;
+  modelVersion: number;
+  cloudDiagrams: Record<string, CloudDiagramEntry>;
+
+  // ── Legacy migration ───────────────────────────────────────────────────────
+  /** Non-null when the user has an old-format cloud link that needs migration. */
+  legacyCloudDiagramId: string | null;
+
   storageMode: 'local' | 'cloud';
 
   // ── Sync status ────────────────────────────────────────────────────────────
@@ -60,21 +87,28 @@ interface SyncStoreState {
   // ── Offline queue ──────────────────────────────────────────────────────────
   offlineQueue: OfflineQueueItem[];
 
-  // ── Per-project migration flag ─────────────────────────────────────────────
-  /**
-   * Set of project IDs for which the user has already responded to the
-   * "Upload local project?" dialog. Prevents re-showing on every login.
-   */
+  // ── Per-project upload declined flag ──────────────────────────────────────
   declinedUploadProjectIds: string[];
 
   // ── Actions ────────────────────────────────────────────────────────────────
-  setCloudDiagram: (id: string, version: number) => void;
-  updateVersion: (version: number) => void;
+  setCloudProject: (
+    projectId: string,
+    modelVersion: number,
+    diagrams: Record<string, CloudDiagramEntry>,
+  ) => void;
+
+  updateModelVersion: (version: number) => void;
+  setDiagramCloudEntry: (vfsId: string, entry: CloudDiagramEntry) => void;
+  updateDiagramVersion: (vfsId: string, version: number) => void;
+  removeDiagramCloudEntry: (vfsId: string) => void;
+
   setSyncStatus: (status: SyncStatus, error?: string | null) => void;
   setConflictDetails: (details: ConflictDetails | null) => void;
+
   clearCloudLink: () => void;
   enterCloudMode: () => void;
   enterLocalMode: () => void;
+  clearLegacyLink: () => void;
 
   enqueue: (item: OfflineQueueItem) => void;
   dequeue: (id: string) => void;
@@ -83,15 +117,16 @@ interface SyncStoreState {
   markDeclinedUpload: (projectId: string) => void;
   hasDeclinedUpload: (projectId: string) => boolean;
 
-  /** Full reset — called on project close or logout. */
   reset: () => void;
 }
 
 // ── Default state ──────────────────────────────────────────────────────────────
 
 const DEFAULT_STATE = {
-  cloudDiagramId: null,
-  version: 0,
+  cloudProjectId: null,
+  modelVersion: 0,
+  cloudDiagrams: {} as Record<string, CloudDiagramEntry>,
+  legacyCloudDiagramId: null,
   storageMode: 'local' as const,
   syncStatus: 'idle' as SyncStatus,
   lastSyncedAt: null,
@@ -108,10 +143,41 @@ export const useSyncStore = create<SyncStoreState>()(
     (set, get) => ({
       ...DEFAULT_STATE,
 
-      setCloudDiagram: (id, version) =>
-        set({ cloudDiagramId: id, version, storageMode: 'cloud', error: null }),
+      setCloudProject: (projectId, modelVersion, diagrams) =>
+        set({
+          cloudProjectId: projectId,
+          modelVersion,
+          cloudDiagrams: diagrams,
+          storageMode: 'cloud',
+          error: null,
+          legacyCloudDiagramId: null,
+        }),
 
-      updateVersion: (version) => set({ version }),
+      updateModelVersion: (version) => set({ modelVersion: version }),
+
+      setDiagramCloudEntry: (vfsId, entry) =>
+        set((s) => ({
+          cloudDiagrams: { ...s.cloudDiagrams, [vfsId]: entry },
+        })),
+
+      updateDiagramVersion: (vfsId, version) =>
+        set((s) => {
+          const existing = s.cloudDiagrams[vfsId];
+          if (!existing) return s;
+          return {
+            cloudDiagrams: {
+              ...s.cloudDiagrams,
+              [vfsId]: { ...existing, version },
+            },
+          };
+        }),
+
+      removeDiagramCloudEntry: (vfsId) =>
+        set((s) => {
+          const next = { ...s.cloudDiagrams };
+          delete next[vfsId];
+          return { cloudDiagrams: next };
+        }),
 
       setSyncStatus: (status, error = null) =>
         set({
@@ -125,8 +191,9 @@ export const useSyncStore = create<SyncStoreState>()(
 
       clearCloudLink: () =>
         set({
-          cloudDiagramId: null,
-          version: 0,
+          cloudProjectId: null,
+          modelVersion: 0,
+          cloudDiagrams: {},
           storageMode: 'local',
           syncStatus: 'idle',
           error: null,
@@ -136,6 +203,7 @@ export const useSyncStore = create<SyncStoreState>()(
 
       enterCloudMode: () => set({ storageMode: 'cloud' }),
       enterLocalMode: () => set({ storageMode: 'local' }),
+      clearLegacyLink: () => set({ legacyCloudDiagramId: null }),
 
       enqueue: (item) =>
         set((s) => ({
@@ -171,20 +239,45 @@ export const useSyncStore = create<SyncStoreState>()(
 
       reset: () =>
         set({
-          cloudDiagramId: null,
-          version: 0,
+          cloudProjectId: null,
+          modelVersion: 0,
+          cloudDiagrams: {},
           storageMode: 'local',
           syncStatus: 'idle',
           lastSyncedAt: null,
           error: null,
           conflictDetails: null,
           offlineQueue: [],
-          // declinedUploadProjectIds is intentionally kept across resets
+          // legacyCloudDiagramId and declinedUploadProjectIds survive reset
         }),
     }),
     {
       name: 'libreuml-sync-storage',
-      version: 1,
+      version: 2,
+      migrate: (persistedState, fromVersion) => {
+        if (fromVersion === 1) {
+          const old = persistedState as {
+            cloudDiagramId?: string | null;
+            version?: number;
+            storageMode?: 'local' | 'cloud';
+            lastSyncedAt?: number | null;
+            declinedUploadProjectIds?: string[];
+          };
+          return {
+            ...DEFAULT_STATE,
+            storageMode: old.storageMode ?? 'local',
+            lastSyncedAt: old.lastSyncedAt ?? null,
+            declinedUploadProjectIds: old.declinedUploadProjectIds ?? [],
+            // Carry forward the old diagram ID as a legacy migration flag
+            legacyCloudDiagramId: old.cloudDiagramId ?? null,
+            // If user was in cloud mode, keep them there — they'll see migration banner
+            ...(old.storageMode === 'cloud'
+              ? { storageMode: 'local' as const }
+              : {}),
+          } as SyncStoreState;
+        }
+        return persistedState as SyncStoreState;
+      },
       storage: {
         getItem: (name) => {
           const value = storageAdapter.getItem(name);
@@ -197,10 +290,11 @@ export const useSyncStore = create<SyncStoreState>()(
           storageAdapter.removeItem(name);
         },
       },
-      // Transient fields are not persisted — they reset on page reload.
       partialize: (state) => ({
-        cloudDiagramId: state.cloudDiagramId,
-        version: state.version,
+        cloudProjectId: state.cloudProjectId,
+        modelVersion: state.modelVersion,
+        cloudDiagrams: state.cloudDiagrams,
+        legacyCloudDiagramId: state.legacyCloudDiagramId,
         storageMode: state.storageMode,
         lastSyncedAt: state.lastSyncedAt,
         offlineQueue: state.offlineQueue,

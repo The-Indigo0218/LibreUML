@@ -1,16 +1,3 @@
-// src/features/cloud/components/ConflictResolutionDialog.tsx
-//
-// Shown when useSyncStore.syncStatus === 'conflict' (HTTP 409).
-// Handles three conflict kinds:
-//   'model'    — SemanticModel was modified in another session
-//   'diagram'  — Canvas view of a specific diagram was modified elsewhere
-//   'metadata' — Project name/settings were modified elsewhere
-//
-// Choices:
-//   "Keep Mine"     — re-send local payload using server's version
-//   "Keep Theirs"   — reload from cloud, discard local changes
-//   "Resolve Later" — dismiss, stay in conflict state (auto-save paused)
-
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CloudUpload, Download, X } from 'lucide-react';
@@ -21,15 +8,12 @@ import { useModelStore } from '../../../store/model.store';
 import { invalidateQuota } from '../hooks/useQuota';
 import type { SemanticModel, VFSFile } from '../../../core/domain/vfs/vfs.types';
 
-// ── Component ──────────────────────────────────────────────────────────────────
-
 export default function ConflictResolutionDialog() {
   const { t } = useTranslation();
   const { syncStatus, conflictDetails, cloudProjectId } = useSyncStore();
   const { setSyncStatus, setConflictDetails, updateModelVersion, updateDiagramVersion } =
     useSyncStore.getState();
-  const loadModel   = useModelStore((s) => s.loadModel);
-  const updateNodes = useVFSStore((s) => s.updateNodes);
+  const loadModel = useModelStore((s) => s.loadModel);
 
   const [isBusy, setIsBusy] = useState(false);
 
@@ -43,8 +27,6 @@ export default function ConflictResolutionDialog() {
     kind === 'model'    ? t('cloud.conflict.kindModel',    { defaultValue: 'semantic model' }) :
     kind === 'diagram'  ? t('cloud.conflict.kindDiagram',  { defaultValue: 'diagram canvas' }) :
                           t('cloud.conflict.kindMetadata', { defaultValue: 'project settings' });
-
-  // ── Keep Mine — force-overwrite using server's version ───────────────────────
 
   const handleKeepMine = async () => {
     setIsBusy(true);
@@ -74,7 +56,6 @@ export default function ConflictResolutionDialog() {
         updateDiagramVersion(conflictDetails.vfsDiagramId, resp.version);
 
       } else {
-        // metadata — just re-apply with server version
         const project = useVFSStore.getState().project;
         if (!project) throw new Error('No project');
         await cloudAdapter.updateProjectInCloud(cloudProjectId, {
@@ -93,8 +74,6 @@ export default function ConflictResolutionDialog() {
     }
   };
 
-  // ── Keep Theirs — load server version, discard local ─────────────────────────
-
   const handleKeepTheirs = async () => {
     setIsBusy(true);
     try {
@@ -108,15 +87,13 @@ export default function ConflictResolutionDialog() {
         const serverDiag = full.diagrams.find(
           (d) => d.path === conflictDetails.vfsDiagramId,
         );
-        if (serverDiag && updateNodes) {
-          // Update the specific VFSFile's content in the VFS store
-          updateNodes({ [conflictDetails.vfsDiagramId]: { content: serverDiag.viewData } });
+        if (serverDiag) {
+          useVFSStore.getState().updateNode(conflictDetails.vfsDiagramId, { content: serverDiag.viewData });
           updateDiagramVersion(conflictDetails.vfsDiagramId, serverDiag.version);
         }
 
       } else {
-        // metadata — update project name/settings from server
-        // (full.project contains the server's metadata)
+        // metadata resolved by reloading full project — no local action needed
       }
 
       setConflictDetails(null);
@@ -127,8 +104,6 @@ export default function ConflictResolutionDialog() {
       setIsBusy(false);
     }
   };
-
-  // ── Resolve Later ─────────────────────────────────────────────────────────────
 
   const handleResolveLater = () => {
     setConflictDetails(null);
@@ -144,7 +119,6 @@ export default function ConflictResolutionDialog() {
     >
       <div className="bg-surface-primary border border-surface-border rounded-lg shadow-xl w-full max-w-md mx-4 p-6 flex flex-col gap-5">
 
-        {/* Header */}
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" aria-hidden="true" />
           <div className="flex-1">
@@ -165,7 +139,6 @@ export default function ConflictResolutionDialog() {
           </button>
         </div>
 
-        {/* Actions */}
         <div className="flex flex-col gap-2">
           <button
             onClick={() => void handleKeepMine()}
@@ -194,7 +167,6 @@ export default function ConflictResolutionDialog() {
           </button>
         </div>
 
-        {/* Explanation */}
         <p className="text-xs text-text-muted border-t border-surface-border pt-3">
           {t('cloud.conflict.hint')}
         </p>

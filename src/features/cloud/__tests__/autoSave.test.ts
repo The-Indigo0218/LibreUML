@@ -76,8 +76,9 @@ function setCloudReady() {
     error:           null,
   });
   useSyncStore.setState({
-    cloudDiagramId:           DIAG_ID,
-    version:                  VERSION,
+    cloudProjectId:           mockProject.id,
+    modelVersion:             VERSION,
+    cloudDiagrams:            {},
     storageMode:              'cloud',
     syncStatus:               'idle',
     lastSyncedAt:             null,
@@ -155,7 +156,7 @@ describe('AutoSaveQueue — 5xx exponential backoff', () => {
       .mockResolvedValue(mockResponse);           // fourth try → success
 
     autoSaveQueue.start();
-    autoSaveQueue.enqueue(DIAG_ID);
+    autoSaveQueue.enqueue(mockProject.id, 'model');
 
     // ── First attempt fires after 1 s (backoffMs(0))
     await vi.advanceTimersByTimeAsync(1_000);
@@ -181,7 +182,7 @@ describe('AutoSaveQueue — 5xx exponential backoff', () => {
     vi.mocked(diagApi.updateDiagram).mockRejectedValue(make5xxError(500));
 
     autoSaveQueue.start();
-    autoSaveQueue.enqueue(DIAG_ID);
+    autoSaveQueue.enqueue(mockProject.id, 'model');
 
     // Advance through all 6 attempts: 1+2+4+8+16+30 = 61 s total
     for (const delay of [1_000, 2_000, 4_000, 8_000, 16_000, 30_000]) {
@@ -194,8 +195,8 @@ describe('AutoSaveQueue — 5xx exponential backoff', () => {
 
   it('deduplicates: enqueueing the same diagram twice adds only one item', () => {
     autoSaveQueue.start();
-    autoSaveQueue.enqueue(DIAG_ID);
-    autoSaveQueue.enqueue(DIAG_ID);
+    autoSaveQueue.enqueue(mockProject.id, 'model');
+    autoSaveQueue.enqueue(mockProject.id, 'model');
     expect(autoSaveQueue.size).toBe(1);
   });
 
@@ -204,8 +205,8 @@ describe('AutoSaveQueue — 5xx exponential backoff', () => {
 
     // Change version after enqueue but before retry fires
     autoSaveQueue.start();
-    autoSaveQueue.enqueue(DIAG_ID);
-    useSyncStore.setState({ version: 99 }); // update AFTER enqueue
+    autoSaveQueue.enqueue(mockProject.id, 'model');
+    useSyncStore.setState({ modelVersion: 99 }); // update AFTER enqueue
 
     await vi.advanceTimersByTimeAsync(1_000);
 
@@ -235,7 +236,7 @@ describe('AutoSaveQueue — conflict and quota errors', () => {
     vi.mocked(diagApi.updateDiagram).mockRejectedValue(make409Error(10));
 
     autoSaveQueue.start();
-    autoSaveQueue.enqueue(DIAG_ID);
+    autoSaveQueue.enqueue(mockProject.id, 'model');
 
     await vi.advanceTimersByTimeAsync(1_000);
 
@@ -252,7 +253,7 @@ describe('AutoSaveQueue — conflict and quota errors', () => {
     vi.mocked(diagApi.updateDiagram).mockRejectedValue(make422Error());
 
     autoSaveQueue.start();
-    autoSaveQueue.enqueue(DIAG_ID);
+    autoSaveQueue.enqueue(mockProject.id, 'model');
 
     await vi.advanceTimersByTimeAsync(1_000);
 
@@ -337,7 +338,7 @@ describe('CloudSyncService debounce', () => {
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
 
     // Change version AFTER scheduling but BEFORE timer fires
-    useSyncStore.setState({ version: 42 });
+    useSyncStore.setState({ modelVersion: 42 });
 
     await vi.advanceTimersByTimeAsync(DEBOUNCE);
 
@@ -359,7 +360,7 @@ describe('CloudSyncService debounce', () => {
     // cleanup
     autoSaveQueue.stop();
     // drain queue internals
-    autoSaveQueue.dequeue(DIAG_ID);
+    autoSaveQueue.dequeue(`${mockProject.id}:model:`);
   });
 
   it('network error (no response) adds to offline queue, NOT autoSaveQueue', async () => {

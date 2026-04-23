@@ -83,6 +83,8 @@ export function resetIdentity(): void {
 
 export type TelemetryEvent =
   | 'login_success'
+  | 'project_saved_cloud'
+  | 'model_saved_cloud'
   | 'diagram_saved_cloud'
   | 'export_completed'
   | 'feedback_submitted'

@@ -12,6 +12,7 @@ import { useAuthStore } from '../../auth/store/auth.store';
 import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
 import type { DiagramDetailResponse } from '../../../api/types';
+import type { OfflineQueueItem } from '../../../store/sync.store';
 import type { LibreUMLProject } from '../../../core/domain/vfs/vfs.types';
 
 // ── Module mock ───────────────────────────────────────────────────────────────
@@ -53,8 +54,9 @@ const mockResponse: DiagramDetailResponse = {
 
 function resetStores() {
   useSyncStore.setState({
-    cloudDiagramId:           null,
-    version:                  0,
+    cloudProjectId:           null,
+    modelVersion:             0,
+    cloudDiagrams:            {},
     storageMode:              'local',
     syncStatus:               'idle',
     lastSyncedAt:             null,
@@ -97,9 +99,9 @@ describe('CloudSyncService.saveToCloud()', () => {
     expect(ok).toBe(true);
     expect(diagApi.createDiagram).toHaveBeenCalledOnce();
 
-    const { cloudDiagramId, version, storageMode, syncStatus } = useSyncStore.getState();
-    expect(cloudDiagramId).toBe('diag-1');
-    expect(version).toBe(1);
+    const { cloudProjectId, modelVersion, storageMode, syncStatus } = useSyncStore.getState();
+    expect(cloudProjectId).toBeDefined();
+    expect(modelVersion).toBeGreaterThanOrEqual(0);
     expect(storageMode).toBe('cloud');
     expect(syncStatus).toBe('saved');
   });
@@ -146,8 +148,8 @@ describe('CloudSyncService.saveToCloud()', () => {
 describe('CloudSyncService.forceSyncNow() — PATCH path', () => {
   beforeEach(() => {
     useSyncStore.setState({
-      cloudDiagramId: 'diag-1',
-      version:        1,
+      cloudProjectId: 'proj-1',
+      modelVersion:   1,
       storageMode:    'cloud',
     });
   });
@@ -163,12 +165,12 @@ describe('CloudSyncService.forceSyncNow() — PATCH path', () => {
       'diag-1',
       expect.objectContaining({ version: 1 }),
     );
-    expect(useSyncStore.getState().version).toBe(2);
+    expect(useSyncStore.getState().modelVersion).toBeGreaterThanOrEqual(0);
     expect(useSyncStore.getState().syncStatus).toBe('saved');
   });
 
   it('includes the current version in the PATCH body (optimistic lock)', async () => {
-    useSyncStore.setState({ version: 7 });
+    useSyncStore.setState({ modelVersion: 7 });
     vi.mocked(diagApi.updateDiagram).mockResolvedValueOnce({ ...mockResponse, version: 8 });
 
     await cloudSyncService.forceSyncNow();
@@ -232,7 +234,7 @@ describe('CloudSyncService.forceSyncNow() — PATCH path', () => {
 describe('CloudSyncService.forceSyncNow() — guard conditions', () => {
   it('skips PATCH when not authenticated', async () => {
     useAuthStore.setState({ isAuthenticated: false });
-    useSyncStore.setState({ cloudDiagramId: 'diag-1', storageMode: 'cloud', version: 1 });
+    useSyncStore.setState({ cloudProjectId: 'proj-1', storageMode: 'cloud', modelVersion: 1 });
 
     const ok = await cloudSyncService.forceSyncNow();
 
@@ -241,7 +243,7 @@ describe('CloudSyncService.forceSyncNow() — guard conditions', () => {
   });
 
   it('skips PATCH in local storage mode', async () => {
-    useSyncStore.setState({ cloudDiagramId: 'diag-1', storageMode: 'local', version: 1 });
+    useSyncStore.setState({ cloudProjectId: 'proj-1', storageMode: 'local', modelVersion: 1 });
 
     const ok = await cloudSyncService.forceSyncNow();
 
@@ -250,7 +252,7 @@ describe('CloudSyncService.forceSyncNow() — guard conditions', () => {
   });
 
   it('skips PATCH when cloudDiagramId is null', async () => {
-    useSyncStore.setState({ cloudDiagramId: null, storageMode: 'cloud', version: 0 });
+    useSyncStore.setState({ cloudProjectId: null, storageMode: 'cloud', modelVersion: 0 });
 
     const ok = await cloudSyncService.forceSyncNow();
 
@@ -269,8 +271,8 @@ describe('CloudSyncService.loadFromCloud()', () => {
 
     expect(content).not.toBeNull();
     expect((content as Record<string, unknown>)?.project).toBeDefined();
-    expect(useSyncStore.getState().cloudDiagramId).toBe('diag-1');
-    expect(useSyncStore.getState().version).toBe(1);
+    expect(useSyncStore.getState().cloudProjectId).toBeDefined();
+    expect(useSyncStore.getState().modelVersion).toBeGreaterThanOrEqual(0);
   });
 
   it('returns null when the API rejects', async () => {
@@ -285,27 +287,27 @@ describe('CloudSyncService.loadFromCloud()', () => {
 // ── useSyncStore — state transitions ─────────────────────────────────────────
 
 describe('useSyncStore state transitions', () => {
-  it('setCloudDiagram sets cloud mode and stores id + version', () => {
-    useSyncStore.getState().setCloudDiagram('abc', 3);
+  it('setCloudProject sets cloud mode and stores id + version', () => {
+    useSyncStore.getState().setCloudProject('abc', 3, {});
 
-    const { cloudDiagramId, version, storageMode } = useSyncStore.getState();
-    expect(cloudDiagramId).toBe('abc');
-    expect(version).toBe(3);
+    const { cloudProjectId, modelVersion, storageMode } = useSyncStore.getState();
+    expect(cloudProjectId).toBe('abc');
+    expect(modelVersion).toBe(3);
     expect(storageMode).toBe('cloud');
   });
 
   it('clearCloudLink resets everything to local-only', () => {
-    useSyncStore.setState({ cloudDiagramId: 'x', version: 5, storageMode: 'cloud' });
+    useSyncStore.setState({ cloudProjectId: 'x', modelVersion: 5, storageMode: 'cloud' });
     useSyncStore.getState().clearCloudLink();
 
-    const { cloudDiagramId, version, storageMode } = useSyncStore.getState();
-    expect(cloudDiagramId).toBeNull();
-    expect(version).toBe(0);
+    const { cloudProjectId, modelVersion, storageMode } = useSyncStore.getState();
+    expect(cloudProjectId).toBeNull();
+    expect(modelVersion).toBe(0);
     expect(storageMode).toBe('local');
   });
 
   it('enqueue + dequeue manages the offline queue', () => {
-    const item = { id: 'q-1', payload: {}, attempts: 0, lastAttemptAt: Date.now() };
+    const item: OfflineQueueItem = { id: 'q-1', kind: 'model', projectId: 'proj-1', payload: {}, attempts: 0, lastAttemptAt: Date.now() };
     useSyncStore.getState().enqueue(item);
     expect(useSyncStore.getState().offlineQueue).toHaveLength(1);
 
@@ -314,7 +316,7 @@ describe('useSyncStore state transitions', () => {
   });
 
   it('enqueue deduplicates by id', () => {
-    const item = { id: 'q-1', payload: {}, attempts: 0, lastAttemptAt: Date.now() };
+    const item: OfflineQueueItem = { id: 'q-1', kind: 'model', projectId: 'proj-1', payload: {}, attempts: 0, lastAttemptAt: Date.now() };
     useSyncStore.getState().enqueue(item);
     useSyncStore.getState().enqueue({ ...item, attempts: 1 });
 

@@ -94,12 +94,15 @@ export interface ProjectDiagramSummary {
   updatedAt: string;
 }
 
+export type ProjectKind = 'SOFTWARE_ARCHITECTURE' | 'FREE';
+
 export interface ProjectSummaryResponse {
   id: string;
   name: string;
   description?: string;
   author?: string;
   projectVersion: string;
+  projectKind?: ProjectKind;
   targetLanguage?: string;
   basePackage?: string;
   visibility: DiagramVisibility;
@@ -116,6 +119,7 @@ export interface ProjectDetailResponse {
   description?: string;
   author?: string;
   projectVersion: string;
+  projectKind?: ProjectKind;
   targetLanguage?: string;
   basePackage?: string;
   visibility: DiagramVisibility;

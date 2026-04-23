@@ -95,12 +95,15 @@ export interface DiagramDescriptor {
   updatedAt: number;
 }
 
+export type ProjectKind = 'SOFTWARE_ARCHITECTURE' | 'FREE';
+
 export interface LibreUMLProject {
   id: string;
   projectName: string;
   description?: string;
   author?: string;
   version: string;
+  projectKind?: ProjectKind;
   targetLanguage?: string;
   basePackage?: string;
   domainModelId: string;

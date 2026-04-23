@@ -131,6 +131,7 @@ export interface CreateProjectRequest {
   description?: string;
   author?: string;
   projectVersion?: string;
+  projectKind?: 'SOFTWARE_ARCHITECTURE' | 'FREE';
   targetLanguage?: string;
   basePackage?: string;
   vfsSnapshot?: Record<string, unknown>;

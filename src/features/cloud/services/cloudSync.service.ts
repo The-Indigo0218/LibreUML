@@ -227,6 +227,7 @@ class CloudSyncService {
         description:    project.description,
         author:         project.author,
         projectVersion: project.version,
+        projectKind:    project.projectKind,
         targetLanguage: project.targetLanguage,
         basePackage:    project.basePackage,
         vfsSnapshot:    buildVfsSnapshot(project),

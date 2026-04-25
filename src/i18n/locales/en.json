@@ -481,6 +481,12 @@
     "resetPasswordSaving": "Saving…",
     "resetPasswordSuccess": "Password updated",
     "resetPasswordSuccessMessage": "Your password has been changed. You can now sign in.",
+    "verifyEmailTitle": "Verifying your email",
+    "verifyEmailSubtitle": "Please wait while we confirm your address.",
+    "verifyEmailSuccess": "Email verified",
+    "verifyEmailSuccessMessage": "Your account is active. You can now sign in.",
+    "verifyEmailError": "Verification failed",
+    "verifyEmailErrorMessage": "This link is invalid or has already been used. Please register again or contact support.",
     "continueLocallyTitle": "Local-first & open source",
     "continueLocallySubtitle": "No account needed. Your diagrams stay on your machine.",
     "continueLocallyButton": "Continue locally →"

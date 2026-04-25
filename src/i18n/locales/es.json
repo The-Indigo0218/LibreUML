@@ -490,6 +490,12 @@
     "resetPasswordSaving": "Guardando…",
     "resetPasswordSuccess": "Contraseña actualizada",
     "resetPasswordSuccessMessage": "Tu contraseña ha sido cambiada. Ya puedes iniciar sesión.",
+    "verifyEmailTitle": "Verificando tu correo",
+    "verifyEmailSubtitle": "Espera un momento mientras confirmamos tu dirección.",
+    "verifyEmailSuccess": "Correo verificado",
+    "verifyEmailSuccessMessage": "Tu cuenta está activa. Ya puedes iniciar sesión.",
+    "verifyEmailError": "Verificación fallida",
+    "verifyEmailErrorMessage": "Este enlace es inválido o ya fue utilizado. Regístrate de nuevo o contacta a soporte.",
     "continueLocallyTitle": "Local y de código abierto",
     "continueLocallySubtitle": "Sin cuenta. Tus diagramas se guardan en tu máquina.",
     "continueLocallyButton": "Continuar localmente →"

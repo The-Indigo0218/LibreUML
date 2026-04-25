@@ -37,6 +37,11 @@ export async function resetPassword(token: string, newPassword: string): Promise
   await apiClient.post('/auth/password/reset', { token, newPassword });
 }
 
+// GET /api/v1/auth/verify-email?token=... → 204 No Content
+export async function verifyEmail(token: string): Promise<void> {
+  await apiClient.get('/auth/verify-email', { params: { token } });
+}
+
 // GET /api/v1/oauth/{provider}/authorize?redirectUri=...
 // redirectUri must be the backend callback URL registered with the OAuth provider,
 // e.g. https://api.libreuml.com/api/v1/oauth/github/callback

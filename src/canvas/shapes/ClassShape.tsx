@@ -61,6 +61,8 @@ export interface SectionLayout {
   top: number;
   height: number;
   itemsY: number; // y of the first item's text baseline area
+  itemOffsets: number[];    // cumulative Y from itemsY for each item
+  itemLineHeights: number[]; // pixel height allocated per item (lineCount * ROW_H)
 }
 
 export interface ClassLayout {
@@ -107,6 +109,7 @@ function computeLayout(vm: NodeViewModel): ClassLayout {
     ),
   ];
   const width = Math.min(MAX_W, Math.max(MIN_W, Math.max(...candidates, 0)));
+  const availW = width - 2 * H_PAD;
 
   // ── Height: accumulate y ─────────────────────────────────────────────────
   let y = 0;
@@ -129,10 +132,25 @@ function computeLayout(vm: NodeViewModel): ClassLayout {
     const top = y;
     y += SEC_V_PAD;
     const itemsY = y;
-    y += section.items.length > 0 ? section.items.length * ROW_H : MIN_SEC_H;
+
+    let itemOffset = 0;
+    const itemOffsets: number[] = [];
+    const itemLineHeights: number[] = [];
+
+    for (const item of section.items) {
+      itemOffsets.push(itemOffset);
+      const textW = measureTextWidth(item.text, `${SEC_FONT}px ${FONT_MONO}`);
+      const lineCount = Math.max(1, Math.ceil(textW / availW));
+      const itemH = lineCount * ROW_H;
+      itemLineHeights.push(itemH);
+      itemOffset += itemH;
+    }
+
+    const totalItemsH = section.items.length > 0 ? itemOffset : MIN_SEC_H;
+    y += totalItemsH;
     y += SEC_V_PAD;
     if (i < vm.sections.length - 1) separators.push(y);
-    return { top, height: y - top, itemsY };
+    return { top, height: y - top, itemsY, itemOffsets, itemLineHeights };
   });
 
   // When there are no sections, guarantee a minimum body strip below the header.
@@ -306,19 +324,22 @@ export default function ClassShape({
       {vm.sections.flatMap((section, sIdx) =>
         section.items.map((item, iIdx) => {
           const secLayout = layout.sections[sIdx];
+          const itemOffset = secLayout?.itemOffsets?.[iIdx] ?? iIdx * ROW_H;
+          const itemH = secLayout?.itemLineHeights?.[iIdx] ?? ROW_H;
           return (
             <Text
               key={item.id}
               x={H_PAD}
-              y={(secLayout?.itemsY ?? 0) + iIdx * ROW_H + 2}
+              y={(secLayout?.itemsY ?? 0) + itemOffset + 2}
               width={W - 2 * H_PAD}
+              height={itemH}
               text={item.text}
               fontSize={SEC_FONT}
               fontFamily={FONT_MONO}
               fontStyle={item.isAbstract ? 'italic' : 'normal'}
               textDecoration={item.isStatic ? 'underline' : ''}
               fill={colors.textMuted}
-              ellipsis={true}
+              wrap="word"
               listening={false}
               perfectDrawEnabled={false}
             />

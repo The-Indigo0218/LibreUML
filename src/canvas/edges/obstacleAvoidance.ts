@@ -30,7 +30,7 @@
  * - No A* pathfinding — reserved for a future task.
  */
 
-import { orthogonalRoute } from './geometry';
+import { orthogonalRoute, straightRoute } from './geometry';
 import type { AnchorPoint, NodeBounds, Point } from './geometry';
 
 /** Clearance added around each obstacle bounding box. */
@@ -70,15 +70,31 @@ function horizSegHits(segY: number, x1: number, x2: number, obs: NodeBounds): bo
  * Attempts to route around obstacles using a single elbow deflection.
  * Returns a flat Konva points array (same format as `orthogonalRoute`).
  */
+// When the perpendicular offset is < 5% of the primary span the elbow is barely
+// visible but adds visual noise — collapse to a straight segment instead.
+const COLLINEAR_RATIO = 0.05;
+
 export function avoidObstacles(
   src: AnchorPoint,
   retractedTgt: Point,
   obstacles: NodeBounds[],
 ): number[] {
-  if (obstacles.length === 0) return orthogonalRoute(src, retractedTgt);
-
   const { x: sx, y: sy } = src;
   const { x: tx, y: ty } = retractedTgt;
+
+  if (src.face === 'Top' || src.face === 'Bottom') {
+    const vSpan = Math.abs(sy - ty);
+    if (vSpan > 0 && Math.abs(sx - tx) / vSpan < COLLINEAR_RATIO) {
+      return straightRoute(src, retractedTgt);
+    }
+  } else {
+    const hSpan = Math.abs(sx - tx);
+    if (hSpan > 0 && Math.abs(sy - ty) / hSpan < COLLINEAR_RATIO) {
+      return straightRoute(src, retractedTgt);
+    }
+  }
+
+  if (obstacles.length === 0) return orthogonalRoute(src, retractedTgt);
 
   switch (src.face) {
     case 'Left':

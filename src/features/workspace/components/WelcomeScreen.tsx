@@ -133,10 +133,10 @@ export default function WelcomeScreen({ onOpenProject: _onOpenProject }: Welcome
     setIsCloudPickerOpen(true);
   };
 
-  const handleStarRepo = () => window.open("https://github.com/The-Indigo0218/LibreUML", "_blank");
-  const handleOpenDocs = () => window.open("https://github.com/The-Indigo0218/LibreUML#readme", "_blank");
-  const handleGetStarted = () => window.open("https://github.com/The-Indigo0218/LibreUML#readme", "_blank");
-  const handleOpenGithubProject = () => window.open("https://github.com/The-Indigo0218/LibreUML", "_blank");
+  const handleStarRepo = () => window.open("https://github.com/The-Indigo0218/LibreUML", "_blank", "noopener,noreferrer");
+  const handleOpenDocs = () => window.open("https://github.com/The-Indigo0218/LibreUML#readme", "_blank", "noopener,noreferrer");
+  const handleGetStarted = () => window.open("https://github.com/The-Indigo0218/LibreUML#readme", "_blank", "noopener,noreferrer");
+  const handleOpenGithubProject = () => window.open("https://github.com/The-Indigo0218/LibreUML", "_blank", "noopener,noreferrer");
 
   const languages = [
     { code: "en", label: "English" },

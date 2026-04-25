@@ -7,6 +7,7 @@ import type {
   InterfaceNode,
   AbstractClassNode,
   EnumNode,
+  NoteNode,
 } from '../domain/models/nodes/class-diagram.types';
 import type {
   ClassDiagramEdgeType,
@@ -42,7 +43,15 @@ export class ClassDiagramValidator implements BaseValidator {
       case 'COMPOSITION':
       case 'DEPENDENCY':
         return this.validateStructuralRelationship(sourceNode, targetNode);
-      
+
+      case 'NOTE_LINK':
+        return this.validateNoteLink(sourceNode, targetNode);
+
+      case 'PACKAGE_IMPORT':
+      case 'PACKAGE_ACCESS':
+      case 'PACKAGE_MERGE':
+        return { isValid: true };
+
       default:
         return {
           isValid: false,
@@ -137,12 +146,13 @@ export class ClassDiagramValidator implements BaseValidator {
 
   private isClassDiagramNode(
     node: DomainNode
-  ): node is ClassNode | InterfaceNode | AbstractClassNode | EnumNode {
+  ): node is ClassNode | InterfaceNode | AbstractClassNode | EnumNode | NoteNode {
     return (
       node.type === 'CLASS' ||
       node.type === 'INTERFACE' ||
       node.type === 'ABSTRACT_CLASS' ||
-      node.type === 'ENUM'
+      node.type === 'ENUM' ||
+      node.type === 'NOTE'
     );
   }
 
@@ -227,9 +237,22 @@ export class ClassDiagramValidator implements BaseValidator {
   }
 
   private validateStructuralRelationship(
-    _sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
-    _targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode
+    _sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode | NoteNode,
+    _targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode | NoteNode
   ): ValidationResult {
+    return { isValid: true };
+  }
+
+  private validateNoteLink(
+    sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode | NoteNode,
+    targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode | NoteNode
+  ): ValidationResult {
+    if (sourceNode.type !== 'NOTE' && targetNode.type !== 'NOTE') {
+      return {
+        isValid: false,
+        errors: ['UML 2.5: NOTE_LINK must connect to at least one Note element'],
+      };
+    }
     return { isValid: true };
   }
 

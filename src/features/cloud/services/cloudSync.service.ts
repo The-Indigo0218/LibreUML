@@ -262,8 +262,15 @@ class CloudSyncService {
       track('project_saved_cloud', { trigger: 'manual', diagramCount: Object.keys(diagrams).length });
       return true;
     } catch (err: unknown) {
-      const message = extractErrorMessage(err) ?? 'Cloud save failed';
-      useSyncStore.getState().setSyncStatus('error', message);
+      if (axios.isAxiosError(err) && err.response?.status === 422) {
+        const message =
+          (err.response?.data as { message?: string })?.message ??
+          'Storage quota exceeded. Delete old diagrams to free space.';
+        useSyncStore.getState().setSyncStatus('error', message);
+      } else {
+        const message = extractErrorMessage(err) ?? 'Cloud save failed';
+        useSyncStore.getState().setSyncStatus('error', message);
+      }
       return false;
     }
   }

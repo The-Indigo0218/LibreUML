@@ -20,7 +20,7 @@ export function HelpMenuContent({ onOpenDocs }: { onOpenDocs: () => void }) {
 
   const openFeedback = useUiStore((s) => s.openFeedback);
   const reportIssue = () => openFeedback();
-  const openRoadmap = () => window.open("https://github.com/The-Indigo0218/LibreUML/blob/main/roadmap.md", "_blank");
+  const openRoadmap = () => window.open("https://github.com/The-Indigo0218/LibreUML/blob/main/roadmap.md", "_blank", "noopener,noreferrer");
 
   const showAbout = () => {
     alert("LibreUML v0.7.0\n\nThe Open Source UML Editor for Students.\nDeveloped with ❤️ in React + Electron.");

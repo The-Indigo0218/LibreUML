@@ -36,8 +36,31 @@ import { useVFSStore } from "../../../../store/project-vfs.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useSettingsStore } from "../../../../store/settingsStore";
+import { useSyncStore } from "../../../../store/sync.store";
 import { injectXmiIntoVFS } from "../../../../services/openFileService";
 import { JavaImportService } from "../../../../services/javaImport.service";
+
+function LegacyCloudMigrationBanner() {
+  const legacyCloudDiagramId = useSyncStore((s) => s.legacyCloudDiagramId);
+  const clearLegacyLink = useSyncStore((s) => s.clearLegacyLink);
+
+  if (!legacyCloudDiagramId) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-2 bg-amber-500/15 border-b border-amber-500/30 text-sm text-amber-200">
+      <span>
+        This project has an old single-diagram cloud save that is no longer compatible.
+        Use <strong>File → Save to Cloud</strong> to migrate to the new format.
+      </span>
+      <button
+        onClick={clearLegacyLink}
+        className="shrink-0 px-2 py-0.5 rounded text-xs bg-amber-500/20 hover:bg-amber-500/40 transition-colors"
+      >
+        Dismiss
+      </button>
+    </div>
+  );
+}
 
 function EditorLogic() {
   const [activeTab, setActiveTab] = useState<ActivityTab>("structure");
@@ -151,6 +174,7 @@ function EditorLogic() {
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-gray-50">
       <AppMenubar />
+      <LegacyCloudMigrationBanner />
 
       <div className="flex flex-1 overflow-hidden min-h-0">
         <ActivityBar activeTab={activeTab} onTabChange={setActiveTab} />

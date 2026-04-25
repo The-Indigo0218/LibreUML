@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import { BookOpen, Lightbulb, Code2, Shield, ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ImagePlaceholder } from "./ImagePlaceholder";
@@ -104,7 +105,7 @@ export function ArticleView({ data, onNavigate }: ArticleViewProps) {
                     <span className="shrink-0 w-5 h-5 rounded-full bg-purple-500/20 text-purple-300 text-xs flex items-center justify-center font-bold mt-0.5">
                       {i + 1}
                     </span>
-                    <span dangerouslySetInnerHTML={{ __html: step.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>") }} />
+                    <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(step.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")) }} />
                   </li>
                 ))}
               </ol>

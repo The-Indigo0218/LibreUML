@@ -16,9 +16,11 @@
     "i18n:check": "node scripts/i18n-check.mjs"
   },
   "dependencies": {
+    "@types/dompurify": "^3.0.5",
     "@vercel/analytics": "^1.6.1",
     "axios": "^1.15.0",
     "dagre": "^0.8.5",
+    "dompurify": "^3.4.1",
     "electron-is-dev": "^3.0.1",
     "file-saver": "^2.0.5",
     "i18next": "^25.8.0",

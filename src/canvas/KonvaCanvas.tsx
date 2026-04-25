@@ -973,6 +973,53 @@ export default function KonvaCanvas() {
     return () => ro.disconnect();
   }, []);
 
+  // Pre-compute edge render data so both the "edges" and "edge-labels" layers
+  // can share it without duplicating the bounds/visibility logic.
+  const edgeRenderData = useMemo(() => {
+    const nonPackageIds = new Set(
+      shapes.filter((s) => s.type !== 'package').map((s) => s.id),
+    );
+
+    const isNodeInCollapsedPackage = (nodeId: string): boolean => {
+      const nodeShape = shapes.find((s) => s.id === nodeId);
+      if (!nodeShape || !nodeShape.parentPackageId) return false;
+      let parentId: string | null | undefined = nodeShape.parentPackageId;
+      while (parentId) {
+        const parentShape = shapes.find((s) => s.id === parentId);
+        if (
+          parentShape &&
+          isPackageViewModel(parentShape.data) &&
+          parentShape.data.collapsed
+        ) return true;
+        parentId = parentShape?.parentPackageId;
+      }
+      return false;
+    };
+
+    return edges
+      .map((edge) => {
+        const isSelfLoop = edge.sourceId === edge.targetId;
+        const sourceBounds = boundsMap.get(edge.sourceId);
+        const targetBounds = isSelfLoop ? sourceBounds : boundsMap.get(edge.targetId);
+        if (!sourceBounds || !targetBounds) return null;
+        const isVisible =
+          visibleNodeIds.has(edge.sourceId) || visibleNodeIds.has(edge.targetId);
+        const shouldHideEdge =
+          isNodeInCollapsedPackage(edge.sourceId) ||
+          isNodeInCollapsedPackage(edge.targetId);
+        const obstacles = isSelfLoop
+          ? []
+          : [...boundsMap.entries()]
+              .filter(
+                ([id]) =>
+                  id !== edge.sourceId && id !== edge.targetId && nonPackageIds.has(id),
+              )
+              .map(([, b]) => b);
+        return { edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles };
+      })
+      .filter((d): d is NonNullable<typeof d> => d !== null);
+  }, [shapes, edges, boundsMap, visibleNodeIds]);
+
   return (
     <div
       ref={containerRef}
@@ -1065,72 +1112,25 @@ export default function KonvaCanvas() {
           </Layer>
 
           <Layer name="edges">
-            {(() => {
-              const nonPackageIds = new Set(
-                shapes.filter((s) => s.type !== 'package').map((s) => s.id),
-              );
-              
-              // Helper to check if a node is inside a collapsed package
-              const isNodeInCollapsedPackage = (nodeId: string): boolean => {
-                const nodeShape = shapes.find((s) => s.id === nodeId);
-                if (!nodeShape || !nodeShape.parentPackageId) return false;
-                
-                let parentId: string | null | undefined = nodeShape.parentPackageId;
-                while (parentId) {
-                  const parentShape = shapes.find((s) => s.id === parentId);
-                  if (parentShape && isPackageViewModel(parentShape.data) && parentShape.data.collapsed) {
-                    return true;
-                  }
-                  parentId = parentShape?.parentPackageId;
-                }
-                return false;
-              };
-              
-              return edges.map((edge) => {
-              const isSelfLoop = edge.sourceId === edge.targetId;
-              const sourceBounds = boundsMap.get(edge.sourceId);
-              const targetBounds = isSelfLoop
-                ? sourceBounds
-                : boundsMap.get(edge.targetId);
-              if (!sourceBounds || !targetBounds) return null;
-
-              const isVisible = visibleNodeIds.has(edge.sourceId) || visibleNodeIds.has(edge.targetId);
-              
-              // Hide edge if either endpoint is inside a collapsed package
-              const sourceInCollapsed = isNodeInCollapsedPackage(edge.sourceId);
-              const targetInCollapsed = isNodeInCollapsedPackage(edge.targetId);
-              const shouldHideEdge = sourceInCollapsed || targetInCollapsed;
-
-              const obstacles = isSelfLoop
-                ? []
-                : [...boundsMap.entries()]
-                    .filter(([id]) => id !== edge.sourceId && id !== edge.targetId && nonPackageIds.has(id))
-                    .map(([, b]) => b);
-
-              return (
-                <KonvaEdge
-                  key={edge.id}
-                  id={edge.id}
-                  kind={edge.kind}
-                  sourceBounds={sourceBounds}
-                  targetBounds={targetBounds}
-                  isSelfLoop={isSelfLoop}
-                  obstacles={obstacles}
-                  sourceMultiplicity={edge.sourceMultiplicity}
-                  targetMultiplicity={edge.targetMultiplicity}
-                  sourceRole={edge.sourceRole}
-                  targetRole={edge.targetRole}
-                  isHighlighted={highlightedEdgeIds.has(edge.id)}
-                  isHovered={hoveredEdgeId === edge.id}
-                  isDimmed={dimmedEdgeIds.has(edge.id)}
-                  onContextMenu={handleEdgeContextMenu}
-                  onMouseEnter={handleEdgeMouseEnter}
-                  onMouseLeave={handleEdgeMouseLeave}
-                  visible={isVisible && !shouldHideEdge}
-                />
-              );
-            });
-            })()}
+            {edgeRenderData.map(({ edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles }) => (
+              <KonvaEdge
+                key={edge.id}
+                id={edge.id}
+                kind={edge.kind}
+                sourceBounds={sourceBounds}
+                targetBounds={targetBounds}
+                isSelfLoop={isSelfLoop}
+                obstacles={obstacles}
+                isHighlighted={highlightedEdgeIds.has(edge.id)}
+                isHovered={hoveredEdgeId === edge.id}
+                isDimmed={dimmedEdgeIds.has(edge.id)}
+                renderMode="lines"
+                onContextMenu={handleEdgeContextMenu}
+                onMouseEnter={handleEdgeMouseEnter}
+                onMouseLeave={handleEdgeMouseLeave}
+                visible={isVisible && !shouldHideEdge}
+              />
+            ))}
           </Layer>
 
           <Layer name="nodes">
@@ -1191,6 +1191,30 @@ export default function KonvaCanvas() {
                   />
                 );
               })}
+          </Layer>
+
+          {/* Edge labels rendered above nodes so they're never occluded by node shapes */}
+          <Layer name="edge-labels">
+            {edgeRenderData.map(({ edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles }) => (
+              <KonvaEdge
+                key={edge.id + '-lbl'}
+                id={edge.id}
+                kind={edge.kind}
+                sourceBounds={sourceBounds}
+                targetBounds={targetBounds}
+                isSelfLoop={isSelfLoop}
+                obstacles={obstacles}
+                sourceMultiplicity={edge.sourceMultiplicity}
+                targetMultiplicity={edge.targetMultiplicity}
+                sourceRole={edge.sourceRole}
+                targetRole={edge.targetRole}
+                isHighlighted={highlightedEdgeIds.has(edge.id)}
+                isHovered={hoveredEdgeId === edge.id}
+                isDimmed={dimmedEdgeIds.has(edge.id)}
+                renderMode="labels"
+                visible={isVisible && !shouldHideEdge}
+              />
+            ))}
           </Layer>
 
           <Layer name="selection">

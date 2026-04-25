@@ -307,7 +307,8 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
     const secLayout = sections[sIdx];
     if (!secLayout) return;
     section.items.forEach((item, iIdx) => {
-      const itemY = secLayout.itemsY + iIdx * ROW_H + 2;
+      const itemOffset = secLayout.itemOffsets?.[iIdx] ?? iIdx * ROW_H;
+      const itemY = secLayout.itemsY + itemOffset + 2;
       const fontStyleVal = item.isAbstract ? 'italic' : 'normal';
       const decoAttr = item.isStatic ? ' text-decoration="underline"' : '';
       lines.push(

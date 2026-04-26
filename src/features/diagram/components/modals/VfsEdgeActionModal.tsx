@@ -7,6 +7,7 @@ import { useVFSStore } from '../../../../store/project-vfs.store';
 import { useModelStore } from '../../../../store/model.store';
 import { useWorkspaceStore } from '../../../../store/workspace.store';
 import { standaloneModelOps } from '../../../../store/standaloneModelOps';
+import { undoTransaction } from '../../../../core/undo/undoBridge';
 import { isDiagramView } from '../../hooks/useVFSCanvasController';
 import type { VFSFile, RelationKind, SemanticModel } from '../../../../core/domain/vfs/vfs.types';
 
@@ -64,7 +65,6 @@ export default function VfsEdgeActionModal() {
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
   const model = useModelStore((s) => s.model);
   const updateRelation = useModelStore((s) => s.updateRelation);
-  const deleteRelation = useModelStore((s) => s.deleteRelation);
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
 
   const isOpen = activeModal === 'vfs-edge-action' && !!editingId;
@@ -163,23 +163,55 @@ export default function VfsEdgeActionModal() {
     const freshProject = useVFSStore.getState().project;
     if (!activeTabId || !freshProject) { closeModals(); return; }
     const fileNode = freshProject.nodes[activeTabId];
-    const isStandalone = fileNode?.type === 'FILE' && (fileNode as VFSFile).standalone === true;
+    if (!fileNode || fileNode.type !== 'FILE') { closeModals(); return; }
+    const isStandalone = (fileNode as VFSFile).standalone === true;
+    const viewEdgeId = viewEdge.id;
+    const relationId = relation.id;
 
     if (isStandalone) {
-      standaloneModelOps(activeTabId).deleteRelation(relation.id);
+      undoTransaction({
+        label: 'Delete Relation',
+        scope: activeTabId,
+        mutations: [{
+          store: 'vfs',
+          mutate: (draft: any) => {
+            const node = draft.project?.nodes[activeTabId];
+            if (!node || node.type !== 'FILE') return;
+            if (node.localModel?.relations[relationId]) {
+              delete node.localModel.relations[relationId];
+              node.localModel.updatedAt = Date.now();
+            }
+            if (isDiagramView(node.content)) {
+              node.content.edges = node.content.edges.filter((ve: any) => ve.id !== viewEdgeId);
+            }
+          },
+        }],
+      });
     } else {
-      deleteRelation(relation.id);
+      undoTransaction({
+        label: 'Delete Relation',
+        scope: 'global',
+        mutations: [
+          {
+            store: 'model',
+            mutate: (draft: any) => {
+              if (!draft.model?.relations[relationId]) return;
+              delete draft.model.relations[relationId];
+              draft.model.updatedAt = Date.now();
+            },
+          },
+          {
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+              node.content.edges = node.content.edges.filter((ve: any) => ve.id !== viewEdgeId);
+            },
+          },
+        ],
+      });
     }
 
-    if (activeTabId && freshProject && fileNode && fileNode.type === 'FILE') {
-      const content = (fileNode as VFSFile).content;
-      if (isDiagramView(content)) {
-        updateFileContent(activeTabId, {
-          ...content,
-          edges: content.edges.filter((e) => e.id !== viewEdge.id),
-        });
-      }
-    }
     closeModals();
   };
 

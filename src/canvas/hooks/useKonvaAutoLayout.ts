@@ -6,7 +6,6 @@
  * updated positions via updateFileContent, then calls fitView.
  */
 
-import dagre from 'dagre';
 import { useCallback } from 'react';
 import { useVFSStore } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
@@ -47,60 +46,64 @@ export function useKonvaAutoLayout() {
     const model = useModelStore.getState().model;
     if (!model) return;
 
-    const g = new dagre.graphlib.Graph();
-    g.setDefaultEdgeLabel(() => ({}));
-    g.setGraph({
-      rankdir: 'TB',
-      nodesep: NODE_SEP,
-      ranksep: RANK_SEP,
-      marginx: MARGIN,
-      marginy: MARGIN,
-    });
+    import('dagre').then((mod) => {
+      const dagre = mod.default;
 
-    for (const vn of view.nodes) {
-      g.setNode(vn.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-    }
+      const g = new dagre.graphlib.Graph();
+      g.setDefaultEdgeLabel(() => ({}));
+      g.setGraph({
+        rankdir: 'TB',
+        nodesep: NODE_SEP,
+        ranksep: RANK_SEP,
+        marginx: MARGIN,
+        marginy: MARGIN,
+      });
 
-    const elementToViewNode = new Map<string, string>();
-    for (const vn of view.nodes) {
-      if (vn.elementId) elementToViewNode.set(vn.elementId, vn.id);
-    }
-
-    for (const ve of view.edges) {
-      if (ve.anchorLocked) continue;
-      const rel = model.relations[ve.relationId];
-      if (!rel) continue;
-      const srcVN = elementToViewNode.get(rel.sourceId);
-      const tgtVN = elementToViewNode.get(rel.targetId);
-      if (!srcVN || !tgtVN || srcVN === tgtVN) continue;
-
-      if (REVERSED_KINDS.has(rel.kind)) {
-        g.setEdge(tgtVN, srcVN);
-      } else {
-        g.setEdge(srcVN, tgtVN);
+      for (const vn of view.nodes) {
+        g.setNode(vn.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
       }
-    }
 
-    dagre.layout(g);
+      const elementToViewNode = new Map<string, string>();
+      for (const vn of view.nodes) {
+        if (vn.elementId) elementToViewNode.set(vn.elementId, vn.id);
+      }
 
-    const updatedNodes = view.nodes.map((vn) => {
-      if (!g.hasNode(vn.id)) return vn;
-      const dn = g.node(vn.id);
-      return {
-        ...vn,
-        x: dn.x - NODE_WIDTH / 2,
-        y: dn.y - NODE_HEIGHT / 2,
-      };
-    });
+      for (const ve of view.edges) {
+        if (ve.anchorLocked) continue;
+        const rel = model.relations[ve.relationId];
+        if (!rel) continue;
+        const srcVN = elementToViewNode.get(rel.sourceId);
+        const tgtVN = elementToViewNode.get(rel.targetId);
+        if (!srcVN || !tgtVN || srcVN === tgtVN) continue;
 
-    withUndo('vfs', 'Auto-layout', activeTabId, (draft: any) => {
-      const node = draft.project?.nodes[activeTabId];
-      if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
-      node.content.nodes = updatedNodes;
-    });
+        if (REVERSED_KINDS.has(rel.kind)) {
+          g.setEdge(tgtVN, srcVN);
+        } else {
+          g.setEdge(srcVN, tgtVN);
+        }
+      }
 
-    requestAnimationFrame(() => {
-      fitView();
+      dagre.layout(g);
+
+      const updatedNodes = view.nodes.map((vn) => {
+        if (!g.hasNode(vn.id)) return vn;
+        const dn = g.node(vn.id);
+        return {
+          ...vn,
+          x: dn.x - NODE_WIDTH / 2,
+          y: dn.y - NODE_HEIGHT / 2,
+        };
+      });
+
+      withUndo('vfs', 'Auto-layout', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        node.content.nodes = updatedNodes;
+      });
+
+      requestAnimationFrame(() => {
+        fitView();
+      });
     });
   }, [activeTabId, fitView]);
 

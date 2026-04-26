@@ -9,7 +9,7 @@
 //   • Identifies users by UUID only — never email or full name.
 //   • Self-hostable: set VITE_POSTHOG_HOST to your own PostHog instance.
 
-import posthog from 'posthog-js';
+import type posthogLib from 'posthog-js';
 import { useSettingsStore } from '../../store/settingsStore';
 
 const POSTHOG_KEY  = import.meta.env.VITE_POSTHOG_KEY  as string | undefined;
@@ -17,6 +17,7 @@ const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST as string | undefined;
 const IS_DEV = import.meta.env.DEV;
 
 let _initialized = false;
+let _ph: typeof posthogLib | null = null;
 
 function isOptedIn(): boolean {
   return useSettingsStore.getState().telemetryOptIn === true;
@@ -30,26 +31,28 @@ function isOptedIn(): boolean {
  */
 export function initPostHog(): void {
   if (_initialized || IS_DEV || !POSTHOG_KEY) return;
-  posthog.init(POSTHOG_KEY, {
-    api_host: POSTHOG_HOST ?? 'https://us.i.posthog.com',
-    autocapture: false,
-    capture_pageview: false,
-    // Start opted-out; enableTracking() / disableTracking() flip the switch.
-    opt_out_capturing_by_default: true,
-  });
   _initialized = true;
+  import('posthog-js').then((mod) => {
+    _ph = mod.default;
+    _ph.init(POSTHOG_KEY!, {
+      api_host: POSTHOG_HOST ?? 'https://us.i.posthog.com',
+      autocapture: false,
+      capture_pageview: false,
+      opt_out_capturing_by_default: true,
+    });
+  });
 }
 
 // ── Consent ────────────────────────────────────────────────────────────────────
 
 /** Called when the user accepts telemetry. */
 export function enableTracking(): void {
-  if (!IS_DEV && _initialized) posthog.opt_in_capturing();
+  if (!IS_DEV && _ph) _ph.opt_in_capturing();
 }
 
 /** Called when the user rejects or revokes telemetry. */
 export function disableTracking(): void {
-  if (!IS_DEV && _initialized) posthog.opt_out_capturing();
+  if (!IS_DEV && _ph) _ph.opt_out_capturing();
 }
 
 // ── Core API ───────────────────────────────────────────────────────────────────
@@ -59,9 +62,8 @@ export function disableTracking(): void {
  * @param userId  UUID from the backend — never email or name.
  */
 export function identify(userId: string): void {
-  if (!isOptedIn()) return;
-  if (IS_DEV) return;
-  if (_initialized) posthog.identify(userId);
+  if (!isOptedIn() || IS_DEV || !_ph) return;
+  _ph.identify(userId);
 }
 
 /**
@@ -69,14 +71,13 @@ export function identify(userId: string): void {
  * Silently no-ops when the user has not opted in.
  */
 export function track(event: TelemetryEvent, properties?: Record<string, unknown>): void {
-  if (!isOptedIn()) return;
-  if (IS_DEV) return;
-  if (_initialized) posthog.capture(event, properties);
+  if (!isOptedIn() || IS_DEV || !_ph) return;
+  _ph.capture(event, properties);
 }
 
 /** Reset identity on logout. */
 export function resetIdentity(): void {
-  if (!IS_DEV && _initialized) posthog.reset();
+  if (!IS_DEV && _ph) _ph.reset();
 }
 
 // ── Event name registry ────────────────────────────────────────────────────────

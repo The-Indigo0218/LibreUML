@@ -10,8 +10,21 @@ export default defineConfig({
       '/api': { target: 'http://localhost:8080', changeOrigin: true },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react':  ['react', 'react-dom', 'react-router-dom'],
+          'vendor-konva':  ['konva', 'react-konva'],
+          'vendor-i18n':   ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+          'vendor-state':  ['zustand', 'immer'],
+          'vendor-export': ['jszip', 'file-saver'],
+        },
+      },
+    },
+  },
   test: {
-    environment: 'jsdom', 
-    globals: true,   
+    environment: 'jsdom',
+    globals: true,
   }
 });

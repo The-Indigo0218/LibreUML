@@ -27,8 +27,8 @@ export function ViewMenuContent() {
 
   const showMiniMap = useSettingsStore((s) => s.showMiniMap);
   const toggleMiniMap = useSettingsStore((s) => s.toggleMiniMap);
-  const showGrid = useSettingsStore((s) => s.showGrid);
-  const toggleGrid = useSettingsStore((s) => s.toggleGrid);
+  const gridType = useSettingsStore((s) => s.gridType);
+  const cycleGridType = useSettingsStore((s) => s.cycleGridType);
   const snapToGrid = useSettingsStore((s) => s.snapToGrid);
   const toggleSnapToGrid = useSettingsStore((s) => s.toggleSnapToGrid);
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
@@ -73,14 +73,19 @@ export function ViewMenuContent() {
       />
 
       <MenubarItem
-        label={t("menubar.view.grid") || "Show Grid"}
+        label={
+          gridType === 'none'  ? (t("menubar.view.gridNone")  || "Grid: Off") :
+          gridType === 'dots'  ? (t("menubar.view.gridDots")  || "Grid: Dots") :
+          gridType === 'lines' ? (t("menubar.view.gridLines") || "Grid: Lines") :
+                                 (t("menubar.view.gridSolid") || "Grid: Solid")
+        }
         icon={
           <div className="relative">
             <Grid3X3 className="w-4 h-4" />
-            {showGrid && <Check className="w-3 h-3 absolute -bottom-1 -right-1 text-green-500 font-bold" />}
+            {gridType !== 'none' && <Check className="w-3 h-3 absolute -bottom-1 -right-1 text-green-500 font-bold" />}
           </div>
         }
-        onClick={toggleGrid}
+        onClick={cycleGridType}
       />
 
        <MenubarItem

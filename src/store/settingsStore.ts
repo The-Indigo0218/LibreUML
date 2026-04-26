@@ -3,6 +3,10 @@ import { persist } from "zustand/middleware";
 import i18n from "../i18n/config";
 import { storageAdapter } from "../adapters/storage/storage.adapter";
 
+export type GridType = 'none' | 'dots' | 'lines' | 'grid';
+
+const GRID_CYCLE: GridType[] = ['dots', 'lines', 'grid', 'none'];
+
 interface SettingsState {
   autoSave: boolean;
   restoreSession: boolean;
@@ -12,7 +16,7 @@ interface SettingsState {
   hideDuplicateFileWarning: boolean;
   javaImportPreference: 'model' | 'canvas' | 'both' | null;
   showMiniMap: boolean;
-  showGrid: boolean;
+  gridType: GridType;
   snapToGrid: boolean;
   showAllEdges: boolean;
   lastFilePath?: string;
@@ -28,7 +32,8 @@ interface SettingsState {
   setHideDuplicateFileWarning: (hide: boolean) => void;
   setJavaImportPreference: (preference: 'model' | 'canvas' | 'both' | null) => void;
   toggleMiniMap: () => void;
-  toggleGrid: () => void;
+  setGridType: (type: GridType) => void;
+  cycleGridType: () => void;
   toggleSnapToGrid: () => void;
   toggleShowAllEdges: () => void;
   resetAllModalPreferences: () => void;
@@ -47,7 +52,7 @@ export const useSettingsStore = create<SettingsState>()(
       javaImportPreference: null,
       lastFilePath: undefined,
       showMiniMap: false,
-      showGrid: true,
+      gridType: 'dots',
       snapToGrid: true,
       showAllEdges: false,
       telemetryOptIn: null,
@@ -64,7 +69,11 @@ export const useSettingsStore = create<SettingsState>()(
       setJavaImportPreference: (preference) => set({ javaImportPreference: preference }),
       setLastFilePath: (path) => set({ lastFilePath: path }),
       toggleMiniMap: () => set((s) => ({ showMiniMap: !s.showMiniMap })),
-      toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
+      setGridType: (type) => set({ gridType: type }),
+      cycleGridType: () => set((s) => {
+        const idx = GRID_CYCLE.indexOf(s.gridType);
+        return { gridType: GRID_CYCLE[(idx + 1) % GRID_CYCLE.length] };
+      }),
       toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
       toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
       setTelemetryOptIn: (value) => set({ telemetryOptIn: value }),
@@ -84,6 +93,15 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "libreuml-settings",
+      version: 1,
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as Record<string, unknown>;
+        if (version === 0 && 'showGrid' in state) {
+          state.gridType = state.showGrid === false ? 'none' : 'dots';
+          delete state.showGrid;
+        }
+        return state as SettingsState;
+      },
       storage: {
         getItem: (name) => {
           const value = storageAdapter.getItem(name);

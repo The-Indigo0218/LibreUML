@@ -82,7 +82,7 @@ export default function KonvaCanvas() {
 
   const { t } = useTranslation();
   const theme = useSettingsStore((s) => s.theme);
-  const showGrid = useSettingsStore((s) => s.showGrid);
+  const gridType = useSettingsStore((s) => s.gridType);
   const highlightConnections = useSettingsStore((s) => s.showAllEdges);
 
   const isDev = import.meta.env.DEV;
@@ -1050,11 +1050,12 @@ export default function KonvaCanvas() {
               fill="transparent"
               listening={true}
             />
-            {showGrid && (
+            {gridType !== 'none' && (
               <GridPattern
                 viewport={viewport}
                 stageWidth={size.width}
                 stageHeight={size.height}
+                type={gridType as 'dots' | 'lines' | 'grid'}
               />
             )}
           </Layer>

@@ -119,15 +119,17 @@ export function useViewport(options: UseViewportOptions = {}) {
     let newX = pointer.x - pointerWorldX * newScale;
     let newY = pointer.y - pointerWorldY * newScale;
 
-    // Constrain pan to bounds (MAG-01.21)
+    // Constrain pan so content bounds stay reachable.
+    // stage.x is where world-origin appears on screen; derive limits from bounds.
     const { bounds } = constraints;
-    const maxX = 0;
-    const maxY = 0;
-    const minX = -(bounds.width * newScale - stage.width());
-    const minY = -(bounds.height * newScale - stage.height());
+    const maxX = -bounds.x * newScale;
+    const maxY = -bounds.y * newScale;
+    const minX = stage.width() - (bounds.x + bounds.width) * newScale;
+    const minY = stage.height() - (bounds.y + bounds.height) * newScale;
 
-    newX = Math.max(minX, Math.min(maxX, newX));
-    newY = Math.max(minY, Math.min(maxY, newY));
+    // Only clamp when content exceeds viewport (avoid fighting cursor-anchored zoom)
+    if (minX < maxX) newX = Math.max(minX, Math.min(maxX, newX));
+    if (minY < maxY) newY = Math.max(minY, Math.min(maxY, newY));
 
     // Imperatively update Konva — this is the source of truth.
     stage.scaleX(newScale);
@@ -151,15 +153,32 @@ export function useViewport(options: UseViewportOptions = {}) {
 
   const fitView = useCallback(() => {
     const stage = stageRef.current;
-    if (stage) {
-      stage.x(0);
-      stage.y(0);
-      stage.scaleX(1);
-      stage.scaleY(1);
-      stage.batchDraw();
+    if (!stage) return;
+
+    if (!contentBounds || stageWidth === 0 || stageHeight === 0) {
+      stage.x(0); stage.y(0); stage.scaleX(1); stage.scaleY(1); stage.batchDraw();
+      setViewport({ x: 0, y: 0, scale: 1 });
+      return;
     }
-    setViewport({ x: 0, y: 0, scale: 1 });
-  }, []);
+
+    const padding = 80;
+    const scaleX = stageWidth / (contentBounds.width + padding * 2);
+    const scaleY = stageHeight / (contentBounds.height + padding * 2);
+    const newScale = Math.min(
+      Math.max(Math.min(scaleX, scaleY), constraints.minScale),
+      constraints.maxScale,
+    );
+
+    const cx = contentBounds.x + contentBounds.width / 2;
+    const cy = contentBounds.y + contentBounds.height / 2;
+    const newX = stageWidth / 2 - cx * newScale;
+    const newY = stageHeight / 2 - cy * newScale;
+
+    stage.scaleX(newScale); stage.scaleY(newScale);
+    stage.x(newX); stage.y(newY);
+    stage.batchDraw();
+    setViewport({ x: newX, y: newY, scale: newScale });
+  }, [contentBounds, stageWidth, stageHeight, constraints]);
 
   const zoomIn = useCallback(() => {
     const stage = stageRef.current;

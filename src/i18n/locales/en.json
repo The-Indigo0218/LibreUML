@@ -514,7 +514,20 @@
     "umlValidator": "UML Validator",
     "languageMode": "Select target language",
     "cloudSynced": "Cloud synced",
-    "cloudDisconnected": "Cloud disconnected"
+    "cloudDisconnected": "Cloud disconnected",
+    "cloudOffline": "Sync off",
+    "gridType": "Background grid",
+    "cloudPopover": {
+      "notLoggedTitle": "Sync to the cloud",
+      "notLoggedBody": "Sign in to keep your diagrams backed up and accessible from any device.",
+      "notNow": "Not now",
+      "onlineTitle": "Cloud sync on",
+      "retrySync": "Retry sync",
+      "goOffline": "Go offline",
+      "offlineTitle": "Sync paused",
+      "offlineBody": "Your diagrams are saved locally. Re-enable sync to push changes to the cloud.",
+      "goOnline": "Re-enable sync"
+    }
   },
   "cloud": {
     "sync": {

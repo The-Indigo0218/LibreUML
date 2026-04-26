@@ -523,7 +523,20 @@
     "umlValidator": "Validador UML",
     "languageMode": "Seleccionar lenguaje destino",
     "cloudSynced": "Nube sincronizada",
-    "cloudDisconnected": "Nube desconectada"
+    "cloudDisconnected": "Nube desconectada",
+    "cloudOffline": "Sync desactivado",
+    "gridType": "Fondo del canvas",
+    "cloudPopover": {
+      "notLoggedTitle": "Sincronizar en la nube",
+      "notLoggedBody": "Inicia sesión para mantener tus diagramas respaldados y accesibles desde cualquier dispositivo.",
+      "notNow": "Ahora no",
+      "onlineTitle": "Sync activado",
+      "retrySync": "Reintentar sync",
+      "goOffline": "Modo sin conexión",
+      "offlineTitle": "Sync pausado",
+      "offlineBody": "Tus diagramas se guardan localmente. Reactiva el sync para subir los cambios.",
+      "goOnline": "Reactivar sync"
+    }
   },
   "cloud": {
     "sync": {

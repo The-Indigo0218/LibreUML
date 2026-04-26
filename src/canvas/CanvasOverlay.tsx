@@ -35,7 +35,6 @@
 
 import InlineEditor from './overlays/InlineEditor';
 import ContextMenu from '../features/diagram/components/ui/ContextMenu';
-import CanvasControlsWidget from './overlays/CanvasControlsWidget';
 
 interface CanvasOverlayProps {
   /** Context menu state (null = closed) */
@@ -82,9 +81,6 @@ export default function CanvasOverlay({
       )}
 
       {/* Edge badge tooltip is rendered inline on the Konva canvas via KonvaEdge */}
-
-      {/* Grid type picker + future canvas controls */}
-      <CanvasControlsWidget />
     </div>
   );
 }

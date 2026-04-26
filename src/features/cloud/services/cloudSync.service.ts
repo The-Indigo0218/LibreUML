@@ -256,7 +256,7 @@ class CloudSyncService {
         diagrams[vfsId] = { cloudId: diagramResp.id, version: diagramResp.version };
       }
 
-      useSyncStore.getState().setCloudProject(projectId, modelResp.version, diagrams);
+      useSyncStore.getState().setCloudProject(projectId, created.version, modelResp.version, diagrams);
       useSyncStore.getState().setSyncStatus('saved');
       invalidateQuota();
       track('project_saved_cloud', { trigger: 'manual', diagramCount: Object.keys(diagrams).length });
@@ -290,6 +290,7 @@ class CloudSyncService {
 
       useSyncStore.getState().setCloudProject(
         projectId,
+        full.project.version,
         full.model.version,
         diagrams,
       );
@@ -344,7 +345,7 @@ class CloudSyncService {
 
   private async syncMetadata(): Promise<boolean> {
     const syncStore = useSyncStore.getState();
-    const { cloudProjectId, storageMode } = syncStore;
+    const { cloudProjectId, projectVersion, storageMode } = syncStore;
     if (!this.isActive(cloudProjectId, storageMode)) return false;
 
     const project = useVFSStore.getState().project;
@@ -357,11 +358,12 @@ class CloudSyncService {
       targetLanguage: project.targetLanguage,
       basePackage:    project.basePackage,
       vfsSnapshot:    buildVfsSnapshot(project),
-      version:        syncStore.modelVersion,  // projects table shares version domain
+      version:        projectVersion,
     };
 
     try {
-      await cloudAdapter.updateProjectInCloud(cloudProjectId!, payload);
+      const response = await cloudAdapter.updateProjectInCloud(cloudProjectId!, payload);
+      syncStore.updateProjectVersion(response.version);
       syncStore.setSyncStatus('saved');
       return true;
     } catch (err: unknown) {

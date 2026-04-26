@@ -69,6 +69,7 @@ export type ConflictDetails =
 interface SyncStoreState {
   // ── Cloud link (new architecture) ──────────────────────────────────────────
   cloudProjectId: string | null;
+  projectVersion: number;
   modelVersion: number;
   cloudDiagrams: Record<string, CloudDiagramEntry>;
 
@@ -93,10 +94,12 @@ interface SyncStoreState {
   // ── Actions ────────────────────────────────────────────────────────────────
   setCloudProject: (
     projectId: string,
+    projectVersion: number,
     modelVersion: number,
     diagrams: Record<string, CloudDiagramEntry>,
   ) => void;
 
+  updateProjectVersion: (version: number) => void;
   updateModelVersion: (version: number) => void;
   setDiagramCloudEntry: (vfsId: string, entry: CloudDiagramEntry) => void;
   updateDiagramVersion: (vfsId: string, version: number) => void;
@@ -124,6 +127,7 @@ interface SyncStoreState {
 
 const DEFAULT_STATE = {
   cloudProjectId: null,
+  projectVersion: 0,
   modelVersion: 0,
   cloudDiagrams: {} as Record<string, CloudDiagramEntry>,
   legacyCloudDiagramId: null,
@@ -143,9 +147,10 @@ export const useSyncStore = create<SyncStoreState>()(
     (set, get) => ({
       ...DEFAULT_STATE,
 
-      setCloudProject: (projectId, modelVersion, diagrams) =>
+      setCloudProject: (projectId, projectVersion, modelVersion, diagrams) =>
         set({
           cloudProjectId: projectId,
+          projectVersion,
           modelVersion,
           cloudDiagrams: diagrams,
           storageMode: 'cloud',
@@ -153,6 +158,7 @@ export const useSyncStore = create<SyncStoreState>()(
           legacyCloudDiagramId: null,
         }),
 
+      updateProjectVersion: (version) => set({ projectVersion: version }),
       updateModelVersion: (version) => set({ modelVersion: version }),
 
       setDiagramCloudEntry: (vfsId, entry) =>
@@ -192,6 +198,7 @@ export const useSyncStore = create<SyncStoreState>()(
       clearCloudLink: () =>
         set({
           cloudProjectId: null,
+          projectVersion: 0,
           modelVersion: 0,
           cloudDiagrams: {},
           storageMode: 'local',
@@ -240,6 +247,7 @@ export const useSyncStore = create<SyncStoreState>()(
       reset: () =>
         set({
           cloudProjectId: null,
+          projectVersion: 0,
           modelVersion: 0,
           cloudDiagrams: {},
           storageMode: 'local',
@@ -253,8 +261,11 @@ export const useSyncStore = create<SyncStoreState>()(
     }),
     {
       name: 'libreuml-sync-storage',
-      version: 2,
+      version: 3,
       migrate: (persistedState, fromVersion) => {
+        if (fromVersion === 2) {
+          return { ...(persistedState as SyncStoreState), projectVersion: 0 };
+        }
         if (fromVersion === 1) {
           const old = persistedState as {
             cloudDiagramId?: string | null;
@@ -292,6 +303,7 @@ export const useSyncStore = create<SyncStoreState>()(
       },
       partialize: (state) => ({
         cloudProjectId: state.cloudProjectId,
+        projectVersion: state.projectVersion,
         modelVersion: state.modelVersion,
         cloudDiagrams: state.cloudDiagrams,
         legacyCloudDiagramId: state.legacyCloudDiagramId,

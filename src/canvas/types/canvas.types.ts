@@ -34,6 +34,10 @@ export interface EdgeDescriptor {
   targetMultiplicity?: string;
   sourceRole?: string;
   targetRole?: string;
+  // Locked anchor points
+  anchorLocked?: boolean;
+  sourceHandle?: string;
+  targetHandle?: string;
 }
 
 // ─── Change types ─────────────────────────────────────────────────────────────

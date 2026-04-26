@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowLeftRight, Trash2, Check } from 'lucide-react';
+import { X, ArrowLeftRight, Trash2, Check, Lock, Unlock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
 import { useVFSStore } from '../../../../store/project-vfs.store';
@@ -60,7 +60,7 @@ const PRESET_BTN_IDLE =
 
 export default function VfsEdgeActionModal() {
   const { t } = useTranslation();
-  const { activeModal, editingId, closeModals } = useUiStore();
+  const { activeModal, editingId, anchorSnapshot, closeModals } = useUiStore();
   const project = useVFSStore((s) => s.project);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
   const model = useModelStore((s) => s.model);
@@ -93,6 +93,7 @@ export default function VfsEdgeActionModal() {
   const [targetRole, setTargetRole] = useState('');
   const [sourceMul, setSourceMul] = useState('');
   const [targetMul, setTargetMul] = useState('');
+  const [anchorLocked, setAnchorLocked] = useState(false);
 
   useEffect(() => {
     if (isOpen && viewEdge && relation) {
@@ -102,6 +103,7 @@ export default function VfsEdgeActionModal() {
       setTargetRole(viewEdge.targetRole ?? '');
       setSourceMul(viewEdge.sourceMultiplicity ?? '');
       setTargetMul(viewEdge.targetMultiplicity ?? '');
+      setAnchorLocked(viewEdge.anchorLocked ?? false);
     }
   }, [isOpen, viewEdge, relation]);
 
@@ -144,6 +146,14 @@ export default function VfsEdgeActionModal() {
     const content = (fileNode as VFSFile).content;
     if (!isDiagramView(content)) { closeModals(); return; }
 
+    // Determine which anchor handles to persist when locking
+    const srcHandle = anchorLocked
+      ? (anchorSnapshot?.src ?? viewEdge.sourceHandle ?? undefined)
+      : undefined;
+    const tgtHandle = anchorLocked
+      ? (anchorSnapshot?.tgt ?? viewEdge.targetHandle ?? undefined)
+      : undefined;
+
     const updatedEdges = content.edges.map((e) =>
       e.id === viewEdge.id
         ? {
@@ -152,6 +162,9 @@ export default function VfsEdgeActionModal() {
             targetRole,
             sourceMultiplicity: sourceMul,
             targetMultiplicity: targetMul,
+            anchorLocked,
+            sourceHandle: srcHandle,
+            targetHandle: tgtHandle,
           }
         : e,
     );
@@ -401,13 +414,32 @@ export default function VfsEdgeActionModal() {
         </div>
 
         <div className="px-5 py-3 bg-surface-secondary/30 border-t border-surface-border flex items-center justify-between">
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 border border-red-400/30 rounded transition-all"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Eliminar
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 border border-red-400/30 rounded transition-all"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {t('vfsEdgeAction.delete')}
+            </button>
+
+            <button
+              onClick={() => setAnchorLocked((v) => !v)}
+              title={t('vfsEdgeAction.lockAnchors')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded border transition-all ${
+                anchorLocked
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25'
+                  : 'bg-surface-primary border-surface-border text-text-secondary hover:border-surface-border-hover hover:text-text-primary'
+              }`}
+            >
+              {anchorLocked
+                ? <Lock className="w-3.5 h-3.5" />
+                : <Unlock className="w-3.5 h-3.5" />
+              }
+              {t('vfsEdgeAction.lockAnchors')}
+            </button>
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={closeModals}

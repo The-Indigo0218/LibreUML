@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { LockedHandle } from '../canvas/edges/geometry';
 
 // Define the types for active modals in the UI
 export type ActiveModal =
@@ -24,10 +25,16 @@ export type ActiveModal =
   | "feedback"
   | null;
 
+export interface AnchorSnapshot {
+  src: LockedHandle;
+  tgt: LockedHandle;
+}
+
 interface UiStoreState {
   // state
   activeModal: ActiveModal;
   editingId: string | null;
+  anchorSnapshot: AnchorSnapshot | null;
   isGetStartedOpen: boolean;
 
   // actions
@@ -44,7 +51,7 @@ interface UiStoreState {
   openSSoTClassEditor: (elementId: string) => void;
   openGlobalDelete: (elementId: string) => void;
   openOpenFileModal: () => void;
-  openVfsEdgeAction: (edgeId: string) => void;
+  openVfsEdgeAction: (edgeId: string, snapshot?: AnchorSnapshot | null) => void;
   openAutoLayoutLockedWarning: () => void;
   openCodeExportConfig: () => void;
   openKeyboardShortcuts: () => void;
@@ -59,6 +66,7 @@ interface UiStoreState {
 export const useUiStore = create<UiStoreState>((set) => ({
   activeModal: null,
   editingId: null,
+  anchorSnapshot: null,
   isGetStartedOpen: false,
 
   openClassEditor: (nodeId) =>
@@ -99,8 +107,8 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openOpenFileModal: () =>
     set({ activeModal: "open-file", editingId: null }),
 
-  openVfsEdgeAction: (edgeId) =>
-    set({ activeModal: "vfs-edge-action", editingId: edgeId }),
+  openVfsEdgeAction: (edgeId, snapshot = null) =>
+    set({ activeModal: "vfs-edge-action", editingId: edgeId, anchorSnapshot: snapshot }),
 
   openAutoLayoutLockedWarning: () =>
     set({ activeModal: "auto-layout-locked-warning", editingId: null }),
@@ -115,7 +123,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openFeedback: () => set({ activeModal: "feedback", editingId: null }),
 
-  closeModals: () => set({ activeModal: null, editingId: null }),
+  closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 
   openGetStarted: () => set({ isGetStartedOpen: true }),
   closeGetStarted: () => set({ isGetStartedOpen: false }),

@@ -39,11 +39,13 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 import {
   selectAnchors,
+  resolveLockedAnchors,
   retractAnchor,
   curvedRoute,
   straightRoute,
   selfLoopPath,
   type NodeBounds,
+  type LockedHandle,
 } from './geometry';
 import { avoidObstacles } from './obstacleAvoidance';
 import EdgeMarker from './EdgeMarker';
@@ -295,6 +297,10 @@ export interface KonvaEdgeProps {
   onMouseEnter?: (e: KonvaEventObject<MouseEvent>, edgeId: string) => void;
   /** Mouse leave handler for tooltip (MAG-01.12) */
   onMouseLeave?: (e: KonvaEventObject<MouseEvent>, edgeId: string) => void;
+  /** Locked anchor mode — when true, use stored handles instead of closest-pair selection */
+  anchorLocked?: boolean;
+  sourceHandle?: string;
+  targetHandle?: string;
 }
 
 export default function KonvaEdge({
@@ -317,6 +323,9 @@ export default function KonvaEdge({
   onContextMenu,
   onMouseEnter,
   onMouseLeave,
+  anchorLocked = false,
+  sourceHandle,
+  targetHandle,
 }: KonvaEdgeProps) {
   // When active (highlighted or hovered): use kind-specific color; else base gray
   const isActive = isHighlighted || isHovered;
@@ -361,7 +370,15 @@ export default function KonvaEdge({
     }
 
     // ── Normal edge ────────────────────────────────────────────────────────
-    const { src, tgt } = selectAnchors(sourceBounds, targetBounds);
+    const { src, tgt } =
+      anchorLocked && sourceHandle && targetHandle
+        ? resolveLockedAnchors(
+            sourceBounds,
+            targetBounds,
+            sourceHandle as LockedHandle,
+            targetHandle as LockedHandle,
+          )
+        : selectAnchors(sourceBounds, targetBounds);
     const retractedTgt = retract > 0 ? retractAnchor(tgt, retract) : tgt;
 
     let pts: number[];
@@ -394,7 +411,7 @@ export default function KonvaEdge({
       markerFace: tgt.face,
       labelPositions: computeLabelPositions(pts, src.x, src.y, tgt.x, tgt.y, targetAlong, isBezier),
     };
-  }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract]);
+  }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract, anchorLocked, sourceHandle, targetHandle]);
 
   const multStyle      = isHighlighted ? 'bold' : 'normal';
   const roleStyle      = isHighlighted ? 'bold italic' : 'italic';

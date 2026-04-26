@@ -21,6 +21,12 @@ export interface NodeBounds {
 
 export type AnchorFace = 'Top' | 'Bottom' | 'Left' | 'Right';
 
+/**
+ * 8-position handle label used to persist a locked anchor.
+ * Cardinal midpoints (T/B/L/R) + corners (TL/TR/BL/BR).
+ */
+export type LockedHandle = 'T' | 'B' | 'L' | 'R' | 'TL' | 'TR' | 'BL' | 'BR';
+
 export interface AnchorPoint extends Point {
   face: AnchorFace;
   /** True for corner anchors — face is assigned dynamically by selectAnchors. */
@@ -102,6 +108,88 @@ export function selectAnchors(
     ? { ...bestTgt, face: assignCornerFace(bestTgt, bestSrc) }
     : bestTgt;
 
+  return { src, tgt };
+}
+
+/**
+ * Converts a computed AnchorPoint to the nearest LockedHandle label.
+ * Called when the user locks an edge to snapshot the current anchor position.
+ */
+export function anchorPointToHandle(bounds: NodeBounds, pt: AnchorPoint): LockedHandle {
+  const cx = bounds.x + bounds.width  / 2;
+  const cy = bounds.y + bounds.height / 2;
+  const EDGE_TOL = 3; // px tolerance for "on the node edge"
+
+  const onTop    = pt.y <= bounds.y             + EDGE_TOL;
+  const onBottom = pt.y >= bounds.y + bounds.height - EDGE_TOL;
+  const onLeft   = pt.x <= bounds.x             + EDGE_TOL;
+  const onRight  = pt.x >= bounds.x + bounds.width  - EDGE_TOL;
+  const nearCx   = Math.abs(pt.x - cx) <= bounds.width  * 0.3;
+  const nearCy   = Math.abs(pt.y - cy) <= bounds.height * 0.3;
+
+  if (onTop    && nearCx)  return 'T';
+  if (onBottom && nearCx)  return 'B';
+  if (onLeft   && nearCy)  return 'L';
+  if (onRight  && nearCy)  return 'R';
+  if (onTop    && onLeft)  return 'TL';
+  if (onTop    && onRight) return 'TR';
+  if (onBottom && onLeft)  return 'BL';
+  if (onBottom && onRight) return 'BR';
+
+  // Fallback: nearest named position
+  const { x, y, width: w, height: h } = bounds;
+  const candidates: [LockedHandle, number, number][] = [
+    ['T',  cx,   y],      ['B',  cx,   y+h],
+    ['L',  x,    cy],     ['R',  x+w,  cy],
+    ['TL', x,    y],      ['TR', x+w,  y],
+    ['BL', x,    y+h],    ['BR', x+w,  y+h],
+  ];
+  let best: LockedHandle = 'T';
+  let bestDist = Infinity;
+  for (const [handle, hx, hy] of candidates) {
+    const d = Math.hypot(pt.x - hx, pt.y - hy);
+    if (d < bestDist) { bestDist = d; best = handle; }
+  }
+  return best;
+}
+
+/**
+ * Reconstructs an AnchorPoint from a stored LockedHandle.
+ * Corner anchors are returned with a placeholder face — callers must
+ * use resolveLockedAnchors (which assigns dynamic corner faces) instead
+ * of calling this directly.
+ */
+function handleToAnchorPoint(bounds: NodeBounds, handle: LockedHandle): AnchorPoint {
+  const cx = bounds.x + bounds.width  / 2;
+  const cy = bounds.y + bounds.height / 2;
+  const { x, y, width: w, height: h } = bounds;
+  switch (handle) {
+    case 'T':  return { x: cx,   y,     face: 'Top'    };
+    case 'B':  return { x: cx,   y: y+h, face: 'Bottom' };
+    case 'L':  return { x,       y: cy,  face: 'Left'   };
+    case 'R':  return { x: x+w,  y: cy,  face: 'Right'  };
+    case 'TL': return { x,       y,      face: 'Top',    isCorner: true };
+    case 'TR': return { x: x+w,  y,      face: 'Top',    isCorner: true };
+    case 'BL': return { x,       y: y+h, face: 'Bottom', isCorner: true };
+    case 'BR': return { x: x+w,  y: y+h, face: 'Bottom', isCorner: true };
+  }
+}
+
+/**
+ * Returns fixed anchor points from stored LockedHandle labels, with correct
+ * dynamic corner faces (same algorithm as selectAnchors).
+ * Drop-in replacement for selectAnchors when anchorLocked is true.
+ */
+export function resolveLockedAnchors(
+  sourceBounds: NodeBounds,
+  targetBounds: NodeBounds,
+  srcHandle: LockedHandle,
+  tgtHandle: LockedHandle,
+): { src: AnchorPoint; tgt: AnchorPoint } {
+  const rawSrc = handleToAnchorPoint(sourceBounds, srcHandle);
+  const rawTgt = handleToAnchorPoint(targetBounds, tgtHandle);
+  const src = rawSrc.isCorner ? { ...rawSrc, face: assignCornerFace(rawSrc, rawTgt) } : rawSrc;
+  const tgt = rawTgt.isCorner ? { ...rawTgt, face: assignCornerFace(rawTgt, rawSrc) } : rawTgt;
   return { src, tgt };
 }
 

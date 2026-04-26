@@ -49,7 +49,8 @@ import {
   type NodeViewModel,
   type PackageViewModel,
 } from '../adapters/react-flow/view-models/node.view-model';
-import type { NodeBounds } from './edges/geometry';
+import { selectAnchors, anchorPointToHandle, type NodeBounds, type LockedHandle } from './edges/geometry';
+import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
 
 const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
@@ -613,6 +614,22 @@ export default function KonvaCanvas() {
     openMethodGenerator,
   } = useUiStore();
 
+  const buildAnchorSnapshot = useCallback(
+    (edgeId: string): AnchorSnapshot | null => {
+      const edge = edges.find((e) => e.id === edgeId);
+      if (!edge) return null;
+      if (edge.anchorLocked && edge.sourceHandle && edge.targetHandle) {
+        return { src: edge.sourceHandle as LockedHandle, tgt: edge.targetHandle as LockedHandle };
+      }
+      const sb = boundsMap.get(edge.sourceId);
+      const tb = edge.sourceId === edge.targetId ? sb : boundsMap.get(edge.targetId);
+      if (!sb || !tb) return null;
+      const { src, tgt } = selectAnchors(sb, tb);
+      return { src: anchorPointToHandle(sb, src), tgt: anchorPointToHandle(tb, tgt) };
+    },
+    [edges, boundsMap],
+  );
+
   const screenToCanvas = useCallback(
     (screen: { x: number; y: number }) => {
       const stage = stageRef.current;
@@ -789,7 +806,7 @@ export default function KonvaCanvas() {
       closeMenu();
     },
     onClearCanvas: () => { setClearCanvasModal(true); closeMenu(); },
-    onEditEdgeMultiplicity: (id) => { openVfsEdgeAction(id); closeMenu(); },
+    onEditEdgeMultiplicity: (id) => { openVfsEdgeAction(id, buildAnchorSnapshot(id)); closeMenu(); },
     onGenerateMethods: (id) => { openMethodGenerator(id); closeMenu(); },
     onDeleteNode: (nodeId) => {
       vfsController.removeNodeFromDiagram(nodeId);
@@ -918,9 +935,9 @@ export default function KonvaCanvas() {
   const handleEdgeContextMenu = useCallback(
     (e: KonvaEventObject<PointerEvent>, edgeId: string) => {
       e.evt.preventDefault();
-      openVfsEdgeAction(edgeId);
+      openVfsEdgeAction(edgeId, buildAnchorSnapshot(edgeId));
     },
-    [openVfsEdgeAction],
+    [openVfsEdgeAction, buildAnchorSnapshot],
   );
 
   const handleStageContextMenu = useCallback(
@@ -1144,6 +1161,9 @@ export default function KonvaCanvas() {
                 targetBounds={targetBounds}
                 isSelfLoop={isSelfLoop}
                 obstacles={obstacles}
+                anchorLocked={edge.anchorLocked}
+                sourceHandle={edge.sourceHandle ?? undefined}
+                targetHandle={edge.targetHandle ?? undefined}
                 isHighlighted={highlightedEdgeIds.has(edge.id)}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
@@ -1227,6 +1247,9 @@ export default function KonvaCanvas() {
                 targetBounds={targetBounds}
                 isSelfLoop={isSelfLoop}
                 obstacles={obstacles}
+                anchorLocked={edge.anchorLocked}
+                sourceHandle={edge.sourceHandle ?? undefined}
+                targetHandle={edge.targetHandle ?? undefined}
                 sourceMultiplicity={edge.sourceMultiplicity}
                 targetMultiplicity={edge.targetMultiplicity}
                 sourceRole={edge.sourceRole}

@@ -68,6 +68,8 @@ export class ClassDiagramValidator implements BaseValidator {
       };
     }
 
+    if (node.type === 'NOTE') return { isValid: true };
+
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -157,8 +159,8 @@ export class ClassDiagramValidator implements BaseValidator {
   }
 
   private validateInheritance(
-    sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
-    targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
+    sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode | NoteNode,
+    targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode | NoteNode,
     existingEdges: DomainEdge[],
     allNodes: Record<string, DomainNode>
   ): ValidationResult {
@@ -209,8 +211,8 @@ export class ClassDiagramValidator implements BaseValidator {
   }
 
   private validateImplementation(
-    sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode,
-    targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode
+    sourceNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode | NoteNode,
+    targetNode: ClassNode | InterfaceNode | AbstractClassNode | EnumNode | NoteNode
   ): ValidationResult {
     if (sourceNode.id === targetNode.id) {
       return {

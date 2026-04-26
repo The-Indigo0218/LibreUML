@@ -12,7 +12,8 @@ const WORLD_PAD = 60; // world-unit padding around content bounds
 
 interface MiniMapShape {
   id: string;
-  data: unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any;
 }
 
 interface MiniMapProps {

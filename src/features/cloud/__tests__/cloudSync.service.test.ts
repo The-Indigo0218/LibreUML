@@ -288,7 +288,7 @@ describe('CloudSyncService.loadFromCloud()', () => {
 
 describe('useSyncStore state transitions', () => {
   it('setCloudProject sets cloud mode and stores id + version', () => {
-    useSyncStore.getState().setCloudProject('abc', 3, {});
+    useSyncStore.getState().setCloudProject('abc', 3, 3, {});
 
     const { cloudProjectId, modelVersion, storageMode } = useSyncStore.getState();
     expect(cloudProjectId).toBe('abc');

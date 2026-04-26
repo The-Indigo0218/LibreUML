@@ -108,7 +108,7 @@ export const useSettingsStore = create<SettingsState>()(
           state.gridType = state.showGrid === false ? 'none' : 'dots';
           delete state.showGrid;
         }
-        return state as SettingsState;
+        return state as unknown as SettingsState;
       },
       storage: {
         getItem: (name) => {

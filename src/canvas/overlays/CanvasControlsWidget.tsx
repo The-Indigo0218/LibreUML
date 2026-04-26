@@ -1,3 +1,4 @@
+import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore, type GridType } from '../../store/settingsStore';
 
@@ -55,7 +56,7 @@ function NonePreview() {
   );
 }
 
-type GridOption = { type: GridType; labelKey: string; Preview: () => JSX.Element };
+type GridOption = { type: GridType; labelKey: string; Preview: () => React.ReactElement };
 
 const GRID_OPTIONS: GridOption[] = [
   { type: 'dots',  labelKey: 'canvas.gridPicker.dots',  Preview: DotsPreview  },

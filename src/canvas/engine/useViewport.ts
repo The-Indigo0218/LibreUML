@@ -200,10 +200,22 @@ export function useViewport(options: UseViewportOptions = {}) {
     setViewport((v) => ({ ...v, scale: newScale }));
   }, [constraints.minScale]);
 
+  const panTo = useCallback((worldCx: number, worldCy: number) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const sc = stage.scaleX();
+    const newX = stageWidth  / 2 - worldCx * sc;
+    const newY = stageHeight / 2 - worldCy * sc;
+    stage.x(newX);
+    stage.y(newY);
+    stage.batchDraw();
+    setViewport((v) => ({ ...v, x: newX, y: newY }));
+  }, [stageWidth, stageHeight]);
+
   // Register controls so ViewMenu / useEditorControls can trigger them
   useEffect(() => {
-    register({ zoomIn, zoomOut, fitView });
-  }, [register, zoomIn, zoomOut, fitView]);
+    register({ zoomIn, zoomOut, fitView, panTo });
+  }, [register, zoomIn, zoomOut, fitView, panTo]);
 
   return {
     stageRef,
@@ -213,6 +225,6 @@ export function useViewport(options: UseViewportOptions = {}) {
     fitView,
     zoomIn,
     zoomOut,
-    constraints, // Expose for debugging/testing
+    constraints,
   };
 }

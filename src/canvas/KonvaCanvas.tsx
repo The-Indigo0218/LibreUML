@@ -38,6 +38,8 @@ import { useModelStore } from '../store/model.store';
 import { useToastStore } from '../store/toast.store';
 
 import { useStageStore } from './store/stageStore';
+import MiniMap from './overlays/MiniMap';
+import CullingWarningModal from './overlays/CullingWarningModal';
 import type { KonvaNodeChange, KonvaEdgeChange } from './types/canvas.types';
 import type { ViewNode } from '../core/domain/vfs/vfs.types';
 import { useTranslation } from 'react-i18next';
@@ -81,8 +83,13 @@ export default function KonvaCanvas() {
   const [clearCanvasModal, setClearCanvasModal] = useState(false);
 
   const { t } = useTranslation();
-  const theme = useSettingsStore((s) => s.theme);
-  const gridType = useSettingsStore((s) => s.gridType);
+  const theme       = useSettingsStore((s) => s.theme);
+  const gridType    = useSettingsStore((s) => s.gridType);
+  const showMiniMap = useSettingsStore((s) => s.showMiniMap);
+  const viewportCulling         = useSettingsStore((s) => s.viewportCulling);
+  const suppressCullingWarning  = useSettingsStore((s) => s.suppressCullingWarning);
+  const toggleViewportCulling   = useSettingsStore((s) => s.toggleViewportCulling);
+  const setSuppressCullingWarning = useSettingsStore((s) => s.setSuppressCullingWarning);
   const highlightConnections = useSettingsStore((s) => s.showAllEdges);
 
   const isDev = import.meta.env.DEV;
@@ -336,7 +343,22 @@ export default function KonvaCanvas() {
     isStandalone: vfsController.isStandalone,
   });
 
-  const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap);
+  const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap, viewportCulling);
+
+  const [cullingWarningOpen, setCullingWarningOpen] = useState(false);
+  const cullingPromptedRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      !viewportCulling &&
+      shapes.length >= 20 &&
+      !suppressCullingWarning &&
+      !cullingPromptedRef.current
+    ) {
+      cullingPromptedRef.current = true;
+      setCullingWarningOpen(true);
+    }
+  }, [shapes.length, viewportCulling, suppressCullingWarning]);
 
   const guardedDragStart = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
@@ -1318,6 +1340,16 @@ export default function KonvaCanvas() {
         onCloseContextMenu={closeMenu}
       />
 
+      {showMiniMap && (
+        <MiniMap
+          shapes={sortedShapes}
+          boundsMap={boundsMap}
+          viewport={viewport}
+          stageWidth={size.width}
+          stageHeight={size.height}
+        />
+      )}
+
       {PackageDropPicker}
 
       <DuplicateFileModal
@@ -1362,6 +1394,20 @@ export default function KonvaCanvas() {
         }}
         isDark={theme === 'dark'}
         t={t}
+      />
+
+      <CullingWarningModal
+        isOpen={cullingWarningOpen}
+        nodeCount={shapes.length}
+        onEnable={() => {
+          toggleViewportCulling();
+          setCullingWarningOpen(false);
+        }}
+        onDismiss={() => setCullingWarningOpen(false)}
+        onDontShowAgain={() => {
+          setSuppressCullingWarning(true);
+          setCullingWarningOpen(false);
+        }}
       />
     </div>
   );

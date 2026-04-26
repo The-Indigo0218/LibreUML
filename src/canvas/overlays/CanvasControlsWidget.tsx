@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore, type GridType } from '../../store/settingsStore';
 
 function DotsPreview() {
@@ -54,22 +55,26 @@ function NonePreview() {
   );
 }
 
-const GRID_OPTIONS: { type: GridType; label: string; Preview: () => JSX.Element }[] = [
-  { type: 'dots',  label: 'Dots',  Preview: DotsPreview  },
-  { type: 'lines', label: 'Lines', Preview: LinesPreview },
-  { type: 'grid',  label: 'Solid', Preview: GridPreview  },
-  { type: 'none',  label: 'None',  Preview: NonePreview  },
+type GridOption = { type: GridType; labelKey: string; Preview: () => JSX.Element };
+
+const GRID_OPTIONS: GridOption[] = [
+  { type: 'dots',  labelKey: 'canvas.gridPicker.dots',  Preview: DotsPreview  },
+  { type: 'lines', labelKey: 'canvas.gridPicker.lines', Preview: LinesPreview },
+  { type: 'grid',  labelKey: 'canvas.gridPicker.solid', Preview: GridPreview  },
+  { type: 'none',  labelKey: 'canvas.gridPicker.none',  Preview: NonePreview  },
 ];
 
 export default function CanvasControlsWidget() {
-  const gridType   = useSettingsStore((s) => s.gridType);
+  const { t } = useTranslation();
+  const gridType    = useSettingsStore((s) => s.gridType);
   const setGridType = useSettingsStore((s) => s.setGridType);
 
   return (
     <div className="absolute bottom-4 right-4 pointer-events-auto select-none">
       <div className="bg-surface-primary border border-surface-border rounded-xl shadow-xl p-1 flex gap-0.5">
-        {GRID_OPTIONS.map(({ type, label, Preview }) => {
+        {GRID_OPTIONS.map(({ type, labelKey, Preview }) => {
           const active = gridType === type;
+          const label  = t(labelKey);
           return (
             <button
               key={type}

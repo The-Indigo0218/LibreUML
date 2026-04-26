@@ -12,6 +12,7 @@ interface ViewportControls {
   zoomIn: () => void;
   zoomOut: () => void;
   fitView: () => void;
+  panTo: (worldCx: number, worldCy: number) => void;
 }
 
 interface ViewportControlStore extends ViewportControls {
@@ -24,5 +25,6 @@ export const useViewportControlStore = create<ViewportControlStore>((set) => ({
   zoomIn: noop,
   zoomOut: noop,
   fitView: noop,
+  panTo: noop,
   register: (controls) => set(controls),
 }));

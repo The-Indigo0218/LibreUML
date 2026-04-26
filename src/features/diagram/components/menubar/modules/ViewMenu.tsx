@@ -1,14 +1,15 @@
-import { 
-  ZoomIn, 
-  ZoomOut, 
-  Maximize, 
-  Map, 
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  Map,
   Search,
   Check,
   Grid3X3,
   Magnet,
   Network,
-  Wand2
+  Wand2,
+  Cpu,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrigger";
@@ -33,6 +34,8 @@ export function ViewMenuContent() {
   const toggleSnapToGrid = useSettingsStore((s) => s.toggleSnapToGrid);
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
   const toggleShowAllEdges = useSettingsStore((s) => s.toggleShowAllEdges);
+  const viewportCulling = useSettingsStore((s) => s.viewportCulling);
+  const toggleViewportCulling = useSettingsStore((s) => s.toggleViewportCulling);
 
   const { runLayout } = useKonvaAutoLayout();
 
@@ -107,6 +110,17 @@ export function ViewMenuContent() {
           </div>
         }
         onClick={toggleShowAllEdges}
+      />
+
+      <MenubarItem
+        label={t("menubar.view.viewportCulling") || "Viewport Culling"}
+        icon={
+          <div className="relative">
+            <Cpu className="w-4 h-4" />
+            {viewportCulling && <Check className="w-3 h-3 absolute -bottom-1 -right-1 text-green-500 font-bold" />}
+          </div>
+        }
+        onClick={toggleViewportCulling}
       />
 
       <div className="h-px bg-surface-border my-1" />

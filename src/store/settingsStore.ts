@@ -17,6 +17,8 @@ interface SettingsState {
   javaImportPreference: 'model' | 'canvas' | 'both' | null;
   showMiniMap: boolean;
   gridType: GridType;
+  viewportCulling: boolean;
+  suppressCullingWarning: boolean;
   snapToGrid: boolean;
   showAllEdges: boolean;
   lastFilePath?: string;
@@ -34,6 +36,8 @@ interface SettingsState {
   toggleMiniMap: () => void;
   setGridType: (type: GridType) => void;
   cycleGridType: () => void;
+  toggleViewportCulling: () => void;
+  setSuppressCullingWarning: (v: boolean) => void;
   toggleSnapToGrid: () => void;
   toggleShowAllEdges: () => void;
   resetAllModalPreferences: () => void;
@@ -53,6 +57,8 @@ export const useSettingsStore = create<SettingsState>()(
       lastFilePath: undefined,
       showMiniMap: false,
       gridType: 'dots',
+      viewportCulling: false,
+      suppressCullingWarning: false,
       snapToGrid: true,
       showAllEdges: false,
       telemetryOptIn: null,
@@ -74,6 +80,8 @@ export const useSettingsStore = create<SettingsState>()(
         const idx = GRID_CYCLE.indexOf(s.gridType);
         return { gridType: GRID_CYCLE[(idx + 1) % GRID_CYCLE.length] };
       }),
+      toggleViewportCulling: () => set((s) => ({ viewportCulling: !s.viewportCulling })),
+      setSuppressCullingWarning: (v) => set({ suppressCullingWarning: v }),
       toggleSnapToGrid: () => set((s) => ({ snapToGrid: !s.snapToGrid })),
       toggleShowAllEdges: () => set((s) => ({ showAllEdges: !s.showAllEdges })),
       setTelemetryOptIn: (value) => set({ telemetryOptIn: value }),

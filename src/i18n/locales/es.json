@@ -53,10 +53,15 @@
       "fitView": "Ajustar Vista",
       "minimap": "Mostrar Minimapa",
       "grid": "Mostrar Rejilla",
+      "gridNone": "Cuadrícula: Desactivada",
+      "gridDots": "Cuadrícula: Puntos",
+      "gridLines": "Cuadrícula: Líneas",
+      "gridSolid": "Cuadrícula: Sólida",
       "snap": "Ajustar a la Rejilla",
       "spotlight": "Búsqueda Rápida",
       "connections": "Resaltar Conexiones",
-      "magicLayout": "Diseño Mágico"
+      "magicLayout": "Diseño Mágico",
+      "viewportCulling": "Recorte de Vista"
     },
     "edit": {
       "title": "Editar",
@@ -869,7 +874,21 @@
     "legend": "Lógica de Conexión"
   },
   "canvas": {
-    "loading": "Cargando diagrama..."
+    "loading": "Cargando diagrama...",
+    "gridPicker": {
+      "dots": "Puntos",
+      "lines": "Líneas",
+      "solid": "Sólida",
+      "none": "Sin fondo"
+    }
+  },
+  "cullingWarning": {
+    "title": "Consejo de Rendimiento",
+    "body1": "Este diagrama tiene {{count}} nodos. El recorte de vista está desactivado — cada nodo se renderiza aunque esté fuera de pantalla.",
+    "body2": "Activarlo omite el renderizado de nodos fuera de pantalla, lo que puede reducir significativamente el uso de CPU y memoria en diagramas grandes.",
+    "dontShowAgain": "No mostrar de nuevo",
+    "maybeLater": "Quizás después",
+    "enable": "Activar Recorte"
   },
   "validation": {
     "duplicateElement": "Elemento duplicado",

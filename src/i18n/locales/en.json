@@ -53,10 +53,15 @@
       "fitView": "Fit View",
       "minimap": "Show Minimap",
       "grid": "Show Grid",
+      "gridNone": "Grid: Off",
+      "gridDots": "Grid: Dots",
+      "gridLines": "Grid: Lines",
+      "gridSolid": "Grid: Solid",
       "snap": "Snap to Grid",
       "spotlight": "Spotlight Search",
       "connections": "Highlight Connections",
-      "magicLayout": "Magic Layout"
+      "magicLayout": "Magic Layout",
+      "viewportCulling": "Viewport Culling"
     },
     "edit": {
       "title": "Edit",
@@ -860,7 +865,21 @@
     "legend": "Connection Logic"
   },
   "canvas": {
-    "loading": "Loading diagram..."
+    "loading": "Loading diagram...",
+    "gridPicker": {
+      "dots": "Dots",
+      "lines": "Lines",
+      "solid": "Solid",
+      "none": "None"
+    }
+  },
+  "cullingWarning": {
+    "title": "Performance Tip",
+    "body1": "This diagram has {{count}} nodes. Viewport culling is currently off — every node renders even when off-screen.",
+    "body2": "Enabling it skips rendering of off-screen nodes, which can significantly reduce CPU and memory usage on large diagrams.",
+    "dontShowAgain": "Don't show again",
+    "maybeLater": "Maybe later",
+    "enable": "Enable Culling"
   },
   "validation": {
     "duplicateElement": "Duplicate element",

@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { useWorkspaceStore } from "../../store/workspace.store";
 import { useProjectStore } from "../../store/project.store";
 import { useSettingsStore } from "../../store/settingsStore";
+import { useSyncStore } from "../../store/sync.store";
 import { storageAdapter } from "../../adapters/storage/storage.adapter";
 
 const BACKUP_KEY = 'libreuml-backup';
@@ -16,6 +17,7 @@ const DEBOUNCE_DELAY = 2000; // 2 seconds after last change
  */
 export const useAutoSave = () => {
   const autoSaveEnabled = useSettingsStore((s) => s.autoSave);
+  const storageMode = useSyncStore((s) => s.storageMode);
   const getActiveFile = useWorkspaceStore((s) => s.getActiveFile);
   const markFileClean = useWorkspaceStore((s) => s.markFileClean);
   const getNodes = useProjectStore((s) => s.getNodes);
@@ -83,6 +85,7 @@ export const useAutoSave = () => {
 
   const checkAndSave = useCallback(() => {
     if (!autoSaveEnabled) return;
+    if (storageMode !== 'local') return;
 
     const activeFile = getActiveFile();
     if (!activeFile || !activeFile.isDirty) return;
@@ -100,7 +103,7 @@ export const useAutoSave = () => {
    * Set up periodic check interval
    */
   useEffect(() => {
-    if (!autoSaveEnabled) {
+    if (!autoSaveEnabled || storageMode !== 'local') {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
@@ -129,13 +132,13 @@ export const useAutoSave = () => {
    * Monitor dirty state changes and trigger debounced save
    */
   useEffect(() => {
-    if (!autoSaveEnabled) return;
+    if (!autoSaveEnabled || storageMode !== 'local') return;
 
     const activeFile = getActiveFile();
     if (activeFile?.isDirty) {
       debouncedSave();
     }
-  }, [autoSaveEnabled, getActiveFile, debouncedSave]);
+  }, [autoSaveEnabled, storageMode, getActiveFile, debouncedSave]);
 
   return {
     performSave,

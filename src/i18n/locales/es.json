@@ -814,6 +814,14 @@
     "save": "Guardar",
     "packageLegend": {
       "title": "Leyenda de Relaciones de Paquete"
+    },
+    "anchorPicker": {
+      "title": "Puntos de Conexión",
+      "source": "Origen",
+      "target": "Destino",
+      "hint": "Haz clic en un punto para bloquear la conexión",
+      "unlock": "Desbloquear (dinámico)",
+      "lockedHint": "Puntos bloqueados — la línea no se mueve aunque el nodo cambie de posición"
     }
   },
   "globalDeleteModal": {

@@ -1,8 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowLeftRight, Trash2, Check, Lock, Unlock } from 'lucide-react';
+import { X, ArrowLeftRight, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
+import AnchorPickerPanel from './AnchorPickerPanel';
+import type { LockedHandle } from '../../../../canvas/edges/geometry';
 import { useVFSStore } from '../../../../store/project-vfs.store';
 import { useModelStore } from '../../../../store/model.store';
 import { useWorkspaceStore } from '../../../../store/workspace.store';
@@ -94,6 +96,9 @@ export default function VfsEdgeActionModal() {
   const [sourceMul, setSourceMul] = useState('');
   const [targetMul, setTargetMul] = useState('');
   const [anchorLocked, setAnchorLocked] = useState(false);
+  const [srcHandle, setSrcHandle]       = useState<LockedHandle>('R');
+  const [tgtHandle, setTgtHandle]       = useState<LockedHandle>('L');
+  const [pickerOpen, setPickerOpen]     = useState(false);
 
   useEffect(() => {
     if (isOpen && viewEdge && relation) {
@@ -103,8 +108,14 @@ export default function VfsEdgeActionModal() {
       setTargetRole(viewEdge.targetRole ?? '');
       setSourceMul(viewEdge.sourceMultiplicity ?? '');
       setTargetMul(viewEdge.targetMultiplicity ?? '');
-      setAnchorLocked(viewEdge.anchorLocked ?? false);
+      const locked = viewEdge.anchorLocked ?? false;
+      setAnchorLocked(locked);
+      setSrcHandle((viewEdge.sourceHandle as LockedHandle | undefined) ?? anchorSnapshot?.src ?? 'R');
+      setTgtHandle((viewEdge.targetHandle as LockedHandle | undefined) ?? anchorSnapshot?.tgt ?? 'L');
+      setPickerOpen(locked);
     }
+  // anchorSnapshot intentionally excluded — only run when the edge data changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, viewEdge, relation]);
 
   if (!isOpen || !viewEdge || !relation || !activeModel) return null;
@@ -146,13 +157,8 @@ export default function VfsEdgeActionModal() {
     const content = (fileNode as VFSFile).content;
     if (!isDiagramView(content)) { closeModals(); return; }
 
-    // Determine which anchor handles to persist when locking
-    const srcHandle = anchorLocked
-      ? (anchorSnapshot?.src ?? viewEdge.sourceHandle ?? undefined)
-      : undefined;
-    const tgtHandle = anchorLocked
-      ? (anchorSnapshot?.tgt ?? viewEdge.targetHandle ?? undefined)
-      : undefined;
+    const persistSrc = anchorLocked ? srcHandle : undefined;
+    const persistTgt = anchorLocked ? tgtHandle : undefined;
 
     const updatedEdges = content.edges.map((e) =>
       e.id === viewEdge.id
@@ -163,8 +169,8 @@ export default function VfsEdgeActionModal() {
             sourceMultiplicity: sourceMul,
             targetMultiplicity: targetMul,
             anchorLocked,
-            sourceHandle: srcHandle,
-            targetHandle: tgtHandle,
+            sourceHandle: persistSrc,
+            targetHandle: persistTgt,
           }
         : e,
     );
@@ -411,6 +417,39 @@ export default function VfsEdgeActionModal() {
             </div>
           )}
 
+          {/* Anchor picker — collapsible */}
+          <div className="border-t border-surface-border/50 pt-4">
+            <button
+              type="button"
+              onClick={() => setPickerOpen((v) => !v)}
+              className="w-full flex items-center justify-between text-xs font-bold text-text-secondary uppercase tracking-wider hover:text-text-primary transition-colors mb-2"
+            >
+              <span>{t('vfsEdgeAction.anchorPicker.title')}</span>
+              {pickerOpen
+                ? <ChevronUp className="w-3.5 h-3.5" />
+                : <ChevronDown className="w-3.5 h-3.5" />
+              }
+            </button>
+
+            {pickerOpen && (
+              <AnchorPickerPanel
+                srcHandle={srcHandle}
+                tgtHandle={tgtHandle}
+                direction={anchorSnapshot?.direction ?? { dx: 100, dy: 0 }}
+                sourceName={displaySource}
+                targetName={displayTarget}
+                locked={anchorLocked}
+                onChangeSrc={(h) => { setSrcHandle(h); setAnchorLocked(true); }}
+                onChangeTgt={(h) => { setTgtHandle(h); setAnchorLocked(true); }}
+                onUnlock={() => {
+                  setAnchorLocked(false);
+                  setSrcHandle(anchorSnapshot?.src ?? 'R');
+                  setTgtHandle(anchorSnapshot?.tgt ?? 'L');
+                }}
+              />
+            )}
+          </div>
+
         </div>
 
         <div className="px-5 py-3 bg-surface-secondary/30 border-t border-surface-border flex items-center justify-between">
@@ -421,22 +460,6 @@ export default function VfsEdgeActionModal() {
             >
               <Trash2 className="w-3.5 h-3.5" />
               {t('vfsEdgeAction.delete')}
-            </button>
-
-            <button
-              onClick={() => setAnchorLocked((v) => !v)}
-              title={t('vfsEdgeAction.lockAnchors')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded border transition-all ${
-                anchorLocked
-                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25'
-                  : 'bg-surface-primary border-surface-border text-text-secondary hover:border-surface-border-hover hover:text-text-primary'
-              }`}
-            >
-              {anchorLocked
-                ? <Lock className="w-3.5 h-3.5" />
-                : <Unlock className="w-3.5 h-3.5" />
-              }
-              {t('vfsEdgeAction.lockAnchors')}
             </button>
           </div>
 

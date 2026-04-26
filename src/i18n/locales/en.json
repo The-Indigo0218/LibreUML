@@ -805,6 +805,14 @@
     "save": "Save",
     "packageLegend": {
       "title": "UML Package Relation Legend"
+    },
+    "anchorPicker": {
+      "title": "Connection Points",
+      "source": "Source",
+      "target": "Target",
+      "hint": "Click a dot to lock the connection point",
+      "unlock": "Unlock (dynamic)",
+      "lockedHint": "Connection points are locked — edge stays fixed when nodes move"
     }
   },
   "globalDeleteModal": {

@@ -618,14 +618,18 @@ export default function KonvaCanvas() {
     (edgeId: string): AnchorSnapshot | null => {
       const edge = edges.find((e) => e.id === edgeId);
       if (!edge) return null;
-      if (edge.anchorLocked && edge.sourceHandle && edge.targetHandle) {
-        return { src: edge.sourceHandle as LockedHandle, tgt: edge.targetHandle as LockedHandle };
-      }
       const sb = boundsMap.get(edge.sourceId);
       const tb = edge.sourceId === edge.targetId ? sb : boundsMap.get(edge.targetId);
       if (!sb || !tb) return null;
+      const direction = {
+        dx: (tb.x + tb.width / 2) - (sb.x + sb.width / 2),
+        dy: (tb.y + tb.height / 2) - (sb.y + sb.height / 2),
+      };
+      if (edge.anchorLocked && edge.sourceHandle && edge.targetHandle) {
+        return { src: edge.sourceHandle as LockedHandle, tgt: edge.targetHandle as LockedHandle, direction };
+      }
       const { src, tgt } = selectAnchors(sb, tb);
-      return { src: anchorPointToHandle(sb, src), tgt: anchorPointToHandle(tb, tgt) };
+      return { src: anchorPointToHandle(sb, src), tgt: anchorPointToHandle(tb, tgt), direction };
     },
     [edges, boundsMap],
   );

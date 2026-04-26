@@ -28,6 +28,8 @@ export type ActiveModal =
 export interface AnchorSnapshot {
   src: LockedHandle;
   tgt: LockedHandle;
+  /** Vector from source-center to target-center in world coordinates. */
+  direction: { dx: number; dy: number };
 }
 
 interface UiStoreState {

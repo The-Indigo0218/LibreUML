@@ -687,10 +687,13 @@ export function useVFSCanvasController(): VFSCanvasResult {
     if (!diagramView || !model) return [];
 
     // Build reverse map: elementId → ViewNode.id (ReactFlow node ID)
+    // Notes have no elementId so they use their viewNode.id as the relation endpoint.
     const elementIdToNodeId = new Map<string, string>();
     for (const vn of diagramView.nodes) {
       if (vn.elementId) {
         elementIdToNodeId.set(vn.elementId, vn.id);
+      } else {
+        elementIdToNodeId.set(vn.id, vn.id);
       }
     }
 

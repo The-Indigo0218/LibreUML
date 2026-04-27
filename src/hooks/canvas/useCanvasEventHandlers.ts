@@ -205,20 +205,28 @@ export function useCanvasEventHandlers({
       const currentView = (fileNode as VFSFile).content as DiagramView;
       const sourceVN = currentView.nodes.find((vn) => vn.id === connection.source);
       const targetVN = currentView.nodes.find((vn) => vn.id === connection.target);
-      if (!sourceVN || !targetVN || !sourceVN.elementId || !targetVN.elementId) return;
+      if (!sourceVN || !targetVN) return;
+
+      // Notes have no semantic elementId — use the viewNode.id as the relation endpoint.
+      const sourceIsNote = !sourceVN.elementId;
+      const targetIsNote = !targetVN.elementId;
+      const sourceElementId = sourceVN.elementId || sourceVN.id;
+      const targetElementId = targetVN.elementId || targetVN.id;
 
       const wsState = useWorkspaceStore.getState();
       const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
       const activeModel = isStandalone ? getLocalModel(activeTabId) : useModelStore.getState().model;
-      const sourceIsPkg = !!(activeModel?.packages[sourceVN.elementId]);
-      const targetIsPkg = !!(activeModel?.packages[targetVN.elementId]);
+      const sourceIsPkg = !sourceIsNote && !!(activeModel?.packages[sourceElementId]);
+      const targetIsPkg = !targetIsNote && !!(activeModel?.packages[targetElementId]);
       const kind: RelationKind =
-        sourceIsPkg && targetIsPkg
+        sourceIsNote || targetIsNote
           ? 'DEPENDENCY'
-          : (TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION');
+          : sourceIsPkg && targetIsPkg
+            ? 'DEPENDENCY'
+            : (TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION');
 
       const SELF_LOOP_FORBIDDEN = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);
-      if (sourceVN.elementId === targetVN.elementId && SELF_LOOP_FORBIDDEN.has(kind)) {
+      if (sourceElementId === targetElementId && SELF_LOOP_FORBIDDEN.has(kind)) {
         useToastStore.getState().show('⚠️ Una clase no puede heredar de sí misma');
         return;
       }
@@ -229,8 +237,8 @@ export function useCanvasEventHandlers({
         if (activeModel) {
           const hasBidir = Object.values(activeModel.relations).some(
             (rel) =>
-              rel.sourceId === targetVN.elementId &&
-              rel.targetId === sourceVN.elementId &&
+              rel.sourceId === targetElementId &&
+              rel.targetId === sourceElementId &&
               BIDIR_FORBIDDEN.has(rel.kind),
           );
           if (hasBidir) {
@@ -260,7 +268,7 @@ export function useCanvasEventHandlers({
               const node = draft.project?.nodes[activeTabId];
               if (!node || node.type !== 'FILE' || !node.localModel) return;
               node.localModel.relations[newRelationId] = {
-                id: newRelationId, kind, sourceId: sourceVN.elementId, targetId: targetVN.elementId,
+                id: newRelationId, kind, sourceId: sourceElementId, targetId: targetElementId,
               };
               node.localModel.updatedAt = Date.now();
               if (isDiagramView(node.content)) {
@@ -280,7 +288,7 @@ export function useCanvasEventHandlers({
                 if (!draft.model) return;
                 draft.model.relations[newRelationId] = {
                   id: newRelationId, kind,
-                  sourceId: sourceVN.elementId, targetId: targetVN.elementId,
+                  sourceId: sourceElementId, targetId: targetElementId,
                   ...(isExternalFile ? { isExternal: true } : {}),
                 };
                 draft.model.updatedAt = Date.now();

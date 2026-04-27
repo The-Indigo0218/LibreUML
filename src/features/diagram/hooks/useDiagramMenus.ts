@@ -20,6 +20,7 @@ export interface ContextMenuState {
 
 interface UseDiagramMenusProps {
   onEditNode: (nodeId: string) => void;
+  onEditNote: (nodeId: string) => void;
   onClearCanvas: () => void;
   onEditEdgeMultiplicity: (edgeId: string) => void;
   onGenerateMethods?: (nodeId: string) => void;
@@ -44,6 +45,7 @@ interface UseDiagramMenusProps {
 
 export const useDiagramMenus = ({
   onEditNode,
+  onEditNote,
   onClearCanvas,
   onEditEdgeMultiplicity,
   onGenerateMethods,
@@ -129,6 +131,7 @@ export const useDiagramMenus = ({
         elementId: semanticId,
         x: position.x,
         y: position.y,
+        ...(kind === 'NOTE' ? { noteTitle: 'Note', content: 'Write here more details' } : {}),
       };
 
       useVFSStore.getState().updateFileContent(tabId, {
@@ -200,6 +203,14 @@ export const useDiagramMenus = ({
           baseOptions.push({
             label: t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
+          });
+        }
+
+        if (isNoteType) {
+          baseOptions.push({
+            label: "Edit note",
+            icon: "edit",
+            onClick: () => onEditNote(nodeId),
           });
         }
 
@@ -312,6 +323,7 @@ export const useDiagramMenus = ({
       onChangeEdgeKind,
       onClearCanvas,
       onEditNode,
+      onEditNote,
       onEditEdgeMultiplicity,
       onDuplicateNode,
       screenToCanvas,

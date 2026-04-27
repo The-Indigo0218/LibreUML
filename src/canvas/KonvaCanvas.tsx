@@ -29,6 +29,7 @@ import DuplicateFileModal from '../components/shared/DuplicateFileModal';
 import PackageHierarchyModal from './overlays/PackageHierarchyModal';
 import ConfirmationModal from '../components/shared/ConfirmationModal';
 import { DeletePackageModal } from '../features/diagram/components/layout/packageExplorer/DeletePackageModal';
+import NoteEditorModal from '../features/diagram/components/modals/NoteEditorModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
 import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
@@ -79,6 +80,12 @@ export default function KonvaCanvas() {
   });
 
   const [clearCanvasModal, setClearCanvasModal] = useState(false);
+  const [noteEditorModal, setNoteEditorModal] = useState<{
+    noteId: string;
+    initialTitle: string;
+    initialContent: string;
+    onSave: (title: string, content: string) => void;
+  } | null>(null);
 
   const { t } = useTranslation();
   const theme = useSettingsStore((s) => s.theme);
@@ -542,7 +549,7 @@ export default function KonvaCanvas() {
   );
 
   const handleNoteDblClick = useCallback(
-    (shapeId: string, e: KonvaEventObject<MouseEvent>) => {
+    (shapeId: string, _e: KonvaEventObject<MouseEvent>) => {
       const shape = shapes.find((s) => s.id === shapeId);
       if (!shape || !isNoteViewModel(shape.data)) return;
 
@@ -550,37 +557,32 @@ export default function KonvaCanvas() {
       const stage = stageRef.current;
       if (!stage) return;
 
-      const groupNode = e.target.findAncestor('Group');
-      if (!groupNode) return;
-
       const NOTE_H_PAD = 8;
       const NOTE_V_PAD = 8;
       const NOTE_TITLE_H = 32;
       const NOTE_W = 224;
 
-      const groupPos = groupNode.getAbsolutePosition();
-      const titleY = NOTE_V_PAD / 2 + 2;
-
+      // Use canvas-space position and apply stage transform once (same as useEffect above).
+      const pos = positionOverrides.get(shapeId) ?? { x: shape.x, y: shape.y };
       const transform = stage.getAbsoluteTransform().copy();
-      const screenPos = transform.point({ x: groupPos.x + NOTE_H_PAD, y: groupPos.y + titleY });
+      const titleY = NOTE_V_PAD / 2 + 2;
+      const screenPos = transform.point({ x: pos.x + NOTE_H_PAD, y: pos.y + titleY });
 
       const textWidth = NOTE_W - 2 * NOTE_H_PAD - 12;
       const textHeight = NOTE_TITLE_H - NOTE_V_PAD;
 
-      const onSave = vm.onSave;
-
-      if (onSave) {
+      if (vm.onSave) {
         startInlineEditing(
           shapeId,
           vm.title ?? '',
           'title',
           { x: screenPos.x, y: screenPos.y },
           { width: textWidth, height: textHeight },
-          (newTitle) => onSave({ title: newTitle }),
+          (newTitle) => vm.onSave!({ title: newTitle }),
         );
       }
     },
-    [shapes, stageRef, startInlineEditing],
+    [shapes, stageRef, startInlineEditing, positionOverrides],
   );
 
   const { menu, onPaneContextMenu, onNodeContextMenu, closeMenu } = useContextMenu();
@@ -764,6 +766,18 @@ export default function KonvaCanvas() {
     onEditNode: (nodeId) => {
       const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
       if (viewNode?.elementId) openSSoTClassEditor(viewNode.elementId);
+      closeMenu();
+    },
+    onEditNote: (nodeId) => {
+      const shape = shapes.find((s) => s.id === nodeId);
+      if (!shape || !isNoteViewModel(shape.data)) return;
+      const vm = shape.data;
+      setNoteEditorModal({
+        noteId: nodeId,
+        initialTitle: vm.title ?? '',
+        initialContent: vm.content,
+        onSave: (title, content) => vm.onSave?.({ title, content }),
+      });
       closeMenu();
     },
     onClearCanvas: () => { setClearCanvasModal(true); closeMenu(); },
@@ -1338,6 +1352,17 @@ export default function KonvaCanvas() {
           onCancel={hierarchyModal.onCancel}
         />
       )}
+
+      <NoteEditorModal
+        isOpen={!!noteEditorModal}
+        initialTitle={noteEditorModal?.initialTitle ?? ''}
+        initialContent={noteEditorModal?.initialContent ?? ''}
+        onClose={() => setNoteEditorModal(null)}
+        onSave={(title, content) => {
+          noteEditorModal?.onSave(title, content);
+          setNoteEditorModal(null);
+        }}
+      />
 
       <ConfirmationModal
         isOpen={clearCanvasModal}

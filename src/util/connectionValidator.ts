@@ -64,7 +64,7 @@ export const validateConnection = (
   targetStereotype: stereotype,
   relationType: UmlRelationType
 ): boolean => {
-  if (sourceStereotype === "note" || targetStereotype === "note") return false;
+  if (sourceStereotype === "note" || targetStereotype === "note") return true;
 
   if (sourceStereotype === "package" && targetStereotype === "package") {
     return PACKAGE_RELATION_TYPES.has(relationType);

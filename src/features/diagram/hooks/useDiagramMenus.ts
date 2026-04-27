@@ -191,11 +191,12 @@ export const useDiagramMenus = ({
           effectiveType === "INTERFACE" ||
           effectiveType === "ABSTRACT_CLASS";
         const isPackageType = effectiveType === "PACKAGE";
+        const isNoteType = effectiveType === "NOTE";
         const isNodeExternal = getIsNodeExternal(nodeId);
 
         const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [];
 
-        if (!isPackageType) {
+        if (!isPackageType && !isNoteType) {
           baseOptions.push({
             label: t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),

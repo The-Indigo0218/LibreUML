@@ -210,21 +210,12 @@ export function useConnectionDraw({
 
   // ── Refs (event-handler safe, no stale closure issues) ────────────────────
   const isConnectingRef = useRef(false);
-  /** Set of node IDs that are notes — excluded from anchor detection entirely. */
-  const noteIdsRef = useRef<Set<string>>(new Set());
   /** True when cursor is near any anchor — read by KonvaCanvas to suppress drag. */
   const nearAnchorRef = useRef(false);
   /** Source anchor that the connection draw started from. */
   const sourceRef = useRef<AnchorDot | null>(null);
   /** Tracks which node is currently hovered to avoid unnecessary state thrashing. */
   const hoverNodeIdRef = useRef<string | null>(null);
-
-  // Keep noteIdsRef in sync so mouse handlers never anchor onto note nodes.
-  useEffect(() => {
-    noteIdsRef.current = new Set(
-      nodes.filter((n) => isNoteViewModel(n.data)).map((n) => n.id),
-    );
-  }, [nodes]);
 
   // ── Reset helper ──────────────────────────────────────────────────────────
 
@@ -251,17 +242,12 @@ export function useConnectionDraw({
       const pos = stage.getRelativePointerPosition();
       if (!pos) return;
 
-      const noteIds = noteIdsRef.current;
-      const connectableBounds = new Map(
-        [...boundsMapRef.current.entries()].filter(([id]) => !noteIds.has(id)),
-      );
-
       if (isConnectingRef.current) {
         // ── Drawing mode: update temp line + find snap target ─────────────
         const src = sourceRef.current;
         if (!src) return;
 
-        const snap = findNearest(pos, connectableBounds, ANCHOR_SNAP_R, src.nodeId);
+        const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, src.nodeId);
         const endX = snap ? snap.x : pos.x;
         const endY = snap ? snap.y : pos.y;
 
@@ -269,15 +255,15 @@ export function useConnectionDraw({
         setSnapTargetDot(snap);
       } else {
         // ── Hover mode: update nearAnchorRef + visible anchor dots ────────
-        const near = findNearest(pos, connectableBounds, ANCHOR_DETECT_R);
+        const near = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R);
         nearAnchorRef.current = !!near;
 
         // Only update hovered-node anchors when the hovered node changes.
-        const hoveredId = findHoveredNode(pos, connectableBounds);
+        const hoveredId = findHoveredNode(pos, boundsMapRef.current);
         if (hoveredId !== hoverNodeIdRef.current) {
           hoverNodeIdRef.current = hoveredId;
           if (hoveredId) {
-            const b = connectableBounds.get(hoveredId);
+            const b = boundsMapRef.current.get(hoveredId);
             setHoveredNodeAnchors(b ? getAnchorDots(hoveredId, b) : []);
           } else {
             setHoveredNodeAnchors([]);
@@ -301,11 +287,7 @@ export function useConnectionDraw({
       const pos = stage.getRelativePointerPosition();
       if (!pos) return;
 
-      const noteIds = noteIdsRef.current;
-      const connectableBounds = new Map(
-        [...boundsMapRef.current.entries()].filter(([id]) => !noteIds.has(id)),
-      );
-      const nearest = findNearest(pos, connectableBounds, ANCHOR_DETECT_R);
+      const nearest = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R);
       if (!nearest) {
         nearAnchorRef.current = false;
         return;
@@ -339,11 +321,7 @@ export function useConnectionDraw({
       if (stage && src) {
         const pos = stage.getRelativePointerPosition();
         if (pos) {
-          const noteIds = noteIdsRef.current;
-          const connectableBounds = new Map(
-            [...boundsMapRef.current.entries()].filter(([id]) => !noteIds.has(id)),
-          );
-          const snap = findNearest(pos, connectableBounds, ANCHOR_SNAP_R, src.nodeId);
+          const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, src.nodeId);
           if (snap) {
             // ── Validate via connectionValidator.ts ───────────────────────
             const srcNode = nodes.find((n) => n.id === src.nodeId);

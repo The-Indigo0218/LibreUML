@@ -81,6 +81,12 @@ function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData
   }
 
   if (element.kind === "INTERFACE") {
+    const attributes: UmlAttribute[] = (element.data.attributeIds ?? []).flatMap((id) => {
+      const a = model.attributes[id];
+      if (!a) return [];
+      return [{ id: a.id, name: a.name, type: a.type, visibility: irVisToUml(a.visibility), isArray: a.multiplicity === "*" || a.multiplicity === "0..*" }];
+    });
+
     const methods: UmlMethod[] = element.data.operationIds.flatMap((id) => {
       const o = model.operations[id];
       if (!o) return [];
@@ -90,7 +96,7 @@ function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData
     return {
       label: element.data.name,
       package: element.data.packageName ?? "",
-      attributes: [],
+      attributes,
       methods,
       stereotype: "interface",
     };
@@ -199,8 +205,8 @@ export default function SSoTClassEditorModal() {
         ops.setElementMembers(editingId, attributes, operations);
       } else if (element.kind === "INTERFACE") {
         ops.updateInterface(editingId, { name: newData.label });
-        const { operations } = toIrMembers(newData);
-        ops.setElementMembers(editingId, [], operations);
+        const { attributes, operations } = toIrMembers(newData);
+        ops.setElementMembers(editingId, attributes, operations);
       } else {
         ops.updateEnum(editingId, {
           name: newData.label,
@@ -261,7 +267,7 @@ export default function SSoTClassEditorModal() {
           ],
         });
       } else if (element.kind === "INTERFACE") {
-        const { operations } = toIrMembers(newData);
+        const { attributes, operations } = toIrMembers(newData);
         undoTransaction({
           label: `Edit Interface: ${element.data.name}`,
           scope: 'global',
@@ -273,8 +279,11 @@ export default function SSoTClassEditorModal() {
               if (!iface) return;
               iface.name = newData.label;
               if (pkg !== undefined) iface.packageName = pkg;
+              (iface.attributeIds ?? []).forEach((id: string) => { delete draft.model.attributes[id]; });
               iface.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
+              attributes.forEach((a: IRAttribute) => { draft.model.attributes[a.id] = a; });
               operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
+              iface.attributeIds = attributes.map((a: IRAttribute) => a.id);
               iface.operationIds = operations.map((o: IROperation) => o.id);
               draft.model.updatedAt = Date.now();
             },

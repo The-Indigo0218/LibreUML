@@ -178,7 +178,7 @@ export const useModelStore = create<ModelStoreState>()(
           });
         }
         
-        draft.model.interfaces[id] = { ...data, id, kind: 'INTERFACE' };
+        draft.model.interfaces[id] = { ...data, id, kind: 'INTERFACE', attributeIds: data.attributeIds ?? [] };
         draft.model.updatedAt = Date.now();
       });
       return id;
@@ -259,8 +259,11 @@ export const useModelStore = create<ModelStoreState>()(
           draft.model.classes[elementId].attributeIds = attributes.map((a: IRAttribute) => a.id);
           draft.model.classes[elementId].operationIds = operations.map((o: IROperation) => o.id);
         } else if (iface) {
+          (iface.attributeIds ?? []).forEach((id: string) => { delete draft.model.attributes[id]; });
           iface.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
+          attributes.forEach((a: IRAttribute) => { draft.model.attributes[a.id] = a; });
           operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
+          draft.model.interfaces[elementId].attributeIds = attributes.map((a: IRAttribute) => a.id);
           draft.model.interfaces[elementId].operationIds = operations.map((o: IROperation) => o.id);
         }
         draft.model.updatedAt = Date.now();

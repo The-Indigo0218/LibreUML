@@ -194,6 +194,8 @@ export interface IRInterface extends IRElement {
   kind: 'INTERFACE';
   packageId?: string;
   packageName?: string;
+  /** UML 2.5.1 §10.4: interfaces may own attributes as well as operations. Defaults to [] when absent (backward compat). */
+  attributeIds?: string[];
   operationIds: string[];
   isExternal?: boolean;
 }

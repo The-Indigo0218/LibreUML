@@ -154,7 +154,17 @@ function buildSections(
     });
   } else if (kind === 'INTERFACE') {
     const iface = element as IRInterface;
+    const attrs = (iface.attributeIds ?? []).map((id) => model.attributes[id]).filter(Boolean);
     const ops = iface.operationIds.map((id) => model.operations[id]).filter(Boolean);
+
+    sections.push({
+      id: 'attributes',
+      items: attrs.map((a) => ({
+        id: a.id,
+        text: `${irVisSymbol(a.visibility)}${a.name}: ${a.type}`,
+        isStatic: a.isStatic,
+      })),
+    });
 
     sections.push({
       id: 'operations',

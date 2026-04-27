@@ -216,8 +216,11 @@ export function standaloneModelOps(fileId: string) {
           m.classes[elementId].attributeIds = attributes.map((a) => a.id);
           m.classes[elementId].operationIds = operations.map((o) => o.id);
         } else if (iface) {
+          (iface.attributeIds ?? []).forEach((aid) => { delete m.attributes[aid]; });
           iface.operationIds.forEach((oid) => { delete m.operations[oid]; });
+          attributes.forEach((a) => { m.attributes[a.id] = a; });
           operations.forEach((o) => { m.operations[o.id] = o; });
+          m.interfaces[elementId].attributeIds = attributes.map((a) => a.id);
           m.interfaces[elementId].operationIds = operations.map((o) => o.id);
         }
         m.updatedAt = Date.now();

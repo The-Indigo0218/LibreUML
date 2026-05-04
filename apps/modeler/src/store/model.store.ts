@@ -429,7 +429,7 @@ export const useModelStore = create<ModelStoreState>()(
       return () => {
         setTimeout(() => {
           import('../core/undo/instance').then(({ undoManager }) => {
-            undoManager.clear();
+            undoManager?.clear();
           });
         }, 0);
       };

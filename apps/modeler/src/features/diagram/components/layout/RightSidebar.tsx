@@ -506,7 +506,11 @@ export default function RightSidebar() {
         </div>
         <div className="flex items-center gap-0.5">
           <button
-            onClick={(e) => { e.stopPropagation(); isStandalone ? handleStandaloneNewPackage() : handleNewPackage(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isStandalone) handleStandaloneNewPackage();
+              else handleNewPackage();
+            }}
             className="p-1 hover:bg-surface-hover rounded transition-colors opacity-0 group-hover:opacity-100"
             title="New Package"
           >

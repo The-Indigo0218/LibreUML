@@ -123,7 +123,7 @@ describe('DiagramSerializer', () => {
       // Should contain newlines (formatted)
       expect(json).toContain('\n');
       // Should contain indentation
-      expect(json).toMatch(/\n  /);
+      expect(json).toMatch(/\n {2}/);
     });
 
     it('should handle complex model structures', () => {

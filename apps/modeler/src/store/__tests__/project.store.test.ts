@@ -28,14 +28,17 @@ describe('Project Store', () => {
     });
 
     it('should update a node', () => {
+      // Use a deliberately old timestamp so the post-update Date.now() is reliably greater,
+      // even when the test runs faster than 1ms.
+      const oldTimestamp = Date.now() - 1000;
       const node: ClassNode = {
         id: 'node-1',
         type: 'CLASS',
         name: 'OriginalName',
         attributes: [],
         methods: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        createdAt: oldTimestamp,
+        updatedAt: oldTimestamp,
       };
 
       useProjectStore.getState().addNode(node);

@@ -49,14 +49,14 @@ export function normalizeAllNodeTypes(
   nodes: Record<string, DomainNode>
 ): Record<string, DomainNode> {
   const normalizedNodes: Record<string, DomainNode> = {};
-  let changeCount = 0;
+  let _changeCount = 0;
   
   for (const [id, node] of Object.entries(nodes)) {
     const normalizedNode = normalizeNodeType(node);
     normalizedNodes[id] = normalizedNode;
 
     if (normalizedNode !== node) {
-      changeCount++;
+      _changeCount++;
     }
   }
 

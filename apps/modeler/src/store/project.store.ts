@@ -102,7 +102,7 @@ export const useProjectStore = create<ProjectStoreState>()(
             (edge) => edge.sourceNodeId === nodeId || edge.targetNodeId === nodeId
           );
 
-          const { [nodeId]: removedNode, ...remainingNodes } = state.nodes;
+          const { [nodeId]: _removedNode, ...remainingNodes } = state.nodes;
 
           const newEdges = { ...state.edges };
           connectedEdges.forEach((edge) => {
@@ -176,7 +176,7 @@ export const useProjectStore = create<ProjectStoreState>()(
        */
       removeEdge: (edgeId) =>
         set((state) => {
-          const { [edgeId]: removed, ...remainingEdges } = state.edges;
+          const { [edgeId]: _removed, ...remainingEdges } = state.edges;
           return { edges: remainingEdges };
         }),
 

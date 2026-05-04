@@ -6,7 +6,7 @@ export function useWikiSearch(query: string, categoryFilter?: string): WikiArtic
   const { t } = useTranslation();
 
   return useMemo(() => {
-    let pool = categoryFilter
+    const pool = categoryFilter
       ? wikiData.filter((a) => a.category === categoryFilter || a.subcategory === categoryFilter)
       : wikiData;
 

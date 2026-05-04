@@ -4,7 +4,12 @@ import type { DomainNode } from '../../core/domain/models/nodes';
 import type { ClassNode } from '../../core/domain/models/nodes/class-diagram.types';
 
 const mockFile = vi.fn();
-const mockFolder = vi.fn(() => ({ file: mockFile }));
+// JSZip's folder() returns another folder-capable object — make the mock recursive
+// so nested folder().folder() chains work.
+const mockFolder: ReturnType<typeof vi.fn> = vi.fn(() => ({
+  file: mockFile,
+  folder: mockFolder,
+}));
 
 vi.mock('jszip', () => {
   return {
@@ -58,7 +63,9 @@ describe('ProjectZipperService', () => {
     await ProjectZipperService.generateAndDownloadZip(config);
 
     
-    expect(mockFolder).toHaveBeenCalledWith('src/main/java/com/test/demo');
+    // Service creates folders in two steps: zip.folder('src/main/java') then .folder('com/test/demo')
+    expect(mockFolder).toHaveBeenCalledWith('src/main/java');
+    expect(mockFolder).toHaveBeenCalledWith('com/test/demo');
     expect(mockFile).toHaveBeenCalledWith('User.java', expect.stringContaining('class User'));
     expect(mockFile).toHaveBeenCalledWith('pom.xml', expect.stringContaining('<artifactId>demo</artifactId>'));
     

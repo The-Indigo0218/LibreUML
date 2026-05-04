@@ -1,104 +1,26 @@
 {
-  "name": "frontend",
+  "name": "libreuml-monorepo",
   "private": true,
   "version": "0.0.0",
-  "main": "dist-electron/main.js",
-  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "dist": "npm run build && electron-builder",
-    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"npm run electron:build -- --watch\"",
-    "electron:build": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\": \\\"commonjs\\\"}')\" && electron .",
-    "test": "vitest",
-    "i18n:check": "node scripts/i18n-check.mjs"
-  },
-  "dependencies": {
-    "@types/dompurify": "^3.0.5",
-    "@vercel/analytics": "^1.6.1",
-    "axios": "^1.15.0",
-    "dagre": "^0.8.5",
-    "dompurify": "^3.4.1",
-    "electron-is-dev": "^3.0.1",
-    "file-saver": "^2.0.5",
-    "i18next": "^25.8.0",
-    "i18next-browser-languagedetector": "^8.2.0",
-    "immer": "^11.1.4",
-    "jszip": "^3.10.1",
-    "konva": "^10.2.3",
-    "lucide-react": "^0.562.0",
-    "posthog-js": "^1.369.3",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-i18next": "^16.5.3",
-    "react-konva": "^19.2.3",
-    "react-router-dom": "^7.14.1",
-    "zustand": "^5.0.9"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "dev:modeler": "turbo run dev --filter=@libreuml/modeler",
+    "dev:academy": "turbo run dev --filter=@libreuml/academy",
+    "electron:dev": "turbo run electron:dev --filter=@libreuml/modeler",
+    "dist": "turbo run dist --filter=@libreuml/modeler"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@tailwindcss/postcss": "^4.1.18",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
-    "@types/dagre": "^0.7.54",
-    "@types/file-saver": "^2.0.7",
-    "@types/jszip": "^3.4.0",
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.5",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.1",
-    "autoprefixer": "^10.4.23",
-    "concurrently": "^9.2.1",
-    "cross-env": "^10.1.0",
-    "electron": "^39.2.7",
-    "electron-builder": "^26.4.0",
-    "eslint": "^9.39.1",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
-    "globals": "^16.5.0",
-    "jsdom": "^27.4.0",
-    "msw": "^2.13.4",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.18",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4",
-    "vite-plugin-electron": "^0.29.0",
-    "vitest": "^4.0.18",
-    "wait-on": "^9.0.3"
+    "turbo": "^2.9.8"
   },
-  "build": {
-    "appId": "com.libreuml.app",
-    "productName": "LibreUML",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*"
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "public/icon.ico"
-    },
-    "mac": {
-      "target": "dmg",
-      "icon": "public/icon.icns"
-    },
-    "linux": {
-      "target": "AppImage",
-      "category": "Development"
-    },
-    "fileAssociations": [
-      {
-        "ext": "luml",
-        "name": "LibreUML Diagram",
-        "description": "LibreUML Project File",
-        "role": "Editor",
-        "icon": "public/icon.ico"
-      }
-    ]
-  }
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@11.6.2"
 }

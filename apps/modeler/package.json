@@ -1,5 +1,5 @@
 {
-  "name": "frontend",
+  "name": "@libreuml/modeler",
   "private": true,
   "version": "0.0.0",
   "main": "dist-electron/main.js",
@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "dist": "npm run build && electron-builder",
-    "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"npm run electron:build -- --watch\"",
+    "electron:dev": "concurrently -k \"cross-env BROWSER=none vite\" \"npm run electron:build -- --watch\"",
     "electron:build": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\": \\\"commonjs\\\"}')\" && electron .",
     "test": "vitest",
     "i18n:check": "node scripts/i18n-check.mjs"

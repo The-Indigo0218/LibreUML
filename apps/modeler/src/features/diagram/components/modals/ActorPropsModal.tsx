@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
 import { useModelStore } from '../../../../store/model.store';
 import { useVFSStore } from '../../../../store/project-vfs.store';
@@ -9,6 +10,7 @@ import { standaloneModelOps, getLocalModel } from '../../../../store/standaloneM
 import type { IRActor } from '../../../../core/domain/vfs/vfs.types';
 
 export default function ActorPropsModal() {
+  const { t } = useTranslation();
   const { activeModal, editingId, closeModals } = useUiStore();
   const isOpen = activeModal === 'actor-props' && !!editingId;
 
@@ -69,7 +71,7 @@ export default function ActorPropsModal() {
       >
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <div className="flex items-center gap-2">
-            <span className="text-[#64748b] text-sm">Actor:</span>
+            <span className="text-[#64748b] text-sm">{t('actor.title')}:</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -84,20 +86,20 @@ export default function ActorPropsModal() {
         <div className="px-4 pb-4 space-y-4">
           {/* Actor type */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-[#60a5fa] mb-2">Tipo</label>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[#60a5fa] mb-2">{t('actor.type')}</label>
             <div className="grid grid-cols-3 gap-2">
-              {(['human', 'system', 'timer'] as const).map((t) => (
+              {(['human', 'system', 'timer'] as const).map((at) => (
                 <button
-                  key={t}
-                  onClick={() => setActorType(t)}
+                  key={at}
+                  onClick={() => setActorType(at)}
                   className={[
                     'py-1.5 rounded border text-xs font-medium transition-all capitalize',
-                    actorType === t
+                    actorType === at
                       ? 'border-[#7C83FF] bg-[#7C83FF]/10 text-[#7C83FF]'
                       : 'border-[#2a3358] text-[#64748b] hover:border-[#3d4a6e] hover:text-[#94a3b8]',
                   ].join(' ')}
                 >
-                  {t === 'human' ? '👤 Human' : t === 'system' ? '⚙️ System' : '⏱ Timer'}
+                  {at === 'human' ? `👤 ${t('actor.types.human')}` : at === 'system' ? `⚙️ ${t('actor.types.system')}` : `⏱ ${t('actor.types.timer')}`}
                 </button>
               ))}
             </div>
@@ -114,18 +116,18 @@ export default function ActorPropsModal() {
               <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${isAbstract ? 'translate-x-4' : 'translate-x-0'}`} />
             </button>
             <label className="text-sm text-[#cbd5e1] select-none" onClick={() => setIsAbstract((v) => !v)}>
-              Abstract <span className="text-[#475569] text-xs">(nombre en itálica)</span>
+              {t('actor.abstract.label')} <span className="text-[#475569] text-xs">{t('actor.abstract.description')}</span>
             </label>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-[#60a5fa] mb-1.5">Descripción</label>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-[#60a5fa] mb-1.5">{t('actor.description')}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="Describe el rol del actor en el sistema…"
+              placeholder={t('actor.description.placeholder')}
               className="w-full px-2.5 py-1.5 bg-[#0f1419] border border-[#2a3358] rounded text-[#e2e8f0] text-sm placeholder-[#374151] focus:outline-none focus:border-[#7C83FF] resize-none"
             />
           </div>
@@ -133,10 +135,10 @@ export default function ActorPropsModal() {
 
         <div className="flex justify-end gap-3 px-4 pb-4">
           <button onClick={closeModals} className="px-3 py-1.5 text-sm text-[#94a3b8] bg-[#1e2738] hover:bg-[#2a3358] rounded-lg transition-colors">
-            Cancelar
+            {t('common.cancel', 'Cancel')}
           </button>
           <button onClick={handleSave} className="px-3 py-1.5 text-sm text-white bg-[#7C83FF] hover:bg-[#6366f1] rounded-lg transition-colors">
-            Guardar
+            {t('common.save', 'Save')}
           </button>
         </div>
       </div>

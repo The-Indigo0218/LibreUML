@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, GripVertical } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
 import { useModelStore } from '../../../../store/model.store';
 import { useVFSStore } from '../../../../store/project-vfs.store';
@@ -29,6 +30,7 @@ function StepList({
   steps: UseCaseFlowStep[];
   onChange: (steps: UseCaseFlowStep[]) => void;
 }) {
+  const { t } = useTranslation();
   const add = () => onChange([...steps, newStep(steps.length + 1)]);
   const remove = (id: string) => {
     const next = steps.filter((s) => s.id !== id).map((s, i) => ({ ...s, stepNumber: i + 1 }));
@@ -46,7 +48,7 @@ function StepList({
           <input
             value={step.description}
             onChange={(e) => update(step.id, e.target.value)}
-            placeholder={`Paso ${step.stepNumber}…`}
+            placeholder={t('useCase.step.placeholder', { number: step.stepNumber })}
             className="flex-1 px-2 py-1.5 bg-[#0f1419] border border-[#2a3358] rounded text-[#e2e8f0] text-sm placeholder-[#374151] focus:outline-none focus:border-[#7C83FF]"
           />
           <button
@@ -61,7 +63,7 @@ function StepList({
         onClick={add}
         className="flex items-center gap-1 text-xs text-[#7C83FF] hover:text-[#9499ff] transition-colors mt-1"
       >
-        <Plus className="w-3.5 h-3.5" /> Agregar paso
+        <Plus className="w-3.5 h-3.5" /> {t('useCase.addStep')}
       </button>
     </div>
   );
@@ -70,6 +72,7 @@ function StepList({
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 export default function UseCaseSpecModal() {
+  const { t } = useTranslation();
   const { activeModal, editingId, closeModals } = useUiStore();
   const isOpen = activeModal === 'use-case-spec' && !!editingId;
 
@@ -156,7 +159,7 @@ export default function UseCaseSpecModal() {
         {/* ── Header ─────────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-[#64748b] text-sm">Use Case:</span>
+            <span className="text-[#64748b] text-sm">{t('useCase.title')}:</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -171,16 +174,16 @@ export default function UseCaseSpecModal() {
         {/* ── Tabs ───────────────────────────────────────────────────────────── */}
         <div className="flex gap-1 px-5 border-b border-[#2a3358] shrink-0">
           {([
-            ['description', 'Descripción'],
-            ['flows', 'Flujos'],
-            ['extensions', 'Ext. Points'],
-          ] as [Tab, string][]).map(([t, label]) => (
+            ['description', t('useCase.tabs.description')],
+            ['flows',       t('useCase.tabs.flows')],
+            ['extensions',  t('useCase.tabs.extensionPoints')],
+          ] as [Tab, string][]).map(([tabKey, label]) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={tabKey}
+              onClick={() => setTab(tabKey)}
               className={[
                 'px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-                tab === t
+                tab === tabKey
                   ? 'border-[#7C83FF] text-[#7C83FF]'
                   : 'border-transparent text-[#64748b] hover:text-[#94a3b8]',
               ].join(' ')}
@@ -195,38 +198,38 @@ export default function UseCaseSpecModal() {
 
           {tab === 'description' && (
             <>
-              <Field label="Descripción breve">
+              <Field label={t('useCase.briefDescription')}>
                 <textarea
                   value={briefDescription}
                   onChange={(e) => setBriefDescription(e.target.value)}
                   rows={3}
-                  placeholder="¿Qué hace este use case?"
+                  placeholder={t('useCase.briefDescription.placeholder')}
                   className={TEXTAREA_CLASS}
                 />
               </Field>
-              <Field label="Disparador (Trigger)">
+              <Field label={t('useCase.trigger')}>
                 <input
                   value={trigger}
                   onChange={(e) => setTrigger(e.target.value)}
-                  placeholder="¿Qué inicia este use case?"
+                  placeholder={t('useCase.trigger.placeholder')}
                   className={INPUT_CLASS}
                 />
               </Field>
-              <Field label="Precondiciones">
+              <Field label={t('useCase.preconditions')}>
                 <textarea
                   value={preconditions}
                   onChange={(e) => setPreconditions(e.target.value)}
                   rows={3}
-                  placeholder="Condiciones que deben cumplirse antes de ejecutar el use case"
+                  placeholder={t('useCase.preconditions.placeholder')}
                   className={TEXTAREA_CLASS}
                 />
               </Field>
-              <Field label="Postcondiciones">
+              <Field label={t('useCase.postconditions')}>
                 <textarea
                   value={postconditions}
                   onChange={(e) => setPostconditions(e.target.value)}
                   rows={3}
-                  placeholder="Estado del sistema después de completarse el use case"
+                  placeholder={t('useCase.postconditions.placeholder')}
                   className={TEXTAREA_CLASS}
                 />
               </Field>
@@ -235,21 +238,18 @@ export default function UseCaseSpecModal() {
 
           {tab === 'flows' && (
             <>
-              <Field label="Flujo básico (happy path)">
-                <StepList
-                  steps={basicFlow}
-                  onChange={setBasicFlow}
-                />
+              <Field label={t('useCase.basicFlow')}>
+                <StepList steps={basicFlow} onChange={setBasicFlow} />
               </Field>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className={LABEL_CLASS}>Flujos alternativos</label>
+                  <label className={LABEL_CLASS}>{t('useCase.alternativeFlows')}</label>
                   <button
                     onClick={() => setAltFlows((p) => [...p, newAltFlow()])}
                     className="flex items-center gap-1 text-xs text-[#7C83FF] hover:text-[#9499ff] transition-colors"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Agregar flujo
+                    <Plus className="w-3.5 h-3.5" /> {t('useCase.addAlternativeFlow')}
                   </button>
                 </div>
                 <div className="space-y-4">
@@ -259,7 +259,7 @@ export default function UseCaseSpecModal() {
                         <input
                           value={af.name}
                           onChange={(e) => updateAltFlow(af.id, { name: e.target.value })}
-                          placeholder="Nombre del flujo alternativo"
+                          placeholder={t('useCase.alternativeFlow.name.placeholder')}
                           className={`${INPUT_CLASS} flex-1`}
                         />
                         <button
@@ -272,7 +272,7 @@ export default function UseCaseSpecModal() {
                       <input
                         value={af.trigger}
                         onChange={(e) => updateAltFlow(af.id, { trigger: e.target.value })}
-                        placeholder="Condición que activa este flujo"
+                        placeholder={t('useCase.alternativeFlow.trigger.placeholder')}
                         className={INPUT_CLASS}
                       />
                       <StepList
@@ -282,7 +282,7 @@ export default function UseCaseSpecModal() {
                     </div>
                   ))}
                   {altFlows.length === 0 && (
-                    <p className="text-xs text-[#475569] italic">Sin flujos alternativos definidos.</p>
+                    <p className="text-xs text-[#475569] italic">{t('useCase.noAlternativeFlows')}</p>
                   )}
                 </div>
               </div>
@@ -290,14 +290,14 @@ export default function UseCaseSpecModal() {
           )}
 
           {tab === 'extensions' && (
-            <Field label="Extension Points">
+            <Field label={t('useCase.extensionPoints')}>
               <div className="space-y-1.5">
                 {extensionPoints.map((ep, i) => (
                   <div key={i} className="flex items-center gap-2 group">
                     <input
                       value={ep}
                       onChange={(e) => setExtensionPoints((p) => p.map((v, j) => (j === i ? e.target.value : v)))}
-                      placeholder={`Extension point ${i + 1}`}
+                      placeholder={t('useCase.extensionPoint.placeholder', { number: i + 1 })}
                       className={`${INPUT_CLASS} flex-1`}
                     />
                     <button
@@ -312,7 +312,7 @@ export default function UseCaseSpecModal() {
                   onClick={() => setExtensionPoints((p) => [...p, ''])}
                   className="flex items-center gap-1 text-xs text-[#7C83FF] hover:text-[#9499ff] transition-colors"
                 >
-                  <Plus className="w-3.5 h-3.5" /> Agregar extension point
+                  <Plus className="w-3.5 h-3.5" /> {t('useCase.addExtensionPoint')}
                 </button>
               </div>
             </Field>
@@ -325,13 +325,13 @@ export default function UseCaseSpecModal() {
             onClick={closeModals}
             className="px-4 py-2 text-sm font-medium text-[#cbd5e1] bg-[#1e2738] hover:bg-[#2a3358] rounded-lg transition-colors"
           >
-            Cancelar
+            {t('common.cancel', 'Cancel')}
           </button>
           <button
             onClick={handleSave}
             className="px-4 py-2 text-sm font-medium text-white bg-[#7C83FF] hover:bg-[#6366f1] rounded-lg transition-colors"
           >
-            Guardar
+            {t('common.save', 'Save')}
           </button>
         </div>
       </div>

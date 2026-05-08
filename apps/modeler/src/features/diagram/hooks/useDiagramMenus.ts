@@ -223,11 +223,11 @@ export const useDiagramMenus = ({
         const pos = () => screenToCanvas({ x: menu.x, y: menu.y });
         if (isUseCaseDiagram) {
           return [
-            { label: "Add Actor",           onClick: () => addVFSNode("ACTOR", pos()) },
-            { label: "Add Use Case",        onClick: () => addVFSNode("USE_CASE", pos()) },
-            { label: "Add System Boundary", onClick: () => addVFSNode("SYSTEM_BOUNDARY", pos()) },
-            { label: "Add Note",            onClick: () => addVFSNode("NOTE", pos()) },
-            { label: t("contextMenu.pane.cleanCanvas"), onClick: onClearCanvas, danger: true },
+            { label: t("contextMenu.pane.addActor"),          onClick: () => addVFSNode("ACTOR", pos()) },
+            { label: t("contextMenu.pane.addUseCase"),        onClick: () => addVFSNode("USE_CASE", pos()) },
+            { label: t("contextMenu.pane.addSystemBoundary"), onClick: () => addVFSNode("SYSTEM_BOUNDARY", pos()) },
+            { label: t("contextMenu.pane.addNote"),           onClick: () => addVFSNode("NOTE", pos()) },
+            { label: t("contextMenu.pane.cleanCanvas"),       onClick: onClearCanvas, danger: true },
           ];
         }
         return [
@@ -274,7 +274,7 @@ export const useDiagramMenus = ({
 
         if (!isPackageType && !isNoteType) {
           baseOptions.push({
-            label: isUseCaseNodeType ? "Rename" : t("contextMenu.node.edit"),
+            label: isUseCaseNodeType ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
           });
         }
@@ -283,7 +283,7 @@ export const useDiagramMenus = ({
           const elementId = getElementId(nodeId);
           if (elementId) {
             baseOptions.push({
-              label: "Edit specification",
+              label: t("contextMenu.node.editSpecification"),
               onClick: () => useUiStore.getState().openUseCaseSpec(elementId),
             });
           }
@@ -293,7 +293,7 @@ export const useDiagramMenus = ({
           const elementId = getElementId(nodeId);
           if (elementId) {
             baseOptions.push({
-              label: "Edit properties",
+              label: t("contextMenu.node.editActorProperties"),
               onClick: () => useUiStore.getState().openActorProps(elementId),
             });
           }
@@ -301,7 +301,7 @@ export const useDiagramMenus = ({
 
         if (isNoteType) {
           baseOptions.push({
-            label: "Edit note",
+            label: t("contextMenu.node.editNote"),
             icon: "edit",
             onClick: () => onEditNote(nodeId),
           });

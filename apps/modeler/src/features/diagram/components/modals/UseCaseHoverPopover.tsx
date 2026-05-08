@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { X, FileText, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { IRUseCase } from '../../../../core/domain/vfs/vfs.types';
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onOpenSpec }: Props) {
+  const { t } = useTranslation();
   const hasAnySpec = !!(
     uc.briefDescription || uc.preconditions || uc.postconditions ||
     uc.basicFlow?.length || uc.alternativeFlows?.length
@@ -46,7 +48,7 @@ export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onO
       <div className="px-3 pb-2 space-y-2">
         {!hasAnySpec ? (
           <p className="text-[#64748b] text-xs italic">
-            Sin especificación definida — doble click para agregar
+            {t('useCase.noSpec.hint')}
           </p>
         ) : (
           <>
@@ -59,7 +61,7 @@ export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onO
             {uc.preconditions && (
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-[#60a5fa]">
-                  Precondiciones
+                  {t('useCase.preconditions')}
                 </span>
                 <p className="text-[#94a3b8] text-xs mt-0.5 line-clamp-2">{uc.preconditions}</p>
               </div>
@@ -68,7 +70,7 @@ export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onO
             {uc.basicFlow && uc.basicFlow.length > 0 && (
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-[#60a5fa]">
-                  Flujo básico
+                  {t('useCase.basicFlow')}
                 </span>
                 <div className="mt-0.5 space-y-0.5">
                   {uc.basicFlow.slice(0, 3).map((step) => (
@@ -81,7 +83,7 @@ export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onO
                   ))}
                   {uc.basicFlow.length > 3 && (
                     <p className="text-[#475569] text-xs">
-                      +{uc.basicFlow.length - 3} pasos más
+                      {t('useCase.moreSteps', { count: uc.basicFlow.length - 3 })}
                     </p>
                   )}
                 </div>
@@ -90,7 +92,7 @@ export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onO
 
             {uc.alternativeFlows && uc.alternativeFlows.length > 0 && (
               <p className="text-[#64748b] text-xs">
-                {uc.alternativeFlows.length} flujo{uc.alternativeFlows.length > 1 ? 's' : ''} alternativo{uc.alternativeFlows.length > 1 ? 's' : ''}
+                {t('useCase.alternativeFlowCount', { count: uc.alternativeFlows.length })}
               </p>
             )}
           </>
@@ -102,7 +104,7 @@ export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onO
           onClick={() => { onClose(); onOpenSpec(); }}
           className="w-full flex items-center justify-between px-2.5 py-1.5 rounded bg-[#1e2738] hover:bg-[#253047] text-[#7C83FF] hover:text-[#9499ff] text-xs font-medium transition-colors"
         >
-          <span>{hasAnySpec ? 'Ver especificación completa' : 'Agregar especificación'}</span>
+          <span>{hasAnySpec ? t('useCase.viewFullSpec') : t('useCase.addSpec')}</span>
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>

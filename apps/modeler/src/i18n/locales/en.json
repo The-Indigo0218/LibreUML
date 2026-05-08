@@ -145,18 +145,25 @@
       "addInterface": "Add Interface",
       "addAbstract": "Add Abstract Class",
       "addNote": "Add Note",
-      "cleanCanvas": "Clean Canvas"
+      "cleanCanvas": "Clean Canvas",
+      "addActor": "Add Actor",
+      "addUseCase": "Add Use Case",
+      "addSystemBoundary": "Add System Boundary"
     },
     "node": {
       "duplicate": "Duplicate",
       "edit": "Edit Properties",
+      "rename": "Rename",
       "delete": "Delete",
       "generateCode": "Generate Code...",
       "generateMethods": "Generate Getters & Setters...",
       "addToProject": "Add to Project",
       "removeFromDiagram": "Remove from Diagram",
       "removeFromCanvas": "Remove from Canvas",
-      "deleteFromModel": "Delete from Model"
+      "deleteFromModel": "Delete from Model",
+      "editNote": "Edit Note",
+      "editSpecification": "Edit Specification",
+      "editActorProperties": "Edit Properties"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",
@@ -1300,5 +1307,57 @@
     "theme": "Theme",
     "themeLight": "Switch to light mode",
     "themeDark": "Switch to dark mode"
+  },
+  "useCase": {
+    "title": "Use Case",
+    "noSpec": {
+      "hint": "No specification defined — double-click to add"
+    },
+    "viewFullSpec": "View full specification",
+    "addSpec": "Add specification",
+    "moreSteps": "+{{count}} more steps",
+    "alternativeFlowCount_one": "{{count}} alternative flow",
+    "alternativeFlowCount_other": "{{count}} alternative flows",
+    "tabs": {
+      "description": "Description",
+      "flows": "Flows",
+      "extensionPoints": "Ext. Points"
+    },
+    "briefDescription": "Brief description",
+    "briefDescription.placeholder": "What does this use case do?",
+    "trigger": "Trigger",
+    "trigger.placeholder": "What initiates this use case?",
+    "preconditions": "Preconditions",
+    "preconditions.placeholder": "Conditions that must hold before the use case starts",
+    "postconditions": "Postconditions",
+    "postconditions.placeholder": "System state after the use case completes",
+    "basicFlow": "Basic flow (happy path)",
+    "step.placeholder": "Step {{number}}…",
+    "addStep": "Add step",
+    "alternativeFlows": "Alternative flows",
+    "addAlternativeFlow": "Add flow",
+    "alternativeFlow": {
+      "name.placeholder": "Alternative flow name",
+      "trigger.placeholder": "Condition that activates this flow"
+    },
+    "noAlternativeFlows": "No alternative flows defined.",
+    "extensionPoints": "Extension Points",
+    "extensionPoint.placeholder": "Extension point {{number}}",
+    "addExtensionPoint": "Add extension point"
+  },
+  "actor": {
+    "title": "Actor",
+    "type": "Type",
+    "types": {
+      "human": "Human",
+      "system": "System",
+      "timer": "Timer"
+    },
+    "abstract": {
+      "label": "Abstract",
+      "description": "(name in italic)"
+    },
+    "description": "Description",
+    "description.placeholder": "Describe the actor's role in the system…"
   }
 }

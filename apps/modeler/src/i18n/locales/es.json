@@ -153,18 +153,25 @@
       "addInterface": "Agregar Interfaz",
       "addAbstract": "Agregar Abstracta",
       "addNote": "Agregar Nota",
-      "cleanCanvas": "Limpiar Lienzo"
+      "cleanCanvas": "Limpiar Lienzo",
+      "addActor": "Agregar Actor",
+      "addUseCase": "Agregar Caso de Uso",
+      "addSystemBoundary": "Agregar Límite de Sistema"
     },
     "node": {
       "duplicate": "Duplicar",
       "edit": "Editar Propiedades",
+      "rename": "Renombrar",
       "delete": "Eliminar",
       "generateCode": "Generar Código...",
       "generateMethods": "Generar Getters y Setters...",
       "addToProject": "Añadir al Proyecto",
       "removeFromDiagram": "Quitar del Diagrama",
       "removeFromCanvas": "Quitar del Lienzo",
-      "deleteFromModel": "Eliminar del Modelo"
+      "deleteFromModel": "Eliminar del Modelo",
+      "editNote": "Editar Nota",
+      "editSpecification": "Editar Especificación",
+      "editActorProperties": "Editar Propiedades"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",
@@ -1309,5 +1316,57 @@
     "theme": "Tema",
     "themeLight": "Cambiar a modo claro",
     "themeDark": "Cambiar a modo oscuro"
+  },
+  "useCase": {
+    "title": "Caso de Uso",
+    "noSpec": {
+      "hint": "Sin especificación definida — doble click para agregar"
+    },
+    "viewFullSpec": "Ver especificación completa",
+    "addSpec": "Agregar especificación",
+    "moreSteps": "+{{count}} pasos más",
+    "alternativeFlowCount_one": "{{count}} flujo alternativo",
+    "alternativeFlowCount_other": "{{count}} flujos alternativos",
+    "tabs": {
+      "description": "Descripción",
+      "flows": "Flujos",
+      "extensionPoints": "Ext. Points"
+    },
+    "briefDescription": "Descripción breve",
+    "briefDescription.placeholder": "¿Qué hace este caso de uso?",
+    "trigger": "Disparador (Trigger)",
+    "trigger.placeholder": "¿Qué inicia este caso de uso?",
+    "preconditions": "Precondiciones",
+    "preconditions.placeholder": "Condiciones que deben cumplirse antes de ejecutar el caso de uso",
+    "postconditions": "Postcondiciones",
+    "postconditions.placeholder": "Estado del sistema después de completarse el caso de uso",
+    "basicFlow": "Flujo básico (happy path)",
+    "step.placeholder": "Paso {{number}}…",
+    "addStep": "Agregar paso",
+    "alternativeFlows": "Flujos alternativos",
+    "addAlternativeFlow": "Agregar flujo",
+    "alternativeFlow": {
+      "name.placeholder": "Nombre del flujo alternativo",
+      "trigger.placeholder": "Condición que activa este flujo"
+    },
+    "noAlternativeFlows": "Sin flujos alternativos definidos.",
+    "extensionPoints": "Extension Points",
+    "extensionPoint.placeholder": "Extension point {{number}}",
+    "addExtensionPoint": "Agregar extension point"
+  },
+  "actor": {
+    "title": "Actor",
+    "type": "Tipo",
+    "types": {
+      "human": "Humano",
+      "system": "Sistema",
+      "timer": "Temporizador"
+    },
+    "abstract": {
+      "label": "Abstracto",
+      "description": "(nombre en itálica)"
+    },
+    "description": "Descripción",
+    "description.placeholder": "Describe el rol del actor en el sistema…"
   }
 }

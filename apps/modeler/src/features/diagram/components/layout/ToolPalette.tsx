@@ -21,7 +21,16 @@ export default function ToolPalette() {
   const { runLayout } = useKonvaAutoLayout();
 
   const activeFile = activeFileId ? getFile(activeFileId) : null;
-  const diagramType = activeFile?.diagramType || 'CLASS_DIAGRAM';
+
+  // VFS-based diagrams store diagramType in project.nodes, not in the legacy workspace files.
+  // Prefer the VFS source of truth; fall back to legacy file for non-VFS diagrams.
+  const diagramType = (() => {
+    if (activeTabId && project) {
+      const node = project.nodes[activeTabId];
+      if (node?.type === 'FILE' && node.diagramType) return node.diagramType;
+    }
+    return activeFile?.diagramType || 'CLASS_DIAGRAM';
+  })();
 
   const isVFSDiagram = useMemo(() => {
     if (!activeTabId || !project) return false;

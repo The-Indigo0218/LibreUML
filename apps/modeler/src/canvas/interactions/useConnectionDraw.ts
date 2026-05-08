@@ -40,9 +40,14 @@ import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { NodeBounds } from '../edges/geometry';
 import type { AnyNodeViewModel } from '../../adapters/react-flow/view-models/node.view-model';
-import { isNoteViewModel } from '../../adapters/react-flow/view-models/node.view-model';
-import type { NodeViewModel } from '../../adapters/react-flow/view-models/node.view-model';
-import { isPackageViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import {
+  isNoteViewModel,
+  isPackageViewModel,
+  isActorViewModel,
+  isUseCaseViewModel,
+  isSystemBoundaryViewModel,
+  type NodeViewModel,
+} from '../../adapters/react-flow/view-models/node.view-model';
 import { validateConnection } from '../../util/connectionValidator';
 import type { stereotype, UmlRelationType } from '../../features/diagram/types/diagram.types';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
@@ -73,14 +78,21 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   AGGREGATION:    'AGGREGATION',
   COMPOSITION:    'COMPOSITION',
   GENERALIZATION: 'GENERALIZATION',
+  INCLUDE:        'INCLUDE',
+  EXTEND:         'EXTEND',
   PACKAGE_IMPORT: 'PACKAGE_IMPORT',
   PACKAGE_MERGE:  'PACKAGE_MERGE',
   PACKAGE_ACCESS: 'PACKAGE_ACCESS',
 };
 
+const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'useCase', 'systemBoundary']);
+
 function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isNoteViewModel(vm)) return 'note';
   if (isPackageViewModel(vm)) return 'package';
+  if (isActorViewModel(vm)) return 'actor';
+  if (isUseCaseViewModel(vm)) return 'useCase';
+  if (isSystemBoundaryViewModel(vm)) return 'systemBoundary';
   const nvm = vm as NodeViewModel;
   const s = nvm.stereotype;
   if (s === 'abstract' || s === 'interface' || s === 'enum') return s;
@@ -332,7 +344,10 @@ export function useConnectionDraw({
               const tgtStereotype = resolveStereotype(tgtNode.data);
 
               // Package→package: always allowed. Kind is forced to DEPENDENCY in the handler.
+              // Use case diagram nodes: delegate entirely to the registry validator in onConnect.
               if (srcStereotype === 'package' && tgtStereotype === 'package') {
+                onConnect(src.nodeId, snap.nodeId);
+              } else if (USE_CASE_STEREOTYPES.has(srcStereotype) || USE_CASE_STEREOTYPES.has(tgtStereotype)) {
                 onConnect(src.nodeId, snap.nodeId);
               } else {
                 const wsState = useWorkspaceStore.getState();

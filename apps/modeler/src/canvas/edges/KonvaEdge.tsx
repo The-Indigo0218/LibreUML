@@ -71,7 +71,7 @@ const KIND_COLOR_VAR: Partial<Record<RelationKind, string>> = {
   ASSOCIATION:    '--edge-association',
   AGGREGATION:    '--edge-aggregation',
   COMPOSITION:    '--edge-composition',
-  INCLUDE:        '--edge-implementation',
+  INCLUDE:        '--edge-dependency',
   EXTEND:         '--edge-dependency',
   PACKAGE_IMPORT: '--edge-dependency',
   PACKAGE_MERGE:  '--edge-dependency',
@@ -113,12 +113,16 @@ function formatKindLabel(kind: RelationKind): string {
 
 function getStereotypeLabel(kind: RelationKind): string | null {
   switch (kind) {
+    case 'INCLUDE':
+      return '«include»';
+    case 'EXTEND':
+      return '«extend»';
     case 'PACKAGE_IMPORT':
-      return '<<import>>';
+      return '«import»';
     case 'PACKAGE_MERGE':
-      return '<<merge>>';
+      return '«merge»';
     case 'PACKAGE_ACCESS':
-      return '<<access>>';
+      return '«access»';
     default:
       return null;
   }

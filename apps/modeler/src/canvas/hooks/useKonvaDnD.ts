@@ -90,6 +90,46 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
     applyToLocalModelDraft: () => {},
     isVisualOnly: true,
   },
+  actor: {
+    getNextName: (model) =>
+      getNextVFSName(Object.values(model.actors ?? {}).map((a) => a.name), 'Actor'),
+    applyToModelDraft: (m, id, name) => {
+      m.actors[id] = { id, name, kind: 'ACTOR' };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.actors = lm.actors ?? {};
+      lm.actors[id] = { id, name, kind: 'ACTOR' };
+      lm.updatedAt = Date.now();
+    },
+  },
+  useCase: {
+    getNextName: (model) =>
+      getNextVFSName(Object.values(model.useCases ?? {}).map((uc) => uc.name), 'UseCase'),
+    applyToModelDraft: (m, id, name) => {
+      m.useCases[id] = { id, name, kind: 'USECASE', extensionPoints: [] };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.useCases = lm.useCases ?? {};
+      lm.useCases[id] = { id, name, kind: 'USECASE', extensionPoints: [] };
+      lm.updatedAt = Date.now();
+    },
+  },
+  systemBoundary: {
+    getNextName: (model) =>
+      getNextVFSName(Object.values(model.systemBoundaries ?? {}).map((sb) => sb.name), 'System'),
+    applyToModelDraft: (m, id, name) => {
+      m.systemBoundaries = m.systemBoundaries ?? {};
+      m.systemBoundaries[id] = { id, name, kind: 'SYSTEM_BOUNDARY' };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.systemBoundaries = lm.systemBoundaries ?? {};
+      lm.systemBoundaries[id] = { id, name, kind: 'SYSTEM_BOUNDARY' };
+      lm.updatedAt = Date.now();
+    },
+  },
   package: {
     getNextName: (model) => getNextVFSName(Object.values(model.packages).map((p) => p.name), 'Package'),
     applyToModelDraft: (m, id, name, isExternal) => {

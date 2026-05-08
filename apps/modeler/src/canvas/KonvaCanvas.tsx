@@ -13,6 +13,9 @@ import { useKonvaDnD } from './hooks/useKonvaDnD';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
 import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
+import ActorShape, { getActorShapeSize } from './shapes/ActorShape';
+import UseCaseShape, { getUseCaseShapeSize } from './shapes/UseCaseShape';
+import SystemBoundaryShape, { getSystemBoundaryShapeSize } from './shapes/SystemBoundaryShape';
 import { computePackageSize } from './engine/packageLayout';
 import KonvaEdge from './edges/KonvaEdge';
 import SelectionRect from './selection/SelectionRect';
@@ -47,8 +50,14 @@ import { useTranslation } from 'react-i18next';
 import {
   isNoteViewModel,
   isPackageViewModel,
+  isActorViewModel,
+  isUseCaseViewModel,
+  isSystemBoundaryViewModel,
   type NodeViewModel,
   type PackageViewModel,
+  type ActorViewModel,
+  type UseCaseViewModel,
+  type SystemBoundaryViewModel,
 } from '../adapters/react-flow/view-models/node.view-model';
 import { selectAnchors, anchorPointToHandle, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
@@ -143,6 +152,18 @@ export default function KonvaCanvas() {
         height = size.height;
       } else if (isNoteViewModel(vm)) {
         const size = getNoteShapeSize(vm);
+        width = size.width;
+        height = size.height;
+      } else if (isActorViewModel(vm)) {
+        const size = getActorShapeSize(vm);
+        width = size.width;
+        height = size.height;
+      } else if (isUseCaseViewModel(vm)) {
+        const size = getUseCaseShapeSize(vm);
+        width = size.width;
+        height = size.height;
+      } else if (isSystemBoundaryViewModel(vm)) {
+        const size = getSystemBoundaryShapeSize(vm);
         width = size.width;
         height = size.height;
       } else {
@@ -285,6 +306,15 @@ export default function KonvaCanvas() {
       const vm = shape.data;
       if (isNoteViewModel(vm)) {
         const { width, height } = getNoteShapeSize(vm);
+        map.set(shape.id, { x: pos.x, y: pos.y, width, height });
+      } else if (isActorViewModel(vm)) {
+        const { width, height } = getActorShapeSize(vm);
+        map.set(shape.id, { x: pos.x, y: pos.y, width, height });
+      } else if (isUseCaseViewModel(vm)) {
+        const { width, height } = getUseCaseShapeSize(vm);
+        map.set(shape.id, { x: pos.x, y: pos.y, width, height });
+      } else if (isSystemBoundaryViewModel(vm)) {
+        const { width, height } = getSystemBoundaryShapeSize(vm);
         map.set(shape.id, { x: pos.x, y: pos.y, width, height });
       } else {
         const { width, height } = getClassShapeSize(vm as NodeViewModel);
@@ -1234,6 +1264,60 @@ export default function KonvaCanvas() {
                     />
                   );
                 }
+                if (isActorViewModel(vm)) {
+                  return (
+                    <ActorShape
+                      key={shape.id}
+                      viewModel={vm}
+                      x={pos.x}
+                      y={pos.y}
+                      selected={selectedIds.has(shape.id)}
+                      draggable
+                      onDragStart={guardedDragStart}
+                      onDragMove={handleDragMove}
+                      onDragEnd={handleDragEnd}
+                      onNodeClick={onNodeClick}
+                      onContextMenu={handleNodeContextMenu}
+                      visible={isVisible && !isDescendantOfCollapsed}
+                    />
+                  );
+                }
+                if (isUseCaseViewModel(vm)) {
+                  return (
+                    <UseCaseShape
+                      key={shape.id}
+                      viewModel={vm}
+                      x={pos.x}
+                      y={pos.y}
+                      selected={selectedIds.has(shape.id)}
+                      draggable
+                      onDragStart={guardedDragStart}
+                      onDragMove={handleDragMove}
+                      onDragEnd={handleDragEnd}
+                      onNodeClick={onNodeClick}
+                      onContextMenu={handleNodeContextMenu}
+                      visible={isVisible && !isDescendantOfCollapsed}
+                    />
+                  );
+                }
+                if (isSystemBoundaryViewModel(vm)) {
+                  return (
+                    <SystemBoundaryShape
+                      key={shape.id}
+                      viewModel={vm}
+                      x={pos.x}
+                      y={pos.y}
+                      selected={selectedIds.has(shape.id)}
+                      draggable
+                      onDragStart={guardedDragStart}
+                      onDragMove={handleDragMove}
+                      onDragEnd={handleDragEnd}
+                      onNodeClick={onNodeClick}
+                      onContextMenu={handleNodeContextMenu}
+                      visible={isVisible && !isDescendantOfCollapsed}
+                    />
+                  );
+                }
                 return (
                   <ClassShape
                     key={shape.id}
@@ -1309,6 +1393,39 @@ export default function KonvaCanvas() {
               if (isNoteViewModel(vm)) {
                 return (
                   <NoteShape
+                    key={'ghost-' + ghost.id}
+                    viewModel={vm}
+                    x={ghost.x}
+                    y={ghost.y}
+                    opacity={0.3}
+                  />
+                );
+              }
+              if (isActorViewModel(vm)) {
+                return (
+                  <ActorShape
+                    key={'ghost-' + ghost.id}
+                    viewModel={vm}
+                    x={ghost.x}
+                    y={ghost.y}
+                    opacity={0.3}
+                  />
+                );
+              }
+              if (isUseCaseViewModel(vm)) {
+                return (
+                  <UseCaseShape
+                    key={'ghost-' + ghost.id}
+                    viewModel={vm}
+                    x={ghost.x}
+                    y={ghost.y}
+                    opacity={0.3}
+                  />
+                );
+              }
+              if (isSystemBoundaryViewModel(vm)) {
+                return (
+                  <SystemBoundaryShape
                     key={'ghost-' + ghost.id}
                     viewModel={vm}
                     x={ghost.x}

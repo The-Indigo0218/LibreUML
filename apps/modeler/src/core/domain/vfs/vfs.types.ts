@@ -229,6 +229,10 @@ export interface IRUseCase extends IRElement {
   extensionPoints?: string[];
 }
 
+export interface IRSystemBoundary extends IRElement {
+  kind: 'SYSTEM_BOUNDARY';
+}
+
 export interface IRActivityNode extends IRElement {
   kind: 'ACTIVITY_NODE';
   activityType: 'ACTION' | 'DECISION' | 'MERGE' | 'FORK' | 'JOIN' | 'INITIAL' | 'FINAL';
@@ -309,6 +313,7 @@ export interface SemanticModel {
   operations: Record<string, IROperation>;
   actors: Record<string, IRActor>;
   useCases: Record<string, IRUseCase>;
+  systemBoundaries?: Record<string, IRSystemBoundary>;
   activityNodes: Record<string, IRActivityNode>;
   objectInstances: Record<string, IRObjectInstance>;
   components: Record<string, IRComponent>;

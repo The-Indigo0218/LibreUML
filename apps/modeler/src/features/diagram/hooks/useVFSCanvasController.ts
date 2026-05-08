@@ -27,6 +27,9 @@ import type {
   IRInterface,
   IREnum,
   IRPackage,
+  IRActor,
+  IRUseCase,
+  IRSystemBoundary,
   SemanticModel,
   RelationKind,
 } from '../../../core/domain/vfs/vfs.types';
@@ -34,9 +37,13 @@ import type {
   NodeViewModel,
   NoteViewModel,
   PackageViewModel,
+  ActorViewModel,
+  UseCaseViewModel,
+  SystemBoundaryViewModel,
   NodeStyleConfig,
   NodeSection,
 } from '../../../adapters/react-flow/view-models/node.view-model';
+import { SB_DEFAULT_W, SB_DEFAULT_H } from '../../../canvas/shapes/SystemBoundaryShape';
 import type { Visibility } from '../../../core/domain/vfs/vfs.types';
 
 // ─── Type guard ───────────────────────────────────────────────────────────────
@@ -193,10 +200,10 @@ function buildSections(
 
 // ─── Semantic resolution ──────────────────────────────────────────────────────
 
-type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'UNKNOWN';
+type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'ACTOR' | 'USECASE' | 'SYSTEM_BOUNDARY' | 'UNKNOWN';
 
 interface ResolvedElement {
-  element: IRClass | IRInterface | IREnum | IRPackage | null;
+  element: IRClass | IRInterface | IREnum | IRPackage | IRActor | IRUseCase | IRSystemBoundary | null;
   kind: SemanticKind;
 }
 
@@ -219,6 +226,15 @@ function resolveSemanticElement(model: SemanticModel, elementId: string): Resolv
 
   const pkg = model.packages[elementId];
   if (pkg) return { element: pkg, kind: 'PACKAGE' };
+
+  const actor = model.actors?.[elementId];
+  if (actor) return { element: actor, kind: 'ACTOR' };
+
+  const uc = model.useCases?.[elementId];
+  if (uc) return { element: uc, kind: 'USECASE' };
+
+  const sb = model.systemBoundaries?.[elementId];
+  if (sb) return { element: sb, kind: 'SYSTEM_BOUNDARY' };
 
   return { element: null, kind: 'UNKNOWN' };
 }
@@ -365,10 +381,77 @@ function makeReactFlowPackageNode(
   };
 }
 
+function makeReactFlowActorNode(
+  viewNode: ViewNode,
+  actor: IRActor,
+  allViewNodes: ViewNode[],
+) {
+  const vm: ActorViewModel = {
+    __brand: 'actor',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    name: actor.name,
+    isAbstract: actor.isAbstract ?? false,
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlActor',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
+function makeReactFlowUseCaseNode(
+  viewNode: ViewNode,
+  uc: IRUseCase,
+  allViewNodes: ViewNode[],
+) {
+  const vm: UseCaseViewModel = {
+    __brand: 'useCase',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    name: uc.name,
+    extensionPoints: uc.extensionPoints ?? [],
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlUseCase',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
+function makeReactFlowSystemBoundaryNode(
+  viewNode: ViewNode,
+  sb: IRSystemBoundary,
+  allViewNodes: ViewNode[],
+) {
+  const vm: SystemBoundaryViewModel = {
+    __brand: 'systemBoundary',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    name: sb.name,
+    width: viewNode.width ?? SB_DEFAULT_W,
+    height: viewNode.height ?? SB_DEFAULT_H,
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlSystemBoundary',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
 export type VFSReactFlowNode =
   | ReturnType<typeof makeReactFlowNode>
   | ReturnType<typeof makeReactFlowNoteNode>
-  | ReturnType<typeof makeReactFlowPackageNode>;
+  | ReturnType<typeof makeReactFlowPackageNode>
+  | ReturnType<typeof makeReactFlowActorNode>
+  | ReturnType<typeof makeReactFlowUseCaseNode>
+  | ReturnType<typeof makeReactFlowSystemBoundaryNode>;
 
 // ─── Edge type ────────────────────────────────────────────────────────────────
 
@@ -627,6 +710,18 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
       if (kind === 'PACKAGE') {
         return makeReactFlowPackageNode(viewNode, element as IRPackage, diagramView.nodes, model.packages);
+      }
+
+      if (kind === 'ACTOR') {
+        return makeReactFlowActorNode(viewNode, element as IRActor, diagramView.nodes);
+      }
+
+      if (kind === 'USECASE') {
+        return makeReactFlowUseCaseNode(viewNode, element as IRUseCase, diagramView.nodes);
+      }
+
+      if (kind === 'SYSTEM_BOUNDARY') {
+        return makeReactFlowSystemBoundaryNode(viewNode, element as IRSystemBoundary, diagramView.nodes);
       }
 
       const label = element?.name ?? 'NewClass';

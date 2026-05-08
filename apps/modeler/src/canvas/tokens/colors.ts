@@ -96,3 +96,31 @@ export function resolveNoteColors(): KonvaNoteColors {
 export function sublabelColor(): string {
   return isDark() ? '#fbbf24' : '#ca8a04';
 }
+
+export interface KonvaUseCaseColors {
+  stroke: string;
+  fill: string;
+  text: string;
+}
+
+/** Stick-figure stroke and label color for Actor nodes. */
+export function resolveActorColors(): KonvaUseCaseColors {
+  const text = getCSSVar('--text-primary');
+  return { stroke: text, fill: 'transparent', text };
+}
+
+/** Ellipse stroke, fill, and label color for UseCase nodes. */
+export function resolveUseCaseColors(): KonvaUseCaseColors {
+  const dark = isDark();
+  return {
+    stroke: dark ? '#60a5fa' : '#2563eb',
+    fill: dark ? '#1e3a5f' : '#eff6ff',
+    text: getCSSVar('--text-primary'),
+  };
+}
+
+/** Dashed-rect stroke and label color for SystemBoundary nodes. */
+export function resolveSystemBoundaryColors(): KonvaUseCaseColors {
+  const text = getCSSVar('--text-secondary');
+  return { stroke: text, fill: 'transparent', text };
+}

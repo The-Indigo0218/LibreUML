@@ -101,10 +101,35 @@ export interface PackageViewModel {
   depth: number;
 }
 
+export interface ActorViewModel {
+  __brand: 'actor';
+  id: string;
+  domainId: string;
+  name: string;
+  isAbstract: boolean;
+}
+
+export interface UseCaseViewModel {
+  __brand: 'useCase';
+  id: string;
+  domainId: string;
+  name: string;
+  extensionPoints: string[];
+}
+
+export interface SystemBoundaryViewModel {
+  __brand: 'systemBoundary';
+  id: string;
+  domainId: string;
+  name: string;
+  width: number;
+  height: number;
+}
+
 /**
  * Union type for all node view models
  */
-export type AnyNodeViewModel = NodeViewModel | NoteViewModel | PackageViewModel;
+export type AnyNodeViewModel = NodeViewModel | NoteViewModel | PackageViewModel | ActorViewModel | UseCaseViewModel | SystemBoundaryViewModel;
 
 /**
  * Type guard for NodeViewModel
@@ -122,4 +147,16 @@ export function isNoteViewModel(vm: AnyNodeViewModel): vm is NoteViewModel {
 
 export function isPackageViewModel(vm: AnyNodeViewModel): vm is PackageViewModel {
   return '__brand' in vm && vm.__brand === 'package';
+}
+
+export function isActorViewModel(vm: AnyNodeViewModel): vm is ActorViewModel {
+  return '__brand' in vm && vm.__brand === 'actor';
+}
+
+export function isUseCaseViewModel(vm: AnyNodeViewModel): vm is UseCaseViewModel {
+  return '__brand' in vm && vm.__brand === 'useCase';
+}
+
+export function isSystemBoundaryViewModel(vm: AnyNodeViewModel): vm is SystemBoundaryViewModel {
+  return '__brand' in vm && vm.__brand === 'systemBoundary';
 }

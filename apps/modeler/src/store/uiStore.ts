@@ -23,6 +23,7 @@ export type ActiveModal =
   | "keyboard-shortcuts"
   | "wiki"
   | "feedback"
+  | "use-case-spec"
   | null;
 
 export interface AnchorSnapshot {
@@ -59,6 +60,7 @@ interface UiStoreState {
   openKeyboardShortcuts: () => void;
   openWiki: () => void;
   openFeedback: () => void;
+  openUseCaseSpec: (elementId: string) => void;
   closeModals: () => void;
   openGetStarted: () => void;
   closeGetStarted: () => void;
@@ -124,6 +126,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openWiki: () => set({ activeModal: "wiki", editingId: null }),
 
   openFeedback: () => set({ activeModal: "feedback", editingId: null }),
+  openUseCaseSpec: (elementId) => set({ activeModal: "use-case-spec", editingId: elementId }),
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 

@@ -116,7 +116,9 @@ export interface UseCaseViewModel {
   domainId: string;
   name: string;
   extensionPoints: string[];
+  hasSpec: boolean;
   onRename?: (name: string) => void;
+  onOpenSpec?: () => void;
 }
 
 export interface SystemBoundaryViewModel {

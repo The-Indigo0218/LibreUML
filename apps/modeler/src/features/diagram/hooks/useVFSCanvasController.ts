@@ -8,6 +8,7 @@ import type {
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
+import { useUiStore } from '../../../store/uiStore';
 import {
   ensureLocalModel,
   standaloneModelOps,
@@ -409,14 +410,21 @@ function makeReactFlowUseCaseNode(
   uc: IRUseCase,
   allViewNodes: ViewNode[],
   onRename: (name: string) => void,
+  onOpenSpec: () => void,
 ) {
+  const hasSpec = !!(
+    uc.briefDescription || uc.preconditions || uc.postconditions ||
+    (uc.basicFlow?.length) || (uc.alternativeFlows?.length)
+  );
   const vm: UseCaseViewModel = {
     __brand: 'useCase',
     id: viewNode.id,
     domainId: viewNode.elementId,
     name: uc.name,
     extensionPoints: uc.extensionPoints ?? [],
+    hasSpec,
     onRename,
+    onOpenSpec,
   };
   return {
     id: viewNode.id,
@@ -737,7 +745,10 @@ export function useVFSCanvasController(): VFSCanvasResult {
             useModelStore.getState().updateUseCase(viewNode.elementId, { name });
           }
         };
-        return makeReactFlowUseCaseNode(viewNode, element as IRUseCase, diagramView.nodes, onRenameUC);
+        const onOpenSpec = () => {
+          useUiStore.getState().openUseCaseSpec(viewNode.elementId);
+        };
+        return makeReactFlowUseCaseNode(viewNode, element as IRUseCase, diagramView.nodes, onRenameUC, onOpenSpec);
       }
 
       if (kind === 'SYSTEM_BOUNDARY') {

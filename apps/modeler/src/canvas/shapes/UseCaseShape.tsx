@@ -1,4 +1,4 @@
-import { Group, Ellipse, Text, Line, Rect } from 'react-konva';
+import { Group, Ellipse, Text, Line, Rect, Circle } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { UseCaseViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import { resolveUseCaseColors } from '../tokens/colors';
@@ -9,14 +9,15 @@ import { measureTextWidth } from './measureText';
 const MIN_W = 140;
 const MAX_W = 280;
 const BASE_H = 56;
-const EP_H = 16;          // height per extension point row
-const EP_SEP_PAD = 6;     // padding above/below separator
+const EP_H = 16;
+const EP_SEP_PAD = 6;
 const EP_FONT = 11;
 const NAME_FONT = 13;
 const STROKE_W = 1.5;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const FONT_MONO = '"Fira Code", monospace';
 const H_PAD = 16;
+const SPEC_DOT_R = 4;   // radius of the "has spec" indicator dot
 
 export function getUseCaseShapeSize(vm: UseCaseViewModel): { width: number; height: number } {
   const nameW = measureTextWidth(vm.name, `${NAME_FONT}px ${FONT_SANS}`) + H_PAD * 2;
@@ -43,6 +44,8 @@ interface UseCaseShapeProps {
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
   onDblClick?: (e: KonvaEventObject<MouseEvent>) => void;
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, nodeId: string) => void;
+  onMouseEnter?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
+  onMouseLeave?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   draggable?: boolean;
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
@@ -59,6 +62,8 @@ export default function UseCaseShape({
   onNodeClick,
   onDblClick,
   onContextMenu,
+  onMouseEnter,
+  onMouseLeave,
   draggable,
   onDragStart,
   onDragMove,
@@ -98,6 +103,8 @@ export default function UseCaseShape({
         e.cancelBubble = true;
         onContextMenu?.(e, vm.id);
       }}
+      onMouseEnter={(e) => onMouseEnter?.(e, vm.id)}
+      onMouseLeave={(e) => onMouseLeave?.(e, vm.id)}
     >
       {/* ── Ellipse body ────────────────────────────────────────────────────── */}
       <Ellipse
@@ -125,7 +132,7 @@ export default function UseCaseShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Extension points section ─────────────────────────────────────────── */}
+      {/* ── Extension points ─────────────────────────────────────────────────── */}
       {hasEP && (
         <>
           <Line
@@ -151,6 +158,20 @@ export default function UseCaseShape({
             />
           ))}
         </>
+      )}
+
+      {/* ── "Has spec" indicator dot (top-right of ellipse) ──────────────────── */}
+      {vm.hasSpec && (
+        <Circle
+          x={cx + rx - SPEC_DOT_R - 1}
+          y={cy - ry + SPEC_DOT_R + 1}
+          radius={SPEC_DOT_R}
+          fill="#f59e0b"
+          stroke="#ffffff"
+          strokeWidth={1}
+          listening={false}
+          perfectDrawEnabled={false}
+        />
       )}
 
       {/* ── Transparent hit-target ──────────────────────────────────────────── */}

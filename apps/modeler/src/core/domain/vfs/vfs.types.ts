@@ -224,9 +224,28 @@ export interface IRActor extends IRElement {
   isAbstract?: boolean;
 }
 
+export interface UseCaseFlowStep {
+  id: string;
+  stepNumber: number;
+  description: string;
+}
+
+export interface UseCaseAltFlow {
+  id: string;
+  name: string;
+  trigger: string;
+  steps: UseCaseFlowStep[];
+}
+
 export interface IRUseCase extends IRElement {
   kind: 'USECASE';
   extensionPoints?: string[];
+  briefDescription?: string;
+  preconditions?: string;
+  postconditions?: string;
+  trigger?: string;
+  basicFlow?: UseCaseFlowStep[];
+  alternativeFlows?: UseCaseAltFlow[];
 }
 
 export interface IRSystemBoundary extends IRElement {

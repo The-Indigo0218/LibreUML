@@ -40,6 +40,8 @@ import PackageHierarchyModal from './overlays/PackageHierarchyModal';
 import ConfirmationModal from '../components/shared/ConfirmationModal';
 import { DeletePackageModal } from '../features/diagram/components/layout/packageExplorer/DeletePackageModal';
 import NoteEditorModal from '../features/diagram/components/modals/NoteEditorModal';
+import UseCaseHoverPopover from '../features/diagram/components/modals/UseCaseHoverPopover';
+import UseCaseSpecModal from '../features/diagram/components/modals/UseCaseSpecModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
 import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
@@ -99,6 +101,12 @@ export default function KonvaCanvas() {
   });
 
   const [clearCanvasModal, setClearCanvasModal] = useState(false);
+  const [ucHover, setUcHover] = useState<{
+    elementId: string;
+    screenX: number;
+    screenY: number;
+  } | null>(null);
+  const ucHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [noteEditorModal, setNoteEditorModal] = useState<{
     noteId: string;
     initialTitle: string;
@@ -755,6 +763,41 @@ export default function KonvaCanvas() {
       }
     },
     [shapes, stageRef, positionOverrides, startInlineEditing],
+  );
+
+  const handleUseCaseMouseEnter = useCallback(
+    (e: KonvaEventObject<MouseEvent>, shapeId: string) => {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape || !isUseCaseViewModel(shape.data)) return;
+      const vm = shape.data;
+      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === shapeId);
+      if (!viewNode?.elementId) return;
+
+      if (ucHoverTimer.current) clearTimeout(ucHoverTimer.current);
+      ucHoverTimer.current = setTimeout(() => {
+        const stage = stageRef.current;
+        if (!stage) return;
+        const pos = positionOverrides.get(shapeId) ?? { x: shape.x, y: shape.y };
+        const { width, height } = getUseCaseShapeSize(vm);
+        const transform = stage.getAbsoluteTransform().copy();
+        const screenPt = transform.point({ x: pos.x + width / 2, y: pos.y + height });
+        setUcHover({ elementId: viewNode.elementId, screenX: screenPt.x, screenY: screenPt.y + 8 });
+      }, 400);
+    },
+    [shapes, vfsController.diagramView, stageRef, positionOverrides],
+  );
+
+  const handleUseCaseMouseLeave = useCallback(() => {
+    if (ucHoverTimer.current) { clearTimeout(ucHoverTimer.current); ucHoverTimer.current = null; }
+  }, []);
+
+  const handleUseCaseDblClickModal = useCallback(
+    (shapeId: string) => {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape || !isUseCaseViewModel(shape.data)) return;
+      shape.data.onOpenSpec?.();
+    },
+    [shapes],
   );
 
   const buildAnchorSnapshot = useCallback(
@@ -1419,8 +1462,10 @@ export default function KonvaCanvas() {
                       onDragMove={handleDragMove}
                       onDragEnd={handleDragEnd}
                       onNodeClick={onNodeClick}
-                      onDblClick={(e) => handleUseCaseDblClick(shape.id, e)}
+                      onDblClick={() => handleUseCaseDblClickModal(shape.id)}
                       onContextMenu={handleNodeContextMenu}
+                      onMouseEnter={handleUseCaseMouseEnter}
+                      onMouseLeave={handleUseCaseMouseLeave}
                       visible={isVisible && !isDescendantOfCollapsed}
                     />
                   );
@@ -1704,6 +1749,29 @@ export default function KonvaCanvas() {
           setCullingWarningOpen(false);
         }}
       />
+
+      {/* ── Use Case hover popover (non-blocking DOM overlay) ─────────────── */}
+      {ucHover && (() => {
+        const activeModel = vfsController.isStandalone
+          ? vfsController.localModel
+          : useModelStore.getState().model;
+        const uc = activeModel?.useCases?.[ucHover.elementId];
+        if (!uc) return null;
+        return (
+          <UseCaseHoverPopover
+            uc={uc}
+            screenX={ucHover.screenX}
+            screenY={ucHover.screenY}
+            onClose={() => setUcHover(null)}
+            onOpenSpec={() => {
+              setUcHover(null);
+              useUiStore.getState().openUseCaseSpec(ucHover.elementId);
+            }}
+          />
+        );
+      })()}
+
+      <UseCaseSpecModal />
     </div>
   );
 }

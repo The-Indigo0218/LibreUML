@@ -126,6 +126,7 @@ export interface SystemBoundaryViewModel {
   name: string;
   width: number;
   height: number;
+  onRename?: (name: string) => void;
 }
 
 /**

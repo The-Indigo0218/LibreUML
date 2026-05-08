@@ -431,6 +431,7 @@ function makeReactFlowSystemBoundaryNode(
   viewNode: ViewNode,
   sb: IRSystemBoundary,
   allViewNodes: ViewNode[],
+  onRename: (name: string) => void,
 ) {
   const vm: SystemBoundaryViewModel = {
     __brand: 'systemBoundary',
@@ -439,6 +440,7 @@ function makeReactFlowSystemBoundaryNode(
     name: sb.name,
     width: viewNode.width ?? SB_DEFAULT_W,
     height: viewNode.height ?? SB_DEFAULT_H,
+    onRename,
   };
   return {
     id: viewNode.id,
@@ -739,7 +741,14 @@ export function useVFSCanvasController(): VFSCanvasResult {
       }
 
       if (kind === 'SYSTEM_BOUNDARY') {
-        return makeReactFlowSystemBoundaryNode(viewNode, element as IRSystemBoundary, diagramView.nodes);
+        const onRenameSB = (name: string) => {
+          if (isStandalone && activeTabId) {
+            standaloneModelOps(activeTabId).updateSystemBoundary(viewNode.elementId, { name });
+          } else {
+            useModelStore.getState().updateSystemBoundary(viewNode.elementId, { name });
+          }
+        };
+        return makeReactFlowSystemBoundaryNode(viewNode, element as IRSystemBoundary, diagramView.nodes, onRenameSB);
       }
 
       const label = element?.name ?? 'NewClass';

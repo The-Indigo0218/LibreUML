@@ -7,6 +7,7 @@ import { useModelStore } from "../../../store/model.store";
 import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../store/standaloneModelOps";
 import { isDiagramView } from "./useVFSCanvasController";
 import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
+import { undoTransaction } from "../../../core/undo/undoBridge";
 import type { DiagramView, ViewNode, VFSFile } from "../../../core/domain/vfs/vfs.types";
 
 export type ContextMenuType = "pane" | "node" | "edge";
@@ -39,6 +40,8 @@ interface UseDiagramMenusProps {
   getElementId: (nodeId: string) => string | undefined;
   /** True when the active diagram is a standalone .luml file (no project). */
   isStandalone?: boolean;
+  /** Active diagram type — drives which pane-menu options are shown. */
+  diagramType?: string;
   /** Converts screen-space {x,y} to canvas/world-space coordinates. */
   screenToCanvas: (screen: { x: number; y: number }) => { x: number; y: number };
 }
@@ -60,8 +63,10 @@ export const useDiagramMenus = ({
   getIsNodeExternal,
   getElementId,
   isStandalone = false,
+  diagramType,
   screenToCanvas,
 }: UseDiagramMenusProps) => {
+  const isUseCaseDiagram = diagramType === 'USE_CASE_DIAGRAM';
   const { t } = useTranslation();
 
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator);
@@ -69,7 +74,7 @@ export const useDiagramMenus = ({
   // ── VFS node creation for pane context menu ─────────────────────────────────
 
   const addVFSNode = useCallback(
-    (kind: 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE', position: { x: number; y: number }) => {
+    (kind: 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE' | 'ACTOR' | 'USE_CASE' | 'SYSTEM_BOUNDARY', position: { x: number; y: number }) => {
       const tabId = useWorkspaceStore.getState().activeTabId;
       if (!tabId) return;
 
@@ -104,6 +109,39 @@ export const useDiagramMenus = ({
           case 'ENUM':
             semanticId = ops.createEnum({ name: getNextVFSName(Object.values(localM.enums).map(e => e.name), 'Enum'), literals: [] });
             break;
+          case 'ACTOR': {
+            const newId = crypto.randomUUID();
+            const name = getNextVFSName(Object.values(localM.actors ?? {}).map(a => a.name), 'Actor');
+            undoTransaction({ label: `Create Actor: ${name}`, scope: tabId, mutations: [{ store: 'vfs', mutate: (draft: any) => {
+              const n = draft.project?.nodes[tabId]; if (!n || n.type !== 'FILE') return;
+              n.localModel.actors = n.localModel.actors ?? {};
+              n.localModel.actors[newId] = { id: newId, name, kind: 'ACTOR' };
+              n.localModel.updatedAt = Date.now();
+            }}] });
+            semanticId = newId; break;
+          }
+          case 'USE_CASE': {
+            const newId = crypto.randomUUID();
+            const name = getNextVFSName(Object.values(localM.useCases ?? {}).map(uc => uc.name), 'UseCase');
+            undoTransaction({ label: `Create UseCase: ${name}`, scope: tabId, mutations: [{ store: 'vfs', mutate: (draft: any) => {
+              const n = draft.project?.nodes[tabId]; if (!n || n.type !== 'FILE') return;
+              n.localModel.useCases = n.localModel.useCases ?? {};
+              n.localModel.useCases[newId] = { id: newId, name, kind: 'USECASE', extensionPoints: [] };
+              n.localModel.updatedAt = Date.now();
+            }}] });
+            semanticId = newId; break;
+          }
+          case 'SYSTEM_BOUNDARY': {
+            const newId = crypto.randomUUID();
+            const name = getNextVFSName(Object.values(localM.systemBoundaries ?? {}).map(sb => sb.name), 'System');
+            undoTransaction({ label: `Create System: ${name}`, scope: tabId, mutations: [{ store: 'vfs', mutate: (draft: any) => {
+              const n = draft.project?.nodes[tabId]; if (!n || n.type !== 'FILE') return;
+              n.localModel.systemBoundaries = n.localModel.systemBoundaries ?? {};
+              n.localModel.systemBoundaries[newId] = { id: newId, name, kind: 'SYSTEM_BOUNDARY' };
+              n.localModel.updatedAt = Date.now();
+            }}] });
+            semanticId = newId; break;
+          }
         }
       } else {
         const ms = useModelStore.getState();
@@ -123,6 +161,39 @@ export const useDiagramMenus = ({
           case 'ENUM':
             semanticId = ms.createEnum({ name: getNextVFSName(Object.values(model.enums).map(e => e.name), 'Enum'), literals: [], ...(isExternalFile ? { isExternal: true } : {}) });
             break;
+          case 'ACTOR': {
+            const newId = crypto.randomUUID();
+            const name = getNextVFSName(Object.values(model.actors ?? {}).map(a => a.name), 'Actor');
+            undoTransaction({ label: `Create Actor: ${name}`, scope: 'global', mutations: [{ store: 'model', mutate: (draft: any) => {
+              if (!draft.model) return;
+              draft.model.actors = draft.model.actors ?? {};
+              draft.model.actors[newId] = { id: newId, name, kind: 'ACTOR' };
+              draft.model.updatedAt = Date.now();
+            }}] });
+            semanticId = newId; break;
+          }
+          case 'USE_CASE': {
+            const newId = crypto.randomUUID();
+            const name = getNextVFSName(Object.values(model.useCases ?? {}).map(uc => uc.name), 'UseCase');
+            undoTransaction({ label: `Create UseCase: ${name}`, scope: 'global', mutations: [{ store: 'model', mutate: (draft: any) => {
+              if (!draft.model) return;
+              draft.model.useCases = draft.model.useCases ?? {};
+              draft.model.useCases[newId] = { id: newId, name, kind: 'USECASE', extensionPoints: [] };
+              draft.model.updatedAt = Date.now();
+            }}] });
+            semanticId = newId; break;
+          }
+          case 'SYSTEM_BOUNDARY': {
+            const newId = crypto.randomUUID();
+            const name = getNextVFSName(Object.values(model.systemBoundaries ?? {}).map(sb => sb.name), 'System');
+            undoTransaction({ label: `Create System: ${name}`, scope: 'global', mutations: [{ store: 'model', mutate: (draft: any) => {
+              if (!draft.model) return;
+              draft.model.systemBoundaries = draft.model.systemBoundaries ?? {};
+              draft.model.systemBoundaries[newId] = { id: newId, name, kind: 'SYSTEM_BOUNDARY' };
+              draft.model.updatedAt = Date.now();
+            }}] });
+            semanticId = newId; break;
+          }
         }
       }
 
@@ -149,34 +220,32 @@ export const useDiagramMenus = ({
       if (!menu) return [];
 
       if (menu.type === "pane") {
+        const pos = () => screenToCanvas({ x: menu.x, y: menu.y });
+        if (isUseCaseDiagram) {
+          return [
+            { label: "Add Actor",           onClick: () => addVFSNode("ACTOR", pos()) },
+            { label: "Add Use Case",        onClick: () => addVFSNode("USE_CASE", pos()) },
+            { label: "Add System Boundary", onClick: () => addVFSNode("SYSTEM_BOUNDARY", pos()) },
+            { label: "Add Note",            onClick: () => addVFSNode("NOTE", pos()) },
+            { label: t("contextMenu.pane.cleanCanvas"), onClick: onClearCanvas, danger: true },
+          ];
+        }
         return [
           {
             label: t("contextMenu.pane.addClass"),
-            onClick: () => {
-              const position = screenToCanvas({ x: menu.x, y: menu.y });
-              addVFSNode("CLASS", position);
-            },
+            onClick: () => addVFSNode("CLASS", pos()),
           },
           {
             label: t("contextMenu.pane.addInterface"),
-            onClick: () => {
-              const position = screenToCanvas({ x: menu.x, y: menu.y });
-              addVFSNode("INTERFACE", position);
-            },
+            onClick: () => addVFSNode("INTERFACE", pos()),
           },
           {
             label: t("contextMenu.pane.addAbstract"),
-            onClick: () => {
-              const position = screenToCanvas({ x: menu.x, y: menu.y });
-              addVFSNode("ABSTRACT_CLASS", position);
-            },
+            onClick: () => addVFSNode("ABSTRACT_CLASS", pos()),
           },
           {
             label: t("contextMenu.pane.addNote"),
-            onClick: () => {
-              const position = screenToCanvas({ x: menu.x, y: menu.y });
-              addVFSNode("NOTE", position);
-            },
+            onClick: () => addVFSNode("NOTE", pos()),
           },
           {
             label: t("contextMenu.pane.cleanCanvas"),
@@ -195,13 +264,17 @@ export const useDiagramMenus = ({
           effectiveType === "ABSTRACT_CLASS";
         const isPackageType = effectiveType === "PACKAGE";
         const isNoteType = effectiveType === "NOTE";
+        const isUseCaseNodeType =
+          effectiveType === "ACTOR" ||
+          effectiveType === "USECASE" ||
+          effectiveType === "SYSTEM_BOUNDARY";
         const isNodeExternal = getIsNodeExternal(nodeId);
 
         const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [];
 
         if (!isPackageType && !isNoteType) {
           baseOptions.push({
-            label: t("contextMenu.node.edit"),
+            label: isUseCaseNodeType ? "Rename" : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
           });
         }

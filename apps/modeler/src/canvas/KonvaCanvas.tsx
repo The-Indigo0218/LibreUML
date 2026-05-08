@@ -698,6 +698,49 @@ export default function KonvaCanvas() {
     [shapes, stageRef, startInlineEditing],
   );
 
+  const startUseCaseInlineEdit = useCallback(
+    (shapeId: string) => {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape) return;
+      const vm = shape.data;
+      const stage = stageRef.current;
+      if (!stage) return;
+      const pos = positionOverrides.get(shapeId) ?? { x: shape.x, y: shape.y };
+      const transform = stage.getAbsoluteTransform().copy();
+
+      if (isActorViewModel(vm)) {
+        const { width } = getActorShapeSize(vm);
+        const screenPos = transform.point({ x: pos.x, y: pos.y + ACTOR_NAME_Y_FROM_TOP });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.name, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width, height: ACTOR_NAME_H },
+            (text) => vm.onRename!(text));
+        }
+      } else if (isUseCaseViewModel(vm)) {
+        const { width, height } = getUseCaseShapeSize(vm);
+        const nameY = height * UC_NAME_Y_RATIO - UC_NAME_FONT / 2;
+        const screenPos = transform.point({ x: pos.x + UC_H_PAD, y: pos.y + nameY });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.name, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width: width - UC_H_PAD * 2, height: UC_NAME_FONT + 6 },
+            (text) => vm.onRename!(text));
+        }
+      } else if (isSystemBoundaryViewModel(vm)) {
+        const { width } = getSystemBoundaryShapeSize(vm);
+        const screenPos = transform.point({ x: pos.x + 10, y: pos.y + 4 });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.name, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width: Math.min(width - 20, 280), height: 22 },
+            (text) => vm.onRename!(text));
+        }
+      }
+    },
+    [shapes, stageRef, positionOverrides, startInlineEditing],
+  );
+
   const buildAnchorSnapshot = useCallback(
     (edgeId: string): AnchorSnapshot | null => {
       const edge = edges.find((e) => e.id === edgeId);
@@ -889,6 +932,12 @@ export default function KonvaCanvas() {
 
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (nodeId) => {
+      const shape = shapes.find((s) => s.id === nodeId);
+      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data))) {
+        startUseCaseInlineEdit(nodeId);
+        closeMenu();
+        return;
+      }
       const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
       if (viewNode?.elementId) openSSoTClassEditor(viewNode.elementId);
       closeMenu();
@@ -988,6 +1037,9 @@ export default function KonvaCanvas() {
       if (activeModel.interfaces[viewNode.elementId]) return 'INTERFACE';
       if (activeModel.enums[viewNode.elementId]) return 'ENUM';
       if (activeModel.packages[viewNode.elementId]) return 'PACKAGE';
+      if (activeModel.actors?.[viewNode.elementId]) return 'ACTOR';
+      if (activeModel.useCases?.[viewNode.elementId]) return 'USECASE';
+      if (activeModel.systemBoundaries?.[viewNode.elementId]) return 'SYSTEM_BOUNDARY';
       return 'NOTE';
     },
     getIsNodeExternal: (nodeId) => {
@@ -1005,6 +1057,7 @@ export default function KonvaCanvas() {
     getElementId: (nodeId) =>
       vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId)?.elementId,
     isStandalone: vfsController.isStandalone,
+    diagramType: vfsController.vfsFile?.diagramType,
     screenToCanvas,
   });
 

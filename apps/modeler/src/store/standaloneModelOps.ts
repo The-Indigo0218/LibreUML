@@ -22,6 +22,7 @@ import type {
   IREnum,
   IRActor,
   IRUseCase,
+  IRSystemBoundary,
   IRRelation,
   IRAttribute,
   IROperation,
@@ -212,6 +213,14 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.useCases?.[id]) return;
         m.useCases[id] = { ...m.useCases[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    updateSystemBoundary: (id: string, patch: Partial<IRSystemBoundary>) => {
+      update((m) => {
+        if (!m.systemBoundaries?.[id]) return;
+        m.systemBoundaries![id] = { ...m.systemBoundaries![id], ...patch };
         m.updatedAt = Date.now();
       });
     },

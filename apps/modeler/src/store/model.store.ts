@@ -9,6 +9,7 @@ import type {
   IREnum,
   IRActor,
   IRUseCase,
+  IRSystemBoundary,
   IRRelation,
   IRAttribute,
   IROperation,
@@ -48,6 +49,7 @@ interface ModelStoreState {
 
   updateActor: (id: string, patch: Partial<IRActor>) => void;
   updateUseCase: (id: string, patch: Partial<IRUseCase>) => void;
+  updateSystemBoundary: (id: string, patch: Partial<IRSystemBoundary>) => void;
 
   setElementMembers: (elementId: string, attributes: IRAttribute[], operations: IROperation[]) => void;
 
@@ -263,6 +265,15 @@ export const useModelStore = create<ModelStoreState>()(
       withUndo('model', `Rename UseCase: ${name}`, 'global', (draft) => {
         if (!draft.model?.useCases?.[id]) return;
         draft.model.useCases[id] = { ...draft.model.useCases[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    updateSystemBoundary: (id, patch) => {
+      const name = useModelStore.getState().model?.systemBoundaries?.[id]?.name ?? id;
+      withUndo('model', `Rename System: ${name}`, 'global', (draft) => {
+        if (!draft.model?.systemBoundaries?.[id]) return;
+        draft.model.systemBoundaries![id] = { ...draft.model.systemBoundaries![id], ...patch };
         draft.model.updatedAt = Date.now();
       });
     },

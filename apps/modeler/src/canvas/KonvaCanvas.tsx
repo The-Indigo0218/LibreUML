@@ -15,7 +15,7 @@ import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
 import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
 import ActorShape, { getActorShapeSize } from './shapes/ActorShape';
 import UseCaseShape, { getUseCaseShapeSize } from './shapes/UseCaseShape';
-import SystemBoundaryShape, { getSystemBoundaryShapeSize } from './shapes/SystemBoundaryShape';
+import SystemBoundaryShape, { getSystemBoundaryShapeSize, SB_MIN_W, SB_MIN_H } from './shapes/SystemBoundaryShape';
 
 // Layout constants mirrored from shape files for inline editor positioning
 const ACTOR_NAME_Y_FROM_TOP = 84; // BODY_BOT(58) + LEG_DY(18) + NAME_GAP(8)
@@ -522,13 +522,16 @@ export default function KonvaCanvas() {
   const handleSystemBoundaryResizeEnd = useCallback(
     (shapeId: string, newWidth: number, newHeight: number) => {
       if (!activeTabId) return;
+      // Enforce minimum size here too, as a safety net
+      const w = Math.max(SB_MIN_W, Math.round(newWidth));
+      const h = Math.max(SB_MIN_H, Math.round(newHeight));
       withUndo('vfs', 'Resize System Boundary', activeTabId, (draft: any) => {
         const file = draft.project?.nodes[activeTabId];
         if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
         const viewNode = file.content.nodes.find((vn: any) => vn.id === shapeId);
         if (viewNode) {
-          viewNode.width = Math.round(newWidth);
-          viewNode.height = Math.round(newHeight);
+          viewNode.width = w;
+          viewNode.height = h;
         }
       });
     },

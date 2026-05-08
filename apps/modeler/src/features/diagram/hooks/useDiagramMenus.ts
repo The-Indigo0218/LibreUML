@@ -8,6 +8,7 @@ import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../st
 import { isDiagramView } from "./useVFSCanvasController";
 import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
 import { undoTransaction } from "../../../core/undo/undoBridge";
+import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
 import type { DiagramView, ViewNode, VFSFile } from "../../../core/domain/vfs/vfs.types";
 
 export type ContextMenuType = "pane" | "node" | "edge";
@@ -203,6 +204,7 @@ export const useDiagramMenus = ({
         x: position.x,
         y: position.y,
         ...(kind === 'NOTE' ? { noteTitle: 'Note', content: 'Write here more details' } : {}),
+        ...(kind === 'SYSTEM_BOUNDARY' ? { width: SB_DEFAULT_W, height: SB_DEFAULT_H } : {}),
       };
 
       useVFSStore.getState().updateFileContent(tabId, {

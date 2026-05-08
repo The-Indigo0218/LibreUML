@@ -10,6 +10,7 @@ import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasControll
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/domain/vfs/vfs.types';
 import type { stereotype } from '../../features/diagram/types/diagram.types';
+import { SB_DEFAULT_W, SB_DEFAULT_H } from '../shapes/SystemBoundaryShape';
 
 export const DRAG_TYPE_NEW = 'application/libreuml-node' as const;
 export const DRAG_TYPE_EXISTING = 'application/libreuml-existing-node' as const;
@@ -35,6 +36,8 @@ interface DropConfig {
   applyToModelDraft: (modelDraft: any, id: string, name: string, isExternal?: boolean) => void;
   applyToLocalModelDraft: (lm: any, id: string, name: string) => void;
   isVisualOnly?: boolean;
+  /** Initial ViewNode dimensions — used for resizable containers like SystemBoundary. */
+  initialDimensions?: { width: number; height: number };
 }
 
 const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
@@ -129,6 +132,7 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
       lm.systemBoundaries[id] = { id, name, kind: 'SYSTEM_BOUNDARY' };
       lm.updatedAt = Date.now();
     },
+    initialDimensions: { width: SB_DEFAULT_W, height: SB_DEFAULT_H },
   },
   package: {
     getNextName: (model) => getNextVFSName(Object.values(model.packages).map((p) => p.name), 'Package'),
@@ -1113,6 +1117,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
                   id: newViewNodeId,
                   elementId: dropConfig.isVisualOnly ? '' : newElementId,
                   x: position.x, y: position.y,
+                  ...(dropConfig.initialDimensions ?? {}),
                 });
               }
             },
@@ -1158,7 +1163,12 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
                 mutate: (draft: any) => {
                   const node = draft.project?.nodes[activeTabId];
                   if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
-                  node.content.nodes.push({ id: newViewNodeId, elementId: newElementId, x: position.x, y: position.y });
+                  node.content.nodes.push({
+                    id: newViewNodeId,
+                    elementId: newElementId,
+                    x: position.x, y: position.y,
+                    ...(dropConfig.initialDimensions ?? {}),
+                  });
                 },
               },
             ],

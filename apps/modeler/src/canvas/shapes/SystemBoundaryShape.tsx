@@ -9,8 +9,8 @@ import { resolveSystemBoundaryColors } from '../tokens/colors';
 
 export const SB_DEFAULT_W = 420;
 export const SB_DEFAULT_H = 320;
-const SB_MIN_W = 200;
-const SB_MIN_H = 150;
+export const SB_MIN_W = 200;
+export const SB_MIN_H = 150;
 const TITLE_FONT = 13;
 const TITLE_H = 22;
 const TITLE_PAD_X = 10;

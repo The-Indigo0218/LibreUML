@@ -9,9 +9,11 @@ interface Props {
   screenY: number;
   onClose: () => void;
   onOpenSpec: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
-export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onOpenSpec }: Props) {
+export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onOpenSpec, onMouseEnter, onMouseLeave }: Props) {
   const { t } = useTranslation();
   const hasAnySpec = !!(
     uc.briefDescription || uc.preconditions || uc.postconditions ||
@@ -29,7 +31,8 @@ export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onO
     <div
       className="fixed z-[9000] w-[300px] rounded-lg border border-[#2a3358] bg-[#111827] shadow-xl text-sm"
       style={{ left, top: screenY - 8 }}
-      onMouseEnter={(e) => e.stopPropagation()}
+      onMouseEnter={(e) => { e.stopPropagation(); onMouseEnter?.(); }}
+      onMouseLeave={onMouseLeave}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2 px-3 pt-3 pb-2">

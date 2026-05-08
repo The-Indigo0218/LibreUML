@@ -108,6 +108,7 @@ export default function KonvaCanvas() {
     screenY: number;
   } | null>(null);
   const ucHoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ucHoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [noteEditorModal, setNoteEditorModal] = useState<{
     noteId: string;
     initialTitle: string;
@@ -768,12 +769,17 @@ export default function KonvaCanvas() {
 
   const handleUseCaseMouseEnter = useCallback(
     (e: KonvaEventObject<MouseEvent>, shapeId: string) => {
+      // Don't show hover while mouse button is held (connection drawing or drag)
+      if (e.evt.buttons !== 0) return;
+
       const shape = shapes.find((s) => s.id === shapeId);
       if (!shape || !isUseCaseViewModel(shape.data)) return;
       const vm = shape.data;
       const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === shapeId);
       if (!viewNode?.elementId) return;
 
+      // Cancel any pending hide
+      if (ucHoverHideTimer.current) { clearTimeout(ucHoverHideTimer.current); ucHoverHideTimer.current = null; }
       if (ucHoverTimer.current) clearTimeout(ucHoverTimer.current);
       ucHoverTimer.current = setTimeout(() => {
         const stage = stageRef.current;
@@ -790,6 +796,12 @@ export default function KonvaCanvas() {
 
   const handleUseCaseMouseLeave = useCallback(() => {
     if (ucHoverTimer.current) { clearTimeout(ucHoverTimer.current); ucHoverTimer.current = null; }
+    // Hide the popover after a short delay so user can move mouse onto it
+    ucHoverHideTimer.current = setTimeout(() => setUcHover(null), 200);
+  }, []);
+
+  const cancelPopoverHide = useCallback(() => {
+    if (ucHoverHideTimer.current) { clearTimeout(ucHoverHideTimer.current); ucHoverHideTimer.current = null; }
   }, []);
 
   const handleUseCaseDblClickModal = useCallback(
@@ -1230,8 +1242,12 @@ export default function KonvaCanvas() {
   // Pre-compute edge render data so both the "edges" and "edge-labels" layers
   // can share it without duplicating the bounds/visibility logic.
   const edgeRenderData = useMemo(() => {
+    // Packages and SystemBoundaries are containers — exclude them from obstacle avoidance
+    // so edges route freely through their interiors.
     const nonPackageIds = new Set(
-      shapes.filter((s) => s.type !== 'package').map((s) => s.id),
+      shapes
+        .filter((s) => s.type !== 'package' && !isSystemBoundaryViewModel(s.data))
+        .map((s) => s.id),
     );
 
     const isNodeInCollapsedPackage = (nodeId: string): boolean => {
@@ -1764,6 +1780,8 @@ export default function KonvaCanvas() {
             screenX={ucHover.screenX}
             screenY={ucHover.screenY}
             onClose={() => setUcHover(null)}
+            onMouseEnter={cancelPopoverHide}
+            onMouseLeave={() => setUcHover(null)}
             onOpenSpec={() => {
               setUcHover(null);
               useUiStore.getState().openUseCaseSpec(ucHover.elementId);

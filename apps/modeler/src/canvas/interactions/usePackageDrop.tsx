@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { isPackageViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import { isPackageViewModel, isSystemBoundaryViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import type { NodeBounds } from '../edges/geometry';
 import type { ShapeDescriptor } from '../types/canvas.types';
 import { undoTransaction } from '../../core/undo/undoBridge';
@@ -120,11 +120,20 @@ export function usePackageDrop({
       if (currentParentId === targetPackageId) return;
 
       const isPackageDrop = droppedShape?.data && isPackageViewModel(droppedShape.data);
+      const isBoundaryDrop = droppedShape?.data && isSystemBoundaryViewModel(droppedShape.data);
+
+      // System boundaries can't be nested inside other things
+      if (isBoundaryDrop) return;
+
+      // Determine if target is a package or a system boundary
+      const targetShape = targetPackageId ? shapes.find((s) => s.id === targetPackageId) : null;
+      const targetIsBoundary = targetShape ? isSystemBoundaryViewModel(targetShape.data) : false;
 
       // Pre-compute the effective package path (walks ViewNode hierarchy) so we can
       // write element.packageName and keep the Model Explorer in sync.
+      // Skip for system boundary targets — actors/use cases have no packageName.
       let effectivePkgPath: string | undefined;
-      if (!isPackageDrop) {
+      if (!isPackageDrop && !targetIsBoundary) {
         const vfsProject = useVFSStore.getState().project;
         const file = vfsProject?.nodes[activeTabId] as any;
         if (file && isDiagramView(file.content)) {
@@ -142,8 +151,10 @@ export function usePackageDrop({
       }
 
       const label = targetPackageId
-        ? `Move into package: ${packageName ?? targetPackageId}`
-        : 'Remove from package';
+        ? targetIsBoundary
+          ? `Move into boundary: ${packageName ?? targetPackageId}`
+          : `Move into package: ${packageName ?? targetPackageId}`
+        : 'Remove from container';
 
       if (isStandalone) {
         // Standalone: all mutations live in the VFS store (localModel + content).
@@ -224,15 +235,22 @@ export function usePackageDrop({
         { bounds: NodeBounds; name: string; depth: number }
       >();
       for (const shape of shapes) {
-        if (shape.type !== 'package') continue;
-        if (!isPackageViewModel(shape.data)) continue;
         const bounds = boundsMap.get(shape.id);
         if (!bounds) continue;
-        packageBoundsMap.set(shape.id, {
-          bounds,
-          name: shape.data.name,
-          depth: shape.data.depth,
-        });
+        if (shape.type === 'package' && isPackageViewModel(shape.data)) {
+          packageBoundsMap.set(shape.id, {
+            bounds,
+            name: shape.data.name,
+            depth: shape.data.depth,
+          });
+        } else if (isSystemBoundaryViewModel(shape.data)) {
+          // System boundaries act as containers with depth 0 (below packages)
+          packageBoundsMap.set(shape.id, {
+            bounds,
+            name: shape.data.name,
+            depth: 0,
+          });
+        }
       }
 
       const nodeBounds = boundsMap.get(nodeId);

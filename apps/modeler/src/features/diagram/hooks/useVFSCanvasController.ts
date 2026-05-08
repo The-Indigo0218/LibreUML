@@ -385,6 +385,7 @@ function makeReactFlowActorNode(
   viewNode: ViewNode,
   actor: IRActor,
   allViewNodes: ViewNode[],
+  onRename: (name: string) => void,
 ) {
   const vm: ActorViewModel = {
     __brand: 'actor',
@@ -392,6 +393,7 @@ function makeReactFlowActorNode(
     domainId: viewNode.elementId,
     name: actor.name,
     isAbstract: actor.isAbstract ?? false,
+    onRename,
   };
   return {
     id: viewNode.id,
@@ -406,6 +408,7 @@ function makeReactFlowUseCaseNode(
   viewNode: ViewNode,
   uc: IRUseCase,
   allViewNodes: ViewNode[],
+  onRename: (name: string) => void,
 ) {
   const vm: UseCaseViewModel = {
     __brand: 'useCase',
@@ -413,6 +416,7 @@ function makeReactFlowUseCaseNode(
     domainId: viewNode.elementId,
     name: uc.name,
     extensionPoints: uc.extensionPoints ?? [],
+    onRename,
   };
   return {
     id: viewNode.id,
@@ -713,11 +717,25 @@ export function useVFSCanvasController(): VFSCanvasResult {
       }
 
       if (kind === 'ACTOR') {
-        return makeReactFlowActorNode(viewNode, element as IRActor, diagramView.nodes);
+        const onRenameActor = (name: string) => {
+          if (isStandalone && activeTabId) {
+            standaloneModelOps(activeTabId).updateActor(viewNode.elementId, { name });
+          } else {
+            useModelStore.getState().updateActor(viewNode.elementId, { name });
+          }
+        };
+        return makeReactFlowActorNode(viewNode, element as IRActor, diagramView.nodes, onRenameActor);
       }
 
       if (kind === 'USECASE') {
-        return makeReactFlowUseCaseNode(viewNode, element as IRUseCase, diagramView.nodes);
+        const onRenameUC = (name: string) => {
+          if (isStandalone && activeTabId) {
+            standaloneModelOps(activeTabId).updateUseCase(viewNode.elementId, { name });
+          } else {
+            useModelStore.getState().updateUseCase(viewNode.elementId, { name });
+          }
+        };
+        return makeReactFlowUseCaseNode(viewNode, element as IRUseCase, diagramView.nodes, onRenameUC);
       }
 
       if (kind === 'SYSTEM_BOUNDARY') {

@@ -20,6 +20,8 @@ import type {
   IRClass,
   IRInterface,
   IREnum,
+  IRActor,
+  IRUseCase,
   IRRelation,
   IRAttribute,
   IROperation,
@@ -194,6 +196,22 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         delete m.enums[id];
         cascadeDeleteRelations(m, id);
+        m.updatedAt = Date.now();
+      });
+    },
+
+    updateActor: (id: string, patch: Partial<IRActor>) => {
+      update((m) => {
+        if (!m.actors?.[id]) return;
+        m.actors[id] = { ...m.actors[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    updateUseCase: (id: string, patch: Partial<IRUseCase>) => {
+      update((m) => {
+        if (!m.useCases?.[id]) return;
+        m.useCases[id] = { ...m.useCases[id], ...patch };
         m.updatedAt = Date.now();
       });
     },

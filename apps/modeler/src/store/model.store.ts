@@ -7,6 +7,8 @@ import type {
   IRClass,
   IRInterface,
   IREnum,
+  IRActor,
+  IRUseCase,
   IRRelation,
   IRAttribute,
   IROperation,
@@ -43,6 +45,9 @@ interface ModelStoreState {
   createEnum: (data: Omit<IREnum, 'id' | 'kind'>) => string;
   updateEnum: (id: string, patch: Partial<IREnum>) => void;
   deleteEnum: (id: string) => void;
+
+  updateActor: (id: string, patch: Partial<IRActor>) => void;
+  updateUseCase: (id: string, patch: Partial<IRUseCase>) => void;
 
   setElementMembers: (elementId: string, attributes: IRAttribute[], operations: IROperation[]) => void;
 
@@ -240,6 +245,24 @@ export const useModelStore = create<ModelStoreState>()(
         if (!draft.model) return;
         delete draft.model.enums[id];
         cascadeDeleteRelations(draft.model, id);
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    updateActor: (id, patch) => {
+      const name = useModelStore.getState().model?.actors?.[id]?.name ?? id;
+      withUndo('model', `Rename Actor: ${name}`, 'global', (draft) => {
+        if (!draft.model?.actors?.[id]) return;
+        draft.model.actors[id] = { ...draft.model.actors[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    updateUseCase: (id, patch) => {
+      const name = useModelStore.getState().model?.useCases?.[id]?.name ?? id;
+      withUndo('model', `Rename UseCase: ${name}`, 'global', (draft) => {
+        if (!draft.model?.useCases?.[id]) return;
+        draft.model.useCases[id] = { ...draft.model.useCases[id], ...patch };
         draft.model.updatedAt = Date.now();
       });
     },

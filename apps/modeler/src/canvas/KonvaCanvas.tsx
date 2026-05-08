@@ -16,6 +16,13 @@ import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
 import ActorShape, { getActorShapeSize } from './shapes/ActorShape';
 import UseCaseShape, { getUseCaseShapeSize } from './shapes/UseCaseShape';
 import SystemBoundaryShape, { getSystemBoundaryShapeSize } from './shapes/SystemBoundaryShape';
+
+// Layout constants mirrored from shape files for inline editor positioning
+const ACTOR_NAME_Y_FROM_TOP = 84; // BODY_BOT(58) + LEG_DY(18) + NAME_GAP(8)
+const ACTOR_NAME_H = 18;
+const UC_NAME_Y_RATIO = 0.5;     // vertically centred at BASE_H/2
+const UC_NAME_FONT = 13;
+const UC_H_PAD = 16;
 import { computePackageSize } from './engine/packageLayout';
 import KonvaEdge from './edges/KonvaEdge';
 import SelectionRect from './selection/SelectionRect';
@@ -645,6 +652,51 @@ export default function KonvaCanvas() {
     openVfsEdgeAction,
     openMethodGenerator,
   } = useUiStore();
+
+  const handleUseCaseDblClick = useCallback(
+    (shapeId: string, e: KonvaEventObject<MouseEvent>) => {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape) return;
+      const vm = shape.data;
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const groupNode = e.target.findAncestor('Group');
+      if (!groupNode) return;
+      const groupPos = groupNode.getAbsolutePosition();
+      const transform = stage.getAbsoluteTransform().copy();
+
+      if (isActorViewModel(vm)) {
+        const { width } = getActorShapeSize(vm);
+        const screenPos = transform.point({ x: groupPos.x, y: groupPos.y + ACTOR_NAME_Y_FROM_TOP });
+        if (vm.onRename) {
+          startInlineEditing(
+            shapeId,
+            vm.name,
+            'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width, height: ACTOR_NAME_H },
+            (text) => vm.onRename!(text),
+          );
+        }
+      } else if (isUseCaseViewModel(vm)) {
+        const { width, height } = getUseCaseShapeSize(vm);
+        const nameY = height * UC_NAME_Y_RATIO - UC_NAME_FONT / 2;
+        const screenPos = transform.point({ x: groupPos.x + UC_H_PAD, y: groupPos.y + nameY });
+        if (vm.onRename) {
+          startInlineEditing(
+            shapeId,
+            vm.name,
+            'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width: width - UC_H_PAD * 2, height: UC_NAME_FONT + 6 },
+            (text) => vm.onRename!(text),
+          );
+        }
+      }
+    },
+    [shapes, stageRef, startInlineEditing],
+  );
 
   const buildAnchorSnapshot = useCallback(
     (edgeId: string): AnchorSnapshot | null => {
@@ -1277,6 +1329,7 @@ export default function KonvaCanvas() {
                       onDragMove={handleDragMove}
                       onDragEnd={handleDragEnd}
                       onNodeClick={onNodeClick}
+                      onDblClick={(e) => handleUseCaseDblClick(shape.id, e)}
                       onContextMenu={handleNodeContextMenu}
                       visible={isVisible && !isDescendantOfCollapsed}
                     />
@@ -1295,6 +1348,7 @@ export default function KonvaCanvas() {
                       onDragMove={handleDragMove}
                       onDragEnd={handleDragEnd}
                       onNodeClick={onNodeClick}
+                      onDblClick={(e) => handleUseCaseDblClick(shape.id, e)}
                       onContextMenu={handleNodeContextMenu}
                       visible={isVisible && !isDescendantOfCollapsed}
                     />

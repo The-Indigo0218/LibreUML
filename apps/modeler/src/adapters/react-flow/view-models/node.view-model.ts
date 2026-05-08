@@ -107,6 +107,7 @@ export interface ActorViewModel {
   domainId: string;
   name: string;
   isAbstract: boolean;
+  onRename?: (name: string) => void;
 }
 
 export interface UseCaseViewModel {
@@ -115,6 +116,7 @@ export interface UseCaseViewModel {
   domainId: string;
   name: string;
   extensionPoints: string[];
+  onRename?: (name: string) => void;
 }
 
 export interface SystemBoundaryViewModel {

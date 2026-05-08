@@ -11,9 +11,18 @@ import { useStageStore } from '../store/stageStore';
 import { useKonvaCanvasController } from './useKonvaCanvasController';
 import { diagramToSvg } from '../export/diagramToSvg';
 import type { ShapeDescriptor } from '../types/canvas.types';
-import type { NodeViewModel, NoteViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import {
+  isNoteViewModel,
+  isActorViewModel,
+  isUseCaseViewModel,
+  isSystemBoundaryViewModel,
+  type NodeViewModel,
+} from '../../adapters/react-flow/view-models/node.view-model';
 import { getClassShapeSize } from '../shapes/ClassShape';
 import { getNoteShapeSize } from '../shapes/NoteShape';
+import { getActorShapeSize } from '../shapes/ActorShape';
+import { getUseCaseShapeSize } from '../shapes/UseCaseShape';
+import { getSystemBoundaryShapeSize } from '../shapes/SystemBoundaryShape';
 import type Konva from 'konva';
 
 export interface KonvaExportOptions {
@@ -42,10 +51,13 @@ function calculateBoundsFromShapes(shapes: ShapeDescriptor[]): DiagramBounds | n
   let maxY = -Infinity;
 
   for (const shape of shapes) {
-    const { width, height } =
-      shape.type === 'note'
-        ? getNoteShapeSize(shape.data as NoteViewModel)
-        : getClassShapeSize(shape.data as NodeViewModel);
+    const vm = shape.data;
+    let width: number, height: number;
+    if (isNoteViewModel(vm))            { ({ width, height } = getNoteShapeSize(vm)); }
+    else if (isActorViewModel(vm))      { ({ width, height } = getActorShapeSize(vm)); }
+    else if (isUseCaseViewModel(vm))    { ({ width, height } = getUseCaseShapeSize(vm)); }
+    else if (isSystemBoundaryViewModel(vm)) { ({ width, height } = getSystemBoundaryShapeSize(vm)); }
+    else                                { ({ width, height } = getClassShapeSize(vm as NodeViewModel)); }
 
     minX = Math.min(minX, shape.x);
     minY = Math.min(minY, shape.y);

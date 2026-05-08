@@ -25,12 +25,21 @@
 import type { ShapeDescriptor, EdgeDescriptor } from '../types/canvas.types';
 import {
   isNoteViewModel,
+  isActorViewModel,
+  isUseCaseViewModel,
+  isSystemBoundaryViewModel,
   type NodeViewModel,
   type NoteViewModel,
+  type ActorViewModel,
+  type UseCaseViewModel,
+  type SystemBoundaryViewModel,
 } from '../../adapters/react-flow/view-models/node.view-model';
-import { resolveNodeColors, resolveNoteColors } from '../tokens/colors';
+import { resolveNodeColors, resolveNoteColors, resolveActorColors, resolveUseCaseColors, resolveSystemBoundaryColors } from '../tokens/colors';
 import { getClassShapeSize, computeClassLayout } from '../shapes/ClassShape';
 import { getNoteShapeSize } from '../shapes/NoteShape';
+import { getActorShapeSize } from '../shapes/ActorShape';
+import { getUseCaseShapeSize } from '../shapes/UseCaseShape';
+import { getSystemBoundaryShapeSize } from '../shapes/SystemBoundaryShape';
 import {
   selectAnchors,
   retractAnchor,
@@ -126,7 +135,10 @@ export function diagramToSvg(
   const shapesSvg = shapes
     .map((shape) => {
       const vm = shape.data;
-      if (isNoteViewModel(vm)) return svgNoteShape(shape, vm);
+      if (isNoteViewModel(vm))            return svgNoteShape(shape, vm);
+      if (isActorViewModel(vm))           return svgActorShape(shape, vm);
+      if (isUseCaseViewModel(vm))         return svgUseCaseShape(shape, vm);
+      if (isSystemBoundaryViewModel(vm))  return svgSystemBoundaryShape(shape, vm);
       return svgClassShape(shape, vm as NodeViewModel);
     })
     .join('\n');
@@ -215,9 +227,12 @@ function buildBoundsMap(shapes: ShapeDescriptor[]): Map<string, NodeBounds> {
   const map = new Map<string, NodeBounds>();
   for (const shape of shapes) {
     const vm = shape.data;
-    const { width, height } = isNoteViewModel(vm)
-      ? getNoteShapeSize(vm)
-      : getClassShapeSize(vm as NodeViewModel);
+    let width: number, height: number;
+    if (isNoteViewModel(vm))            { ({ width, height } = getNoteShapeSize(vm)); }
+    else if (isActorViewModel(vm))      { ({ width, height } = getActorShapeSize(vm)); }
+    else if (isUseCaseViewModel(vm))    { ({ width, height } = getUseCaseShapeSize(vm)); }
+    else if (isSystemBoundaryViewModel(vm)) { ({ width, height } = getSystemBoundaryShapeSize(vm)); }
+    else                                { ({ width, height } = getClassShapeSize(vm as NodeViewModel)); }
     map.set(shape.id, { x: shape.x, y: shape.y, width, height });
   }
   return map;
@@ -241,6 +256,101 @@ function calculateBounds(boundsMap: Map<string, NodeBounds>): DiagramBounds {
     height: maxY - minY + EXPORT_MARGIN * 2,
   };
 }
+
+// ─── Use Case Diagram shapes ──────────────────────────────────────────────────
+
+const ACTOR_HEAD_R = 12;
+const ACTOR_HEAD_CY = ACTOR_HEAD_R + 2;
+const ACTOR_BODY_TOP = ACTOR_HEAD_CY + ACTOR_HEAD_R;
+const ACTOR_BODY_BOT = ACTOR_BODY_TOP + 32;
+const ACTOR_ARM_Y = ACTOR_BODY_TOP + 16;
+const ACTOR_ARM_HALF = 18;
+const ACTOR_LEG_DX = 16;
+const ACTOR_LEG_DY = 18;
+const ACTOR_NAME_Y = ACTOR_BODY_BOT + ACTOR_LEG_DY + 8;
+const ACTOR_NAME_FONT = 13;
+const STROKE_W = 1.5;
+
+function svgActorShape(shape: ShapeDescriptor, vm: ActorViewModel): string {
+  const colors = resolveActorColors();
+  const { width: W } = getActorShapeSize(vm);
+  const cx = W / 2;
+  const x = shape.x;
+  const y = shape.y;
+  const stroke = escapeXml(colors.stroke);
+  const fontStyle = vm.isAbstract ? 'italic' : 'normal';
+
+  return [
+    `<g transform="translate(${x},${y})">`,
+    `  <circle cx="${cx}" cy="${ACTOR_HEAD_CY}" r="${ACTOR_HEAD_R}" fill="none" stroke="${stroke}" stroke-width="${STROKE_W}"/>`,
+    `  <line x1="${cx}" y1="${ACTOR_BODY_TOP}" x2="${cx}" y2="${ACTOR_BODY_BOT}" stroke="${stroke}" stroke-width="${STROKE_W}"/>`,
+    `  <line x1="${cx - ACTOR_ARM_HALF}" y1="${ACTOR_ARM_Y}" x2="${cx + ACTOR_ARM_HALF}" y2="${ACTOR_ARM_Y}" stroke="${stroke}" stroke-width="${STROKE_W}"/>`,
+    `  <line x1="${cx}" y1="${ACTOR_BODY_BOT}" x2="${cx - ACTOR_LEG_DX}" y2="${ACTOR_BODY_BOT + ACTOR_LEG_DY}" stroke="${stroke}" stroke-width="${STROKE_W}"/>`,
+    `  <line x1="${cx}" y1="${ACTOR_BODY_BOT}" x2="${cx + ACTOR_LEG_DX}" y2="${ACTOR_BODY_BOT + ACTOR_LEG_DY}" stroke="${stroke}" stroke-width="${STROKE_W}"/>`,
+    `  <text x="${cx}" y="${ACTOR_NAME_Y}" text-anchor="middle" font-family="${FONT_SANS}" font-size="${ACTOR_NAME_FONT}" font-style="${fontStyle}" fill="${escapeXml(colors.text)}">${escapeXml(vm.name)}</text>`,
+    `</g>`,
+  ].join('\n');
+}
+
+const UC_MIN_W = 140;
+const UC_BASE_H = 56;
+const UC_EP_H = 16;
+const UC_EP_SEP_PAD = 6;
+const UC_EP_FONT = 11;
+const UC_NAME_FONT_SVG = 13;
+const UC_H_PAD_SVG = 16;
+
+function svgUseCaseShape(shape: ShapeDescriptor, vm: UseCaseViewModel): string {
+  const colors = resolveUseCaseColors();
+  const { width: W, height: H } = getUseCaseShapeSize(vm);
+  const cx = W / 2;
+  const cy = H / 2;
+  const rx = cx - 2;
+  const ry = cy - 2;
+  const x = shape.x;
+  const y = shape.y;
+  const hasEP = vm.extensionPoints.length > 0;
+  const sepY = UC_BASE_H - UC_EP_SEP_PAD - 1;
+  const nameY = UC_BASE_H / 2 + UC_NAME_FONT_SVG / 2 - (hasEP ? 4 : 0);
+
+  const epLines = vm.extensionPoints.map((ep, i) => {
+    const epY = UC_BASE_H + UC_EP_SEP_PAD + i * UC_EP_H + UC_EP_FONT;
+    return `  <text x="${cx}" y="${epY}" text-anchor="middle" font-family="${FONT_MONO}" font-size="${UC_EP_FONT}" fill="${escapeXml(colors.text)}">${escapeXml(ep)}</text>`;
+  });
+
+  return [
+    `<g transform="translate(${x},${y})">`,
+    `  <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${escapeXml(colors.fill)}" stroke="${escapeXml(colors.stroke)}" stroke-width="${STROKE_W}"/>`,
+    `  <text x="${cx}" y="${nameY}" text-anchor="middle" font-family="${FONT_SANS}" font-size="${UC_NAME_FONT_SVG}" fill="${escapeXml(colors.text)}">${escapeXml(vm.name)}</text>`,
+    hasEP ? `  <line x1="${cx - rx + 4}" y1="${sepY}" x2="${cx + rx - 4}" y2="${sepY}" stroke="${escapeXml(colors.stroke)}" stroke-width="1" stroke-dasharray="3,2"/>` : '',
+    ...epLines,
+    `</g>`,
+  ].filter(Boolean).join('\n');
+}
+
+const SB_TITLE_FONT = 13;
+const SB_TITLE_PAD_X = 10;
+const SB_TITLE_PAD_Y = 4;
+const SB_TITLE_H = 22;
+
+function svgSystemBoundaryShape(shape: ShapeDescriptor, vm: SystemBoundaryViewModel): string {
+  const colors = resolveSystemBoundaryColors();
+  const W = vm.width;
+  const H = vm.height;
+  const x = shape.x;
+  const y = shape.y;
+  const stroke = escapeXml(colors.stroke);
+
+  return [
+    `<g transform="translate(${x},${y})">`,
+    `  <rect width="${W}" height="${H}" fill="none" stroke="${stroke}" stroke-width="${STROKE_W}" stroke-dasharray="8,5"/>`,
+    `  <text x="${SB_TITLE_PAD_X}" y="${SB_TITLE_PAD_Y + SB_TITLE_FONT}" font-family="${FONT_SANS}" font-size="${SB_TITLE_FONT}" fill="${stroke}">${escapeXml(vm.name)}</text>`,
+    `  <line x1="0" y1="${SB_TITLE_PAD_Y + SB_TITLE_H}" x2="${W}" y2="${SB_TITLE_PAD_Y + SB_TITLE_H}" stroke="${stroke}" stroke-width="1" opacity="0.4"/>`,
+    `</g>`,
+  ].join('\n');
+}
+
+// ─── Class Diagram shapes ─────────────────────────────────────────────────────
 
 function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   const colors = resolveNodeColors(vm.style.containerClass);

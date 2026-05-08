@@ -107,6 +107,9 @@ export function useNodeActions({
           localM.interfaces[elementId]?.name ??
           localM.enums[elementId]?.name ??
           localM.packages[elementId]?.name ??
+          localM.actors?.[elementId]?.name ??
+          localM.useCases?.[elementId]?.name ??
+          localM.systemBoundaries?.[elementId]?.name ??
           'Element';
 
         undoTransaction({
@@ -119,10 +122,13 @@ export function useNodeActions({
               if (!node || node.type !== 'FILE') return;
               const lm: SemanticModel | undefined = node.localModel;
               if (!lm) return;
-              if (lm.classes[elementId])         { delete lm.classes[elementId]; }
-              else if (lm.interfaces[elementId]) { delete lm.interfaces[elementId]; }
-              else if (lm.enums[elementId])      { delete lm.enums[elementId]; }
-              else if (lm.packages[elementId])   { delete lm.packages[elementId]; }
+              if (lm.classes[elementId])                   { delete lm.classes[elementId]; }
+              else if (lm.interfaces[elementId])           { delete lm.interfaces[elementId]; }
+              else if (lm.enums[elementId])                { delete lm.enums[elementId]; }
+              else if (lm.packages[elementId])             { delete lm.packages[elementId]; }
+              else if (lm.actors?.[elementId])             { delete lm.actors![elementId]; }
+              else if (lm.useCases?.[elementId])           { delete lm.useCases![elementId]; }
+              else if (lm.systemBoundaries?.[elementId])   { delete lm.systemBoundaries![elementId]; }
               cascadeDeleteRelations(lm, elementId);
               lm.updatedAt = Date.now();
               if (isDiagramView(node.content)) {
@@ -145,6 +151,9 @@ export function useNodeActions({
           ms.model.interfaces[elementId]?.name ??
           ms.model.enums[elementId]?.name ??
           ms.model.packages[elementId]?.name ??
+          ms.model.actors?.[elementId]?.name ??
+          ms.model.useCases?.[elementId]?.name ??
+          ms.model.systemBoundaries?.[elementId]?.name ??
           'Element';
 
         const projectSnapshot = currentProject;
@@ -157,10 +166,13 @@ export function useNodeActions({
               store: 'model',
               mutate: (draft: any) => {
                 if (!draft.model) return;
-                if (draft.model.classes[elementId])         { delete draft.model.classes[elementId]; }
-                else if (draft.model.interfaces[elementId]) { delete draft.model.interfaces[elementId]; }
-                else if (draft.model.enums[elementId])      { delete draft.model.enums[elementId]; }
-                else if (draft.model.packages[elementId])   { delete draft.model.packages[elementId]; }
+                if (draft.model.classes[elementId])                   { delete draft.model.classes[elementId]; }
+                else if (draft.model.interfaces[elementId])           { delete draft.model.interfaces[elementId]; }
+                else if (draft.model.enums[elementId])                { delete draft.model.enums[elementId]; }
+                else if (draft.model.packages[elementId])             { delete draft.model.packages[elementId]; }
+                else if (draft.model.actors?.[elementId])             { delete draft.model.actors![elementId]; }
+                else if (draft.model.useCases?.[elementId])           { delete draft.model.useCases![elementId]; }
+                else if (draft.model.systemBoundaries?.[elementId])   { delete draft.model.systemBoundaries![elementId]; }
                 cascadeDeleteRelations(draft.model, elementId);
                 draft.model.updatedAt = Date.now();
               },

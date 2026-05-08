@@ -14,10 +14,20 @@
 import type Konva from 'konva';
 import type { ViewNode } from '../core/domain/vfs/vfs.types';
 import type { ShapeDescriptor, EdgeDescriptor } from '../canvas/types/canvas.types';
-import type { NodeViewModel, NoteViewModel, PackageViewModel } from '../adapters/react-flow/view-models/node.view-model';
+import {
+  isNoteViewModel,
+  isActorViewModel,
+  isUseCaseViewModel,
+  isSystemBoundaryViewModel,
+  type NodeViewModel,
+  type PackageViewModel,
+} from '../adapters/react-flow/view-models/node.view-model';
 import { getClassShapeSize } from '../canvas/shapes/ClassShape';
 import { getNoteShapeSize } from '../canvas/shapes/NoteShape';
 import { getPackageShapeSize } from '../canvas/shapes/PackageShape';
+import { getActorShapeSize } from '../canvas/shapes/ActorShape';
+import { getUseCaseShapeSize } from '../canvas/shapes/UseCaseShape';
+import { getSystemBoundaryShapeSize } from '../canvas/shapes/SystemBoundaryShape';
 import { diagramToSvg } from '../canvas/export/diagramToSvg';
 
 export interface ExportImageOptions {
@@ -60,26 +70,19 @@ function calculateBoundsFromShapes(shapes: ShapeDescriptor[]): DiagramBounds | n
     let width: number;
     let height: number;
     
-    if (shape.type === 'note') {
-      const size = getNoteShapeSize(shape.data as NoteViewModel);
-      width = size.width;
-      height = size.height;
-    } else if (shape.type === 'package') {
-      // For packages, use stored dimensions if available, otherwise calculate
+    const vm = shape.data;
+    if (shape.type === 'package') {
       if (shape.width !== undefined && shape.height !== undefined) {
         width = shape.width;
         height = shape.height;
       } else {
-        const size = getPackageShapeSize(shape.data as PackageViewModel);
-        width = size.width;
-        height = size.height;
+        ({ width, height } = getPackageShapeSize(vm as PackageViewModel));
       }
-    } else {
-      // class type
-      const size = getClassShapeSize(shape.data as NodeViewModel);
-      width = size.width;
-      height = size.height;
-    }
+    } else if (isNoteViewModel(vm))            { ({ width, height } = getNoteShapeSize(vm)); }
+    else if (isActorViewModel(vm))             { ({ width, height } = getActorShapeSize(vm)); }
+    else if (isUseCaseViewModel(vm))           { ({ width, height } = getUseCaseShapeSize(vm)); }
+    else if (isSystemBoundaryViewModel(vm))    { ({ width, height } = getSystemBoundaryShapeSize(vm)); }
+    else                                       { ({ width, height } = getClassShapeSize(vm as NodeViewModel)); }
 
     minX = Math.min(minX, shape.x);
     minY = Math.min(minY, shape.y);

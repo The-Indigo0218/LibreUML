@@ -128,7 +128,10 @@
       "interface": "Interfaz",
       "abstract": "Abstracta",
       "enum": "Enumeración",
-      "note": "Nota"
+      "note": "Nota",
+      "actor": "Actor",
+      "useCase": "Caso de Uso",
+      "systemBoundary": "Límite de Sistema"
     },
     "connections": {
       "title": "Conexiones",
@@ -137,7 +140,10 @@
       "implementation": "Implementación",
       "dependency": "Dependencia",
       "aggregation": "Agregación",
-      "composition": "Composición"
+      "composition": "Composición",
+      "include": "«include»",
+      "extend": "«extend»",
+      "generalization": "Generalización"
     },
     "legend": {
       "title": "Lógica de Conexión",

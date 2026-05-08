@@ -796,8 +796,8 @@ export default function KonvaCanvas() {
 
   const handleUseCaseMouseLeave = useCallback(() => {
     if (ucHoverTimer.current) { clearTimeout(ucHoverTimer.current); ucHoverTimer.current = null; }
-    // Hide the popover after a short delay so user can move mouse onto it
-    ucHoverHideTimer.current = setTimeout(() => setUcHover(null), 200);
+    // Hide after a generous delay so the user can move mouse onto the popover
+    ucHoverHideTimer.current = setTimeout(() => setUcHover(null), 500);
   }, []);
 
   const cancelPopoverHide = useCallback(() => {
@@ -1480,7 +1480,11 @@ export default function KonvaCanvas() {
                       onDragEnd={handleDragEnd}
                       onNodeClick={onNodeClick}
                       onDblClick={() => handleUseCaseDblClickModal(shape.id)}
-                      onContextMenu={handleNodeContextMenu}
+                      onContextMenu={(e, nodeId) => {
+                        setUcHover(null);
+                        if (ucHoverTimer.current) { clearTimeout(ucHoverTimer.current); ucHoverTimer.current = null; }
+                        handleNodeContextMenu(e, nodeId);
+                      }}
                       onMouseEnter={handleUseCaseMouseEnter}
                       onMouseLeave={handleUseCaseMouseLeave}
                       visible={isVisible && !isDescendantOfCollapsed}

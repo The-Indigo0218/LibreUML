@@ -103,7 +103,7 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
       lm.updatedAt = Date.now();
     },
   },
-  useCase: {
+  use_case: {
     getNextName: (model) =>
       getNextVFSName(Object.values(model.useCases ?? {}).map((uc) => uc.name), 'UseCase'),
     applyToModelDraft: (m, id, name) => {
@@ -116,7 +116,7 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
       lm.updatedAt = Date.now();
     },
   },
-  systemBoundary: {
+  system_boundary: {
     getNextName: (model) =>
       getNextVFSName(Object.values(model.systemBoundaries ?? {}).map((sb) => sb.name), 'System'),
     applyToModelDraft: (m, id, name) => {

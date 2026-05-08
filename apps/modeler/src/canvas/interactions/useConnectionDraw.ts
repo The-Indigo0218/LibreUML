@@ -85,14 +85,14 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   PACKAGE_ACCESS: 'PACKAGE_ACCESS',
 };
 
-const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'useCase', 'systemBoundary']);
+const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'use_case', 'system_boundary']);
 
 function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isNoteViewModel(vm)) return 'note';
   if (isPackageViewModel(vm)) return 'package';
   if (isActorViewModel(vm)) return 'actor';
-  if (isUseCaseViewModel(vm)) return 'useCase';
-  if (isSystemBoundaryViewModel(vm)) return 'systemBoundary';
+  if (isUseCaseViewModel(vm)) return 'use_case';
+  if (isSystemBoundaryViewModel(vm)) return 'system_boundary';
   const nvm = vm as NodeViewModel;
   const s = nvm.stereotype;
   if (s === 'abstract' || s === 'interface' || s === 'enum') return s;

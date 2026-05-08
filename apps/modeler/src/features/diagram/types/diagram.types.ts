@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-export type stereotype = "class" | "interface" | "abstract" | "note" | "enum" | "package" | "actor" | "useCase" | "systemBoundary";
+export type stereotype = "class" | "interface" | "abstract" | "note" | "enum" | "package" | "actor" | "use_case" | "system_boundary";
 export type UmlRelationType =
   | "association"
   | "inheritance"

@@ -509,6 +509,22 @@ export default function KonvaCanvas() {
     [shapes, activeTabId],
   );
 
+  const handleSystemBoundaryResizeEnd = useCallback(
+    (shapeId: string, newWidth: number, newHeight: number) => {
+      if (!activeTabId) return;
+      withUndo('vfs', 'Resize System Boundary', activeTabId, (draft: any) => {
+        const file = draft.project?.nodes[activeTabId];
+        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+        const viewNode = file.content.nodes.find((vn: any) => vn.id === shapeId);
+        if (viewNode) {
+          viewNode.width = Math.round(newWidth);
+          viewNode.height = Math.round(newHeight);
+        }
+      });
+    },
+    [activeTabId],
+  );
+
   const handleDeleteNodes = useCallback(
     (nodeIds: string[]) => {
       onNodeChange(nodeIds.map((id): KonvaNodeChange => ({ type: 'remove', id })));
@@ -1063,8 +1079,10 @@ export default function KonvaCanvas() {
 
   const sortedShapes = useMemo(() =>
     [...shapes].sort((a, b) => {
-      if (a.type === 'package' && b.type !== 'package') return -1;
-      if (a.type !== 'package' && b.type === 'package') return 1;
+      const aIsBackground = a.type === 'package' || isSystemBoundaryViewModel(a.data);
+      const bIsBackground = b.type === 'package' || isSystemBoundaryViewModel(b.data);
+      if (aIsBackground && !bIsBackground) return -1;
+      if (!aIsBackground && bIsBackground) return 1;
       if (a.type === 'package' && b.type === 'package') {
         return (a.data as PackageViewModel).depth - (b.data as PackageViewModel).depth;
       }
@@ -1421,6 +1439,7 @@ export default function KonvaCanvas() {
                       onDragEnd={handleDragEnd}
                       onNodeClick={onNodeClick}
                       onContextMenu={handleNodeContextMenu}
+                      onResizeEnd={handleSystemBoundaryResizeEnd}
                       visible={isVisible && !isDescendantOfCollapsed}
                     />
                   );

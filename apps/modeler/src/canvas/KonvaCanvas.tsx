@@ -42,6 +42,7 @@ import { DeletePackageModal } from '../features/diagram/components/layout/packag
 import NoteEditorModal from '../features/diagram/components/modals/NoteEditorModal';
 import UseCaseHoverPopover from '../features/diagram/components/modals/UseCaseHoverPopover';
 import UseCaseSpecModal from '../features/diagram/components/modals/UseCaseSpecModal';
+import ActorPropsModal from '../features/diagram/components/modals/ActorPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
 import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
@@ -1443,7 +1444,7 @@ export default function KonvaCanvas() {
                       onDragMove={handleDragMove}
                       onDragEnd={handleDragEnd}
                       onNodeClick={onNodeClick}
-                      onDblClick={(e) => handleUseCaseDblClick(shape.id, e)}
+                      onDblClick={() => vm.onOpenProps?.()}
                       onContextMenu={handleNodeContextMenu}
                       visible={isVisible && !isDescendantOfCollapsed}
                     />
@@ -1772,6 +1773,7 @@ export default function KonvaCanvas() {
       })()}
 
       <UseCaseSpecModal />
+      <ActorPropsModal />
     </div>
   );
 }

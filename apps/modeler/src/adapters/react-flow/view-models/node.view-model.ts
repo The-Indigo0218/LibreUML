@@ -107,7 +107,9 @@ export interface ActorViewModel {
   domainId: string;
   name: string;
   isAbstract: boolean;
+  actorType?: 'human' | 'system' | 'timer';
   onRename?: (name: string) => void;
+  onOpenProps?: () => void;
 }
 
 export interface UseCaseViewModel {

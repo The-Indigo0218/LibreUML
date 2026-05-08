@@ -495,6 +495,17 @@ function svgNoteShape(shape: ShapeDescriptor, vm: NoteViewModel): string {
   return lines.join('\n');
 }
 
+function svgEdgeStereotypeLabel(kind: RelationKind): string | null {
+  switch (kind) {
+    case 'INCLUDE':       return '«include»';
+    case 'EXTEND':        return '«extend»';
+    case 'PACKAGE_IMPORT': return '«import»';
+    case 'PACKAGE_MERGE':  return '«merge»';
+    case 'PACKAGE_ACCESS': return '«access»';
+    default: return null;
+  }
+}
+
 function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): string {
   const isSelfLoop = edge.sourceId === edge.targetId;
   const sourceBounds = boundsMap.get(edge.sourceId);
@@ -511,6 +522,8 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
   let markerX: number;
   let markerY: number;
   let markerFace: AnchorFace;
+  let midX: number;
+  let midY: number;
 
   if (isSelfLoop) {
     const loop = selfLoopPath(sourceBounds, retract);
@@ -522,6 +535,8 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
     markerX = loop.markerX;
     markerY = loop.markerY;
     markerFace = loop.markerFace;
+    midX = (pts[0]! + pts[6]!) / 2;
+    midY = (pts[1]! + pts[7]!) / 2 - 12;
   } else {
     const { src, tgt } = selectAnchors(sourceBounds, targetBounds);
     const retractedTgt = retract > 0 ? retractAnchor(tgt, retract) : tgt;
@@ -535,10 +550,25 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
     markerX = tgt.x;
     markerY = tgt.y;
     markerFace = tgt.face;
+    // Midpoint of the path for label placement
+    const n = points.length;
+    midX = (points[0]! + points[n - 2]!) / 2;
+    midY = (points[1]! + points[n - 1]!) / 2 - 10;
   }
 
   const marker = svgMarker(edge.kind, markerX, markerY, markerFace, stroke, bg);
-  return lineSvg + '\n' + marker;
+
+  // Stereotype label («include», «extend», etc.)
+  const stereotypeText = svgEdgeStereotypeLabel(edge.kind);
+  const labelSvg = stereotypeText
+    ? `<text x="${midX.toFixed(1)}" y="${midY.toFixed(1)}" ` +
+      `text-anchor="middle" font-family="${FONT_MONO}" font-size="11" ` +
+      `fill="${escapeXml(getEdgeColor())}" ` +
+      `style="paint-order:stroke" stroke="${escapeXml(getCanvasBg())}" stroke-width="3" stroke-linejoin="round">` +
+      `${escapeXml(stereotypeText)}</text>`
+    : '';
+
+  return [lineSvg, marker, labelSvg].filter(Boolean).join('\n');
 }
 
 function svgMarker(

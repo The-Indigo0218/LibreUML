@@ -387,6 +387,7 @@ function makeReactFlowActorNode(
   actor: IRActor,
   allViewNodes: ViewNode[],
   onRename: (name: string) => void,
+  onOpenProps: () => void,
 ) {
   const vm: ActorViewModel = {
     __brand: 'actor',
@@ -394,7 +395,9 @@ function makeReactFlowActorNode(
     domainId: viewNode.elementId,
     name: actor.name,
     isAbstract: actor.isAbstract ?? false,
+    actorType: actor.actorType,
     onRename,
+    onOpenProps,
   };
   return {
     id: viewNode.id,
@@ -734,7 +737,8 @@ export function useVFSCanvasController(): VFSCanvasResult {
             useModelStore.getState().updateActor(viewNode.elementId, { name });
           }
         };
-        return makeReactFlowActorNode(viewNode, element as IRActor, diagramView.nodes, onRenameActor);
+        const onOpenProps = () => useUiStore.getState().openActorProps(viewNode.elementId);
+        return makeReactFlowActorNode(viewNode, element as IRActor, diagramView.nodes, onRenameActor, onOpenProps);
       }
 
       if (kind === 'USECASE') {

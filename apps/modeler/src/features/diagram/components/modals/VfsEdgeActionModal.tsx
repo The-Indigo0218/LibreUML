@@ -22,6 +22,13 @@ const CLASS_RELATION_KINDS: { value: RelationKind; label: string }[] = [
   { value: 'COMPOSITION',    label: 'Composition' },
 ];
 
+const USE_CASE_RELATION_KINDS: { value: RelationKind; label: string; description: string }[] = [
+  { value: 'ASSOCIATION',    label: 'Association',     description: 'Actor participates in use case' },
+  { value: 'INCLUDE',        label: '«include»',       description: 'Base use case always includes the sub use case' },
+  { value: 'EXTEND',         label: '«extend»',        description: 'Extension use case optionally extends the base' },
+  { value: 'GENERALIZATION', label: 'Generalization',  description: 'Child inherits from parent (actor or use case)' },
+];
+
 const PACKAGE_RELATION_KINDS: { value: RelationKind; label: string; stereotype: string | null; description: string }[] = [
   { value: 'DEPENDENCY',     label: 'Dependency',      stereotype: null,       description: 'Generic dependency between packages' },
   { value: 'PACKAGE_IMPORT', label: '«import»',        stereotype: '«import»', description: 'Public namespace import — exported members are visible to importing package' },
@@ -123,12 +130,20 @@ export default function VfsEdgeActionModal() {
   const isPackageRelation =
     !!(activeModel.packages[relation.sourceId] && activeModel.packages[relation.targetId]);
 
+  const isUseCaseRelation =
+    !isPackageRelation && (
+      relation.kind === 'INCLUDE' ||
+      relation.kind === 'EXTEND' ||
+      !!(activeModel.actors?.[relation.sourceId] || activeModel.actors?.[relation.targetId] ||
+         activeModel.useCases?.[relation.sourceId] || activeModel.useCases?.[relation.targetId])
+    );
+
   const sourceName = getElementName(activeModel, relation.sourceId);
   const targetName = getElementName(activeModel, relation.targetId);
   const displaySource = reversed ? targetName : sourceName;
   const displayTarget = reversed ? sourceName : targetName;
 
-  const showMultiplicity = !isPackageRelation && MULTIPLICITY_KINDS.has(kind);
+  const showMultiplicity = !isPackageRelation && !isUseCaseRelation && MULTIPLICITY_KINDS.has(kind);
   const srcMulValid = isValidMultiplicity(sourceMul);
   const tgtMulValid = isValidMultiplicity(targetMul);
   const canSave = srcMulValid && tgtMulValid;
@@ -270,6 +285,25 @@ export default function VfsEdgeActionModal() {
                       {stereo ?? '→'}
                     </span>
                     <span className="text-sm font-medium">{label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : isUseCaseRelation ? (
+              <div className="flex flex-col gap-1.5">
+                {USE_CASE_RELATION_KINDS.map(({ value, label, description }) => (
+                  <button
+                    key={value}
+                    onClick={() => setKind(value)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+                      kind === value
+                        ? 'bg-blue-500/20 border-blue-500 text-blue-300'
+                        : 'bg-surface-secondary border-surface-border text-text-secondary hover:border-blue-400/50 hover:text-text-primary'
+                    }`}
+                  >
+                    <span className="w-24 text-center font-mono text-xs font-bold shrink-0 italic text-blue-400">
+                      {label}
+                    </span>
+                    <span className="text-sm">{description}</span>
                   </button>
                 ))}
               </div>

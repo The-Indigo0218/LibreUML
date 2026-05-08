@@ -24,6 +24,7 @@ export type ActiveModal =
   | "wiki"
   | "feedback"
   | "use-case-spec"
+  | "actor-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -61,6 +62,7 @@ interface UiStoreState {
   openWiki: () => void;
   openFeedback: () => void;
   openUseCaseSpec: (elementId: string) => void;
+  openActorProps: (elementId: string) => void;
   closeModals: () => void;
   openGetStarted: () => void;
   closeGetStarted: () => void;
@@ -127,6 +129,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   openFeedback: () => set({ activeModal: "feedback", editingId: null }),
   openUseCaseSpec: (elementId) => set({ activeModal: "use-case-spec", editingId: elementId }),
+  openActorProps: (elementId) => set({ activeModal: "actor-props", editingId: elementId }),
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 

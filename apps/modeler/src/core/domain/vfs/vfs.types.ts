@@ -222,6 +222,8 @@ export interface IRDataType extends IRElement {
 export interface IRActor extends IRElement {
   kind: 'ACTOR';
   isAbstract?: boolean;
+  briefDescription?: string;
+  actorType?: 'human' | 'system' | 'timer';
 }
 
 export interface UseCaseFlowStep {

@@ -279,6 +279,26 @@ export const useDiagramMenus = ({
           });
         }
 
+        if (effectiveType === "USECASE") {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: "Edit specification",
+              onClick: () => useUiStore.getState().openUseCaseSpec(elementId),
+            });
+          }
+        }
+
+        if (effectiveType === "ACTOR") {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: "Edit properties",
+              onClick: () => useUiStore.getState().openActorProps(elementId),
+            });
+          }
+        }
+
         if (isNoteType) {
           baseOptions.push({
             label: "Edit note",

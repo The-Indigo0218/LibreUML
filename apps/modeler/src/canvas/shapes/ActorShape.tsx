@@ -141,6 +141,23 @@ export default function ActorShape({
         perfectDrawEnabled={false}
       />
 
+      {/* ── Stereotype label «system»/«timer» ────────────────────────────── */}
+      {vm.actorType && vm.actorType !== 'human' && (
+        <Text
+          x={0}
+          y={BODY_BOT + LEG_DY + NAME_GAP - NAME_FONT - 2}
+          width={W}
+          text={vm.actorType === 'system' ? '«system»' : '«timer»'}
+          fontSize={10}
+          fontFamily={FONT_SANS}
+          fontStyle="italic"
+          fill={colors.text}
+          align="center"
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+      )}
+
       {/* ── Name ────────────────────────────────────────────────────────────── */}
       <Text
         x={0}

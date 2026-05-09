@@ -292,13 +292,11 @@ function svgActorShape(shape: ShapeDescriptor, vm: ActorViewModel): string {
   ].join('\n');
 }
 
-const UC_MIN_W = 140;
 const UC_BASE_H = 56;
 const UC_EP_H = 16;
 const UC_EP_SEP_PAD = 6;
 const UC_EP_FONT = 11;
 const UC_NAME_FONT_SVG = 13;
-const UC_H_PAD_SVG = 16;
 
 function svgUseCaseShape(shape: ShapeDescriptor, vm: UseCaseViewModel): string {
   const colors = resolveUseCaseColors();

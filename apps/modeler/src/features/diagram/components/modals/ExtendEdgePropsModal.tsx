@@ -4,8 +4,8 @@ import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
 import { useModelStore } from '../../../../store/model.store';
-import { useWorkspaceStore } from '../../../../store/workspaceStore';
-import { useVFSStore } from '../../../../store/vfsStore';
+import { useWorkspaceStore } from '../../../../store/workspace.store';
+import { useVFSStore } from '../../../../store/project-vfs.store';
 import { standaloneModelOps, getLocalModel } from '../../../../store/standaloneModelOps';
 
 export default function ExtendEdgePropsModal() {

@@ -2,7 +2,7 @@ import type {
   DiagramTypeRegistry,
   DiagramRegistryMap,
 } from './diagram-registry.types';
-import type { DiagramType } from '../domain/workspace/diagram-file.types';
+import type { DiagramType } from '../domain/vfs/vfs.types';
 import type { DomainNode } from '../domain/models/nodes';
 import type { DomainEdge } from '../domain/models/edges';
 import type {

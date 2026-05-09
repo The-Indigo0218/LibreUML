@@ -66,9 +66,6 @@ import {
   isSystemBoundaryViewModel,
   type NodeViewModel,
   type PackageViewModel,
-  type ActorViewModel,
-  type UseCaseViewModel,
-  type SystemBoundaryViewModel,
 } from '../adapters/react-flow/view-models/node.view-model';
 import { selectAnchors, anchorPointToHandle, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
@@ -683,51 +680,6 @@ export default function KonvaCanvas() {
     openMethodGenerator,
     openExtendProps,
   } = useUiStore();
-
-  const handleUseCaseDblClick = useCallback(
-    (shapeId: string, e: KonvaEventObject<MouseEvent>) => {
-      const shape = shapes.find((s) => s.id === shapeId);
-      if (!shape) return;
-      const vm = shape.data;
-      const stage = stageRef.current;
-      if (!stage) return;
-
-      const groupNode = e.target.findAncestor('Group');
-      if (!groupNode) return;
-      const groupPos = groupNode.getAbsolutePosition();
-      const transform = stage.getAbsoluteTransform().copy();
-
-      if (isActorViewModel(vm)) {
-        const { width } = getActorShapeSize(vm);
-        const screenPos = transform.point({ x: groupPos.x, y: groupPos.y + ACTOR_NAME_Y_FROM_TOP });
-        if (vm.onRename) {
-          startInlineEditing(
-            shapeId,
-            vm.name,
-            'name',
-            { x: screenPos.x, y: screenPos.y },
-            { width, height: ACTOR_NAME_H },
-            (text) => vm.onRename!(text),
-          );
-        }
-      } else if (isUseCaseViewModel(vm)) {
-        const { width, height } = getUseCaseShapeSize(vm);
-        const nameY = height * UC_NAME_Y_RATIO - UC_NAME_FONT / 2;
-        const screenPos = transform.point({ x: groupPos.x + UC_H_PAD, y: groupPos.y + nameY });
-        if (vm.onRename) {
-          startInlineEditing(
-            shapeId,
-            vm.name,
-            'name',
-            { x: screenPos.x, y: screenPos.y },
-            { width: width - UC_H_PAD * 2, height: UC_NAME_FONT + 6 },
-            (text) => vm.onRename!(text),
-          );
-        }
-      }
-    },
-    [shapes, stageRef, startInlineEditing],
-  );
 
   const startUseCaseInlineEdit = useCallback(
     (shapeId: string) => {

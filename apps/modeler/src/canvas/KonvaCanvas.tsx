@@ -790,8 +790,11 @@ export default function KonvaCanvas() {
         const pos = positionOverrides.get(shapeId) ?? { x: shape.x, y: shape.y };
         const { width, height } = getUseCaseShapeSize(vm);
         const transform = stage.getAbsoluteTransform().copy();
-        const screenPt = transform.point({ x: pos.x + width / 2, y: pos.y + height });
-        setUcHover({ elementId: viewNode.elementId, screenX: screenPt.x, screenY: screenPt.y + 8 });
+        const stageRect = stage.container().getBoundingClientRect();
+        // Anchor to right-center of shape so popover never appears under the cursor.
+        // Add stageRect offset to convert canvas-relative coords to viewport coords for position:fixed.
+        const canvasPt = transform.point({ x: pos.x + width, y: pos.y + height / 2 });
+        setUcHover({ elementId: viewNode.elementId, screenX: stageRect.left + canvasPt.x, screenY: stageRect.top + canvasPt.y });
       }, 400);
     },
     [shapes, vfsController.diagramView, stageRef, positionOverrides],
@@ -1788,7 +1791,7 @@ export default function KonvaCanvas() {
             screenY={ucHover.screenY}
             onClose={() => setUcHover(null)}
             onMouseEnter={cancelPopoverHide}
-            onMouseLeave={() => setUcHover(null)}
+            onMouseLeave={() => { ucHoverHideTimer.current = setTimeout(() => setUcHover(null), 500); }}
             onOpenSpec={() => {
               setUcHover(null);
               useUiStore.getState().openUseCaseSpec(ucHover.elementId);

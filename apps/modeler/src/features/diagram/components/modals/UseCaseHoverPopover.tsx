@@ -30,7 +30,7 @@ export default function UseCaseHoverPopover({ uc, screenX, screenY, onClose, onO
   const content = (
     <div
       className="fixed z-[9000] w-[300px] rounded-lg border border-[#2a3358] bg-[#111827] shadow-xl text-sm"
-      style={{ left, top: screenY - 8 }}
+      style={{ left, top: screenY - 40 }}
       onMouseEnter={(e) => { e.stopPropagation(); onMouseEnter?.(); }}
       onMouseLeave={onMouseLeave}
     >

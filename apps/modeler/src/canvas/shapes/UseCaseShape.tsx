@@ -116,6 +116,7 @@ export default function UseCaseShape({
         stroke={colors.stroke}
         strokeWidth={STROKE_W}
         perfectDrawEnabled={false}
+        listening={false}
       />
 
       {/* ── Use case name ───────────────────────────────────────────────────── */}

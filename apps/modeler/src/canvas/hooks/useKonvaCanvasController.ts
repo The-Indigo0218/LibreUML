@@ -113,6 +113,8 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
       anchorLocked: e.data.anchorLocked,
       sourceHandle: e.sourceHandle ?? undefined,
       targetHandle: e.targetHandle ?? undefined,
+      condition: e.data.condition,
+      extensionPoint: e.data.extensionPoint,
     })),
     [edges],
   );

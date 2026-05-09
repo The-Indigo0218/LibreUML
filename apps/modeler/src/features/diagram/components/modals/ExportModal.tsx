@@ -22,6 +22,7 @@ import { ExportService } from "../../../../services/export.service";
 import {
   downloadVfsDiagramXmi,
 } from "../../../../services/vfsExport.service";
+import { downloadUseCaseDiagramXmi } from "../../../../services/useCaseXmiExporter";
 import { getDiagramIOService } from "../../../../services/diagram";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import { useKonvaCanvasController } from "../../../../canvas/hooks/useKonvaCanvasController";
@@ -189,7 +190,17 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       return;
     }
     if (format === "xmi") {
-      downloadVfsDiagramXmi(model, selectedDiagramView, selectedFileName);
+      const diagramType = (selectedVFSFile as VFSFile & { diagramType?: string } | undefined)?.diagramType;
+      const effectiveModel = model ?? (selectedVFSFile as any)?.localModel;
+      if (!effectiveModel) {
+        alert("No semantic model loaded. Cannot export.");
+        return;
+      }
+      if (diagramType === 'USE_CASE_DIAGRAM') {
+        downloadUseCaseDiagramXmi(effectiveModel, selectedDiagramView, selectedFileName);
+      } else {
+        downloadVfsDiagramXmi(effectiveModel, selectedDiagramView, selectedFileName);
+      }
       track('export_completed', { format: 'xmi' });
       onClose();
     } else if (format === "json") {

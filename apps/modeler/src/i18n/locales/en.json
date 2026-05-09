@@ -1365,5 +1365,14 @@
     },
     "description": "Description",
     "description.placeholder": "Describe the actor's role in the system…"
+  },
+  "extend": {
+    "title": "«extend» Properties",
+    "condition": "Extension condition",
+    "condition.placeholder": "e.g. user is not authenticated",
+    "extensionPoint": "Extension point",
+    "extensionPoint.none": "— none —",
+    "extensionPoint.placeholder": "Extension point name",
+    "extensionPoint.hint": "Define extension points in «{{name}}» to select one here"
   }
 }

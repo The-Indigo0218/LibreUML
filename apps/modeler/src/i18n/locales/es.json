@@ -1374,5 +1374,14 @@
     },
     "description": "Descripción",
     "description.placeholder": "Describe el rol del actor en el sistema…"
+  },
+  "extend": {
+    "title": "Propiedades de «extend»",
+    "condition": "Condición de extensión",
+    "condition.placeholder": "ej. el usuario no está autenticado",
+    "extensionPoint": "Punto de extensión",
+    "extensionPoint.none": "— ninguno —",
+    "extensionPoint.placeholder": "Nombre del punto de extensión",
+    "extensionPoint.hint": "Define puntos de extensión en «{{name}}» para seleccionar uno aquí"
   }
 }

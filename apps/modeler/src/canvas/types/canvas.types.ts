@@ -38,6 +38,9 @@ export interface EdgeDescriptor {
   anchorLocked?: boolean;
   sourceHandle?: string;
   targetHandle?: string;
+  // «extend» specific
+  condition?: string;
+  extensionPoint?: string;
 }
 
 // ─── Change types ─────────────────────────────────────────────────────────────

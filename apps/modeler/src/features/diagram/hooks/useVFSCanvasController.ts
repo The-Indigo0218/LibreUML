@@ -489,6 +489,8 @@ export interface VFSReactFlowEdge {
     sourceRole?: string;
     targetRole?: string;
     anchorLocked?: boolean;
+    condition?: string;
+    extensionPoint?: string;
   };
 }
 
@@ -859,6 +861,8 @@ export function useVFSCanvasController(): VFSCanvasResult {
           sourceRole: viewEdge.sourceRole,
           targetRole: viewEdge.targetRole,
           anchorLocked: viewEdge.anchorLocked,
+          condition: relation.condition,
+          extensionPoint: relation.extensionPoint,
         },
       });
     }

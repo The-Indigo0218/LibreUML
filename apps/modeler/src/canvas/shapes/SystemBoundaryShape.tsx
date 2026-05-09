@@ -27,6 +27,7 @@ interface SystemBoundaryShapeProps {
   x: number;
   y: number;
   selected?: boolean;
+  isDropTarget?: boolean;
   opacity?: number;
   visible?: boolean;
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
@@ -54,6 +55,7 @@ export default function SystemBoundaryShape({
   onDragMove,
   onDragEnd,
   onResizeEnd,
+  isDropTarget = false,
 }: SystemBoundaryShapeProps) {
   const colors = resolveSystemBoundaryColors();
   const W = vm.width;
@@ -106,10 +108,10 @@ export default function SystemBoundaryShape({
         <Rect
           width={W}
           height={H}
-          fill="transparent"
-          stroke={colors.stroke}
-          strokeWidth={STROKE_W}
-          dash={[8, 5]}
+          fill={isDropTarget ? 'rgba(34,211,238,0.06)' : 'transparent'}
+          stroke={isDropTarget ? '#22d3ee' : colors.stroke}
+          strokeWidth={isDropTarget ? 2 : STROKE_W}
+          dash={isDropTarget ? undefined : [8, 5]}
           perfectDrawEnabled={false}
         />
 

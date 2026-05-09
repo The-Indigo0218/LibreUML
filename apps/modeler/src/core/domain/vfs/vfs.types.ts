@@ -319,6 +319,8 @@ export interface IRRelation {
   stereotypes?: string[];
   taggedValues?: TaggedValue[];
   isExternal?: boolean;
+  condition?: string;      // «extend» guard condition
+  extensionPoint?: string; // «extend» target extension point name
 }
 
 export interface SemanticModel {

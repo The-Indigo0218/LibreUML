@@ -301,6 +301,10 @@ export interface KonvaEdgeProps {
   onMouseEnter?: (e: KonvaEventObject<MouseEvent>, edgeId: string) => void;
   /** Mouse leave handler for tooltip (MAG-01.12) */
   onMouseLeave?: (e: KonvaEventObject<MouseEvent>, edgeId: string) => void;
+  /** Double-click handler — used for «extend» props modal */
+  onDblClick?: (edgeId: string) => void;
+  /** «extend» guard condition — rendered below the stereotype label */
+  condition?: string;
   /** Locked anchor mode — when true, use stored handles instead of closest-pair selection */
   anchorLocked?: boolean;
   sourceHandle?: string;
@@ -327,6 +331,8 @@ export default function KonvaEdge({
   onContextMenu,
   onMouseEnter,
   onMouseLeave,
+  onDblClick,
+  condition,
   anchorLocked = false,
   sourceHandle,
   targetHandle,
@@ -445,6 +451,7 @@ export default function KonvaEdge({
             onContextMenu={(e) => onContextMenu?.(e, id)}
             onMouseEnter={(e) => onMouseEnter?.(e, id)}
             onMouseLeave={(e) => onMouseLeave?.(e, id)}
+            onDblClick={() => onDblClick?.(id)}
           />
           <EdgeMarker
             kind={kind}
@@ -619,6 +626,7 @@ export default function KonvaEdge({
               y={labelPositions.centerY}
               offsetX={Math.round(stereotypeLabel.length * 3.3 + labelPad)}
               offsetY={Math.round((12 + labelPad * 2) / 2)}
+              onDblClick={() => onDblClick?.(id)}
             >
               <Tag
                 fill={labelBgFill}
@@ -629,6 +637,31 @@ export default function KonvaEdge({
               <Text
                 text={stereotypeLabel}
                 fontSize={12}
+                fontStyle="italic"
+                fill={labelTextColor}
+                padding={labelPad}
+                listening={false}
+              />
+            </Label>
+          )}
+
+          {/* «extend» condition note */}
+          {kind === 'EXTEND' && condition && (
+            <Label
+              x={labelPositions.centerX}
+              y={labelPositions.centerY + 20}
+              offsetX={Math.round((condition.length + 2) * 3.2 + labelPad)}
+              offsetY={Math.round((10 + labelPad * 2) / 2)}
+            >
+              <Tag
+                fill={labelBgFill}
+                stroke={labelBorder}
+                strokeWidth={0.5}
+                cornerRadius={3}
+              />
+              <Text
+                text={`[${condition}]`}
+                fontSize={10}
                 fontStyle="italic"
                 fill={labelTextColor}
                 padding={labelPad}

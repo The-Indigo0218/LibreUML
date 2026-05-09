@@ -43,6 +43,7 @@ import NoteEditorModal from '../features/diagram/components/modals/NoteEditorMod
 import UseCaseHoverPopover from '../features/diagram/components/modals/UseCaseHoverPopover';
 import UseCaseSpecModal from '../features/diagram/components/modals/UseCaseSpecModal';
 import ActorPropsModal from '../features/diagram/components/modals/ActorPropsModal';
+import ExtendEdgePropsModal from '../features/diagram/components/modals/ExtendEdgePropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
 import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
@@ -452,32 +453,32 @@ export default function KonvaCanvas() {
       const excludeIds = collectDescendantIds(nodeId);
       let foundPackage: string | null = null;
       let maxDepth = -1;
+      let foundBoundary: string | null = null;
 
       for (const shape of shapes) {
-        if (shape.type !== 'package') continue;
         if (excludeIds.has(shape.id)) continue;
-        if (!isPackageViewModel(shape.data)) continue;
+        const cb = boundsMap.get(shape.id);
+        if (!cb) continue;
+        const { x, y, width, height } = cb;
+        const hit = dropPoint.x >= x && dropPoint.x <= x + width &&
+                    dropPoint.y >= y && dropPoint.y <= y + height;
+        if (!hit) continue;
 
-        const pkgBounds = boundsMap.get(shape.id);
-        if (!pkgBounds) continue;
-
-        const { x, y, width, height } = pkgBounds;
-        if (
-          dropPoint.x >= x &&
-          dropPoint.x <= x + width &&
-          dropPoint.y >= y &&
-          dropPoint.y <= y + height
-        ) {
+        if (shape.type === 'package' && isPackageViewModel(shape.data)) {
           if (shape.data.depth > maxDepth) {
             maxDepth = shape.data.depth;
             foundPackage = shape.id;
           }
+        } else if (isSystemBoundaryViewModel(shape.data)) {
+          foundBoundary = shape.id;
         }
       }
 
-      if (foundPackage !== hoveredPackageId) {
-        setHoveredPackageId(foundPackage);
-        setIsHoverValid(!excludeIds.has(foundPackage ?? ''));
+      // Packages take priority over system boundaries
+      const foundContainer = foundPackage ?? foundBoundary;
+      if (foundContainer !== hoveredPackageId) {
+        setHoveredPackageId(foundContainer);
+        setIsHoverValid(!excludeIds.has(foundContainer ?? ''));
       }
     },
     [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId],
@@ -680,6 +681,7 @@ export default function KonvaCanvas() {
     openSSoTClassEditor,
     openVfsEdgeAction,
     openMethodGenerator,
+    openExtendProps,
   } = useUiStore();
 
   const handleUseCaseDblClick = useCallback(
@@ -1173,6 +1175,14 @@ export default function KonvaCanvas() {
     [openVfsEdgeAction, buildAnchorSnapshot],
   );
 
+  const handleEdgeDblClick = useCallback(
+    (edgeId: string) => {
+      const edge = edges.find((e) => e.id === edgeId);
+      if (edge?.kind === 'EXTEND') openExtendProps(edgeId);
+    },
+    [edges, openExtendProps],
+  );
+
   const handleStageContextMenu = useCallback(
     (e: KonvaEventObject<PointerEvent>) => {
       e.evt.preventDefault();
@@ -1408,6 +1418,7 @@ export default function KonvaCanvas() {
                 onContextMenu={handleEdgeContextMenu}
                 onMouseEnter={handleEdgeMouseEnter}
                 onMouseLeave={handleEdgeMouseLeave}
+                onDblClick={handleEdgeDblClick}
                 visible={isVisible && !shouldHideEdge}
               />
             ))}
@@ -1505,6 +1516,7 @@ export default function KonvaCanvas() {
                       x={pos.x}
                       y={pos.y}
                       selected={selectedIds.has(shape.id)}
+                      isDropTarget={hoveredPackageId === shape.id}
                       draggable
                       onDragStart={guardedDragStart}
                       onDragMove={handleDragMove}
@@ -1554,10 +1566,12 @@ export default function KonvaCanvas() {
                 targetMultiplicity={edge.targetMultiplicity}
                 sourceRole={edge.sourceRole}
                 targetRole={edge.targetRole}
+                condition={edge.condition}
                 isHighlighted={highlightedEdgeIds.has(edge.id)}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
                 renderMode="labels"
+                onDblClick={handleEdgeDblClick}
                 visible={isVisible && !shouldHideEdge}
               />
             ))}
@@ -1802,6 +1816,7 @@ export default function KonvaCanvas() {
 
       <UseCaseSpecModal />
       <ActorPropsModal />
+      <ExtendEdgePropsModal />
     </div>
   );
 }

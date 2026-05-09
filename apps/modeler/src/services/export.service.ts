@@ -36,6 +36,7 @@ export interface ExportImageOptions {
   scale: number;
   transparent: boolean;
   backgroundColor: string;
+  bgPattern?: 'dots' | 'grid';  // Optional canvas pattern overlay
   nodes?: ViewNode[];            // Legacy: ViewNode positions for bounds (fallback only)
   shapes?: ShapeDescriptor[];   // Preferred: full shape descriptors for accurate bounds + vector SVG
   edges?: EdgeDescriptor[];     // Optional: edge descriptors for vector SVG
@@ -198,7 +199,99 @@ function exportWithTemporaryTransform(
   }
 }
 
+function drawExportPattern(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  pattern: 'dots' | 'grid',
+  spacing: number,
+): void {
+  ctx.save();
+  if (pattern === 'dots') {
+    ctx.fillStyle = 'rgba(120, 128, 160, 0.65)';
+    const r = Math.max(1, spacing / 26);
+    for (let x = spacing; x < width; x += spacing) {
+      for (let y = spacing; y < height; y += spacing) {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else {
+    ctx.lineWidth = 0.5;
+    // Minor lines
+    ctx.strokeStyle = 'rgba(120, 128, 160, 0.2)';
+    for (let x = spacing; x < width; x += spacing) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+    }
+    for (let y = spacing; y < height; y += spacing) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+    }
+    // Major lines every 5
+    ctx.strokeStyle = 'rgba(120, 128, 160, 0.5)';
+    for (let x = 0; x <= width; x += spacing * 5) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+    }
+    for (let y = 0; y <= height; y += spacing * 5) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+async function compositeWithPattern(
+  stage: Konva.Stage,
+  bounds: DiagramBounds,
+  bgColor: string,
+  pattern: 'dots' | 'grid',
+  pixelRatio: number,
+): Promise<string> {
+  const konvaDataUrl = exportWithTemporaryTransform(stage, bounds, pixelRatio, 'image/png', undefined);
+  const w = Math.round(bounds.width * pixelRatio);
+  const h = Math.round(bounds.height * pixelRatio);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, w, h);
+  drawExportPattern(ctx, w, h, pattern, 40 * pixelRatio);
+
+  await new Promise<void>((resolve) => {
+    const img = new Image();
+    img.onload = () => { ctx.drawImage(img, 0, 0); resolve(); };
+    img.src = konvaDataUrl;
+  });
+
+  return canvas.toDataURL('image/png');
+}
+
 export const ExportService = {
+  // --- PREVIEW: returns data URL without downloading ---
+  async getPreviewDataUrl(
+    stage: Konva.Stage,
+    options: ExportImageOptions,
+  ): Promise<string> {
+    const bounds =
+      options.shapes && options.shapes.length > 0
+        ? calculateBoundsFromShapes(options.shapes)
+        : options.nodes
+        ? calculateDiagramBounds(options.nodes)
+        : null;
+
+    if (options.bgPattern && bounds) {
+      return compositeWithPattern(stage, bounds, options.backgroundColor, options.bgPattern, 1);
+    }
+
+    const bgColor = options.transparent ? undefined : options.backgroundColor;
+    if (bounds) {
+      return exportWithTemporaryTransform(stage, bounds, 1, 'image/png', bgColor);
+    }
+    return stage.toDataURL({ pixelRatio: 1, mimeType: 'image/png' });
+  },
+
   // --- JSON (legacy / VFS download) ---
   downloadJson: (
     flowObject: { nodes: unknown[]; edges: unknown[]; viewport?: unknown },
@@ -234,9 +327,14 @@ export const ExportService = {
     const bgColor = options.transparent ? undefined : options.backgroundColor;
 
     if (options.format === 'png') {
-      const dataUrl = bounds
-        ? exportWithTemporaryTransform(stage, bounds, pixelRatio, 'image/png', bgColor)
-        : stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
+      let dataUrl: string;
+      if (options.bgPattern && bounds) {
+        dataUrl = await compositeWithPattern(stage, bounds, options.backgroundColor, options.bgPattern, pixelRatio);
+      } else {
+        dataUrl = bounds
+          ? exportWithTemporaryTransform(stage, bounds, pixelRatio, 'image/png', bgColor)
+          : stage.toDataURL({ pixelRatio, mimeType: 'image/png' });
+      }
 
       if (window.electronAPI?.isElectron()) {
         const result = await window.electronAPI.saveImage(dataUrl, options.fileName, 'png');

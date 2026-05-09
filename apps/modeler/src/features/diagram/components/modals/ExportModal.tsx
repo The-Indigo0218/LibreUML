@@ -10,6 +10,7 @@ import {
   Timer,
   ArrowRight,
   ChevronDown,
+  Eye,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../../../../store/settingsStore";
@@ -29,6 +30,16 @@ import { useKonvaCanvasController } from "../../../../canvas/hooks/useKonvaCanva
 import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types";
 
 type ExportFormat = "png" | "svg" | "xmi" | "json";
+type BgChoice = "transparent" | "canvas" | "white" | "dark" | "canvas-dots" | "canvas-grid";
+
+const BG_OPTIONS: { id: BgChoice; label: string }[] = [
+  { id: "transparent",  label: "Transparente" },
+  { id: "canvas",       label: "Canvas" },
+  { id: "white",        label: "Blanco" },
+  { id: "dark",         label: "Oscuro" },
+  { id: "canvas-dots",  label: "Puntos" },
+  { id: "canvas-grid",  label: "Cuadrícula" },
+];
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -58,9 +69,11 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
   const [format, setFormat] = useState<ExportFormat>("png");
   const [scale, setScale] = useState<number>(2);
-  const [transparent, setTransparent] = useState(false);
+  const [bgChoice, setBgChoice] = useState<BgChoice>("canvas");
   const [includeConnections, setIncludeConnections] = useState(false);
   const [selectedFileId, setSelectedFileId] = useState<string>("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -75,6 +88,8 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       setDontShowAgain(false);
       setIncludeConnections(showAllEdges ?? false);
       setFormat("png");
+      setBgChoice("canvas");
+      setPreviewUrl(null);
       // Default file selector to active tab, or first diagram file
       const defaultId =
         activeTabId && diagramFiles.some((f) => f.id === activeTabId)
@@ -107,6 +122,47 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const getFile = useWorkspaceStore((s) => s.getFile);
   const legacyDiagramName = activeTabId ? getFile(activeTabId)?.name ?? "diagram" : "diagram";
 
+  const canvasBgColor =
+    getComputedStyle(document.documentElement).getPropertyValue("--canvas-base").trim() || "#f8fafc";
+
+  const getEffectiveExportColors = useCallback(() => {
+    const isPattern = bgChoice === "canvas-dots" || bgChoice === "canvas-grid";
+    return {
+      transparent: bgChoice === "transparent",
+      backgroundColor:
+        bgChoice === "white" ? "#ffffff"
+        : bgChoice === "dark" ? "#1e1e2e"
+        : canvasBgColor,
+      bgPattern: bgChoice === "canvas-dots" ? "dots" as const
+        : bgChoice === "canvas-grid" ? "grid" as const
+        : undefined,
+      isPattern,
+    };
+  }, [bgChoice, canvasBgColor]);
+
+  const handlePreview = useCallback(async () => {
+    if (!stage) return;
+    setIsPreviewing(true);
+    try {
+      const { transparent, backgroundColor, bgPattern } = getEffectiveExportColors();
+      const url = await ExportService.getPreviewDataUrl(stage, {
+        fileName: "preview",
+        format: "png",
+        scale: 1,
+        transparent,
+        backgroundColor,
+        bgPattern,
+        shapes,
+        edges,
+      });
+      setPreviewUrl(url);
+    } catch {
+      // silently ignore preview errors
+    } finally {
+      setIsPreviewing(false);
+    }
+  }, [stage, getEffectiveExportColors, shapes, edges]);
+
   const executePngSvgExport = useCallback(async () => {
     if (!stage) {
       alert("Canvas not ready for export.");
@@ -114,8 +170,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     }
     setIsExporting(true);
 
-    const computedStyle = getComputedStyle(document.documentElement);
-    const bgColor = computedStyle.getPropertyValue("--canvas-base").trim();
+    const { transparent, backgroundColor: bgColor, bgPattern } = getEffectiveExportColors();
 
     const originalShowEdgesState = useSettingsStore.getState().showAllEdges;
     let stateChanged = false;
@@ -146,6 +201,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
         scale,
         transparent,
         backgroundColor: bgColor,
+        bgPattern,
         nodes,
         shapes,
         edges,
@@ -171,7 +227,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     stage,
     format,
     scale,
-    transparent,
+    getEffectiveExportColors,
     includeConnections,
     toggleShowAllEdges,
     onClose,
@@ -241,11 +297,11 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-surface-primary border border-surface-border rounded-xl shadow-2xl w-96 overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-surface-primary border border-surface-border rounded-xl shadow-2xl w-[420px] max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
 
         {view === "config" && (
           <>
-            <div className="px-6 py-4 border-b border-surface-border bg-surface-secondary/50 flex items-center gap-3">
+            <div className="px-6 py-4 border-b border-surface-border bg-surface-secondary/50 flex items-center gap-3 shrink-0">
               <div className="p-2 bg-uml-class-bg rounded-lg text-uml-class-border">
                 <Download className="w-5 h-5" />
               </div>
@@ -254,7 +310,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
               </h3>
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="p-6 space-y-5 overflow-y-auto flex-1">
 
               {/* VFS: file selector */}
               {isVFSMode && diagramFiles.length > 0 && (
@@ -367,50 +423,139 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
                 </div>
               )}
 
-              {/* PNG/SVG toggles */}
+              {/* PNG/SVG options */}
               {(format === "png" || format === "svg") && (
                 <>
                   <div className="h-px bg-surface-border" />
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
+
+                  {/* Background selector */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                      {t("modals.export.background") || "Fondo"}
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {BG_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => { setBgChoice(opt.id); setPreviewUrl(null); }}
+                          className={`flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-all ${
+                            bgChoice === opt.id
+                              ? "border-uml-class-border ring-1 ring-uml-class-border bg-uml-class-bg"
+                              : "border-surface-border hover:border-text-muted"
+                          }`}
+                        >
+                          {opt.id === "transparent" ? (
+                            <div
+                              className="w-8 h-5 rounded border border-surface-border overflow-hidden"
+                              style={{
+                                background:
+                                  "repeating-conic-gradient(#bbb 0% 25%, #fff 0% 50%) 0 0 / 8px 8px",
+                              }}
+                            />
+                          ) : opt.id === "canvas-dots" ? (
+                            <div
+                              className="w-8 h-5 rounded border border-surface-border overflow-hidden relative"
+                              style={{ background: canvasBgColor }}
+                            >
+                              <div
+                                className="absolute inset-0"
+                                style={{
+                                  backgroundImage:
+                                    "radial-gradient(circle, rgba(180,190,220,0.9) 1px, transparent 1px)",
+                                  backgroundSize: "5px 5px",
+                                }}
+                              />
+                            </div>
+                          ) : opt.id === "canvas-grid" ? (
+                            <div
+                              className="w-8 h-5 rounded border border-surface-border overflow-hidden relative"
+                              style={{ background: canvasBgColor }}
+                            >
+                              <div
+                                className="absolute inset-0"
+                                style={{
+                                  backgroundImage:
+                                    "linear-gradient(to right, rgba(180,190,220,0.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(180,190,220,0.35) 1px, transparent 1px)",
+                                  backgroundSize: "5px 5px",
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              className="w-8 h-5 rounded border border-surface-border"
+                              style={{
+                                background:
+                                  opt.id === "white"
+                                    ? "#ffffff"
+                                    : opt.id === "dark"
+                                    ? "#1e1e2e"
+                                    : canvasBgColor,
+                              }}
+                            />
+                          )}
+                          <span className="text-xs text-text-secondary">{opt.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Highlight connections */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Network className="w-4 h-4 text-text-secondary" />
                       <span className="text-sm text-text-primary">
-                        {t("modals.export.transparent") || "Transparent Background"}
+                        {t("modals.export.highlight") || "Resaltar conexiones"}
                       </span>
-                      <button
-                        onClick={() => setTransparent(!transparent)}
-                        className={`w-10 h-5 rounded-full transition-colors relative ${
-                          transparent ? "bg-uml-class-border" : "bg-text-muted/30"
-                        }`}
-                      >
-                        <div
-                          className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${transparent ? "translate-x-5" : "translate-x-0"}`}
-                        />
-                      </button>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Network className="w-4 h-4 text-text-secondary" />
-                        <span className="text-sm text-text-primary">
-                          {t("modals.export.highlight") || "Highlight Connections"}
-                        </span>
+                    <button
+                      onClick={() => setIncludeConnections(!includeConnections)}
+                      className={`w-10 h-5 rounded-full transition-colors relative ${
+                        includeConnections ? "bg-uml-class-border" : "bg-text-muted/30"
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${includeConnections ? "translate-x-5" : "translate-x-0"}`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Preview */}
+                  <div className="space-y-2">
+                    <button
+                      onClick={handlePreview}
+                      disabled={!stage || isPreviewing}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-surface-border rounded-lg text-text-secondary hover:border-text-muted hover:text-text-primary transition-all disabled:opacity-40"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      {isPreviewing
+                        ? t("modals.export.previewing") || "Generando…"
+                        : t("modals.export.preview") || "Previsualizar"}
+                    </button>
+                    {previewUrl && (
+                      <div
+                        className="rounded-lg overflow-hidden border border-surface-border"
+                        style={
+                          bgChoice === "transparent"
+                            ? {
+                                background:
+                                  "repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 0 0 / 12px 12px",
+                              }
+                            : undefined
+                        }
+                      >
+                        <img
+                          src={previewUrl}
+                          alt="Export preview"
+                          className="w-full max-h-52 object-contain block"
+                        />
                       </div>
-                      <button
-                        onClick={() => setIncludeConnections(!includeConnections)}
-                        className={`w-10 h-5 rounded-full transition-colors relative ${
-                          includeConnections ? "bg-uml-class-border" : "bg-text-muted/30"
-                        }`}
-                      >
-                        <div
-                          className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${includeConnections ? "translate-x-5" : "translate-x-0"}`}
-                        />
-                      </button>
-                    </div>
+                    )}
                   </div>
 
                   {/* PNG/SVG note in VFS mode */}
                   {isVFSMode && (
                     <p className="text-xs text-text-muted">
-                      PNG / SVG captures the entire diagram (all nodes). Switch to the desired diagram tab first.
+                      PNG / SVG captura el diagrama completo. Cambia a la pestaña del diagrama deseado primero.
                     </p>
                   )}
                 </>
@@ -432,7 +577,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-surface-secondary/30 border-t border-surface-border flex justify-end gap-3">
+            <div className="px-6 py-4 bg-surface-secondary/30 border-t border-surface-border flex justify-end gap-3 shrink-0">
               <button
                 onClick={onClose}
                 className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors"

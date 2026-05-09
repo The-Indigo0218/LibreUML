@@ -105,8 +105,9 @@ export interface KonvaUseCaseColors {
 
 /** Stick-figure stroke and label color for Actor nodes. */
 export function resolveActorColors(): KonvaUseCaseColors {
-  const text = getCSSVar('--text-primary');
-  return { stroke: text, fill: 'transparent', text };
+  const dark = isDark();
+  const stroke = dark ? '#e6e9f2' : '#1e293b';
+  return { stroke, fill: '#ffffff', text: getCSSVar('--text-primary') };
 }
 
 /** Ellipse stroke, fill, and label color for UseCase nodes. */

@@ -2,14 +2,15 @@ export type VFSNodeType = 'FOLDER' | 'FILE';
 
 export type FileExtension = '.luml' | '.xmi' | '.md' | '.model' | '.json';
 
-export type DiagramType = 
-  | 'CLASS_DIAGRAM' 
-  | 'USE_CASE_DIAGRAM' 
-  | 'SEQUENCE_DIAGRAM' 
-  | 'ACTIVITY_DIAGRAM' 
-  | 'STATE_MACHINE_DIAGRAM' 
-  | 'COMPONENT_DIAGRAM' 
-  | 'DEPLOYMENT_DIAGRAM' 
+export type DiagramType =
+  | 'CLASS_DIAGRAM'
+  | 'USE_CASE_DIAGRAM'
+  | 'DOMAIN_MODEL_DIAGRAM'
+  | 'SEQUENCE_DIAGRAM'
+  | 'ACTIVITY_DIAGRAM'
+  | 'STATE_MACHINE_DIAGRAM'
+  | 'COMPONENT_DIAGRAM'
+  | 'DEPLOYMENT_DIAGRAM'
   | 'PACKAGE_DIAGRAM'
   | 'OBJECT_DIAGRAM'
   | 'UNSPECIFIED';
@@ -254,6 +255,15 @@ export interface IRSystemBoundary extends IRElement {
   kind: 'SYSTEM_BOUNDARY';
 }
 
+export interface IRDomainAttribute extends Pick<IRElement, 'id' | 'name' | 'documentation'> {
+  kind: 'DOMAIN_ATTRIBUTE';
+}
+
+export interface IRDomainEntity extends IRElement {
+  kind: 'DOMAIN_ENTITY';
+  attributeIds: string[];
+}
+
 export interface IRActivityNode extends IRElement {
   kind: 'ACTIVITY_NODE';
   activityType: 'ACTION' | 'DECISION' | 'MERGE' | 'FORK' | 'JOIN' | 'INITIAL' | 'FINAL';
@@ -337,6 +347,8 @@ export interface SemanticModel {
   actors: Record<string, IRActor>;
   useCases: Record<string, IRUseCase>;
   systemBoundaries?: Record<string, IRSystemBoundary>;
+  domainEntities?: Record<string, IRDomainEntity>;
+  domainAttributes?: Record<string, IRDomainAttribute>;
   activityNodes: Record<string, IRActivityNode>;
   objectInstances: Record<string, IRObjectInstance>;
   components: Record<string, IRComponent>;

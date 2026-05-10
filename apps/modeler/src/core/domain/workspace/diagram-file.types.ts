@@ -1,9 +1,10 @@
 /**
  * Supported diagram types in the workspace
  */
-export type DiagramType = 
-  | 'CLASS_DIAGRAM' 
-  | 'USE_CASE_DIAGRAM';
+export type DiagramType =
+  | 'CLASS_DIAGRAM'
+  | 'USE_CASE_DIAGRAM'
+  | 'DOMAIN_MODEL_DIAGRAM';
   // Future: 'SEQUENCE_DIAGRAM' | 'ACTIVITY_DIAGRAM' | 'STATE_DIAGRAM'
 
 /**
@@ -44,9 +45,10 @@ export interface DiagramFile<TDiagramType extends DiagramType = DiagramType> {
 /**
  * Diagram-specific metadata (extensible per diagram type)
  */
-export type DiagramFileMetadata<TDiagramType extends DiagramType> = 
+export type DiagramFileMetadata<TDiagramType extends DiagramType> =
   TDiagramType extends 'CLASS_DIAGRAM' ? ClassDiagramMetadata :
   TDiagramType extends 'USE_CASE_DIAGRAM' ? UseCaseDiagramMetadata :
+  TDiagramType extends 'DOMAIN_MODEL_DIAGRAM' ? DomainModelDiagramMetadata :
   Record<string, unknown>;
 
 /**
@@ -68,4 +70,12 @@ export interface UseCaseDiagramMetadata {
   systemName?: string;
   activeConnectionMode?: 'ASSOCIATION' | 'INCLUDE' | 'EXTEND' | 'GENERALIZATION';
   positionMap?: Record<string, { x: number; y: number }>; // UI position state per node
+}
+
+/**
+ * Domain Model Diagram specific metadata
+ */
+export interface DomainModelDiagramMetadata {
+  activeConnectionMode?: 'ASSOCIATION';
+  positionMap?: Record<string, { x: number; y: number }>;
 }

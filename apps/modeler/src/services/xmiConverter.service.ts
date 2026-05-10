@@ -229,7 +229,7 @@ export class XmiConverterService {
     // literal objects ({ id, name, value? }) satisfy that contract.
     const attributes = node.type === 'ENUM'
       ? ('literals' in node ? (node as unknown as { literals: ClassAttribute[] }).literals : [])
-      : ('attributes' in node ? node.attributes : []);
+      : ('attributes' in node ? node.attributes as ClassAttribute[] : []);
     const attributesXml = this.serializeAttributes(
       attributes,
       classNodes,

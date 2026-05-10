@@ -48,6 +48,8 @@ function toApiDiagramType(vfsType: VfsDiagramType): ProjectDiagramType {
   const map: Record<VfsDiagramType, ProjectDiagramType> = {
     CLASS_DIAGRAM:         'CLASS',
     USE_CASE_DIAGRAM:      'USE_CASE',
+    // TODO: request backend to add enum DOMAIN — mapped to OBJECT temporarily
+    DOMAIN_MODEL_DIAGRAM:  'OBJECT',
     SEQUENCE_DIAGRAM:      'SEQUENCE',
     ACTIVITY_DIAGRAM:      'ACTIVITY',
     STATE_MACHINE_DIAGRAM: 'STATE',

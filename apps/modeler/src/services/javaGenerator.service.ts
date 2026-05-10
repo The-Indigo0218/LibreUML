@@ -44,7 +44,7 @@ export class JavaGeneratorService {
       }
     } else {
       // Access attributes from domain node (CLASS and ABSTRACT_CLASS only)
-      const attributes = ('attributes' in node) ? node.attributes : [];
+      const attributes = ('attributes' in node) ? node.attributes as ClassAttribute[] : [];
 
       // Compute existing method names up-front for deduplication guards.
       const methods = ('methods' in node) ? node.methods : [];
@@ -213,7 +213,7 @@ export class JavaGeneratorService {
     const className = 'name' in node ? node.name : '';
     // Skip auto-generating if the user already modelled a constructor.
     if (existingMethodNames.has(className)) return null;
-    const attributes = ('attributes' in node) ? node.attributes : [];
+    const attributes = ('attributes' in node) ? node.attributes as ClassAttribute[] : [];
 
     const parentAttributes = this.getParentAttributes(node, allNodes, edges);
     const allParams = this.buildConstructorParameters(parentAttributes, attributes);
@@ -247,7 +247,7 @@ export class JavaGeneratorService {
     if (!inheritanceEdge) return [];
 
     const parentNode = allNodes.find((n) => n.id === inheritanceEdge.targetNodeId);
-    return (parentNode && 'attributes' in parentNode) ? parentNode.attributes : [];
+    return (parentNode && 'attributes' in parentNode) ? parentNode.attributes as ClassAttribute[] : [];
   }
 
   private static buildConstructorParameters(

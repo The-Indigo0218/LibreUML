@@ -2,10 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { useUiStore } from '../../../../store/uiStore';
-import { useModelStore } from '../../../../store/model.store';
-import { useVFSStore } from '../../../../store/project-vfs.store';
-import { useWorkspaceStore } from '../../../../store/workspace.store';
-import { standaloneModelOps, getLocalModel } from '../../../../store/standaloneModelOps';
+import { useActiveSemanticModelOps } from '../../../../store/useActiveSemanticModelOps';
 import type { IRDomainEntity, IRDomainAttribute } from '../../../../core/domain/vfs/vfs.types';
 
 interface AttrRow {
@@ -17,24 +14,15 @@ export default function DomainEntityPropsModal() {
   const { activeModal, editingId, closeModals } = useUiStore();
   const isOpen = activeModal === 'domain-entity-props' && !!editingId;
 
-  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
-  const project = useVFSStore((s) => s.project);
-  const isStandalone = !!(
-    activeTabId &&
-    project?.nodes[activeTabId] &&
-    (project.nodes[activeTabId] as any).standalone === true
-  );
+  const { getModel, getOps } = useActiveSemanticModelOps();
 
   const getEntity = (): IRDomainEntity | null => {
     if (!editingId) return null;
-    if (isStandalone && activeTabId) return getLocalModel(activeTabId)?.domainEntities?.[editingId] ?? null;
-    return useModelStore.getState().model?.domainEntities?.[editingId] ?? null;
+    return getModel()?.domainEntities?.[editingId] ?? null;
   };
 
   const getAttributes = (entity: IRDomainEntity): IRDomainAttribute[] => {
-    const model = isStandalone && activeTabId
-      ? getLocalModel(activeTabId)
-      : useModelStore.getState().model;
+    const model = getModel();
     return entity.attributeIds
       .map((id) => model?.domainAttributes?.[id])
       .filter((a): a is IRDomainAttribute => !!a);
@@ -82,21 +70,12 @@ export default function DomainEntityPropsModal() {
       .filter((a) => a.name.trim())
       .map((a) => ({ id: a.id, kind: 'DOMAIN_ATTRIBUTE' as const, name: a.name.trim() }));
 
-    if (isStandalone && activeTabId) {
-      const ops = standaloneModelOps(activeTabId);
-      ops.updateDomainEntity(editingId, {
-        name: trimmedName,
-        documentation: documentation.trim() || undefined,
-      });
-      ops.setDomainEntityAttributes(editingId, newAttrs);
-    } else {
-      const ms = useModelStore.getState();
-      ms.updateDomainEntity(editingId, {
-        name: trimmedName,
-        documentation: documentation.trim() || undefined,
-      });
-      ms.setDomainEntityAttributes(editingId, newAttrs);
-    }
+    const ops = getOps();
+    ops.updateDomainEntity(editingId, {
+      name: trimmedName,
+      documentation: documentation.trim() || undefined,
+    });
+    ops.setDomainEntityAttributes(editingId, newAttrs);
     closeModals();
   };
 
@@ -110,7 +89,6 @@ export default function DomainEntityPropsModal() {
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === 'Escape' && closeModals()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-[#2a3358] shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[#f59e0b] text-xs font-mono shrink-0">Entity:</span>
@@ -130,7 +108,6 @@ export default function DomainEntityPropsModal() {
         </div>
 
         <div className="px-4 py-4 space-y-4 overflow-y-auto">
-          {/* Documentation */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-[#94a3b8] mb-1.5">
               Documentation
@@ -144,7 +121,6 @@ export default function DomainEntityPropsModal() {
             />
           </div>
 
-          {/* Attributes */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-semibold uppercase tracking-wide text-[#94a3b8]">
@@ -199,7 +175,6 @@ export default function DomainEntityPropsModal() {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end gap-3 px-4 pb-4 shrink-0">
           <button
             onClick={closeModals}

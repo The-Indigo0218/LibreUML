@@ -2,36 +2,22 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useUiStore } from '../../../../store/uiStore';
-import { useModelStore } from '../../../../store/model.store';
-import { useVFSStore } from '../../../../store/project-vfs.store';
-import { useWorkspaceStore } from '../../../../store/workspace.store';
-import { standaloneModelOps, getLocalModel } from '../../../../store/standaloneModelOps';
+import { useActiveSemanticModelOps } from '../../../../store/useActiveSemanticModelOps';
 import { MULTIPLICITY_PRESETS, isValidMultiplicity } from '../../../../core/domain/multiplicity.utils';
 
 export default function DomainAssociationPropsModal() {
   const { activeModal, editingId, closeModals } = useUiStore();
   const isOpen = activeModal === 'domain-association-props' && !!editingId;
 
-  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
-  const project = useVFSStore((s) => s.project);
-  const isStandalone = !!(
-    activeTabId &&
-    project?.nodes[activeTabId] &&
-    (project.nodes[activeTabId] as any).standalone === true
-  );
+  const { getModel, getOps } = useActiveSemanticModelOps();
 
   const getRelation = () => {
     if (!editingId) return null;
-    if (isStandalone && activeTabId) return getLocalModel(activeTabId)?.relations?.[editingId] ?? null;
-    return useModelStore.getState().model?.relations?.[editingId] ?? null;
+    return getModel()?.relations?.[editingId] ?? null;
   };
 
-  const getEntityName = (id: string): string => {
-    const model = isStandalone && activeTabId
-      ? getLocalModel(activeTabId)
-      : useModelStore.getState().model;
-    return model?.domainEntities?.[id]?.name ?? '—';
-  };
+  const getEntityName = (id: string): string =>
+    getModel()?.domainEntities?.[id]?.name ?? '—';
 
   const [verb, setVerb] = useState('');
   const [srcMul, setSrcMul] = useState('');
@@ -65,11 +51,7 @@ export default function DomainAssociationPropsModal() {
       sourceEnd: { elementId: relation.sourceId, multiplicity: srcMul.trim() || undefined },
       targetEnd: { elementId: relation.targetId, multiplicity: tgtMul.trim() || undefined },
     };
-    if (isStandalone && activeTabId) {
-      standaloneModelOps(activeTabId).updateRelation(editingId, patch);
-    } else {
-      useModelStore.getState().updateRelation(editingId, patch);
-    }
+    getOps().updateRelation(editingId, patch);
     closeModals();
   };
 
@@ -127,7 +109,6 @@ export default function DomainAssociationPropsModal() {
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.key === 'Escape' && closeModals()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-[#2a3358]">
           <div>
             <p className="text-xs text-[#475569] font-mono">association</p>
@@ -146,7 +127,6 @@ export default function DomainAssociationPropsModal() {
         </div>
 
         <div className="px-4 py-4 space-y-4">
-          {/* Verb label */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-[#94a3b8] mb-1.5">
               Verb label <span className="text-red-400 normal-case font-normal">(required)</span>
@@ -160,7 +140,6 @@ export default function DomainAssociationPropsModal() {
             />
           </div>
 
-          {/* Source multiplicity */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-[#94a3b8] mb-1.5">
               Source multiplicity
@@ -169,7 +148,6 @@ export default function DomainAssociationPropsModal() {
             <MulChips value={srcMul} onChange={setSrcMul} invalid={!srcMulValid} />
           </div>
 
-          {/* Target multiplicity */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-[#94a3b8] mb-1.5">
               Target multiplicity
@@ -179,7 +157,6 @@ export default function DomainAssociationPropsModal() {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end gap-2 px-4 pb-4">
           <button
             onClick={closeModals}

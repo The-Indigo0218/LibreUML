@@ -2,6 +2,7 @@ import type { BaseValidator } from './base-validator.types';
 import type { ValidationResult } from '../registry/diagram-registry.types';
 import type { DomainNode } from '../domain/models/nodes';
 import type { DomainEdge } from '../domain/models/edges';
+import { isValidMultiplicity } from '../domain/multiplicity.utils';
 import type {
   ClassNode,
   InterfaceNode,
@@ -122,19 +123,19 @@ export class ClassDiagramValidator implements BaseValidator {
       const structuralEdge = edge as AssociationEdge | AggregationEdge | CompositionEdge;
 
       if (structuralEdge.sourceMultiplicity) {
-        if (!this.isValidMultiplicity(structuralEdge.sourceMultiplicity)) {
+        if (!isValidMultiplicity(structuralEdge.sourceMultiplicity)) {
           warnings.push(
             `Invalid source multiplicity format: "${structuralEdge.sourceMultiplicity}". ` +
-            `Expected formats: 1, *, 0..1, 1..*, 0..*, n, 1..n`
+            `Expected formats: 1, *, 0..1, 1..*, 0..*`
           );
         }
       }
 
       if (structuralEdge.targetMultiplicity) {
-        if (!this.isValidMultiplicity(structuralEdge.targetMultiplicity)) {
+        if (!isValidMultiplicity(structuralEdge.targetMultiplicity)) {
           warnings.push(
             `Invalid target multiplicity format: "${structuralEdge.targetMultiplicity}". ` +
-            `Expected formats: 1, *, 0..1, 1..*, 0..*, n, 1..n`
+            `Expected formats: 1, *, 0..1, 1..*, 0..*`
           );
         }
       }
@@ -388,11 +389,6 @@ export class ClassDiagramValidator implements BaseValidator {
   private isValidIdentifier(name: string): boolean {
     const identifierRegex = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
     return identifierRegex.test(name);
-  }
-
-  private isValidMultiplicity(multiplicity: string): boolean {
-    const multiplicityRegex = /^(\d+|\*|n)(\.\.((\d+|\*|n)))?$/;
-    return multiplicityRegex.test(multiplicity);
   }
 }
 

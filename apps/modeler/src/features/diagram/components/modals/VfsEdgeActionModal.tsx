@@ -12,6 +12,7 @@ import { standaloneModelOps } from '../../../../store/standaloneModelOps';
 import { undoTransaction } from '../../../../core/undo/undoBridge';
 import { isDiagramView } from '../../hooks/useVFSCanvasController';
 import type { VFSFile, RelationKind, SemanticModel } from '../../../../core/domain/vfs/vfs.types';
+import { MULTIPLICITY_PRESETS, isValidMultiplicity } from '../../../../core/domain/multiplicity.utils';
 
 const CLASS_RELATION_KINDS: { value: RelationKind; label: string }[] = [
   { value: 'ASSOCIATION',    label: 'Association' },
@@ -40,15 +41,6 @@ const MULTIPLICITY_KINDS = new Set<RelationKind>([
   'ASSOCIATION', 'AGGREGATION', 'COMPOSITION',
 ]);
 
-const MULTIPLICITY_PRESETS = ['1', '*', '0..1', '1..*', '0..*'];
-
-function isValidMultiplicity(v: string): boolean {
-  const s = v.trim();
-  if (!s) return true;
-  if (MULTIPLICITY_PRESETS.includes(s)) return true;
-  const n = parseInt(s, 10);
-  return !isNaN(n) && n > 0 && String(n) === s;
-}
 
 function getElementName(model: SemanticModel, elementId: string): string {
   return (

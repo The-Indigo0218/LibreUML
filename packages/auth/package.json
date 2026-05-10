@@ -1,0 +1,15 @@
+{
+  "name": "@libreuml/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "echo 'no sources yet'"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

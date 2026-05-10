@@ -1,0 +1,1387 @@
+{
+  "header": {
+    "diagramNamePlaceholder": "Nombre del Diagrama",
+    "search": "Buscar (Ctrl+K)",
+    "switchLanguage": "Cambiar Idioma",
+    "import": "Importar",
+    "export": "Exportar",
+    "save": "Guardar",
+    "tooltips": {
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "showMiniMap": "Mostrar Minimapa",
+      "hideMiniMap": "Ocultar Minimapa",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "fitView": "Ajustar Vista"
+    },
+    "exportMenu": {
+      "json": "Guardar como .luml",
+      "png": "Exportar a PNG",
+      "cloud": "Guardar en Nube",
+      "soon": "Pronto"
+    }
+  },
+  "menubar": {
+    "file": {
+      "title": "Archivo",
+      "new": "Nuevo Diagrama",
+      "open": "Abrir...",
+      "save": "Guardar",
+      "saveAs": "Guardar Como...",
+      "discard": "Descartar Cambios",
+      "close": "Cerrar Editor",
+      "exit": "Salir",
+      "saveToCloud": "Guardar en Nube",
+      "syncToCloud": "Sincronizar con Nube",
+      "openFromCloud": "Abrir desde Nube..."
+    },
+    "settings": {
+      "title": "Ajustes",
+      "general": "General",
+      "autoSave": "Autoguardado",
+      "fileAssoc": "Asociar Archivos .luml",
+      "startup": "Inicio: Restaurar Sesión",
+      "language": "Idioma",
+      "theme": "Tema",
+      "modalPreferences": "Preferencias de Modales"
+    },
+    "view": {
+      "title": "Ver",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "fitView": "Ajustar Vista",
+      "minimap": "Mostrar Minimapa",
+      "grid": "Mostrar Rejilla",
+      "gridNone": "Cuadrícula: Desactivada",
+      "gridDots": "Cuadrícula: Puntos",
+      "gridLines": "Cuadrícula: Líneas",
+      "gridSolid": "Cuadrícula: Sólida",
+      "snap": "Ajustar a la Rejilla",
+      "spotlight": "Búsqueda Rápida",
+      "connections": "Resaltar Conexiones",
+      "magicLayout": "Diseño Mágico",
+      "viewportCulling": "Recorte de Vista"
+    },
+    "edit": {
+      "title": "Editar",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "duplicate": "Duplicar",
+      "delete": "Eliminar",
+      "selectAll": "Seleccionar Todo",
+      "edit": "Editar Propiedades"
+    },
+    "export": {
+      "title": "Exportar",
+      "diagram": "Exportar Diagrama...",
+      "pdf": "Exportar PDF (Pronto)",
+      "cloud": "Publicar en Nube (Pronto)",
+      "github": "Publicar en GitHub (Pronto)"
+    },
+    "code": {
+      "title": "Código",
+      "generateClass": "Generar Código de Clase...",
+      "generateProject": "Generar Proyecto (.zip)...",
+      "downloadProject": "Descargar Proyecto",
+      "importJava": "Importar Código Java...",
+      "exportConfig": "Exportar Código Fuente...",
+      "livePreview": "Vista Previa en Vivo"
+    },
+    "edu": {
+      "title": "Edu",
+      "wiki": "Wiki UML (Ctrl+H)",
+      "placeholder": "Herramientas (Pronto)",
+      "linter": "Linter UML (Auto-calificar)",
+      "exam": "Modo Examen",
+      "achievements": "Logros",
+      "gamification": "Gamificación Teclado",
+      "certificates": "Certificados"
+    },
+    "help": {
+      "title": "Ayuda",
+      "gettingStarted": "Primeros Pasos",
+      "keyboardShortcuts": "Atajos de Teclado",
+      "wiki": "Wiki UML (Ctrl+H)",
+      "documentation": "Documentación",
+      "reportIssue": "Reportar Error",
+      "roadmap": "Hoja de Ruta",
+      "about": "Acerca de LibreUML"
+    }
+  },
+  "sidebar": {
+    "toolbox": "Caja de Herramientas",
+    "project_structure": "Estructura del Proyecto",
+    "outline": "Esquema",
+    "project_files": "Archivos del Proyecto",
+    "explorer": "Explorador",
+    "addPackage": "Añadir Nuevo Paquete",
+    "packageName": "Nombre del paquete...",
+    "noPackages": "No hay paquetes. Haz clic en + para crear uno.",
+    "unassigned": "Sin Paquete",
+    "noClasses": "Sin clases asignadas",
+    "rename": "Renombrar",
+    "delete": "Eliminar",
+    "nodes": {
+      "title": "Nodos",
+      "class": "Clase",
+      "interface": "Interfaz",
+      "abstract": "Abstracta",
+      "enum": "Enumeración",
+      "note": "Nota",
+      "actor": "Actor",
+      "useCase": "Caso de Uso",
+      "systemBoundary": "Límite de Sistema"
+    },
+    "connections": {
+      "title": "Conexiones",
+      "association": "Asociación",
+      "inheritance": "Herencia",
+      "implementation": "Implementación",
+      "dependency": "Dependencia",
+      "aggregation": "Agregación",
+      "composition": "Composición",
+      "include": "«include»",
+      "extend": "«extend»",
+      "generalization": "Generalización"
+    },
+    "legend": {
+      "title": "Lógica de Conexión",
+      "source": "son Origen",
+      "target": "son Destino",
+      "blue": "Azules",
+      "green": "Verdes"
+    }
+  },
+  "contextMenu": {
+    "pane": {
+      "addClass": "Agregar Clase",
+      "addInterface": "Agregar Interfaz",
+      "addAbstract": "Agregar Abstracta",
+      "addNote": "Agregar Nota",
+      "cleanCanvas": "Limpiar Lienzo",
+      "addActor": "Agregar Actor",
+      "addUseCase": "Agregar Caso de Uso",
+      "addSystemBoundary": "Agregar Límite de Sistema"
+    },
+    "node": {
+      "duplicate": "Duplicar",
+      "edit": "Editar Propiedades",
+      "rename": "Renombrar",
+      "delete": "Eliminar",
+      "generateCode": "Generar Código...",
+      "generateMethods": "Generar Getters y Setters...",
+      "addToProject": "Añadir al Proyecto",
+      "removeFromDiagram": "Quitar del Diagrama",
+      "removeFromCanvas": "Quitar del Lienzo",
+      "deleteFromModel": "Eliminar del Modelo",
+      "editNote": "Editar Nota",
+      "editSpecification": "Editar Especificación",
+      "editActorProperties": "Editar Propiedades"
+    },
+    "edge": {
+      "reverse": "Invertir Dirección ⇄",
+      "toAssociation": "A: Asociación →",
+      "toInheritance": "A: Herencia ▷",
+      "defineMultiplicity": "Definir Multiplicidad",
+      "toImplementation": "A: Implementación ⇢",
+      "toDependency": "A: Dependencia ⇢",
+      "toAggregation": "Convertir a Agregación",
+      "toComposition": "Convertir a Composición",
+      "delete": "Eliminar Conexión"
+    }
+  },
+  "modals": {
+    "common": {
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "clear": "Limpiar",
+      "discard": "Descartar",
+      "back": "Atrás",
+      "continue": "Continuar"
+    },
+    "duplicateFile": {
+      "title": "Archivo Ya en el Diagrama",
+      "message": "\"{{fileName}}\" ya está presente en este diagrama.",
+      "replaceOption": "Reemplazar",
+      "replaceDescription": "Eliminar el nodo existente y agregar uno nuevo en la posición de soltar.",
+      "cancelOption": "Cancelar",
+      "cancelDescription": "Mantener el nodo existente e ignorar esta acción.",
+      "dontShowAgain": "No mostrar esta advertencia de nuevo",
+      "reEnableHint": "Puedes volver a habilitar esta advertencia en Configuración.",
+      "cancel": "Cancelar",
+      "replace": "Reemplazar"
+    },
+    "preferences": {
+      "title": "Preferencias de Modales",
+      "description": "Controla qué modales de advertencia y confirmación se muestran. Los modales deshabilitados no aparecerán de nuevo.",
+      "svgExportWarning": "Advertencia de Exportación SVG",
+      "svgExportDesc": "Mostrar advertencia al exportar a formato SVG",
+      "duplicateFileWarning": "Advertencia de Archivo Duplicado",
+      "duplicateFileDesc": "Mostrar advertencia al agregar archivo existente al diagrama",
+      "closeProjectWarning": "Advertencia de Cerrar Proyecto",
+      "closeProjectDesc": "Mostrar confirmación al cerrar un proyecto",
+      "autoLayoutWarning": "Advertencia de Auto-Diseño",
+      "autoLayoutDesc": "Mostrar advertencia antes de ejecutar auto-diseño en nodos bloqueados",
+      "resetAll": "Restablecer Todas las Preferencias",
+      "resetAllDesc": "Volver a habilitar todos los modales de advertencia y confirmación",
+      "reset": "Restablecer",
+      "close": "Cerrar"
+    },
+    "classEditor": {
+      "title": "Editar Clase:",
+      "className": "NOMBRE DE CLASE",
+      "package": "Paquete",
+      "noPackage": "Sin paquete",
+      "attributes": "ATRIBUTOS",
+      "methods": "MÉTODOS",
+      "constructorsAndMethods": "Constructores y Métodos",
+      "constructor": "Constructor",
+      "parameters": "Parámetros",
+      "add": "Agregar",
+      "addParameter": "Añadir Parámetro",
+      "autoGenerate": "Auto-Generar",
+      "autoGenerateTooltip": "Generar constructor con todos los atributos",
+      "autoGenerateDisabledTooltip": "No hay atributos o ya existe este constructor",
+      "noAttributes": "No hay atributos definidos.",
+      "noMethods": "No hay métodos definidos.",
+      "noParameters": "Sin parámetros",
+      "parameterNamePlaceholder": "Nombre (ej. edad)",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "placeholders": {
+        "name": "nombre",
+        "methodName": "nombreMetodo"
+      }
+    },
+    "multiplicity": {
+      "title": "Configurar Cardinalidad",
+      "source": "Inicio (Origen)",
+      "target": "Fin (Destino)"
+    },
+    "unsaved": {
+      "title": "Cambios sin guardar",
+      "message": "¿Deseas guardar los cambios en '{{fileName}}' antes de cerrar?",
+      "saveButton": "Guardar",
+      "discardButton": "No Guardar"
+    },
+    "confirmation": {
+      "defaultTitle": "Confirmación",
+      "defaultMessage": "¿Estás seguro de que deseas continuar?",
+      "exitMessage": "¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.",
+      "clearTitle": "¿Limpiar todo el Lienzo?",
+      "clearMessage": "Esta acción no se puede deshacer y perderás los cambios no guardados.",
+      "clearCanvasTitle": "Limpiar Lienzo",
+      "clearCanvasMessage": "¿Estás seguro de que deseas limpiar todo el lienzo? Esta acción no se puede deshacer.",
+      "newTitle": "Crear Nuevo Diagrama",
+      "newMessage": "¿Estás seguro? Se perderán los cambios no guardados del diagrama actual.",
+      "discardTitle": "¿Descartar Cambios?",
+      "discardMessage": "El diagrama volverá a su último estado guardado.",
+      "deletePackageTitle": "¿Eliminar Paquete?",
+      "deletePackageWithClasses": "El paquete '{{name}}' contiene clases. Si lo eliminas, las clases se moverán a 'Sin Paquete'. ¿Deseas continuar?",
+      "deletePackageWithClassesCount": "El paquete '{{name}}' contiene {{count}} clase(s). ¿Qué deseas hacer?",
+      "deletePackageEmpty": "¿Estás seguro de que deseas eliminar el paquete '{{name}}'?",
+      "deletePackageAndClasses": "Eliminar Paquete y Clases",
+      "deletePackageKeepClasses": "Solo Eliminar Paquete (Mover Clases a 'Sin Paquete')",
+      "confirm": "Confirmar",
+      "cancel": "Cancelar"
+    },
+    "spotlight": {
+      "placeholder": "Buscar clases, interfaces, notas...",
+      "esc": "ESC",
+      "jumpTo": "Ir a",
+      "noResults": "No se encontraron resultados para",
+      "elementsFound": "elementos encontrados",
+      "navigate": "Navegar",
+      "select": "Seleccionar"
+    },
+    "export": {
+      "title": "Exportar Diagrama",
+      "format": "Formato",
+      "quality": "Calidad (Escala)",
+      "transparent": "Fondo Transparente",
+      "highlight": "Resaltar Conexiones (Alto Contraste)",
+      "svgWarningTitle": "Aviso de Compatibilidad SVG",
+      "svgWarningMessage": "Algunos visores de imágenes en Windows, Mac o Linux podrían no mostrar el SVG correctamente porque utiliza estilos HTML/CSS incrustados.",
+      "svgTip": "Si el archivo se ve vacío o roto, intenta abrir el .svg en tu navegador web (Chrome, Edge, Firefox).",
+      "dontShowAgain": "No mostrar este aviso de nuevo",
+      "wait": "Lee esto"
+    },
+    "importCode": {
+      "title": "Importar Código Java",
+      "subtitle": "Ingeniería inversa: Java a UML",
+      "tabUpload": "Subir Archivo",
+      "tabPaste": "Pegar Código",
+      "dragDropTitle": "Clic para subir o arrastra y suelta",
+      "dragDropSubtitle": "Soporta archivos .java",
+      "ready": "Listo para importar",
+      "placeholder": "Pega tu código de clase Java aquí...",
+      "analyzing": "Analizando...",
+      "importBtn": "Importar Clase",
+      "errorExt": "Por favor sube un archivo .java válido",
+      "errorEmpty": "No hay código para importar"
+    },
+    "javaImportPreference": {
+      "title": "Importar Archivo Java",
+      "question": "¿Dónde te gustaría importar este archivo Java?",
+      "toModel": "Importar al Modelo (SSOT)",
+      "toModelDesc": "Agregar al modelo semántico. La clase estará disponible en todos los diagramas.",
+      "toCanvas": "Importar Solo al Canvas Actual",
+      "toCanvasDesc": "Agregar solo a la vista del diagrama actual. No afectará el modelo global.",
+      "toBoth": "Importar a Ambos",
+      "toBothDesc": "Agregar al modelo y mostrar en el canvas actual.",
+      "dontShowAgain": "No mostrar esto de nuevo (usar esta preferencia para todas las importaciones Java)",
+      "cancel": "Cancelar",
+      "import": "Importar"
+    },
+    "projectGenerator": {
+      "title": "Generar Proyecto",
+      "subtitle": "Exportar estructura lista para IDEs",
+      "statsClasses": "Clases",
+      "statsPackage": "Paquete Destino",
+      "groupId": "GROUP ID",
+      "artifactId": "ARTIFACT ID",
+      "buildSystem": "SISTEMA DE CONSTRUCCIÓN",
+      "javaVersion": "VERSIÓN JAVA",
+      "zipping": "Comprimiendo...",
+      "download": "Descargar .zip"
+    },
+    "codePreview": {
+      "title": "Vista Previa de Código",
+      "subtitle": "Generar código para una sola clase",
+      "languageLabel": "Lenguaje:",
+      "classLabel": "Clase:",
+      "copyTitle": "Copiar al portapapeles",
+      "close": "Cerrar",
+      "copy": "Copiar Código",
+      "copied": "¡Copiado!",
+      "noClassSelected": "No hay clase seleccionada",
+      "invalidNode": "El nodo seleccionado no es una Clase/Interfaz válida"
+    },
+    "methodGenerator": {
+      "title": "Generar Métodos",
+      "selectAttributes": "Seleccionar Atributos",
+      "selectAll": "Seleccionar Todo",
+      "deselectAll": "Deseleccionar Todo",
+      "noAttributes": "No hay atributos disponibles. Añade atributos a la clase primero.",
+      "generateGettersSetters": "Getters y Setters",
+      "generateConstructor": "Constructor",
+      "generateAll": "Generar Todo",
+      "cancel": "Cancelar"
+    },
+    "packageHierarchy": {
+      "title": "Colocar Jerarquía de Paquetes",
+      "parentContains": "El paquete padre '{{parentPath}}' contiene {{content}}. ¿Cómo deseas colocarlo?",
+      "class_one": "1 clase",
+      "class_other": "{{count}} clases",
+      "subPackage_one": "1 sub-paquete",
+      "subPackage_other": "{{count}} sub-paquetes",
+      "and": "y",
+      "placeOnlyTitle": "Colocar solo '{{packagePath}}'",
+      "placeOnlyDesc": "Colocar este paquete de forma independiente con nombre completo",
+      "placeHierarchyTitle": "Colocar jerarquía completa de '{{parentPath}}'",
+      "placeHierarchyDesc": "Colocar paquete padre con todas las clases, sub-paquetes y relaciones",
+      "cancel": "Cancelar"
+    }
+  },
+  "alerts": {
+    "exportError": "No se pudo generar la imagen. Intenta de nuevo.",
+    "savedSuccess": "Diagrama guardado correctamente",
+    "importError": "Error al leer el archivo. Asegúrate de que sea un .json o .luml válido."
+  },
+  "connections": {
+    "title": "Conexiones",
+    "association": "Asociación",
+    "inheritance": "Herencia",
+    "implementation": "Implementación",
+    "dependency": "Dependencia",
+    "aggregation": "Agregación",
+    "composition": "Composición"
+  },
+  "relationship_labels": {
+    "inheritance": "es un",
+    "implementation": "implementa",
+    "composition": "tiene un",
+    "aggregation": "tiene un",
+    "dependency": "usa",
+    "association": ""
+  },
+  "common": {
+    "open_file": "Abrir archivo"
+  },
+  "tools": {
+    "enum": "Enumeración"
+  },
+  "actions": {
+    "rename": "Renombrar",
+    "delete": "Eliminar",
+    "open": "Abrir",
+    "addToProject": "Añadir al proyecto"
+  },
+  "activityBar": {
+    "projectStructure": "Estructura del Proyecto",
+    "packageExplorer": "Explorador de Paquetes",
+    "modelingTools": "Herramientas de Modelado",
+    "userProfile": "Perfil de Usuario",
+    "cloudSync": "Sincronización en Nube",
+    "githubIntegration": "Integración con GitHub",
+    "bugReport": "Reportar Error",
+    "getStarted": "Primeros Pasos / Tutorial"
+  },
+  "auth": {
+    "loginTitle": "Bienvenido de vuelta",
+    "loginSubtitle": "Inicia sesión para sincronizar tus diagramas en la nube",
+    "registerTitle": "Crear una cuenta",
+    "registerSubtitle": "Empieza a diseñar y sincronizar tus diagramas UML",
+    "continueWithGithub": "Continuar con GitHub",
+    "continueWithGoogle": "Continuar con Google",
+    "orContinueWith": "O continuar con email",
+    "emailLabel": "Correo electrónico",
+    "emailPlaceholder": "tu@ejemplo.com",
+    "passwordLabel": "Contraseña",
+    "passwordPlaceholder": "••••••••",
+    "fullNameLabel": "Nombre completo",
+    "fullNamePlaceholder": "Tu nombre completo",
+    "roleLabel": "Rol",
+    "roleStudent": "Estudiante",
+    "roleTeacher": "Docente",
+    "roleDeveloper": "Desarrollador",
+    "loginButton": "Iniciar sesión",
+    "registerButton": "Crear cuenta",
+    "signingIn": "Iniciando sesión...",
+    "registering": "Creando cuenta...",
+    "switchToRegister": "¿No tienes cuenta? Regístrate",
+    "switchToLogin": "¿Ya tienes cuenta? Inicia sesión",
+    "continueOffline": "Continuar sin cuenta",
+    "offlineNote": "Tus diagramas solo se guardarán localmente",
+    "redirecting": "Redirigiendo a {{provider}}...",
+    "errorTitle": "Error de autenticación",
+    "requiredField": "Todos los campos requeridos deben completarse",
+    "password": {
+      "requirements": "Debe contener 8+ caracteres, mayúscula, minúscula, dígito y carácter especial (@#$%^&+=!)"
+    },
+    "error": {
+      "emailExists": "Este correo ya está registrado. Intenta iniciar sesión.",
+      "invalidCredentials": "Correo o contraseña incorrectos. Por favor intenta de nuevo.",
+      "serverError": "Algo salió mal en nuestro servidor. Por favor intenta más tarde.",
+      "networkError": "No se puede conectar al servidor. Verifica tu conexión a internet.",
+      "invalidEmail": "Por favor ingresa un correo electrónico válido",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+      "passwordNoDigit": "La contraseña debe contener al menos un dígito",
+      "passwordNoLowercase": "La contraseña debe contener al menos una letra minúscula",
+      "passwordNoUppercase": "La contraseña debe contener al menos una letra mayúscula",
+      "passwordNoSpecial": "La contraseña debe contener al menos un carácter especial (@#$%^&+=!)",
+      "passwordMismatch": "Las contraseñas no coinciden",
+      "invalidResetToken": "Este enlace de restablecimiento no es válido o ha expirado. Solicita uno nuevo.",
+      "resetFailed": "No se pudo restablecer la contraseña. Por favor solicita un nuevo enlace."
+    },
+    "validation": {
+      "failed": "Por favor verifica tu información e intenta de nuevo"
+    },
+    "userMenu": {
+      "profile": "Perfil",
+      "settings": "Ajustes",
+      "apiKeys": "Claves de API",
+      "logout": "Cerrar sesión",
+      "avatarAlt": "Avatar de usuario"
+    },
+    "welcomeCta": {
+      "signInTitle": "Sincroniza en la nube",
+      "signInSubtitle": "Inicia sesión para obtener 5 MB de almacenamiento gratuito",
+      "loginButton": "Iniciar Sesión"
+    },
+    "forgotPasswordLink": "¿Olvidaste tu contraseña?",
+    "forgotPasswordTitle": "Restablecer contraseña",
+    "forgotPasswordSubtitle": "Ingresa tu correo y te enviaremos un enlace de recuperación.",
+    "forgotPasswordButton": "Enviar enlace",
+    "forgotPasswordSending": "Enviando…",
+    "forgotPasswordSent": "Revisa tu bandeja",
+    "forgotPasswordSentMessage": "Si {{email}} está registrado, recibirás un enlace de recuperación en breve.",
+    "forgotPasswordBackToLogin": "Volver a iniciar sesión",
+    "resetPasswordTitle": "Nueva contraseña",
+    "resetPasswordSubtitle": "Elige una contraseña segura para tu cuenta.",
+    "newPasswordLabel": "Nueva contraseña",
+    "newPasswordPlaceholder": "••••••••",
+    "confirmPasswordLabel": "Confirmar contraseña",
+    "confirmPasswordPlaceholder": "••••••••",
+    "resetPasswordButton": "Establecer contraseña",
+    "resetPasswordSaving": "Guardando…",
+    "resetPasswordSuccess": "Contraseña actualizada",
+    "resetPasswordSuccessMessage": "Tu contraseña ha sido cambiada. Ya puedes iniciar sesión.",
+    "verifyEmailTitle": "Verificando tu correo",
+    "verifyEmailSubtitle": "Espera un momento mientras confirmamos tu dirección.",
+    "verifyEmailSuccess": "Correo verificado",
+    "verifyEmailSuccessMessage": "Tu cuenta está activa. Ya puedes iniciar sesión.",
+    "verifyEmailError": "Verificación fallida",
+    "verifyEmailErrorMessage": "Este enlace es inválido o ya fue utilizado. Regístrate de nuevo o contacta a soporte.",
+    "continueLocallyTitle": "Local y de código abierto",
+    "continueLocallySubtitle": "Sin cuenta. Tus diagramas se guardan en tu máquina.",
+    "continueLocallyButton": "Continuar localmente →"
+  },
+  "quota": {
+    "storage": "Almacenamiento en Nube",
+    "usage": "{{used}} / {{total}}",
+    "warning": "Estás usando el 70% de tu almacenamiento en nube.",
+    "alert": "Estás usando el 90% de tu almacenamiento. Considera eliminar diagramas viejos.",
+    "blocked": "Almacenamiento casi lleno. Elimina diagramas viejos para continuar guardando.",
+    "dialogTitle": "Almacenamiento Casi Lleno",
+    "dialogBody": "Estás usando el 95% o más de tu cuota de 5 MB en la nube. Elimina diagramas viejos para liberar espacio antes de tu próximo guardado.",
+    "dialogDismiss": "Entendido"
+  },
+  "statusbar": {
+    "problems": "Problemas",
+    "activeFile": "Archivo activo",
+    "untitled": "Sin título",
+    "validator": "Validador UML",
+    "umlValidator": "Validador UML",
+    "languageMode": "Seleccionar lenguaje destino",
+    "cloudSynced": "Nube sincronizada",
+    "cloudDisconnected": "Nube desconectada",
+    "cloudOffline": "Sync desactivado",
+    "gridType": "Fondo del canvas",
+    "cloudPopover": {
+      "notLoggedTitle": "Sincronizar en la nube",
+      "notLoggedBody": "Inicia sesión para mantener tus diagramas respaldados y accesibles desde cualquier dispositivo.",
+      "notNow": "Ahora no",
+      "onlineTitle": "Sync activado",
+      "retrySync": "Reintentar sync",
+      "goOffline": "Modo sin conexión",
+      "offlineTitle": "Sync pausado",
+      "offlineBody": "Tus diagramas se guardan localmente. Reactiva el sync para subir los cambios.",
+      "goOnline": "Reactivar sync"
+    }
+  },
+  "cloud": {
+    "sync": {
+      "saving": "Guardando…",
+      "saved": "Guardado",
+      "error": "Error de sincronización",
+      "conflict": "Conflicto",
+      "offline": "Sin conexión",
+      "conflictHint": "Conflicto de versión — haz clic para resolver",
+      "offlineHint": "Cambios en cola — se reintentará al recuperar conexión"
+    },
+    "conflict": {
+      "title": "Conflicto de Versión",
+      "body": "Tus cambios locales entran en conflicto con una versión más reciente guardada desde otra sesión.",
+      "keepMine": "Mantener los míos (sobrescribir nube)",
+      "keepTheirs": "Mantener los suyos (descartar local)",
+      "resolveLater": "Resolver después",
+      "hint": "Elegir 'Mantener los míos' sobrescribirá la versión en la nube. 'Mantener los suyos' reemplazará tus cambios locales no guardados.",
+      "keepMineFailed": "Error al sobrescribir — inténtalo de nuevo.",
+      "keepTheirsFailed": "Error al recargar desde la nube — inténtalo de nuevo.",
+      "pendingResolution": "Conflicto sin resolver — sincronización automática pausada."
+    },
+    "upload": {
+      "title": "¿Mover tu trabajo a la nube?",
+      "body": "Encontramos un proyecto local: \"{{projectName}}\" ({{size}}). Súbelo a tu almacenamiento en la nube ({{quota}} disponible) o mantenlo local.",
+      "confirm": "Subir a la nube ({{size}})",
+      "uploading": "Subiendo…",
+      "keepLocal": "Mantener local",
+      "askLater": "Preguntar después",
+      "hint": "Siempre puedes subir más tarde a través de Archivo → Guardar en Nube.",
+      "tooBig": "Este proyecto supera el 95% de tu cuota de {{quota}} y no puede subirse ahora. Elimina diagramas viejos para liberar espacio.",
+      "error": "Error al subir. Por favor, inténtalo de nuevo."
+    },
+    "picker": {
+      "title": "Abrir desde Nube",
+      "refresh": "Actualizar lista",
+      "empty": "Aún no hay diagramas en la nube. Guarda primero un proyecto en la nube.",
+      "open": "Abrir",
+      "delete": "Eliminar de la nube",
+      "loadMore": "Cargar más",
+      "loading": "Cargando…",
+      "fetchError": "No se pudieron cargar los diagramas. Verifica tu conexión.",
+      "openError": "No se pudo abrir el diagrama. Por favor, inténtalo de nuevo.",
+      "deleteError": "No se pudo eliminar el diagrama. Por favor, inténtalo de nuevo."
+    }
+  },
+  "welcome": {
+    "subtitle": "Diseña, Genera y Evoluciona tu arquitectura de software.",
+    "createNewProject": "Crear Nuevo Proyecto",
+    "openSource": "Código Abierto",
+    "recentProjects": "Proyectos Recientes",
+    "viewAll": "Ver todos",
+    "cloudSynced": "Sincronizado en la nube",
+    "cloudSync": "Sincronizar en la nube",
+    "cloudFree": "Inicia sesión para obtener 5 MB de almacenamiento gratuito",
+    "loginToSee": "Debes iniciar sesión para ver tus proyectos recientes.",
+    "loginNow": "Iniciar sesión",
+    "noRecentProjects": "Sin proyectos recientes. Crea tu primer proyecto para comenzar.",
+    "actions": "Acciones",
+    "startActions": "Acciones de Inicio",
+    "createProject": "Crear proyecto",
+    "createProjectSub": "Empezar desde cero",
+    "openFromCloud": "Abrir desde la nube",
+    "openFromCloudSub": "Sincronizar y restaurar",
+    "starRepo": "Dar estrella",
+    "starRepoSub": "Mostrar apoyo",
+    "moreOptions": "Más opciones",
+    "openProject": "Abrir proyecto",
+    "openProjectSub": "Explorar archivos locales",
+    "viewDocs": "Ver documentación",
+    "viewDocsSub": "Guías y referencia",
+    "openGithub": "Abrir proyecto de GitHub",
+    "openGithubSub": "Importar desde repo",
+    "getStarted": "Comenzar",
+    "getStartedSub": "Tutorial rápido",
+    "footerPrefix": "Para empezar",
+    "footerOpenLink": "abre un proyecto",
+    "footerOr": "o",
+    "footerCreateLink": "crea uno nuevo"
+  },
+  "sleepScreen": {
+    "title": "Ningún archivo abierto",
+    "subtitle": "Abre un archivo o crea un nuevo diagrama para comenzar",
+    "shortcuts": {
+      "newFile": "Nuevo Archivo",
+      "openFile": "Abrir Archivo",
+      "save": "Guardar",
+      "quickOpen": "Apertura Rápida",
+      "spotlight": "Búsqueda Rápida",
+      "export": "Exportar Diagrama"
+    },
+    "quote": "\"Una buena arquitectura hace que el sistema sea fácil de entender, desarrollar, mantener y desplegar. El objetivo es minimizar el costo de vida útil y maximizar la productividad del programador.\" — Robert C. Martin"
+  },
+  "apiKeys": {
+    "pageTitle": "Claves de API",
+    "backToEditor": "Volver al editor",
+    "description": "Las claves de API permiten que herramientas externas (como integraciones MCP) interactúen con tus diagramas en tu nombre. Cada clave tiene un ámbito que limita lo que puede hacer.",
+    "sectionTitle": "Tus claves de API",
+    "generateButton": "Nueva clave",
+    "refresh": "Actualizar lista",
+    "empty": "Aún no tienes claves de API. Genera una para integrar con herramientas externas.",
+    "mcpHint": "Usa estas claves con las integraciones compatibles con MCP de LibreUML. Trátelas como contraseñas — nunca las compartas públicamente.",
+    "revokeAriaLabel": "Revocar clave \"{{name}}\"",
+    "table": {
+      "name": "Nombre",
+      "scope": "Ámbito",
+      "created": "Creada",
+      "lastUsed": "Último uso",
+      "never": "Nunca"
+    },
+    "scope": {
+      "read": "read",
+      "readDesc": "acceso de solo lectura",
+      "write": "write",
+      "writeDesc": "acceso de lectura y escritura"
+    },
+    "form": {
+      "title": "Generar nueva clave de API",
+      "nameLabel": "Nombre de la clave",
+      "namePlaceholder": "p. ej. Mi integración MCP",
+      "scopeLabel": "Ámbito",
+      "generate": "Generar",
+      "generating": "Generando…"
+    },
+    "revokeConfirm": {
+      "message": "¿Revocar \"{{name}}\"? Esta acción no se puede deshacer — cualquier integración que use esta clave dejará de funcionar inmediatamente.",
+      "confirm": "Revocar",
+      "revoking": "Revocando…"
+    },
+    "created": {
+      "title": "Clave de API creada",
+      "warning": "Copia esta clave ahora — no se mostrará de nuevo. El servidor solo almacena el hash.",
+      "keyLabel": "Tu clave de API",
+      "copy": "Copiar al portapapeles",
+      "copied": "¡Copiado!",
+      "nameLabel": "Nombre",
+      "scopeLabel": "Ámbito",
+      "done": "He guardado mi clave"
+    },
+    "errors": {
+      "fetchError": "No se pudieron cargar las claves de API. Verifica tu conexión e inténtalo de nuevo.",
+      "createError": "No se pudo generar la clave. Por favor, inténtalo de nuevo.",
+      "revokeError": "No se pudo revocar la clave. Por favor, inténtalo de nuevo."
+    }
+  },
+  "terminal": {
+    "tabs": {
+      "terminal": "Terminal",
+      "problems": "Problemas"
+    },
+    "placeholder": "escribe un comando…",
+    "noProblems": "No se detectaron problemas."
+  },
+  "windowControls": {
+    "minimize": "Minimizar",
+    "maximize": "Maximizar",
+    "close": "Cerrar"
+  },
+  "primarySidebar": {
+    "userProfile": "Perfil de usuario próximamente",
+    "cloudSync": "Sincronización en nube próximamente",
+    "githubIntegration": "Integración con GitHub próximamente",
+    "bugReport": "Reporte de errores próximamente"
+  },
+  "packageExplorer": {
+    "title": "Paquetes",
+    "newPackage": "Nuevo Paquete",
+    "noPackages": "No hay paquetes o clases todavía",
+    "addClasses": "Añade clases a tu diagrama",
+    "expandAll": "Expandir Todo",
+    "collapseAll": "Contraer Todo",
+    "packageNameExists": "El nombre del paquete ya existe en este nivel",
+    "emptyPackage": "vacío",
+    "noPackage": "(Sin Paquete)"
+  },
+  "projectStructure": {
+    "title": "Archivos del Proyecto",
+    "newFile": "Nuevo Archivo",
+    "newFolder": "Nueva Carpeta",
+    "closePanel": "Cerrar Panel",
+    "emptyProject": "Proyecto vacío",
+    "addFilesAndFolders": "Añade archivos y carpetas para comenzar",
+    "noProjectActive": "No hay proyecto activo",
+    "unsyncedChanges": "Cambios sin Sincronizar",
+    "allFilesSynced": "Todos los archivos están sincronizados.",
+    "openFile": "Abrir Archivo",
+    "rename": "Renombrar",
+    "editDetails": "Editar Detalles",
+    "viewDescription": "Ver Descripción",
+    "newFileInside": "Nuevo Archivo dentro",
+    "newFolderInside": "Nueva Carpeta dentro",
+    "delete": "Eliminar"
+  },
+  "createProjectModal": {
+    "title": "Crear Nuevo Proyecto",
+    "projectName": "Nombre del Proyecto",
+    "projectNameRequired": "El nombre del proyecto es obligatorio",
+    "projectNamePlaceholder": "Mi Proyecto UML",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional del proyecto...",
+    "projectKind": "Tipo de Proyecto",
+    "projectKindHelp": "Tipos de Proyecto",
+    "kindSoftwareArchitecture": "Arquitectura de Software",
+    "kindSoftwareArchitectureSub": "Modelo 4+1",
+    "kindSoftwareArchitectureDesc": "Usa el modelo 4+1 (Lógica, Desarrollo, Proceso, Física + Escenarios). Ideal para sistemas por capas con estructura definida.",
+    "kindFree": "Libre",
+    "kindFreeSub": "Tipos de diagrama personalizados",
+    "kindFreeDesc": "Sin estructura predefinida. Crea cualquier tipo de diagrama (clase, secuencia, caso de uso, componente...) exactamente cuando y como lo necesites.",
+    "basePackage": "Paquete Base",
+    "template": "Comenzar desde Plantilla",
+    "templateBlank": "En blanco",
+    "templateEcommerce": "E-Commerce",
+    "templateMicroservices": "Microservicios",
+    "closeTooltip": "× cerrar",
+    "cancel": "Cancelar",
+    "createProject": "Crear Proyecto"
+  },
+  "createFileModal": {
+    "title": "Crear Nuevo Archivo",
+    "editTitle": "Editar Archivo",
+    "fileName": "Nombre del Archivo",
+    "fileNameRequired": "El nombre del archivo es obligatorio",
+    "fileNamePlaceholder": "MiDiagrama",
+    "diagramType": "Tipo de Diagrama",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional del archivo",
+    "cancel": "Cancelar",
+    "createFile": "Crear Archivo",
+    "saveChanges": "Guardar Cambios",
+    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación"
+  },
+  "createFolderModal": {
+    "title": "Crear Nueva Carpeta",
+    "editTitle": "Editar Carpeta",
+    "folderName": "Nombre de la Carpeta",
+    "folderNameRequired": "El nombre de la carpeta es obligatorio",
+    "folderNamePlaceholder": "Mi Carpeta",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional de la carpeta",
+    "cancel": "Cancelar",
+    "createFolder": "Crear Carpeta",
+    "saveChanges": "Guardar Cambios",
+    "folderNameExists": "Ya existe una carpeta con este nombre en esta ubicación"
+  },
+  "viewDescriptionModal": {
+    "description": "Descripción",
+    "noDescription": "No se proporcionó descripción",
+    "close": "Cerrar"
+  },
+  "closeProjectModal": {
+    "title": "Cerrar Proyecto",
+    "message": "Los cambios no guardados se perderán. ¿Estás seguro de que quieres cerrar el proyecto?",
+    "dontShowAgain": "No mostrar esto de nuevo",
+    "cancel": "Cancelar",
+    "closeProject": "Cerrar Proyecto"
+  },
+  "nameConflictModal": {
+    "title": "Conflicto de Nombre",
+    "message": "Has cambiado el nombre del diagrama a \"{diagramName}\", pero estás editando el archivo \"{currentFileName}.luml\".",
+    "question": "¿Qué te gustaría hacer?",
+    "saveAsNew": "Guardar como \"{diagramName}.luml\"",
+    "newFile": "Nuevo Archivo",
+    "overwrite": "Sobrescribir \"{currentFileName}.luml\"",
+    "keepFile": "Mantener Archivo",
+    "cancel": "Cancelar"
+  },
+  "ssotElementEditor": {
+    "editTitle": "Editar"
+  },
+  "vfsEdgeAction": {
+    "title": "Editar Relación",
+    "titlePackage": "Relación de Paquetes",
+    "relationType": "Tipo de Relación",
+    "origin": "Origen",
+    "destination": "Destino",
+    "changeDirection": "Cambiar Dirección",
+    "reversed": "Revertido ✓",
+    "multiplicityAndRoles": "Multiplicidad y Roles",
+    "role": "Rol (ej: empleado)",
+    "multiplicity": "Multiplicidad",
+    "lockAnchors": "Bloquear puntos de conexión",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "packageLegend": {
+      "title": "Leyenda de Relaciones de Paquete"
+    },
+    "anchorPicker": {
+      "title": "Puntos de Conexión",
+      "source": "Origen",
+      "target": "Destino",
+      "hint": "Haz clic en un punto para bloquear la conexión",
+      "unlock": "Desbloquear (dinámico)",
+      "lockedHint": "Puntos bloqueados — la línea no se mueve aunque el nodo cambie de posición"
+    }
+  },
+  "globalDeleteModal": {
+    "title": "Eliminar del Proyecto",
+    "message": "Esto eliminará permanentemente \"{name}\" ({type}) de todo el proyecto.",
+    "allDiagrams": "Se eliminará de TODOS los diagramas, junto con cualquier asociación, generalización u otra relación que lo conecte.",
+    "cannotUndo": "Esta acción no se puede deshacer.",
+    "cancel": "Cancelar",
+    "deleteFromProject": "Eliminar del Proyecto"
+  },
+  "autoLayoutWarning": {
+    "title": "Diseño Automático Bloqueado",
+    "message": "Algunos bordes tienen anclajes bloqueados. El diseño automático omitirá estas conexiones para preservar tu posicionamiento manual.",
+    "tip": "Para desbloquear: clic derecho en un borde → desmarcar \"Bloquear puntos de conexión\"",
+    "dontShowAgain": "No mostrar esto de nuevo",
+    "continue": "Continuar"
+  },
+  "openFileModal": {
+    "title": "Abrir Archivo",
+    "supportedFormats": "Formatos soportados: .luml (LibreUML) y .xmi",
+    "question": "¿Cómo te gustaría abrir este archivo?",
+    "addToProject": "Añadir al Proyecto",
+    "addToProjectDesc": "Anidar dentro del espacio de trabajo del proyecto actual",
+    "openStandalone": "Abrir Independiente",
+    "openStandaloneDesc": "Abrir como un archivo externo separado",
+    "lumlNote": "Las exportaciones de proyecto .luml reemplazan el espacio de trabajo. Las exportaciones de diagrama .luml siguen el modo que seleccionaste arriba.",
+    "lumlFileNote": "es un archivo de diagrama individual — sigue el modo de arriba.",
+    "lumlZipNote": "es un proyecto de espacio de trabajo completo — siempre reemplaza el espacio de trabajo.",
+    "cancel": "Cancelar",
+    "opening": "Abriendo…"
+  },
+  "mobileGuard": {
+    "title": "Solo Desktop",
+    "message": "LibreUML es una herramienta de ingeniería que requiere precisión. Por favor, abre esta aplicación en una computadora para diseñar tus diagramas.",
+    "footer": "Resolución actual no soportada"
+  },
+  "rightSidebar": {
+    "title": "Explorador de Modelo",
+    "closePanel": "Cerrar Panel",
+    "noModel": "Abre un diagrama .luml y arrastra elementos para poblar el modelo.",
+    "classes": "Clases",
+    "abstractClasses": "Clases Abstractas",
+    "interfaces": "Interfaces",
+    "enums": "Enumeraciones",
+    "newClass": "Nueva Clase",
+    "newAbstractClass": "Nueva Clase Abstracta",
+    "newInterface": "Nueva Interfaz",
+    "newEnum": "Nueva Enumeración",
+    "edit": "Editar...",
+    "deleteFromProject": "Eliminar del Proyecto",
+    "none": "— ninguno —"
+  },
+  "toolPalette": {
+    "title": "Caja de Herramientas",
+    "autoLayout": "Diseño",
+    "nodes": "Nodos",
+    "connections": "Conexiones",
+    "legend": "Lógica de Conexión"
+  },
+  "canvas": {
+    "loading": "Cargando diagrama...",
+    "gridPicker": {
+      "dots": "Puntos",
+      "lines": "Líneas",
+      "solid": "Sólida",
+      "none": "Sin fondo"
+    }
+  },
+  "cullingWarning": {
+    "title": "Consejo de Rendimiento",
+    "body1": "Este diagrama tiene {{count}} nodos. El recorte de vista está desactivado — cada nodo se renderiza aunque esté fuera de pantalla.",
+    "body2": "Activarlo omite el renderizado de nodos fuera de pantalla, lo que puede reducir significativamente el uso de CPU y memoria en diagramas grandes.",
+    "dontShowAgain": "No mostrar de nuevo",
+    "maybeLater": "Quizás después",
+    "enable": "Activar Recorte"
+  },
+  "validation": {
+    "duplicateElement": "Elemento duplicado",
+    "permissionDenied": "Permiso denegado",
+    "invalidName": "Nombre inválido",
+    "classNameExists": "El nombre de clase ya existe en este paquete",
+    "attributeNameExists": "El nombre del atributo ya existe en esta clase",
+    "methodSignatureExists": "La firma del método ya existe en esta clase"
+  },
+  "codeExportModal": {
+    "title": "Exportar Código Fuente",
+    "subtitle": "Configurar ajustes de generación de código",
+    "targetLanguage": "Lenguaje Destino",
+    "comingSoon": "Próximamente",
+    "classSelector": {
+      "title": "Seleccionar Clases para Exportar",
+      "selectAll": "Seleccionar Todo",
+      "deselectAll": "Deseleccionar Todo",
+      "noClasses": "No hay clases disponibles en el diagrama actual",
+      "selectedCount": "{{count}} clase(s) seleccionada(s)"
+    },
+    "options": {
+      "title": "Opciones de Generación",
+      "generateGettersSetters": "Generar Getters y Setters",
+      "generateGettersSettersDesc": "Crear automáticamente métodos de acceso para todos los atributos",
+      "generateEmptyConstructors": "Generar Constructores Vacíos",
+      "generateEmptyConstructorsDesc": "Crear constructores predeterminados sin argumentos",
+      "includePackageDeclaration": "Incluir Declaración de Paquete",
+      "includePackageDeclarationDesc": "Agregar declaración de paquete al inicio de cada archivo",
+      "generateDocStubs": "Generar Plantillas de Documentación",
+      "generateDocStubsDesc": "Agregar plantillas de comentarios Javadoc/XML doc"
+    },
+    "compatibility": {
+      "warning": "La generación de código solo es compatible con Diagramas de Clases",
+      "currentDiagram": "Tipo de diagrama actual: {{type}}",
+      "switchToClassDiagram": "Por favor abre o crea un Diagrama de Clases para usar esta función"
+    },
+    "actions": {
+      "cancel": "Cancelar",
+      "export": "Exportar Código",
+      "exportDisabled": "Selecciona al menos una clase para exportar"
+    }
+  },
+  "keyboardShortcuts": {
+    "title": "Atajos de Teclado",
+    "subtitle": "Domina LibreUML con estos atajos",
+    "footerNote": "Presiona ESC para cerrar este diálogo en cualquier momento",
+    "categories": {
+      "general": "General",
+      "canvas": "Lienzo",
+      "terminal": "Terminal"
+    },
+    "shortcuts": {
+      "newDiagram": "Nuevo Diagrama (Electron)",
+      "newDiagramWeb": "Nuevo Diagrama (Web / Chromium)",
+      "openFile": "Abrir Archivo",
+      "save": "Guardar",
+      "export": "Exportar Diagrama",
+      "spotlight": "Búsqueda Rápida",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "magicLayout": "Diseño Automático Mágico",
+      "generateCode": "Generar Código",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "fitView": "Ajustar Vista",
+      "delete": "Eliminar Seleccionado",
+      "commandHistoryUp": "Comando Anterior",
+      "commandHistoryDown": "Comando Siguiente",
+      "autocomplete": "Autocompletar",
+      "clearInput": "Limpiar Entrada",
+      "openWiki": "Abrir Wiki UML"
+    },
+    "actions": {
+      "close": "¡Entendido!"
+    }
+  },
+  "singleClassGenerator": {
+    "title": "Generar Código de Clase",
+    "selectClass": "Seleccionar Clase",
+    "copyCode": "Copiar Código",
+    "comingSoon": "Próximamente..."
+  },
+  "classEditor": {
+    "typeContext": {
+      "uml": "UML Estándar",
+      "java": "Java",
+      "csharp": "C# (Próximamente)",
+      "cpp": "C++ (Próximamente)",
+      "python": "Python (Próximamente)",
+      "typescript": "TypeScript (Próximamente)"
+    }
+  },
+  "projectGenerator": {
+    "javaVersions": {
+      "java21": "Java 21 (LTS)",
+      "java17": "Java 17 (LTS)",
+      "java11": "Java 11 (LTS)",
+      "java8": "Java 8"
+    }
+  },
+  "noteNode": {
+    "titlePlaceholder": "Doble clic para añadir título",
+    "contentPlaceholder": "Doble clic para editar..."
+  },
+  "exportFormats": {
+    "png": "PNG",
+    "svg": "SVG",
+    "xmi": "XMI",
+    "json": "JSON"
+  },
+  "terminalPrompt": {
+    "prefix": "libreuml~$"
+  },
+  "emptyState": {
+    "welcome": "¡Bienvenido a LibreUML!",
+    "subtitle": "Tu lienzo está vacío. Empieza a diseñar tu primer diagrama UML o carga un ejemplo para explorar.",
+    "startFromScratch": "Empezar desde cero",
+    "loadHospital": "Cargar Sistema de Hospital",
+    "hint": "Presiona Ctrl+H para abrir el Diccionario UML en cualquier momento."
+  },
+  "feedback": {
+    "title": "Reportar un Problema",
+    "buttonTitle": "Reportar Error",
+    "close": "Cerrar",
+    "cancel": "Cancelar",
+    "submit": "Enviar Reporte",
+    "submitting": "Enviando…",
+    "typeLabel": "Tipo",
+    "types": {
+      "bug": "Error",
+      "feedback": "Sugerencia",
+      "other": "Otro"
+    },
+    "titleLabel": "Título",
+    "titlePlaceholder": "Resumen breve del problema…",
+    "descriptionLabel": "Descripción",
+    "descriptionPlaceholder": "Describe qué ocurrió, qué esperabas y los pasos para reproducirlo…",
+    "screenshotLabel": "Captura de pantalla",
+    "includeScreenshot": "Incluir",
+    "recapture": "Re-capturar",
+    "capturingScreenshot": "Capturando lienzo…",
+    "screenshotAlt": "Captura del lienzo",
+    "noCanvas": "Sin diagrama activo — captura no disponible",
+    "errors": {
+      "titleRequired": "El título es obligatorio",
+      "titleTooLong": "El título no puede superar {{max}} caracteres",
+      "descriptionRequired": "La descripción es obligatoria",
+      "descriptionTooLong": "La descripción no puede superar {{max}} caracteres"
+    },
+    "toast": {
+      "sent": "¡Reporte enviado — gracias!",
+      "error": "No se pudo enviar el reporte. Por favor, inténtalo de nuevo."
+    }
+  },
+  "wiki": {
+    "title": "Wiki UML",
+    "search_placeholder": "Buscar conceptos...",
+    "image_placeholder": "Imagen próximamente",
+    "sidebar_label": "Categorías del wiki",
+    "no_results": "No se encontraron resultados para tu búsqueda.",
+    "select_article": "Selecciona un tema del panel lateral.",
+    "close": "Cerrar",
+    "article_count": "{{count}} artículos",
+    "categories": {
+      "uml_concepts": "Conceptos UML",
+      "tool_features": "Características de LibreUML"
+    },
+    "subcategories": {
+      "structures": "Estructuras",
+      "relations": "Relaciones",
+      "annotations": "Anotaciones",
+      "export": "Exportación",
+      "file_management": "Gestión de Archivos"
+    },
+    "sections": {
+      "what": "¿Qué es?",
+      "when": "¿Cuándo usarlo?",
+      "example": "Ejemplo",
+      "iso_rules": "Reglas ISO 19505",
+      "what_for": "¿Para qué sirve?",
+      "how_to": "Cómo usar",
+      "related": "Artículos relacionados"
+    },
+    "concepts": {
+      "class": {
+        "title": "Clase",
+        "definition": "Un blueprint para crear objetos. Define estructura (atributos) y comportamiento (operaciones).",
+        "when": "Se usa para modelar entidades del dominio que tienen características y acciones.",
+        "example": "La clase `Student` con atributos `id`, `name`, `enrolledCourses` y métodos como `enroll(course)`.",
+        "iso_rules": "ISO 19505: Una clase debe tener un nombre único dentro del diagrama y puede definir visibilidad de miembros.",
+        "image_alt": "Diagrama de una clase UML"
+      },
+      "interface": {
+        "title": "Interfaz",
+        "definition": "Un contrato que define un conjunto de operaciones que una clase debe implementar.",
+        "when": "Se usa para definir comportamiento esperado sin especificar la implementación.",
+        "example": "La interfaz `PaymentProcessor` define operaciones como `process(amount)` y `refund(transactionId)`.",
+        "iso_rules": "ISO 19505: Una interfaz es un tipo especial de clasificador que especifica un conjunto de operaciones públicas.",
+        "image_alt": "Diagrama de una interfaz UML"
+      },
+      "enumeration": {
+        "title": "Enumeración",
+        "definition": "Un tipo de dato que contiene un conjunto fijo de valores nombrados.",
+        "when": "Se usa para modelar atributos que solo pueden tomar valores específicos predefinidos.",
+        "example": "La enumeración `Status` con valores `PENDING`, `ACTIVE`, `INACTIVE`.",
+        "iso_rules": "ISO 19505: Una enumeración es un clasificador que define literales (valores constantes).",
+        "image_alt": "Diagrama de una enumeración UML"
+      },
+      "association": {
+        "title": "Asociación",
+        "definition": "Una relación entre dos clases que indica que una puede interactuar u usar la otra.",
+        "when": "Se usa para modelar relaciones generales entre entidades (ej: 'Student enrolls in Course').",
+        "example": "Una asociación bidireccional entre `Student` y `Course` con multiplicidad `*` a `*`.",
+        "iso_rules": "ISO 19505: Una asociación conecta dos o más clasificadores. Incluye nombre, dirección y multiplicidad.",
+        "image_alt": "Diagrama de una asociación UML"
+      },
+      "inheritance": {
+        "title": "Generalización (Herencia)",
+        "definition": "Una relación 'es-un' donde una clase especializada hereda estructura y comportamiento de una clase general.",
+        "when": "Se usa para modelar jerarquías de clases donde una es más específica que otra.",
+        "example": "`Dog` y `Cat` heredan de `Animal`. Comparten atributos como `age`, `name` pero tienen operaciones específicas.",
+        "iso_rules": "ISO 19505: La generalización es una relación de especialización/generalización entre clasificadores.",
+        "image_alt": "Diagrama de herencia en UML"
+      },
+      "composition": {
+        "title": "Composición",
+        "definition": "Una relación 'tiene-un' fuerte donde la parte no puede existir sin el todo.",
+        "when": "Se usa cuando hay un ownership fuerte: el contenedor es responsable del ciclo de vida de las partes.",
+        "example": "`Company` compone `Departments`. Si la empresa se elimina, sus departamentos también.",
+        "iso_rules": "ISO 19505: La composición es una agregación fuerte representada con un diamante lleno.",
+        "image_alt": "Diagrama de composición en UML"
+      },
+      "aggregation": {
+        "title": "Agregación",
+        "definition": "Una relación 'tiene-un' débil donde la parte puede existir sin el todo.",
+        "when": "Se usa cuando hay un ownership débil: el contenedor simplemente agrupa las partes.",
+        "example": "`Team` agrega `Players`. Un jugador puede existir sin un equipo.",
+        "iso_rules": "ISO 19505: La agregación es una relación especial con multiplicidad donde las partes mantienen independencia.",
+        "image_alt": "Diagrama de agregación en UML"
+      },
+      "dependency": {
+        "title": "Dependencia",
+        "definition": "Una relación de uso unidireccional donde una clase depende de otra para funcionar.",
+        "when": "Se usa cuando una clase necesita otra pero sin relación de propiedad (ej: pasar como parámetro).",
+        "example": "`OrderService` depende de `PaymentGateway` para procesar pagos.",
+        "iso_rules": "ISO 19505: La dependencia es una relación unidireccional que indica acoplamiento temporal.",
+        "image_alt": "Diagrama de dependencia en UML"
+      },
+      "realization": {
+        "title": "Realización (Implementación)",
+        "definition": "Una relación donde una clase concreta implementa las operaciones definidas por una interfaz.",
+        "when": "Se usa para mostrar qué operaciones de una interfaz son implementadas por una clase.",
+        "example": "`PayPalProcessor` realiza (implementa) la interfaz `PaymentProcessor`.",
+        "iso_rules": "ISO 19505: La realización especifica que un clasificador implementa un contrato definido por una interfaz.",
+        "image_alt": "Diagrama de realización en UML"
+      },
+      "note": {
+        "title": "Nota",
+        "definition": "Un elemento de anotación que proporciona información adicional, comentarios o restricciones.",
+        "when": "Se usa para aclarar reglas de negocio, restricciones o detalles que no caben en el diagrama.",
+        "example": "Una nota anexa a una clase: 'Email must be unique in the system'.",
+        "iso_rules": "ISO 19505: Una nota es un símbolo gráfico que contiene comentarios libremente formateados.",
+        "image_alt": "Diagrama con nota en UML"
+      }
+    },
+    "features": {
+      "export_luml": {
+        "title": "Exportar a .luml",
+        "description": "Guarda tu diagrama en formato LibreUML (JSON comprimido).",
+        "how_to": [
+          "Click en 'File' → 'Export'",
+          "Selecciona 'LibreUML Format (.luml)'",
+          "Elige ubicación y nombre del archivo",
+          "El archivo se descargará con toda la información del diagrama"
+        ],
+        "tip": "Usa este formato para compartir diagramas entre usuarios y versiones de LibreUML."
+      },
+      "export_java": {
+        "title": "Exportar a Código Java",
+        "description": "Convierte tu diagrama UML a código Java listo para usar.",
+        "how_to": [
+          "Click en 'File' → 'Export'",
+          "Selecciona 'Java Source Code'",
+          "Ajusta opciones (paquete, generics, javadoc)",
+          "Descarga el archivo .java o .zip"
+        ],
+        "tip": "El código generado incluye clases, interfaces, herencia y anotaciones Javadoc."
+      },
+      "export_images": {
+        "title": "Exportar a Imágenes (PNG/SVG)",
+        "description": "Convierte tu diagrama a imagen PNG o SVG escalable.",
+        "how_to": [
+          "Click en 'File' → 'Export'",
+          "Selecciona 'Image (PNG)' o 'Vector (SVG)'",
+          "Elige resolución (PNG) o calidad (SVG)",
+          "Descarga la imagen lista para presentaciones"
+        ],
+        "tip": "SVG es escalable sin pérdida de calidad. PNG es ideal para Word/PowerPoint."
+      },
+      "export_xmi": {
+        "title": "Exportar a XMI (ISO 19505)",
+        "description": "Exporta a XMI (XML Metadata Interchange), estándar OMG para interoperabilidad.",
+        "how_to": [
+          "Click en 'File' → 'Export'",
+          "Selecciona 'XMI (ISO 19505)'",
+          "Verifica el destino del archivo",
+          "El XMI es compatible con Enterprise Architect, Astah, ArchiMate"
+        ],
+        "tip": "Asegúrate de que los conceptos usados cumplan ISO 19505 para máxima compatibilidad."
+      },
+      "projects_vs_standalone": {
+        "title": "Proyectos vs. Archivos Visitantes",
+        "description": "Entiende la diferencia entre un Proyecto (múltiples diagramas) y un Archivo Visitante (diagrama único).",
+        "how_to": [
+          "**Proyecto:** Clic en 'New Project' → coloca múltiples diagramas en una carpeta",
+          "**Archivo Visitante:** Clic en 'Open File' → abre un .luml sin proyecto",
+          "En un Proyecto: cambios se guardan automáticamente en la carpeta del proyecto",
+          "En Visitante: cambios se guardan en el archivo único al hacer Ctrl+S"
+        ],
+        "tip": "Usa Proyectos para trabajos grandes (tesis, sistemas). Usa Visitantes para ejemplos rápidos."
+      },
+      "autosave": {
+        "title": "Guardado Automático (Ctrl+S)",
+        "description": "LibreUML guarda tu trabajo automáticamente al presionar Ctrl+S.",
+        "how_to": [
+          "Edita tu diagrama normalmente",
+          "Presiona Ctrl+S en cualquier momento",
+          "Verás una notificación 'Guardado' en la esquina inferior",
+          "Tu trabajo está seguro en el sistema de archivos"
+        ],
+        "tip": "Ctrl+S guarda inmediatamente. También puedes usar File → Save."
+      }
+    }
+  },
+  "telemetry": {
+    "banner": {
+      "title": "Ayuda a mejorar LibreUML",
+      "body": "Nos gustaría recopilar datos de uso anónimos (sin correo ni nombre) para entender cómo se usan las funciones. Puedes cambiarlo en cualquier momento en Ajustes.",
+      "accept": "Aceptar",
+      "decline": "No, gracias"
+    },
+    "settings": {
+      "label": "Análisis de uso anónimos",
+      "description": "Comparte datos anónimos de uso de funciones para ayudar a mejorar LibreUML. No se recopila información personal."
+    }
+  },
+  "help": {
+    "title": "Ayuda e información",
+    "close": "Cerrar",
+    "gettingStarted": {
+      "title": "Primeros pasos",
+      "content": "LibreUML es una herramienta de modelado UML gratuita y de código abierto. Diseña diagramas de clases, casos de uso, secuencia y más, y luego genera código automáticamente.",
+      "feature1": "Crea diagramas UML con un lienzo intuitivo de arrastrar y soltar",
+      "feature2": "Genera código en Java, Python, TypeScript, C++ y más",
+      "feature3": "Sincroniza tus diagramas en la nube y accede desde cualquier lugar",
+      "quickStartTitle": "Inicio rápido",
+      "quickStart": "Inicia sesión o crea una cuenta para comenzar. También puedes continuar sin cuenta para trabajar localmente."
+    },
+    "passwordRequirements": {
+      "title": "Requisitos de contraseña",
+      "intro": "Tu contraseña debe contener:",
+      "rule1": "Al menos 8 caracteres",
+      "rule2": "Una letra mayúscula (A–Z)",
+      "rule3": "Una letra minúscula (a–z)",
+      "rule4": "Un dígito (0–9)",
+      "rule5": "Un carácter especial (@#$%^&+=!)",
+      "examples": "Ejemplos",
+      "validExample": "Pass123!  ← válida",
+      "invalidExample": "Pass123  ← falta carácter especial"
+    },
+    "oauthLogin": {
+      "title": "Inicio con OAuth",
+      "what": "¿Qué es OAuth?",
+      "whatContent": "OAuth te permite iniciar sesión usando tu cuenta de GitHub o Google. Serás redirigido a su página segura de inicio de sesión y luego de vuelta a LibreUML — sin contraseñas almacenadas en nuestros servidores.",
+      "benefits": "Ventajas",
+      "benefit1": "Sin contraseña adicional que recordar",
+      "benefit2": "Autenticación segura estándar de la industria",
+      "benefit3": "Inicio de sesión rápido con un clic",
+      "privacy": "Privacidad",
+      "privacyContent": "Solo accedemos a tu dirección de correo y nombre de visualización. Nunca accedemos a tus repositorios, archivos ni datos privados."
+    },
+    "offlineMode": {
+      "title": "Modo sin conexión",
+      "what": "¿Qué es el modo sin conexión?",
+      "whatContent": "Puedes usar LibreUML sin crear una cuenta. Tus diagramas se guardan localmente en tu navegador y solo están disponibles en este dispositivo.",
+      "features": "Disponible sin conexión",
+      "feature1": "Crear y editar diagramas UML",
+      "feature2": "Exportar a PNG, SVG y código",
+      "feature3": "Guardar proyectos como archivos .luml",
+      "upgrade": "¿Por qué crear una cuenta?",
+      "upgradeContent": "Con una cuenta obtienes sincronización en la nube, 5 MB de almacenamiento y acceso a tus diagramas desde cualquier dispositivo."
+    }
+  },
+  "settings": {
+    "language": "Idioma",
+    "theme": "Tema",
+    "themeLight": "Cambiar a modo claro",
+    "themeDark": "Cambiar a modo oscuro"
+  },
+  "useCase": {
+    "title": "Caso de Uso",
+    "noSpec": {
+      "hint": "Sin especificación definida — doble click para agregar"
+    },
+    "viewFullSpec": "Ver especificación completa",
+    "addSpec": "Agregar especificación",
+    "moreSteps": "+{{count}} pasos más",
+    "alternativeFlowCount_one": "{{count}} flujo alternativo",
+    "alternativeFlowCount_other": "{{count}} flujos alternativos",
+    "tabs": {
+      "description": "Descripción",
+      "flows": "Flujos",
+      "extensionPoints": "Ext. Points"
+    },
+    "briefDescription": "Descripción breve",
+    "briefDescription.placeholder": "¿Qué hace este caso de uso?",
+    "trigger": "Disparador (Trigger)",
+    "trigger.placeholder": "¿Qué inicia este caso de uso?",
+    "preconditions": "Precondiciones",
+    "preconditions.placeholder": "Condiciones que deben cumplirse antes de ejecutar el caso de uso",
+    "postconditions": "Postcondiciones",
+    "postconditions.placeholder": "Estado del sistema después de completarse el caso de uso",
+    "basicFlow": "Flujo básico (happy path)",
+    "step.placeholder": "Paso {{number}}…",
+    "addStep": "Agregar paso",
+    "alternativeFlows": "Flujos alternativos",
+    "addAlternativeFlow": "Agregar flujo",
+    "alternativeFlow": {
+      "name.placeholder": "Nombre del flujo alternativo",
+      "trigger.placeholder": "Condición que activa este flujo"
+    },
+    "noAlternativeFlows": "Sin flujos alternativos definidos.",
+    "extensionPoints": "Extension Points",
+    "extensionPoint.placeholder": "Extension point {{number}}",
+    "addExtensionPoint": "Agregar extension point"
+  },
+  "actor": {
+    "title": "Actor",
+    "type": "Tipo",
+    "types": {
+      "human": "Humano",
+      "system": "Sistema",
+      "timer": "Temporizador"
+    },
+    "abstract": {
+      "label": "Abstracto",
+      "description": "(nombre en itálica)"
+    },
+    "description": "Descripción",
+    "description.placeholder": "Describe el rol del actor en el sistema…"
+  },
+  "extend": {
+    "title": "Propiedades de «extend»",
+    "condition": "Condición de extensión",
+    "condition.placeholder": "ej. el usuario no está autenticado",
+    "extensionPoint": "Punto de extensión",
+    "extensionPoint.none": "— ninguno —",
+    "extensionPoint.placeholder": "Nombre del punto de extensión",
+    "extensionPoint.hint": "Define puntos de extensión en «{{name}}» para seleccionar uno aquí"
+  }
+}

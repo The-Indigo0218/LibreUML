@@ -1,0 +1,18 @@
+import { enablePatches } from 'immer';
+enablePatches();
+import './core/undo/instance';
+
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+import './i18n/config.ts'
+import { initPostHog } from './features/telemetry/posthog.client';
+
+initPostHog();
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)

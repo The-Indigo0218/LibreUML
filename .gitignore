@@ -1,3 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+dist-electron/
+release/
+
+# Turbo cache
+.turbo/
+
+# Vite cache
+.vite/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
 # Logs
 logs
 *.log
@@ -7,13 +27,8 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-release
-dist-electron
-build
+# TypeScript build info
+*.tsbuildinfo
 
 # Editor directories and files
 .vscode/*
@@ -26,42 +41,40 @@ build
 *.sln
 *.sw?
 
-# Optional npm cache directory
-.npm
+# Misc caches
 .eslintcache
+.npm
 .next
 .cache
 .nuxt
 .out
 coverage
 .build
-.env
-.env.local
-.env.*.local
-*.tsbuildinfo
 .pnp
 .pnp.js
 .cache-loader
-jspm_packages/
 .webpack
-bower_components/
 .sass-cache
+jspm_packages/
+bower_components/
+lib-cov
+
+# Misc artifacts
 *.seed
 *.pid
 *.pid.lock
-lib-cov
-*.log
 *.csv
 *.dat
 *.out
 *.tgz
 *.gz
 
-all md
-
+# Project-specific
+.claude
+documentos/
 docs/architecture
 docs/audit
-
-.gitignore
+docs/tracking
 docs/V1_ARCHITECTURAL_AUDIT.md
-.claude
+docs/frontend-class-diagram-models.md
+docs/v1-completion-checklist.md

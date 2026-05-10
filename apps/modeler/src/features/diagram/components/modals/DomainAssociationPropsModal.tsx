@@ -1,20 +1,15 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { useUiStore } from '../../../../store/uiStore';
-import { useActiveSemanticModelOps } from '../../../../store/useActiveSemanticModelOps';
-import { MULTIPLICITY_PRESETS, isValidMultiplicity } from '../../../../core/domain/multiplicity.utils';
+import { useEditingEntity } from '../../../../store/useEditingEntity';
+import { isValidMultiplicity } from '../../../../core/domain/multiplicity.utils';
+import MultiplicitySelector from '../shared/MultiplicitySelector';
 
 export default function DomainAssociationPropsModal() {
-  const { activeModal, editingId, closeModals } = useUiStore();
-  const isOpen = activeModal === 'domain-association-props' && !!editingId;
-
-  const { getModel, getOps } = useActiveSemanticModelOps();
-
-  const getRelation = () => {
-    if (!editingId) return null;
-    return getModel()?.relations?.[editingId] ?? null;
-  };
+  const { isOpen, editingId, closeModals, getEntity: getRelation, getOps, getModel } = useEditingEntity(
+    'domain-association-props',
+    (model, id) => model?.relations?.[id] ?? null,
+  );
 
   const getEntityName = (id: string): string =>
     getModel()?.domainEntities?.[id]?.name ?? '—';
@@ -54,50 +49,6 @@ export default function DomainAssociationPropsModal() {
     getOps().updateRelation(editingId, patch);
     closeModals();
   };
-
-  const MulChips = ({
-    value,
-    onChange,
-    invalid,
-  }: {
-    value: string;
-    onChange: (v: string) => void;
-    invalid: boolean;
-  }) => (
-    <div className="space-y-1.5">
-      <div className="flex flex-wrap gap-1.5">
-        {MULTIPLICITY_PRESETS.map((p) => (
-          <button
-            key={p}
-            onClick={() => onChange(value === p ? '' : p)}
-            className={[
-              'px-2 py-0.5 rounded text-xs font-mono border transition-colors',
-              value === p
-                ? 'border-[#f59e0b] bg-[#f59e0b]/15 text-[#f59e0b]'
-                : 'border-[#2a3358] text-[#64748b] hover:border-[#3d4a6e] hover:text-[#94a3b8]',
-            ].join(' ')}
-          >
-            {p}
-          </button>
-        ))}
-      </div>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="custom (e.g. 2..5)"
-        className={[
-          'w-full bg-[#0f1419] border rounded px-2.5 py-1 text-sm font-mono placeholder-[#374151]',
-          'focus:outline-none transition-colors text-[#e2e8f0]',
-          invalid && value
-            ? 'border-red-500 focus:border-red-400'
-            : 'border-[#2a3358] focus:border-[#f59e0b]',
-        ].join(' ')}
-      />
-      {invalid && value && (
-        <p className="text-[10px] text-red-400">Invalid multiplicity notation</p>
-      )}
-    </div>
-  );
 
   const modal = (
     <div
@@ -145,7 +96,7 @@ export default function DomainAssociationPropsModal() {
               Source multiplicity
               <span className="ml-1 font-mono text-[#f59e0b] normal-case">({srcName})</span>
             </label>
-            <MulChips value={srcMul} onChange={setSrcMul} invalid={!srcMulValid} />
+            <MultiplicitySelector value={srcMul} onChange={setSrcMul} invalid={!srcMulValid} />
           </div>
 
           <div>
@@ -153,7 +104,7 @@ export default function DomainAssociationPropsModal() {
               Target multiplicity
               <span className="ml-1 font-mono text-[#e2e8f0] normal-case">({tgtName})</span>
             </label>
-            <MulChips value={tgtMul} onChange={setTgtMul} invalid={!tgtMulValid} />
+            <MultiplicitySelector value={tgtMul} onChange={setTgtMul} invalid={!tgtMulValid} />
           </div>
         </div>
 

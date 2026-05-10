@@ -300,7 +300,9 @@
       "svgWarningMessage": "Algunos visores de imágenes en Windows, Mac o Linux podrían no mostrar el SVG correctamente porque utiliza estilos HTML/CSS incrustados.",
       "svgTip": "Si el archivo se ve vacío o roto, intenta abrir el .svg en tu navegador web (Chrome, Edge, Firefox).",
       "dontShowAgain": "No mostrar este aviso de nuevo",
-      "wait": "Lee esto"
+      "wait": "Lee esto",
+      "preview": "Previsualizar",
+      "previewing": "Generando…"
     },
     "importCode": {
       "title": "Importar Código Java",

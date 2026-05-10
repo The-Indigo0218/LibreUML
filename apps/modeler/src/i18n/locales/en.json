@@ -291,7 +291,9 @@
       "svgWarningMessage": "Some image viewers on Windows, Mac, or Linux might not display the exported SVG correctly because it uses embedded HTML/CSS for styling.",
       "svgTip": "If the file looks empty or broken, try opening the .svg file in a web browser (Chrome, Edge, Firefox).",
       "dontShowAgain": "Don't show this warning again",
-      "wait": "Read this"
+      "wait": "Read this",
+      "preview": "Preview",
+      "previewing": "Generating…"
     },
     "importCode": {
       "title": "Import Java Code",

@@ -105,9 +105,9 @@ export interface KonvaUseCaseColors {
 
 /** Stick-figure stroke and label color for Actor nodes. */
 export function resolveActorColors(): KonvaUseCaseColors {
-  const dark = isDark();
-  const stroke = dark ? '#e6e9f2' : '#1e293b';
-  return { stroke, fill: '#ffffff', text: getCSSVar('--text-primary') };
+  // Use slate-700 (#334155) in both modes — dark enough to be visible on white
+  // export backgrounds, yet clear enough against dark canvas backgrounds.
+  return { stroke: '#334155', fill: 'transparent', text: '#334155' };
 }
 
 /** Ellipse stroke, fill, and label color for UseCase nodes. */

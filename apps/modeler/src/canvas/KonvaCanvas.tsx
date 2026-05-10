@@ -1095,6 +1095,7 @@ export default function KonvaCanvas() {
       if (activeModel.actors?.[viewNode.elementId]) return 'ACTOR';
       if (activeModel.useCases?.[viewNode.elementId]) return 'USECASE';
       if (activeModel.systemBoundaries?.[viewNode.elementId]) return 'SYSTEM_BOUNDARY';
+      if (activeModel.domainEntities?.[viewNode.elementId]) return 'DOMAIN_ENTITY';
       return 'NOTE';
     },
     getIsNodeExternal: (nodeId) => {

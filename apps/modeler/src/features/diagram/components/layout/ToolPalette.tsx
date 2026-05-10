@@ -151,7 +151,7 @@ export default function ToolPalette() {
             })}
           </div>
 
-          <div className="px-4 py-4 pb-10 pt-6 border-t border-surface-border bg-surface-secondary/30">
+          {diagramType !== 'DOMAIN_MODEL_DIAGRAM' && <div className="px-4 py-4 pb-10 pt-6 border-t border-surface-border bg-surface-secondary/30">
             <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-3">
               {t("sidebar.legend.title")}
             </div>
@@ -176,7 +176,7 @@ export default function ToolPalette() {
                 </span>
               </div>
             </div>
-          </div>
+          </div>}
         </CollapsibleSection>
       </div>
     </div>

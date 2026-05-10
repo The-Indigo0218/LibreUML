@@ -87,6 +87,7 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
 };
 
 const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'use_case', 'system_boundary']);
+const DOMAIN_MODEL_STEREOTYPES = new Set<stereotype>(['domain_entity']);
 
 function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isNoteViewModel(vm)) return 'note';
@@ -351,6 +352,8 @@ export function useConnectionDraw({
               if (srcStereotype === 'package' && tgtStereotype === 'package') {
                 onConnect(src.nodeId, snap.nodeId);
               } else if (USE_CASE_STEREOTYPES.has(srcStereotype) || USE_CASE_STEREOTYPES.has(tgtStereotype)) {
+                onConnect(src.nodeId, snap.nodeId);
+              } else if (DOMAIN_MODEL_STEREOTYPES.has(srcStereotype) || DOMAIN_MODEL_STEREOTYPES.has(tgtStereotype)) {
                 onConnect(src.nodeId, snap.nodeId);
               } else {
                 const wsState = useWorkspaceStore.getState();

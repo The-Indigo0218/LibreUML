@@ -40,12 +40,15 @@ import type {
   VFSFile,
   VFSFolder,
 } from '../core/domain/vfs/vfs.types';
+import type { IRActor, IRUseCase, IRSystemBoundary, IRRelation } from '../core/domain/vfs/vfs.types';
 import { useModelStore } from '../store/model.store';
 import { useVFSStore } from '../store/project-vfs.store';
 import { useWorkspaceStore } from '../store/workspace.store';
 import { useToastStore } from '../store/toast.store';
 import { standaloneModelOps } from '../store/standaloneModelOps';
 import { XmiImporterService } from './xmiImporter.service';
+import { UseCaseXmiImporter } from './useCaseXmiImporter';
+import { withUndo } from '../core/undo/undoBridge';
 import { parseLumlFile, loadParsedProject } from './projectIO.service';
 import { getDiagramIOService } from './diagram';
 import type { ParsedDiagram } from './diagram';
@@ -692,6 +695,11 @@ export async function injectXmiIntoVFS(
   ensureContext(mode, fileName);
   const modelStore = useModelStore.getState();
 
+  // ── Detect diagram type and route ─────────────────────────────────────────
+  if (UseCaseXmiImporter.isUseCaseDiagram(xmiContent)) {
+    return injectUseCaseXmiIntoVFS(xmiContent, fileName, mode);
+  }
+
   // ── Parse XMI ──────────────────────────────────────────────────────────────
   const { nodes, edges } = XmiImporterService.import(xmiContent);
 
@@ -835,5 +843,86 @@ export async function injectXmiIntoVFS(
 
   if (mode === 'standalone') {
     useToastStore.getState().show(`"${fileName}" imported as standalone`);
+  }
+}
+
+// ─── Use Case XMI injection ───────────────────────────────────────────────────
+
+/**
+ * Parses a use-case XMI file and injects it as a USE_CASE_DIAGRAM VFS file.
+ * Actors, UseCases, SystemBoundaries and Relations land in the global ModelStore.
+ */
+export async function injectUseCaseXmiIntoVFS(
+  xmiContent: string,
+  fileName: string,
+  mode: OpenMode,
+): Promise<void> {
+  ensureContext(mode, fileName);
+
+  const { actors, useCases, systemBoundaries, relations, positions } =
+    UseCaseXmiImporter.import(xmiContent);
+
+  // ── Add all elements to the global SemanticModel in one undo transaction ──
+  withUndo('model', `Import use case diagram: ${fileName}`, 'global', (draft: any) => {
+    if (!draft.model) return;
+    if (!draft.model.actors)           draft.model.actors = {};
+    if (!draft.model.useCases)         draft.model.useCases = {};
+    if (!draft.model.systemBoundaries) draft.model.systemBoundaries = {};
+
+    for (const a of actors)   draft.model.actors[a.id]           = a as IRActor;
+    for (const u of useCases) draft.model.useCases[u.id]         = u as IRUseCase;
+    for (const s of systemBoundaries) draft.model.systemBoundaries[s.id] = s as IRSystemBoundary;
+    for (const r of relations) {
+      draft.model.relations[r.id] = r as IRRelation;
+    }
+    draft.model.updatedAt = Date.now();
+  });
+
+  // ── Create VFS file + DiagramView ─────────────────────────────────────────
+  const parentId = mode === 'project' ? findDiagramsFolderId() : null;
+
+  const fileId = useVFSStore.getState().createFile(
+    parentId,
+    fileName,
+    'USE_CASE_DIAGRAM',
+    '.luml',
+    mode === 'standalone',
+  );
+
+  const allElements = [
+    ...actors.map(a => ({ id: a.id, kind: 'actor' as const })),
+    ...useCases.map(u => ({ id: u.id, kind: 'usecase' as const })),
+    ...systemBoundaries.map(s => ({ id: s.id, kind: 'boundary' as const })),
+  ];
+
+  const viewNodes: ViewNode[] = allElements.map(el => {
+    const pos = positions.get(el.id) ?? { x: 0, y: 0 };
+    return {
+      id: crypto.randomUUID(),
+      elementId: el.id,
+      x: pos.x,
+      y: pos.y,
+      ...(el.kind === 'boundary' && pos.width != null
+        ? { width: pos.width, height: pos.height }
+        : {}),
+    };
+  });
+
+  const viewEdges: ViewEdge[] = relations.map(r => ({
+    id: crypto.randomUUID(),
+    relationId: r.id,
+    waypoints: [],
+  }));
+
+  useVFSStore.getState().updateFileContent(fileId, {
+    diagramId: fileId,
+    nodes: viewNodes,
+    edges: viewEdges,
+  });
+
+  useWorkspaceStore.getState().openTab(fileId);
+
+  if (mode === 'standalone') {
+    useToastStore.getState().show(`"${fileName}" imported as standalone use case diagram`);
   }
 }

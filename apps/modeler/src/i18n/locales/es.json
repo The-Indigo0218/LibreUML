@@ -145,7 +145,7 @@
       "include": "«include»",
       "extend": "«extend»",
       "generalization": "Generalización"
-    },
+    }
   },
   "contextMenu": {
     "pane": {

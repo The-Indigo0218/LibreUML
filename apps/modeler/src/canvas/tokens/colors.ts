@@ -125,3 +125,23 @@ export function resolveSystemBoundaryColors(): KonvaUseCaseColors {
   const text = getCSSVar('--text-secondary');
   return { stroke: text, fill: 'transparent', text };
 }
+
+export interface KonvaDomainEntityColors {
+  bg: string;
+  headerBg: string;
+  border: string;
+  text: string;
+  textMuted: string;
+}
+
+/** Warm amber palette for Domain Entity nodes. */
+export function resolveDomainEntityColors(): KonvaDomainEntityColors {
+  const dark = isDark();
+  return {
+    bg:        dark ? '#1c1208' : '#fffbeb',
+    headerBg:  dark ? '#2d1f0a' : '#fef3c7',
+    border:    dark ? '#d97706' : '#f59e0b',
+    text:      getCSSVar('--text-primary'),
+    textMuted: getCSSVar('--text-secondary'),
+  };
+}

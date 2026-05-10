@@ -16,6 +16,7 @@ import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
 import ActorShape, { getActorShapeSize } from './shapes/ActorShape';
 import UseCaseShape, { getUseCaseShapeSize } from './shapes/UseCaseShape';
 import SystemBoundaryShape, { getSystemBoundaryShapeSize, SB_MIN_W, SB_MIN_H } from './shapes/SystemBoundaryShape';
+import DomainEntityShape, { getDomainEntityShapeSize } from './shapes/DomainEntityShape';
 
 // Layout constants mirrored from shape files for inline editor positioning
 const ACTOR_NAME_Y_FROM_TOP = 84; // BODY_BOT(58) + LEG_DY(18) + NAME_GAP(8)
@@ -64,6 +65,7 @@ import {
   isActorViewModel,
   isUseCaseViewModel,
   isSystemBoundaryViewModel,
+  isDomainEntityViewModel,
   type NodeViewModel,
   type PackageViewModel,
 } from '../adapters/react-flow/view-models/node.view-model';
@@ -179,6 +181,11 @@ export default function KonvaCanvas() {
         height = size.height;
       } else if (isSystemBoundaryViewModel(vm)) {
         const size = getSystemBoundaryShapeSize(vm);
+        width = size.width;
+        height = size.height;
+      // TODO(post-v1 Fase 2): mover a ShapeRouter
+      } else if (isDomainEntityViewModel(vm)) {
+        const size = getDomainEntityShapeSize(vm);
         width = size.width;
         height = size.height;
       } else {
@@ -330,6 +337,10 @@ export default function KonvaCanvas() {
         map.set(shape.id, { x: pos.x, y: pos.y, width, height });
       } else if (isSystemBoundaryViewModel(vm)) {
         const { width, height } = getSystemBoundaryShapeSize(vm);
+        map.set(shape.id, { x: pos.x, y: pos.y, width, height });
+      // TODO(post-v1 Fase 2): mover a ShapeRouter
+      } else if (isDomainEntityViewModel(vm)) {
+        const { width, height } = getDomainEntityShapeSize(vm);
         map.set(shape.id, { x: pos.x, y: pos.y, width, height });
       } else {
         const { width, height } = getClassShapeSize(vm as NodeViewModel);
@@ -719,6 +730,9 @@ export default function KonvaCanvas() {
             { width: Math.min(width - 20, 280), height: 22 },
             (text) => vm.onRename!(text));
         }
+      // TODO(post-v1 Fase 2): mover a ShapeRouter
+      } else if (isDomainEntityViewModel(vm)) {
+        vm.onOpenProps?.();
       }
     },
     [shapes, stageRef, positionOverrides, startInlineEditing],
@@ -967,6 +981,12 @@ export default function KonvaCanvas() {
       const shape = shapes.find((s) => s.id === nodeId);
       if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data))) {
         startUseCaseInlineEdit(nodeId);
+        closeMenu();
+        return;
+      }
+      // TODO(post-v1 Fase 2): mover a ShapeRouter
+      if (shape && isDomainEntityViewModel(shape.data)) {
+        shape.data.onOpenProps?.();
         closeMenu();
         return;
       }
@@ -1480,6 +1500,26 @@ export default function KonvaCanvas() {
                     />
                   );
                 }
+                {/* TODO(post-v1 Fase 2): mover a ShapeRouter */}
+                if (isDomainEntityViewModel(vm)) {
+                  return (
+                    <DomainEntityShape
+                      key={shape.id}
+                      viewModel={vm}
+                      x={pos.x}
+                      y={pos.y}
+                      selected={selectedIds.has(shape.id)}
+                      draggable
+                      onDragStart={guardedDragStart}
+                      onDragMove={handleDragMove}
+                      onDragEnd={handleDragEnd}
+                      onNodeClick={onNodeClick}
+                      onDblClick={() => vm.onOpenProps?.()}
+                      onContextMenu={handleNodeContextMenu}
+                      visible={isVisible && !isDescendantOfCollapsed}
+                    />
+                  );
+                }
                 return (
                   <ClassShape
                     key={shape.id}
@@ -1590,6 +1630,18 @@ export default function KonvaCanvas() {
               if (isSystemBoundaryViewModel(vm)) {
                 return (
                   <SystemBoundaryShape
+                    key={'ghost-' + ghost.id}
+                    viewModel={vm}
+                    x={ghost.x}
+                    y={ghost.y}
+                    opacity={0.3}
+                  />
+                );
+              }
+              {/* TODO(post-v1 Fase 2): mover a ShapeRouter */}
+              if (isDomainEntityViewModel(vm)) {
+                return (
+                  <DomainEntityShape
                     key={'ghost-' + ghost.id}
                     viewModel={vm}
                     x={ghost.x}

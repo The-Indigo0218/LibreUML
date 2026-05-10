@@ -24,6 +24,7 @@ import {
   downloadVfsDiagramXmi,
 } from "../../../../services/vfsExport.service";
 import { downloadUseCaseDiagramXmi } from "../../../../services/useCaseXmiExporter";
+import { downloadDomainModelXmi } from "../../../../services/domainModelXmiExporter";
 import { getDiagramIOService } from "../../../../services/diagram";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import { useKonvaCanvasController } from "../../../../canvas/hooks/useKonvaCanvasController";
@@ -254,6 +255,8 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
       }
       if (diagramType === 'USE_CASE_DIAGRAM') {
         downloadUseCaseDiagramXmi(effectiveModel, selectedDiagramView, selectedFileName);
+      } else if (diagramType === 'DOMAIN_MODEL_DIAGRAM') {
+        downloadDomainModelXmi(effectiveModel, selectedDiagramView, selectedFileName);
       } else {
         downloadVfsDiagramXmi(effectiveModel, selectedDiagramView, selectedFileName);
       }

@@ -123,7 +123,8 @@
       "note": "Note",
       "actor": "Actor",
       "useCase": "Use Case",
-      "systemBoundary": "System Boundary"
+      "systemBoundary": "System Boundary",
+      "domainEntity": "Entity"
     },
     "connections": {
       "title": "Connections",
@@ -154,7 +155,8 @@
       "cleanCanvas": "Clean Canvas",
       "addActor": "Add Actor",
       "addUseCase": "Add Use Case",
-      "addSystemBoundary": "Add System Boundary"
+      "addSystemBoundary": "Add System Boundary",
+      "addDomainEntity": "Add Entity"
     },
     "node": {
       "duplicate": "Duplicate",

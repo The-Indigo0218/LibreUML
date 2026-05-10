@@ -46,6 +46,7 @@ import {
   isActorViewModel,
   isUseCaseViewModel,
   isSystemBoundaryViewModel,
+  isDomainEntityViewModel,
   type NodeViewModel,
 } from '../../adapters/react-flow/view-models/node.view-model';
 import { validateConnection } from '../../util/connectionValidator';
@@ -93,6 +94,8 @@ function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isActorViewModel(vm)) return 'actor';
   if (isUseCaseViewModel(vm)) return 'use_case';
   if (isSystemBoundaryViewModel(vm)) return 'system_boundary';
+  // TODO(post-v1 Fase 2): mover a ShapeRouter
+  if (isDomainEntityViewModel(vm)) return 'domain_entity';
   const nvm = vm as NodeViewModel;
   const s = nvm.stereotype;
   if (s === 'abstract' || s === 'interface' || s === 'enum') return s;

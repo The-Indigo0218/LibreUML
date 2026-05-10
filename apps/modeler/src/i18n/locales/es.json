@@ -131,7 +131,8 @@
       "note": "Nota",
       "actor": "Actor",
       "useCase": "Caso de Uso",
-      "systemBoundary": "Límite de Sistema"
+      "systemBoundary": "Límite de Sistema",
+      "domainEntity": "Entidad"
     },
     "connections": {
       "title": "Conexiones",
@@ -162,7 +163,8 @@
       "cleanCanvas": "Limpiar Lienzo",
       "addActor": "Agregar Actor",
       "addUseCase": "Agregar Caso de Uso",
-      "addSystemBoundary": "Agregar Límite de Sistema"
+      "addSystemBoundary": "Agregar Límite de Sistema",
+      "addDomainEntity": "Agregar Entidad"
     },
     "node": {
       "duplicate": "Duplicar",

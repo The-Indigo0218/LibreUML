@@ -11,20 +11,7 @@
 
 import type { SemanticModel, IRActor, IRUseCase, IRSystemBoundary, IRRelation } from '../core/domain/vfs/vfs.types';
 import type { DiagramView } from '../core/domain/vfs/vfs.types';
-
-function esc(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-function xmiId(raw: string): string {
-  // XMI IDs must start with a letter or _
-  return raw.replace(/[^a-zA-Z0-9_.-]/g, '_');
-}
+import { esc, xmiId, xmiHeader, xmiFooter, downloadXml } from './xmi/xmiHelpers';
 
 // ─── Serializers ──────────────────────────────────────────────────────────────
 
@@ -187,14 +174,7 @@ export function buildUseCaseDiagramXmi(
     }
   }
 
-  const lines: string[] = [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<xmi:XMI xmi:version="2.1"`,
-    `  xmlns:xmi="http://schema.omg.org/spec/XMI/2.1"`,
-    `  xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML">`,
-    `  <xmi:Documentation exporter="LibreUML" exporterVersion="1.0"/>`,
-    `  <uml:Model xmi:id="${xmiId(model.id)}" name="${esc(diagramName)}">`,
-  ];
+  const lines: string[] = xmiHeader(model.id, diagramName);
 
   for (const actor of actors) {
     lines.push(serializeActor(actor, genBySpecific.get(actor.id) ?? []));
@@ -217,8 +197,7 @@ export function buildUseCaseDiagramXmi(
     lines.push(serializeAssociation(assoc));
   }
 
-  lines.push(`  </uml:Model>`);
-  lines.push(`</xmi:XMI>`);
+  lines.push(...xmiFooter());
 
   return lines.join('\n');
 }
@@ -228,14 +207,5 @@ export function downloadUseCaseDiagramXmi(
   diagramView: DiagramView | null,
   diagramName: string,
 ): void {
-  const xmi = buildUseCaseDiagramXmi(model, diagramView, diagramName);
-  const blob = new Blob([xmi], { type: 'application/xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${diagramName.replace(/[^a-zA-Z0-9_-]/g, '_')}.xmi`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadXml(buildUseCaseDiagramXmi(model, diagramView, diagramName), diagramName);
 }

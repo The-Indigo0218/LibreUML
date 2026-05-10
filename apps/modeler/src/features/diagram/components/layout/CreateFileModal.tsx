@@ -4,6 +4,7 @@ import {
   X,
   Layers,
   Users,
+  Network,
   ArrowRightLeft,
   Activity,
   GitBranch,
@@ -28,6 +29,7 @@ interface DiagramTypeConfig {
 const DIAGRAM_TYPE_CONFIG: DiagramTypeConfig[] = [
   { type: "CLASS_DIAGRAM",         label: "Class",      icon: Layers,          enabled: true  },
   { type: "USE_CASE_DIAGRAM",      label: "Use Case",   icon: Users,           enabled: true  },
+  { type: "DOMAIN_MODEL_DIAGRAM",  label: "Domain",     icon: Network,         enabled: true  },
   { type: "SEQUENCE_DIAGRAM",      label: "Sequence",   icon: ArrowRightLeft,  enabled: false },
   { type: "ACTIVITY_DIAGRAM",      label: "Activity",   icon: Activity,        enabled: false },
   { type: "STATE_MACHINE_DIAGRAM", label: "State",      icon: GitBranch,       enabled: false },

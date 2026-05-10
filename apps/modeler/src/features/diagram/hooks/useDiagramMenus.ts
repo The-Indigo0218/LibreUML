@@ -68,6 +68,7 @@ export const useDiagramMenus = ({
   screenToCanvas,
 }: UseDiagramMenusProps) => {
   const isUseCaseDiagram = diagramType === 'USE_CASE_DIAGRAM';
+  const isDomainModelDiagram = diagramType === 'DOMAIN_MODEL_DIAGRAM';
   const { t } = useTranslation();
 
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator);
@@ -75,7 +76,7 @@ export const useDiagramMenus = ({
   // ── VFS node creation for pane context menu ─────────────────────────────────
 
   const addVFSNode = useCallback(
-    (kind: 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE' | 'ACTOR' | 'USE_CASE' | 'SYSTEM_BOUNDARY', position: { x: number; y: number }) => {
+    (kind: 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE' | 'ACTOR' | 'USE_CASE' | 'SYSTEM_BOUNDARY' | 'DOMAIN_ENTITY', position: { x: number; y: number }) => {
       const tabId = useWorkspaceStore.getState().activeTabId;
       if (!tabId) return;
 
@@ -143,6 +144,11 @@ export const useDiagramMenus = ({
             }}] });
             semanticId = newId; break;
           }
+          case 'DOMAIN_ENTITY': {
+            const ops = standaloneModelOps(tabId);
+            semanticId = ops.createDomainEntity({ name: getNextVFSName(Object.values(localM.domainEntities ?? {}).map(e => e.name), 'Entity'), attributeIds: [] });
+            break;
+          }
         }
       } else {
         const ms = useModelStore.getState();
@@ -195,6 +201,10 @@ export const useDiagramMenus = ({
             }}] });
             semanticId = newId; break;
           }
+          case 'DOMAIN_ENTITY': {
+            semanticId = ms.createDomainEntity({ name: getNextVFSName(Object.values(model.domainEntities ?? {}).map(e => e.name), 'Entity'), attributeIds: [] });
+            break;
+          }
         }
       }
 
@@ -230,6 +240,13 @@ export const useDiagramMenus = ({
             { label: t("contextMenu.pane.addSystemBoundary"), onClick: () => addVFSNode("SYSTEM_BOUNDARY", pos()) },
             { label: t("contextMenu.pane.addNote"),           onClick: () => addVFSNode("NOTE", pos()) },
             { label: t("contextMenu.pane.cleanCanvas"),       onClick: onClearCanvas, danger: true },
+          ];
+        }
+        if (isDomainModelDiagram) {
+          return [
+            { label: t("contextMenu.pane.addDomainEntity"), onClick: () => addVFSNode("DOMAIN_ENTITY", pos()) },
+            { label: t("contextMenu.pane.addNote"),         onClick: () => addVFSNode("NOTE", pos()) },
+            { label: t("contextMenu.pane.cleanCanvas"),     onClick: onClearCanvas, danger: true },
           ];
         }
         return [
@@ -270,15 +287,26 @@ export const useDiagramMenus = ({
           effectiveType === "ACTOR" ||
           effectiveType === "USECASE" ||
           effectiveType === "SYSTEM_BOUNDARY";
+        const isDomainEntityType = effectiveType === "DOMAIN_ENTITY";
         const isNodeExternal = getIsNodeExternal(nodeId);
 
         const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [];
 
         if (!isPackageType && !isNoteType) {
           baseOptions.push({
-            label: isUseCaseNodeType ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
+            label: (isUseCaseNodeType || isDomainEntityType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
           });
+        }
+
+        if (isDomainEntityType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.edit"),
+              onClick: () => useUiStore.getState().openDomainEntityProps(elementId),
+            });
+          }
         }
 
         if (effectiveType === "USECASE") {

@@ -146,13 +146,6 @@
       "extend": "«extend»",
       "generalization": "Generalización"
     },
-    "legend": {
-      "title": "Lógica de Conexión",
-      "source": "son Origen",
-      "target": "son Destino",
-      "blue": "Azules",
-      "green": "Verdes"
-    }
   },
   "contextMenu": {
     "pane": {

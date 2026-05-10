@@ -138,13 +138,6 @@
       "extend": "«extend»",
       "generalization": "Generalization"
     },
-    "legend": {
-      "title": "Connection Logic",
-      "source": "handles are Source",
-      "target": "handles are Target",
-      "blue": "Blue",
-      "green": "Green"
-    }
   },
   "contextMenu": {
     "pane": {

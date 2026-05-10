@@ -1,21 +1,15 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { useUiStore } from '../../../../store/uiStore';
-import { useActiveSemanticModelOps } from '../../../../store/useActiveSemanticModelOps';
+import { useEditingEntity } from '../../../../store/useEditingEntity';
 import { isValidMultiplicity } from '../../../../core/domain/multiplicity.utils';
 import MultiplicitySelector from '../shared/MultiplicitySelector';
 
 export default function DomainAssociationPropsModal() {
-  const { activeModal, editingId, closeModals } = useUiStore();
-  const isOpen = activeModal === 'domain-association-props' && !!editingId;
-
-  const { getModel, getOps } = useActiveSemanticModelOps();
-
-  const getRelation = () => {
-    if (!editingId) return null;
-    return getModel()?.relations?.[editingId] ?? null;
-  };
+  const { isOpen, editingId, closeModals, getEntity: getRelation, getOps, getModel } = useEditingEntity(
+    'domain-association-props',
+    (model, id) => model?.relations?.[id] ?? null,
+  );
 
   const getEntityName = (id: string): string =>
     getModel()?.domainEntities?.[id]?.name ?? '—';

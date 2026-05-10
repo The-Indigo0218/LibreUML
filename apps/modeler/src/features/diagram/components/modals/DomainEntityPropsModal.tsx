@@ -1,21 +1,15 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { useUiStore } from '../../../../store/uiStore';
-import { useActiveSemanticModelOps } from '../../../../store/useActiveSemanticModelOps';
+import { useEditingEntity } from '../../../../store/useEditingEntity';
 import NameOnlyAttributeList, { type NameOnlyAttr } from '../shared/NameOnlyAttributeList';
 import type { IRDomainEntity, IRDomainAttribute } from '../../../../core/domain/vfs/vfs.types';
 
 export default function DomainEntityPropsModal() {
-  const { activeModal, editingId, closeModals } = useUiStore();
-  const isOpen = activeModal === 'domain-entity-props' && !!editingId;
-
-  const { getModel, getOps } = useActiveSemanticModelOps();
-
-  const getEntity = (): IRDomainEntity | null => {
-    if (!editingId) return null;
-    return getModel()?.domainEntities?.[editingId] ?? null;
-  };
+  const { isOpen, editingId, closeModals, getEntity, getOps, getModel } = useEditingEntity(
+    'domain-entity-props',
+    (model, id) => model?.domainEntities?.[id] ?? null,
+  );
 
   const getAttributes = (entity: IRDomainEntity): IRDomainAttribute[] => {
     const model = getModel();

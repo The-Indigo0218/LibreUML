@@ -1,14 +1,10 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useUiStore } from '../../../../store/uiStore';
 import { useActiveSemanticModelOps } from '../../../../store/useActiveSemanticModelOps';
+import NameOnlyAttributeList, { type NameOnlyAttr } from '../shared/NameOnlyAttributeList';
 import type { IRDomainEntity, IRDomainAttribute } from '../../../../core/domain/vfs/vfs.types';
-
-interface AttrRow {
-  id: string;
-  name: string;
-}
 
 export default function DomainEntityPropsModal() {
   const { activeModal, editingId, closeModals } = useUiStore();
@@ -30,7 +26,7 @@ export default function DomainEntityPropsModal() {
 
   const [name, setName] = useState('');
   const [documentation, setDocumentation] = useState('');
-  const [attrs, setAttrs] = useState<AttrRow[]>([]);
+  const [attrs, setAttrs] = useState<NameOnlyAttr[]>([]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -42,26 +38,6 @@ export default function DomainEntityPropsModal() {
   }, [isOpen, editingId]);
 
   if (!isOpen) return null;
-
-  const addAttr = () =>
-    setAttrs((prev) => [...prev, { id: crypto.randomUUID(), name: '' }]);
-
-  const removeAttr = (id: string) =>
-    setAttrs((prev) => prev.filter((a) => a.id !== id));
-
-  const moveAttr = (id: string, dir: -1 | 1) =>
-    setAttrs((prev) => {
-      const idx = prev.findIndex((a) => a.id === id);
-      if (idx < 0) return prev;
-      const next = idx + dir;
-      if (next < 0 || next >= prev.length) return prev;
-      const arr = [...prev];
-      [arr[idx], arr[next]] = [arr[next], arr[idx]];
-      return arr;
-    });
-
-  const updateAttrName = (id: string, value: string) =>
-    setAttrs((prev) => prev.map((a) => (a.id === id ? { ...a, name: value } : a)));
 
   const handleSave = () => {
     if (!editingId) return;
@@ -121,58 +97,7 @@ export default function DomainEntityPropsModal() {
             />
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-[#94a3b8]">
-                Attributes
-              </label>
-              <button
-                onClick={addAttr}
-                className="flex items-center gap-1 text-xs text-[#f59e0b] hover:text-[#fbbf24] transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add
-              </button>
-            </div>
-
-            <div className="space-y-1.5">
-              {attrs.length === 0 && (
-                <p className="text-xs text-[#475569] py-2 text-center">
-                  No attributes — click Add to define one
-                </p>
-              )}
-              {attrs.map((attr, i) => (
-                <div key={attr.id} className="flex items-center gap-1.5">
-                  <input
-                    value={attr.name}
-                    onChange={(e) => updateAttrName(attr.id, e.target.value)}
-                    placeholder="attributeName"
-                    className="flex-1 bg-[#0f1419] border border-[#2a3358] rounded px-2 py-1 text-sm text-[#e2e8f0] placeholder-[#374151] focus:outline-none focus:border-[#f59e0b] transition-colors font-mono"
-                  />
-                  <button
-                    onClick={() => moveAttr(attr.id, -1)}
-                    disabled={i === 0}
-                    className="p-1 text-[#475569] hover:text-[#94a3b8] disabled:opacity-30 transition-colors"
-                  >
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => moveAttr(attr.id, 1)}
-                    disabled={i === attrs.length - 1}
-                    className="p-1 text-[#475569] hover:text-[#94a3b8] disabled:opacity-30 transition-colors"
-                  >
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => removeAttr(attr.id)}
-                    className="p-1 text-[#475569] hover:text-red-400 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          <NameOnlyAttributeList attrs={attrs} onChange={setAttrs} />
         </div>
 
         <div className="flex justify-end gap-3 px-4 pb-4 shrink-0">

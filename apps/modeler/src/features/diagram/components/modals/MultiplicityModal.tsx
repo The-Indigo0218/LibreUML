@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, Check, ArrowRight, ArrowLeft, Lock } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { MULTIPLICITY_PRESETS } from "../../../../core/domain/multiplicity.utils";
 
 interface MultiplicityModalProps {
   isOpen: boolean;
@@ -19,7 +20,6 @@ interface MultiplicityModalProps {
   ) => void;
 }
 
-const PREDEFINED_OPTIONS = ["0..1", "1", "0..*", "1..*", "*"];
 
 export default function MultiplicityModal({
   isOpen,
@@ -103,7 +103,7 @@ export default function MultiplicityModal({
             </div>
 
             <div className="flex flex-wrap gap-1.5 justify-center">
-              {PREDEFINED_OPTIONS.map((opt) => (
+              {MULTIPLICITY_PRESETS.map((opt) => (
                 <button
                   key={`src-${opt}`}
                   onClick={() => setSource(opt)}
@@ -158,7 +158,7 @@ export default function MultiplicityModal({
             </div>
 
             <div className="flex flex-wrap gap-1.5 justify-center">
-              {PREDEFINED_OPTIONS.map((opt) => (
+              {MULTIPLICITY_PRESETS.map((opt) => (
                 <button
                   key={`tgt-${opt}`}
                   onClick={() => setTarget(opt)}

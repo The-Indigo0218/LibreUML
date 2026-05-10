@@ -36,7 +36,13 @@ function getNodePositions(dx: number, dy: number) {
   };
 }
 
-function getAnchorPt(cx: number, cy: number, h: LockedHandle) {
+const VALID_HANDLES = new Set<string>(['T', 'B', 'L', 'R', 'TL', 'TR', 'BL', 'BR']);
+
+export function toSafeHandle(h: unknown, fallback: LockedHandle): LockedHandle {
+  return typeof h === 'string' && VALID_HANDLES.has(h) ? (h as LockedHandle) : fallback;
+}
+
+function getAnchorPt(cx: number, cy: number, h: LockedHandle): { x: number; y: number } {
   const hw = NODE_W / 2;
   const hh = NODE_H / 2;
   switch (h) {
@@ -48,6 +54,7 @@ function getAnchorPt(cx: number, cy: number, h: LockedHandle) {
     case 'TR': return { x: cx + hw, y: cy - hh };
     case 'BL': return { x: cx - hw, y: cy + hh };
     case 'BR': return { x: cx + hw, y: cy + hh };
+    default:   return { x: cx + hw, y: cy      };
   }
 }
 

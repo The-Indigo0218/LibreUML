@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, ArrowLeftRight, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
-import AnchorPickerPanel from './AnchorPickerPanel';
+import AnchorPickerPanel, { toSafeHandle } from './AnchorPickerPanel';
 import type { LockedHandle } from '../../../../canvas/edges/geometry';
 import { useVFSStore } from '../../../../store/project-vfs.store';
 import { useModelStore } from '../../../../store/model.store';
@@ -104,8 +104,8 @@ export default function VfsEdgeActionModal() {
       setTargetMul(viewEdge.targetMultiplicity ?? '');
       const locked = viewEdge.anchorLocked ?? false;
       setAnchorLocked(locked);
-      setSrcHandle((viewEdge.sourceHandle as LockedHandle | undefined) ?? anchorSnapshot?.src ?? 'R');
-      setTgtHandle((viewEdge.targetHandle as LockedHandle | undefined) ?? anchorSnapshot?.tgt ?? 'L');
+      setSrcHandle(toSafeHandle(viewEdge.sourceHandle ?? anchorSnapshot?.src, 'R'));
+      setTgtHandle(toSafeHandle(viewEdge.targetHandle ?? anchorSnapshot?.tgt, 'L'));
       setPickerOpen(locked);
     }
   // anchorSnapshot intentionally excluded — only run when the edge data changes

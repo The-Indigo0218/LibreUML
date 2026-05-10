@@ -45,6 +45,8 @@ import UseCaseHoverPopover from '../features/diagram/components/modals/UseCaseHo
 import UseCaseSpecModal from '../features/diagram/components/modals/UseCaseSpecModal';
 import ActorPropsModal from '../features/diagram/components/modals/ActorPropsModal';
 import ExtendEdgePropsModal from '../features/diagram/components/modals/ExtendEdgePropsModal';
+import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
+import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
 import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
@@ -690,6 +692,7 @@ export default function KonvaCanvas() {
     openVfsEdgeAction,
     openMethodGenerator,
     openExtendProps,
+    openDomainAssociationProps,
   } = useUiStore();
 
   const startUseCaseInlineEdit = useCallback(
@@ -1150,9 +1153,15 @@ export default function KonvaCanvas() {
   const handleEdgeDblClick = useCallback(
     (edgeId: string) => {
       const edge = edges.find((e) => e.id === edgeId);
-      if (edge?.kind === 'EXTEND') openExtendProps(edgeId);
+      if (!edge) return;
+      if (edge.kind === 'EXTEND') { openExtendProps(edgeId); return; }
+      // TODO(post-v1 Fase 2): mover a ShapeRouter
+      if (vfsController.vfsFile?.diagramType === 'DOMAIN_MODEL_DIAGRAM') {
+        const relationId = vfsController.edges.find((e) => e.id === edgeId)?.data.domainId;
+        if (relationId) openDomainAssociationProps(relationId);
+      }
     },
-    [edges, openExtendProps],
+    [edges, openExtendProps, openDomainAssociationProps, vfsController.vfsFile?.diagramType],
   );
 
   const handleStageContextMenu = useCallback(
@@ -1821,6 +1830,8 @@ export default function KonvaCanvas() {
       <UseCaseSpecModal />
       <ActorPropsModal />
       <ExtendEdgePropsModal />
+      <DomainEntityPropsModal />
+      <DomainAssociationPropsModal />
     </div>
   );
 }

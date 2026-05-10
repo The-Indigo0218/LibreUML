@@ -881,6 +881,28 @@ export default function ClassEditorModal({
                     </div>
 
                     <div className="bg-black/20 p-3 flex flex-col gap-2">
+                      {!method.isConstructor && (
+                        <div className="flex items-center gap-3 pb-1 border-b border-surface-border/30">
+                          <label className="flex items-center gap-1.5 cursor-pointer text-text-muted text-xs select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!method.isStatic}
+                              onChange={(e) => updateMethod(methodIdx, 'isStatic', e.target.checked)}
+                              className="accent-uml-class-border w-3 h-3"
+                            />
+                            <span className="underline">static</span>
+                          </label>
+                          <label className="flex items-center gap-1.5 cursor-pointer text-text-muted text-xs select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!method.isAbstract}
+                              onChange={(e) => updateMethod(methodIdx, 'isAbstract', e.target.checked)}
+                              className="accent-uml-class-border w-3 h-3"
+                            />
+                            <span className="italic">abstract</span>
+                          </label>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
                           {t('modals.classEditor.parameters')}{' '}

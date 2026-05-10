@@ -336,7 +336,7 @@ export default function ClassShape({
               text={item.text}
               fontSize={SEC_FONT}
               fontFamily={FONT_MONO}
-              fontStyle={item.isAbstract ? 'italic' : 'normal'}
+              fontStyle={item.isAbstract ? 'bold italic' : 'normal'}
               textDecoration={item.isStatic ? 'underline' : ''}
               fill={colors.textMuted}
               wrap="word"

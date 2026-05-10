@@ -135,7 +135,7 @@ function buildSections(
       id: 'attributes',
       items: attrs.map((a) => ({
         id: a.id,
-        text: `${irVisSymbol(a.visibility)}${a.name}: ${a.type}`,
+        text: `${irVisSymbol(a.visibility)}${a.name}: ${a.type}${a.multiplicity === '*' || a.multiplicity === '0..*' ? '[]' : ''}`,
         isStatic: a.isStatic,
       })),
     });

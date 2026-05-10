@@ -68,7 +68,7 @@ function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData
     const methods: UmlMethod[] = element.data.operationIds.flatMap((id) => {
       const o = model.operations[id];
       if (!o) return [];
-      return [{ id: o.id, name: o.name, returnType: o.returnType ?? "void", visibility: irVisToUml(o.visibility), parameters: o.parameters.map((p) => ({ name: p.name, type: p.type })) }];
+      return [{ id: o.id, name: o.name, returnType: o.returnType ?? "void", visibility: irVisToUml(o.visibility), isStatic: o.isStatic, isAbstract: o.isAbstract, parameters: o.parameters.map((p) => ({ name: p.name, type: p.type })) }];
     });
 
     return {
@@ -84,7 +84,7 @@ function toUmlData(model: SemanticModel, element: ResolvedElement): UmlClassData
     const methods: UmlMethod[] = element.data.operationIds.flatMap((id) => {
       const o = model.operations[id];
       if (!o) return [];
-      return [{ id: o.id, name: o.name, returnType: o.returnType ?? "void", visibility: irVisToUml(o.visibility), parameters: o.parameters.map((p) => ({ name: p.name, type: p.type })) }];
+      return [{ id: o.id, name: o.name, returnType: o.returnType ?? "void", visibility: irVisToUml(o.visibility), isStatic: o.isStatic, isAbstract: o.isAbstract, parameters: o.parameters.map((p) => ({ name: p.name, type: p.type })) }];
     });
 
     return {
@@ -133,6 +133,8 @@ function toIrMembers(newData: UmlClassData): {
     name: m.name,
     returnType: m.returnType,
     visibility: umlVisToIr(m.visibility),
+    ...(m.isStatic ? { isStatic: true } : {}),
+    ...(m.isAbstract ? { isAbstract: true } : {}),
     parameters: m.parameters.map((p) => ({ name: p.name, type: p.type })),
   }));
 

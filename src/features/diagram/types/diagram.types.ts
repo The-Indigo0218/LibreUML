@@ -28,6 +28,7 @@ export interface UmlMethod {
   isReturnArray?: boolean;
   visibility: visibility;
   isStatic?: boolean;
+  isAbstract?: boolean;
   isConstructor?: boolean;
   parameters: { 
     name: string; 

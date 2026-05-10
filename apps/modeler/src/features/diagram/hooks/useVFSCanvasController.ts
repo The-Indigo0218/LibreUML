@@ -31,6 +31,7 @@ import type {
   IRActor,
   IRUseCase,
   IRSystemBoundary,
+  IRDomainEntity,
   SemanticModel,
   RelationKind,
 } from '../../../core/domain/vfs/vfs.types';
@@ -41,6 +42,7 @@ import type {
   ActorViewModel,
   UseCaseViewModel,
   SystemBoundaryViewModel,
+  DomainEntityViewModel,
   NodeStyleConfig,
   NodeSection,
 } from '../../../adapters/react-flow/view-models/node.view-model';
@@ -201,10 +203,10 @@ function buildSections(
 
 // ─── Semantic resolution ──────────────────────────────────────────────────────
 
-type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'ACTOR' | 'USECASE' | 'SYSTEM_BOUNDARY' | 'UNKNOWN';
+type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'ACTOR' | 'USECASE' | 'SYSTEM_BOUNDARY' | 'DOMAIN_ENTITY' | 'UNKNOWN';
 
 interface ResolvedElement {
-  element: IRClass | IRInterface | IREnum | IRPackage | IRActor | IRUseCase | IRSystemBoundary | null;
+  element: IRClass | IRInterface | IREnum | IRPackage | IRActor | IRUseCase | IRSystemBoundary | IRDomainEntity | null;
   kind: SemanticKind;
 }
 
@@ -236,6 +238,10 @@ function resolveSemanticElement(model: SemanticModel, elementId: string): Resolv
 
   const sb = model.systemBoundaries?.[elementId];
   if (sb) return { element: sb, kind: 'SYSTEM_BOUNDARY' };
+
+  // TODO(post-v1 Fase 2): mover a ShapeRouter
+  const de = model.domainEntities?.[elementId];
+  if (de) return { element: de, kind: 'DOMAIN_ENTITY' };
 
   return { element: null, kind: 'UNKNOWN' };
 }
@@ -462,13 +468,45 @@ function makeReactFlowSystemBoundaryNode(
   };
 }
 
+function makeReactFlowDomainEntityNode(
+  viewNode: ViewNode,
+  entity: IRDomainEntity,
+  model: SemanticModel,
+  allViewNodes: ViewNode[],
+  onRename: (name: string) => void,
+  onOpenProps: () => void,
+) {
+  const attributes = entity.attributeIds
+    .map((id) => model.domainAttributes?.[id])
+    .filter((a): a is NonNullable<typeof a> => !!a)
+    .map((a) => ({ id: a.id, name: a.name }));
+
+  const vm: DomainEntityViewModel = {
+    __brand: 'domainEntity',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    name: entity.name,
+    attributes,
+    onRename,
+    onOpenProps,
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlDomainEntity',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
 export type VFSReactFlowNode =
   | ReturnType<typeof makeReactFlowNode>
   | ReturnType<typeof makeReactFlowNoteNode>
   | ReturnType<typeof makeReactFlowPackageNode>
   | ReturnType<typeof makeReactFlowActorNode>
   | ReturnType<typeof makeReactFlowUseCaseNode>
-  | ReturnType<typeof makeReactFlowSystemBoundaryNode>;
+  | ReturnType<typeof makeReactFlowSystemBoundaryNode>
+  | ReturnType<typeof makeReactFlowDomainEntityNode>;
 
 // ─── Edge type ────────────────────────────────────────────────────────────────
 
@@ -766,6 +804,27 @@ export function useVFSCanvasController(): VFSCanvasResult {
           }
         };
         return makeReactFlowSystemBoundaryNode(viewNode, element as IRSystemBoundary, diagramView.nodes, onRenameSB);
+      }
+
+      // TODO(post-v1 Fase 2): mover a ShapeRouter
+      if (kind === 'DOMAIN_ENTITY') {
+        const onRenameDomainEntity = (name: string) => {
+          if (isStandalone && activeTabId) {
+            standaloneModelOps(activeTabId).updateDomainEntity(viewNode.elementId, { name });
+          } else {
+            useModelStore.getState().updateDomainEntity(viewNode.elementId, { name });
+          }
+        };
+        const onOpenDomainEntityProps = () =>
+          useUiStore.getState().openDomainEntityProps(viewNode.elementId);
+        return makeReactFlowDomainEntityNode(
+          viewNode,
+          element as IRDomainEntity,
+          model,
+          diagramView.nodes,
+          onRenameDomainEntity,
+          onOpenDomainEntityProps,
+        );
       }
 
       const label = element?.name ?? 'NewClass';

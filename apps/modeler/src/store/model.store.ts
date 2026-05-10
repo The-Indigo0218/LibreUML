@@ -13,6 +13,8 @@ import type {
   IRRelation,
   IRAttribute,
   IROperation,
+  IRDomainEntity,
+  IRDomainAttribute,
 } from '../core/domain/vfs/vfs.types';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
 import { getPackageHierarchy } from '../utils/packageHelpers';
@@ -50,6 +52,11 @@ interface ModelStoreState {
   updateActor: (id: string, patch: Partial<IRActor>) => void;
   updateUseCase: (id: string, patch: Partial<IRUseCase>) => void;
   updateSystemBoundary: (id: string, patch: Partial<IRSystemBoundary>) => void;
+
+  createDomainEntity: (data: Omit<IRDomainEntity, 'id' | 'kind'>) => string;
+  updateDomainEntity: (id: string, patch: Partial<IRDomainEntity>) => void;
+  setDomainEntityAttributes: (id: string, attributes: IRDomainAttribute[]) => void;
+  deleteDomainEntity: (id: string) => void;
 
   setElementMembers: (elementId: string, attributes: IRAttribute[], operations: IROperation[]) => void;
 
@@ -278,6 +285,55 @@ export const useModelStore = create<ModelStoreState>()(
       });
     },
 
+    createDomainEntity: (data) => {
+      const id = newId();
+      withUndo('model', `Create Entity: ${data.name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.domainEntities = draft.model.domainEntities ?? {};
+        draft.model.domainAttributes = draft.model.domainAttributes ?? {};
+        draft.model.domainEntities[id] = { ...data, id, kind: 'DOMAIN_ENTITY' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateDomainEntity: (id, patch) => {
+      const name = useModelStore.getState().model?.domainEntities?.[id]?.name ?? id;
+      withUndo('model', `Update Entity: ${name}`, 'global', (draft) => {
+        if (!draft.model?.domainEntities?.[id]) return;
+        draft.model.domainEntities[id] = { ...draft.model.domainEntities[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    setDomainEntityAttributes: (id, attributes) => {
+      const name = useModelStore.getState().model?.domainEntities?.[id]?.name ?? id;
+      withUndo('model', `Update Attributes: ${name}`, 'global', (draft) => {
+        if (!draft.model?.domainEntities?.[id]) return;
+        draft.model.domainAttributes = draft.model.domainAttributes ?? {};
+        const entity = draft.model.domainEntities[id];
+        entity.attributeIds.forEach((aid: string) => { delete draft.model.domainAttributes![aid]; });
+        attributes.forEach((a) => { draft.model.domainAttributes![a.id] = a; });
+        entity.attributeIds = attributes.map((a) => a.id);
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteDomainEntity: (id) => {
+      const name = useModelStore.getState().model?.domainEntities?.[id]?.name ?? id;
+      withUndo('model', `Delete Entity: ${name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.domainAttributes = draft.model.domainAttributes ?? {};
+        const entity = draft.model.domainEntities?.[id];
+        if (entity) {
+          entity.attributeIds.forEach((aid: string) => { delete draft.model.domainAttributes![aid]; });
+          delete draft.model.domainEntities![id];
+        }
+        cascadeDeleteRelations(draft.model, id);
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
     setElementMembers: (elementId, attributes, operations) => {
       const m = useModelStore.getState().model;
       const name = m?.classes[elementId]?.name ?? m?.interfaces[elementId]?.name ?? elementId;
@@ -443,6 +499,9 @@ export const useModelStore = create<ModelStoreState>()(
         m.nodes            = m.nodes            ?? {};
         m.artifacts        = m.artifacts        ?? {};
         m.packageNames     = m.packageNames     ?? [];
+        // domain model (optional — backward-compat with projects that pre-date this field)
+        if (m.domainEntities !== undefined)  m.domainEntities  = m.domainEntities  ?? {};
+        if (m.domainAttributes !== undefined) m.domainAttributes = m.domainAttributes ?? {};
       }
       return typed;
     },

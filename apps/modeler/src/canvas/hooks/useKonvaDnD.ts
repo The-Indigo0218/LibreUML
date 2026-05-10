@@ -134,6 +134,22 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
     },
     initialDimensions: { width: SB_DEFAULT_W, height: SB_DEFAULT_H },
   },
+  domain_entity: {
+    getNextName: (model) =>
+      getNextVFSName(Object.values(model.domainEntities ?? {}).map((e) => e.name), 'Entity'),
+    applyToModelDraft: (m, id, name) => {
+      m.domainEntities = m.domainEntities ?? {};
+      m.domainAttributes = m.domainAttributes ?? {};
+      m.domainEntities[id] = { id, name, kind: 'DOMAIN_ENTITY', attributeIds: [] };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.domainEntities = lm.domainEntities ?? {};
+      lm.domainAttributes = lm.domainAttributes ?? {};
+      lm.domainEntities[id] = { id, name, kind: 'DOMAIN_ENTITY', attributeIds: [] };
+      lm.updatedAt = Date.now();
+    },
+  },
   package: {
     getNextName: (model) => getNextVFSName(Object.values(model.packages).map((p) => p.name), 'Package'),
     applyToModelDraft: (m, id, name, isExternal) => {

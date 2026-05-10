@@ -26,6 +26,8 @@ import type {
   IRRelation,
   IRAttribute,
   IROperation,
+  IRDomainEntity,
+  IRDomainAttribute,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -221,6 +223,52 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.systemBoundaries?.[id]) return;
         m.systemBoundaries![id] = { ...m.systemBoundaries![id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Domain Entity ─────────────────────────────────────────────────────────
+
+    createDomainEntity: (data: Omit<IRDomainEntity, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.domainEntities = m.domainEntities ?? {};
+        m.domainAttributes = m.domainAttributes ?? {};
+        m.domainEntities[id] = { ...data, id, kind: 'DOMAIN_ENTITY' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateDomainEntity: (id: string, patch: Partial<IRDomainEntity>) => {
+      update((m) => {
+        if (!m.domainEntities?.[id]) return;
+        m.domainEntities[id] = { ...m.domainEntities[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    setDomainEntityAttributes: (id: string, attributes: IRDomainAttribute[]) => {
+      update((m) => {
+        if (!m.domainEntities?.[id]) return;
+        m.domainAttributes = m.domainAttributes ?? {};
+        const entity = m.domainEntities[id];
+        entity.attributeIds.forEach((aid) => { delete m.domainAttributes![aid]; });
+        attributes.forEach((a) => { m.domainAttributes![a.id] = a; });
+        entity.attributeIds = attributes.map((a) => a.id);
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteDomainEntity: (id: string) => {
+      update((m) => {
+        m.domainAttributes = m.domainAttributes ?? {};
+        const entity = m.domainEntities?.[id];
+        if (entity) {
+          entity.attributeIds.forEach((aid) => { delete m.domainAttributes![aid]; });
+          delete m.domainEntities![id];
+        }
+        cascadeDeleteRelations(m, id);
         m.updatedAt = Date.now();
       });
     },

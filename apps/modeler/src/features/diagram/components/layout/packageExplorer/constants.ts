@@ -10,6 +10,7 @@ export const CLASS_ICON_CONFIG: Record<stereotype, { bg: string; letter: string;
   actor: { bg: "#4CAF50", letter: "A", color: "#FFFFFF" },
   use_case: { bg: "#7C83FF", letter: "U", color: "#FFFFFF" },
   system_boundary: { bg: "#607D8B", letter: "S", color: "#FFFFFF" },
+  domain_entity: { bg: "#F59E0B", letter: "E", color: "#FFFFFF" },
 };
 
 export const THEME_COLORS = {

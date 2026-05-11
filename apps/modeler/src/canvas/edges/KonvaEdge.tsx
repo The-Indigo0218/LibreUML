@@ -303,6 +303,8 @@ export interface KonvaEdgeProps {
   onMouseLeave?: (e: KonvaEventObject<MouseEvent>, edgeId: string) => void;
   /** Double-click handler — used for «extend» props modal */
   onDblClick?: (edgeId: string) => void;
+  /** Center label — verb for domain model associations */
+  label?: string;
   /** «extend» guard condition — rendered below the stereotype label */
   condition?: string;
   /** Locked anchor mode — when true, use stored handles instead of closest-pair selection */
@@ -332,6 +334,7 @@ export default function KonvaEdge({
   onMouseEnter,
   onMouseLeave,
   onDblClick,
+  label,
   condition,
   anchorLocked = false,
   sourceHandle,
@@ -637,6 +640,32 @@ export default function KonvaEdge({
               <Text
                 text={stereotypeLabel}
                 fontSize={12}
+                fontStyle="italic"
+                fill={labelTextColor}
+                padding={labelPad}
+                listening={false}
+              />
+            </Label>
+          )}
+
+          {/* Verb label — domain model associations */}
+          {!stereotypeLabel && label && (
+            <Label
+              x={labelPositions.centerX}
+              y={labelPositions.centerY}
+              offsetX={Math.round(label.length * 3.3 + labelPad)}
+              offsetY={Math.round((labelSize + labelPad * 2) / 2)}
+              onDblClick={() => onDblClick?.(id)}
+            >
+              <Tag
+                fill={labelBgFill}
+                stroke={labelBorder}
+                strokeWidth={0.5}
+                cornerRadius={3}
+              />
+              <Text
+                text={label}
+                fontSize={labelSize}
                 fontStyle="italic"
                 fill={labelTextColor}
                 padding={labelPad}

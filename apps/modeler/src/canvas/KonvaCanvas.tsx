@@ -1438,6 +1438,7 @@ export default function KonvaCanvas() {
                 anchorLocked={edge.anchorLocked}
                 sourceHandle={edge.sourceHandle ?? undefined}
                 targetHandle={edge.targetHandle ?? undefined}
+                label={edge.label}
                 sourceMultiplicity={edge.sourceMultiplicity}
                 targetMultiplicity={edge.targetMultiplicity}
                 sourceRole={edge.sourceRole}

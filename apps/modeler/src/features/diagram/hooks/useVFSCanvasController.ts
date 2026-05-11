@@ -522,6 +522,7 @@ export interface VFSReactFlowEdge {
     domainId: string;
     kind: RelationKind;
     isHovered: boolean;
+    label?: string;
     sourceMultiplicity?: string;
     targetMultiplicity?: string;
     sourceRole?: string;
@@ -915,8 +916,9 @@ export function useVFSCanvasController(): VFSCanvasResult {
           domainId: relation.id,
           kind: relation.kind,
           isHovered: false,
-          sourceMultiplicity: viewEdge.sourceMultiplicity,
-          targetMultiplicity: viewEdge.targetMultiplicity,
+          label: relation.name || undefined,
+          sourceMultiplicity: relation.sourceEnd?.multiplicity ?? viewEdge.sourceMultiplicity,
+          targetMultiplicity: relation.targetEnd?.multiplicity ?? viewEdge.targetMultiplicity,
           sourceRole: viewEdge.sourceRole,
           targetRole: viewEdge.targetRole,
           anchorLocked: viewEdge.anchorLocked,

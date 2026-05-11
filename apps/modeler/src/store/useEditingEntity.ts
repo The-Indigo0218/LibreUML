@@ -7,7 +7,7 @@ export function useEditingEntity<T>(
   selector: (model: SemanticModel | null | undefined, id: string) => T | null
 ) {
   const { activeModal, editingId, closeModals } = useUiStore();
-  const { getModel, getOps } = useActiveSemanticModelOps();
+  const { getModel, getOps, activeTabId, isStandalone } = useActiveSemanticModelOps();
 
   const isOpen = activeModal === modalType && !!editingId;
 
@@ -16,5 +16,5 @@ export function useEditingEntity<T>(
     return selector(getModel(), editingId);
   }
 
-  return { isOpen, editingId, closeModals, getEntity, getOps, getModel };
+  return { isOpen, editingId, closeModals, getEntity, getOps, getModel, activeTabId, isStandalone };
 }

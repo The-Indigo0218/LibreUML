@@ -106,6 +106,7 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
       sourceId: e.source,
       targetId: e.target,
       kind: e.data.kind,
+      label: e.data.label,
       sourceMultiplicity: e.data.sourceMultiplicity,
       targetMultiplicity: e.data.targetMultiplicity,
       sourceRole: e.data.sourceRole,

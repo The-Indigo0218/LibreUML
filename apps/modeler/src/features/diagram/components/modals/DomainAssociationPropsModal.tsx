@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import { useEditingEntity } from '../../../../store/useEditingEntity';
+import { useVFSStore } from '../../../../store/project-vfs.store';
 import { isValidMultiplicity } from '../../../../core/domain/multiplicity.utils';
 import MultiplicitySelector from '../shared/MultiplicitySelector';
+import { isDiagramView } from '../../hooks/useVFSCanvasController';
 
 export default function DomainAssociationPropsModal() {
-  const { isOpen, editingId, closeModals, getEntity: getRelation, getOps, getModel } = useEditingEntity(
+  const { isOpen, editingId, closeModals, getEntity: getRelation, getOps, getModel, activeTabId } = useEditingEntity(
     'domain-association-props',
     (model, id) => model?.relations?.[id] ?? null,
   );
@@ -38,6 +40,23 @@ export default function DomainAssociationPropsModal() {
   const srcMulValid = isValidMultiplicity(srcMul);
   const tgtMulValid = isValidMultiplicity(tgtMul);
   const canSave = verb.trim().length > 0 && srcMulValid && tgtMulValid;
+
+  const handleDelete = () => {
+    if (!editingId) return;
+    if (activeTabId) {
+      const project = useVFSStore.getState().project;
+      const file = project?.nodes[activeTabId];
+      if (file?.type === 'FILE' && isDiagramView((file as any).content)) {
+        const content = (file as any).content;
+        useVFSStore.getState().updateFileContent(activeTabId, {
+          ...content,
+          edges: content.edges.filter((e: any) => e.relationId !== editingId),
+        });
+      }
+    }
+    getOps().deleteRelation(editingId);
+    closeModals();
+  };
 
   const handleSave = () => {
     if (!editingId || !canSave) return;
@@ -108,20 +127,29 @@ export default function DomainAssociationPropsModal() {
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 px-4 pb-4">
+        <div className="flex items-center justify-between px-4 pb-4">
           <button
-            onClick={closeModals}
-            className="px-3 py-1.5 rounded text-xs text-[#64748b] hover:text-[#94a3b8] hover:bg-[#1e2738] transition-colors"
+            onClick={handleDelete}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 transition-colors"
           >
-            Cancel
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
           </button>
-          <button
-            onClick={handleSave}
-            disabled={!canSave}
-            className="px-3 py-1.5 rounded text-xs font-medium bg-[#f59e0b] hover:bg-[#d97706] text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Save
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={closeModals}
+              className="px-3 py-1.5 rounded text-xs text-[#64748b] hover:text-[#94a3b8] hover:bg-[#1e2738] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!canSave}
+              className="px-3 py-1.5 rounded text-xs font-medium bg-[#f59e0b] hover:bg-[#d97706] text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
     </div>

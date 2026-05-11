@@ -253,6 +253,7 @@ export function useNodeActions({
         const cls = localM.classes[elementId];
         const iface = localM.interfaces[elementId];
         const enm = localM.enums[elementId];
+        const domainEntity = localM.domainEntities?.[elementId];
 
         undoTransaction({
           label: 'Duplicate Node',
@@ -264,7 +265,20 @@ export function useNodeActions({
               if (!node || node.type !== 'FILE' || !node.localModel) return;
               const lm: SemanticModel = node.localModel;
 
-              if (cls) {
+              if (domainEntity) {
+                const newAttrIds: string[] = [];
+                lm.domainAttributes = lm.domainAttributes ?? {};
+                for (const aid of domainEntity.attributeIds) {
+                  const a = lm.domainAttributes[aid]; if (!a) continue;
+                  const nid = crypto.randomUUID();
+                  lm.domainAttributes[nid] = { ...a, id: nid };
+                  newAttrIds.push(nid);
+                }
+                const existingNames = Object.values(lm.domainEntities ?? {}).map((e: any) => e.name);
+                const newName = getNextName(existingNames, domainEntity.name);
+                lm.domainEntities = lm.domainEntities ?? {};
+                lm.domainEntities[newElementId] = { ...domainEntity, id: newElementId, name: newName, attributeIds: newAttrIds };
+              } else if (cls) {
                 const newAttrIds: string[] = [];
                 const newAttrs: IRAttribute[] = [];
                 for (const aid of cls.attributeIds) {
@@ -316,15 +330,19 @@ export function useNodeActions({
         const cls = ms.model.classes[elementId];
         const iface = ms.model.interfaces[elementId];
         const enm = ms.model.enums[elementId];
+        const domainEntity = ms.model.domainEntities?.[elementId];
 
         // Pre-compute new IDs for attrs/ops outside the transaction so they're consistent
         const attrMap = new Map<string, string>();
         const opMap = new Map<string, string>();
+        const domainAttrMap = new Map<string, string>();
         if (cls) {
           cls.attributeIds.forEach((id) => attrMap.set(id, crypto.randomUUID()));
           cls.operationIds.forEach((id) => opMap.set(id, crypto.randomUUID()));
         } else if (iface) {
           iface.operationIds.forEach((id) => opMap.set(id, crypto.randomUUID()));
+        } else if (domainEntity) {
+          domainEntity.attributeIds.forEach((id) => domainAttrMap.set(id, crypto.randomUUID()));
         }
 
         undoTransaction({
@@ -336,7 +354,17 @@ export function useNodeActions({
               mutate: (draft: any) => {
                 if (!draft.model) return;
                 const m = draft.model;
-                if (cls) {
+                if (domainEntity) {
+                  const newAttrIds = domainEntity.attributeIds.map((id: string) => domainAttrMap.get(id)!);
+                  domainEntity.attributeIds.forEach((id: string) => {
+                    const a = m.domainAttributes?.[id];
+                    if (a) { m.domainAttributes = m.domainAttributes ?? {}; m.domainAttributes[domainAttrMap.get(id)!] = { ...a, id: domainAttrMap.get(id)! }; }
+                  });
+                  const existingNames = Object.values(m.domainEntities ?? {}).map((e: any) => e.name);
+                  const newName = getNextName(existingNames, domainEntity.name);
+                  m.domainEntities = m.domainEntities ?? {};
+                  m.domainEntities[newElementId] = { ...domainEntity, id: newElementId, name: newName, attributeIds: newAttrIds };
+                } else if (cls) {
                   const newAttrIds = cls.attributeIds.map((id: string) => attrMap.get(id)!);
                   const newOpIds = cls.operationIds.map((id: string) => opMap.get(id)!);
                   cls.attributeIds.forEach((id: string) => {

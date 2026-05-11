@@ -1101,9 +1101,14 @@ export default function KonvaCanvas() {
   const handleEdgeContextMenu = useCallback(
     (e: KonvaEventObject<PointerEvent>, edgeId: string) => {
       e.evt.preventDefault();
+      if (vfsController.vfsFile?.diagramType === 'DOMAIN_MODEL_DIAGRAM') {
+        const relationId = vfsController.edges.find((ve) => ve.id === edgeId)?.data.domainId;
+        if (relationId) openDomainAssociationProps(relationId);
+        return;
+      }
       openVfsEdgeAction(edgeId, buildAnchorSnapshot(edgeId));
     },
-    [openVfsEdgeAction, buildAnchorSnapshot],
+    [openVfsEdgeAction, buildAnchorSnapshot, openDomainAssociationProps, vfsController.vfsFile?.diagramType, vfsController.edges],
   );
 
   const handleEdgeDblClick = useCallback(

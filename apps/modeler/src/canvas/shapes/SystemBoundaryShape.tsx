@@ -112,6 +112,7 @@ export default function SystemBoundaryShape({
           stroke={isDropTarget ? '#22d3ee' : colors.stroke}
           strokeWidth={isDropTarget ? 2 : STROKE_W}
           dash={isDropTarget ? undefined : [8, 5]}
+          listening={false}
           perfectDrawEnabled={false}
         />
 

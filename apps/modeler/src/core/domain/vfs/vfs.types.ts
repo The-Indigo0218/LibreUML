@@ -255,6 +255,10 @@ export interface IRSystemBoundary extends IRElement {
   kind: 'SYSTEM_BOUNDARY';
 }
 
+export interface IRUCModule extends IRElement {
+  kind: 'UC_MODULE';
+}
+
 export interface IRDomainAttribute extends Pick<IRElement, 'id' | 'name' | 'documentation'> {
   kind: 'DOMAIN_ATTRIBUTE';
 }
@@ -347,6 +351,7 @@ export interface SemanticModel {
   actors: Record<string, IRActor>;
   useCases: Record<string, IRUseCase>;
   systemBoundaries?: Record<string, IRSystemBoundary>;
+  ucModules?: Record<string, IRUCModule>;
   domainEntities?: Record<string, IRDomainEntity>;
   domainAttributes?: Record<string, IRDomainAttribute>;
   activityNodes: Record<string, IRActivityNode>;

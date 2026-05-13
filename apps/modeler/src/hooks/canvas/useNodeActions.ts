@@ -110,6 +110,7 @@ export function useNodeActions({
           localM.actors?.[elementId]?.name ??
           localM.useCases?.[elementId]?.name ??
           localM.systemBoundaries?.[elementId]?.name ??
+          localM.ucModules?.[elementId]?.name ??
           'Element';
 
         undoTransaction({
@@ -129,6 +130,7 @@ export function useNodeActions({
               else if (lm.actors?.[elementId])             { delete lm.actors![elementId]; }
               else if (lm.useCases?.[elementId])           { delete lm.useCases![elementId]; }
               else if (lm.systemBoundaries?.[elementId])   { delete lm.systemBoundaries![elementId]; }
+              else if (lm.ucModules?.[elementId])          { delete lm.ucModules![elementId]; }
               cascadeDeleteRelations(lm, elementId);
               lm.updatedAt = Date.now();
               if (isDiagramView(node.content)) {
@@ -154,6 +156,7 @@ export function useNodeActions({
           ms.model.actors?.[elementId]?.name ??
           ms.model.useCases?.[elementId]?.name ??
           ms.model.systemBoundaries?.[elementId]?.name ??
+          ms.model.ucModules?.[elementId]?.name ??
           'Element';
 
         const projectSnapshot = currentProject;
@@ -173,6 +176,7 @@ export function useNodeActions({
                 else if (draft.model.actors?.[elementId])             { delete draft.model.actors![elementId]; }
                 else if (draft.model.useCases?.[elementId])           { delete draft.model.useCases![elementId]; }
                 else if (draft.model.systemBoundaries?.[elementId])   { delete draft.model.systemBoundaries![elementId]; }
+                else if (draft.model.ucModules?.[elementId])          { delete draft.model.ucModules![elementId]; }
                 cascadeDeleteRelations(draft.model, elementId);
                 draft.model.updatedAt = Date.now();
               },

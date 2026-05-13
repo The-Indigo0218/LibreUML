@@ -23,6 +23,7 @@ import type {
   IRActor,
   IRUseCase,
   IRSystemBoundary,
+  IRUCModule,
   IRRelation,
   IRAttribute,
   IROperation,
@@ -223,6 +224,14 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.systemBoundaries?.[id]) return;
         m.systemBoundaries![id] = { ...m.systemBoundaries![id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    updateUCModule: (id: string, patch: Partial<IRUCModule>) => {
+      update((m) => {
+        if (!m.ucModules?.[id]) return;
+        m.ucModules![id] = { ...m.ucModules![id], ...patch };
         m.updatedAt = Date.now();
       });
     },

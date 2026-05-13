@@ -133,6 +133,16 @@ export interface SystemBoundaryViewModel {
   onRename?: (name: string) => void;
 }
 
+export interface UCModuleViewModel {
+  __brand: 'ucModule';
+  id: string;
+  domainId: string;
+  name: string;
+  width: number;
+  height: number;
+  onRename?: (name: string) => void;
+}
+
 export interface DomainEntityViewModel {
   __brand: 'domainEntity';
   id: string;
@@ -146,7 +156,7 @@ export interface DomainEntityViewModel {
 /**
  * Union type for all node view models
  */
-export type AnyNodeViewModel = NodeViewModel | NoteViewModel | PackageViewModel | ActorViewModel | UseCaseViewModel | SystemBoundaryViewModel | DomainEntityViewModel;
+export type AnyNodeViewModel = NodeViewModel | NoteViewModel | PackageViewModel | ActorViewModel | UseCaseViewModel | SystemBoundaryViewModel | UCModuleViewModel | DomainEntityViewModel;
 
 /**
  * Type guard for NodeViewModel
@@ -176,6 +186,10 @@ export function isUseCaseViewModel(vm: AnyNodeViewModel): vm is UseCaseViewModel
 
 export function isSystemBoundaryViewModel(vm: AnyNodeViewModel): vm is SystemBoundaryViewModel {
   return '__brand' in vm && vm.__brand === 'systemBoundary';
+}
+
+export function isUCModuleViewModel(vm: AnyNodeViewModel): vm is UCModuleViewModel {
+  return '__brand' in vm && vm.__brand === 'ucModule';
 }
 
 export function isDomainEntityViewModel(vm: AnyNodeViewModel): vm is DomainEntityViewModel {

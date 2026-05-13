@@ -31,7 +31,12 @@ function reconstructProject(full: ProjectFullResponse): LibreUMLProject | null {
     for (const diag of diagrams) {
       if (diag.path && nodes[diag.path]?.type === 'FILE') {
         const file = nodes[diag.path] as VFSFile;
-        nodes[diag.path] = { ...file, content: diag.viewData };
+        const { _localModel, ...diagramContent } = (diag.viewData ?? {}) as Record<string, unknown>;
+        nodes[diag.path] = {
+          ...file,
+          content: diagramContent,
+          ...(file.standalone && _localModel ? { localModel: _localModel } : {}),
+        };
       }
     }
 

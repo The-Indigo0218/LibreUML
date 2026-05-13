@@ -9,6 +9,7 @@ import { isDiagramView } from "./useVFSCanvasController";
 import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
 import { undoTransaction } from "../../../core/undo/undoBridge";
 import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
+import { UCM_DEFAULT_W, UCM_DEFAULT_H } from "../../../canvas/shapes/UCModuleShape";
 import type { DiagramView, ViewNode, VFSFile } from "../../../core/domain/vfs/vfs.types";
 
 export type ContextMenuType = "pane" | "node" | "edge";
@@ -76,7 +77,7 @@ export const useDiagramMenus = ({
   // ── VFS node creation for pane context menu ─────────────────────────────────
 
   const addVFSNode = useCallback(
-    (kind: 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE' | 'ACTOR' | 'USE_CASE' | 'SYSTEM_BOUNDARY' | 'DOMAIN_ENTITY', position: { x: number; y: number }) => {
+    (kind: 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'NOTE' | 'ACTOR' | 'USE_CASE' | 'SYSTEM_BOUNDARY' | 'UC_MODULE' | 'DOMAIN_ENTITY', position: { x: number; y: number }) => {
       const tabId = useWorkspaceStore.getState().activeTabId;
       if (!tabId) return;
 
@@ -144,6 +145,17 @@ export const useDiagramMenus = ({
             }}] });
             semanticId = newId; break;
           }
+          case 'UC_MODULE': {
+            const newId = crypto.randomUUID();
+            const name = getNextVFSName(Object.values(localM.ucModules ?? {}).map(m => m.name), 'Module');
+            undoTransaction({ label: `Create Module: ${name}`, scope: tabId, mutations: [{ store: 'vfs', mutate: (draft: any) => {
+              const n = draft.project?.nodes[tabId]; if (!n || n.type !== 'FILE') return;
+              n.localModel.ucModules = n.localModel.ucModules ?? {};
+              n.localModel.ucModules[newId] = { id: newId, name, kind: 'UC_MODULE' };
+              n.localModel.updatedAt = Date.now();
+            }}] });
+            semanticId = newId; break;
+          }
           case 'DOMAIN_ENTITY': {
             const ops = standaloneModelOps(tabId);
             semanticId = ops.createDomainEntity({ name: getNextVFSName(Object.values(localM.domainEntities ?? {}).map(e => e.name), 'Entity'), attributeIds: [] });
@@ -201,6 +213,17 @@ export const useDiagramMenus = ({
             }}] });
             semanticId = newId; break;
           }
+          case 'UC_MODULE': {
+            const newId = crypto.randomUUID();
+            const name = getNextVFSName(Object.values(model.ucModules ?? {}).map(m => m.name), 'Module');
+            undoTransaction({ label: `Create Module: ${name}`, scope: 'global', mutations: [{ store: 'model', mutate: (draft: any) => {
+              if (!draft.model) return;
+              draft.model.ucModules = draft.model.ucModules ?? {};
+              draft.model.ucModules[newId] = { id: newId, name, kind: 'UC_MODULE' };
+              draft.model.updatedAt = Date.now();
+            }}] });
+            semanticId = newId; break;
+          }
           case 'DOMAIN_ENTITY': {
             semanticId = ms.createDomainEntity({ name: getNextVFSName(Object.values(model.domainEntities ?? {}).map(e => e.name), 'Entity'), attributeIds: [] });
             break;
@@ -215,6 +238,7 @@ export const useDiagramMenus = ({
         y: position.y,
         ...(kind === 'NOTE' ? { noteTitle: 'Note', content: 'Write here more details' } : {}),
         ...(kind === 'SYSTEM_BOUNDARY' ? { width: SB_DEFAULT_W, height: SB_DEFAULT_H } : {}),
+        ...(kind === 'UC_MODULE' ? { width: UCM_DEFAULT_W, height: UCM_DEFAULT_H } : {}),
       };
 
       useVFSStore.getState().updateFileContent(tabId, {
@@ -238,6 +262,7 @@ export const useDiagramMenus = ({
             { label: t("contextMenu.pane.addActor"),          onClick: () => addVFSNode("ACTOR", pos()) },
             { label: t("contextMenu.pane.addUseCase"),        onClick: () => addVFSNode("USE_CASE", pos()) },
             { label: t("contextMenu.pane.addSystemBoundary"), onClick: () => addVFSNode("SYSTEM_BOUNDARY", pos()) },
+            { label: t("contextMenu.pane.addModule"),         onClick: () => addVFSNode("UC_MODULE", pos()) },
             { label: t("contextMenu.pane.addNote"),           onClick: () => addVFSNode("NOTE", pos()) },
             { label: t("contextMenu.pane.cleanCanvas"),       onClick: onClearCanvas, danger: true },
           ];
@@ -286,7 +311,8 @@ export const useDiagramMenus = ({
         const isUseCaseNodeType =
           effectiveType === "ACTOR" ||
           effectiveType === "USECASE" ||
-          effectiveType === "SYSTEM_BOUNDARY";
+          effectiveType === "SYSTEM_BOUNDARY" ||
+          effectiveType === "UC_MODULE";
         const isDomainEntityType = effectiveType === "DOMAIN_ENTITY";
         const isNodeExternal = getIsNodeExternal(nodeId);
 

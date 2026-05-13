@@ -31,6 +31,7 @@ import type {
   IRActor,
   IRUseCase,
   IRSystemBoundary,
+  IRUCModule,
   IRDomainEntity,
   SemanticModel,
   RelationKind,
@@ -42,11 +43,13 @@ import type {
   ActorViewModel,
   UseCaseViewModel,
   SystemBoundaryViewModel,
+  UCModuleViewModel,
   DomainEntityViewModel,
   NodeStyleConfig,
   NodeSection,
 } from '../../../adapters/react-flow/view-models/node.view-model';
 import { SB_DEFAULT_W, SB_DEFAULT_H } from '../../../canvas/shapes/SystemBoundaryShape';
+import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../../../canvas/shapes/UCModuleShape';
 import type { Visibility } from '../../../core/domain/vfs/vfs.types';
 
 // ─── Type guard ───────────────────────────────────────────────────────────────
@@ -203,10 +206,10 @@ function buildSections(
 
 // ─── Semantic resolution ──────────────────────────────────────────────────────
 
-type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'ACTOR' | 'USECASE' | 'SYSTEM_BOUNDARY' | 'DOMAIN_ENTITY' | 'UNKNOWN';
+type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'ACTOR' | 'USECASE' | 'SYSTEM_BOUNDARY' | 'UC_MODULE' | 'DOMAIN_ENTITY' | 'UNKNOWN';
 
 interface ResolvedElement {
-  element: IRClass | IRInterface | IREnum | IRPackage | IRActor | IRUseCase | IRSystemBoundary | IRDomainEntity | null;
+  element: IRClass | IRInterface | IREnum | IRPackage | IRActor | IRUseCase | IRSystemBoundary | IRUCModule | IRDomainEntity | null;
   kind: SemanticKind;
 }
 
@@ -238,6 +241,8 @@ function resolveSemanticElement(model: SemanticModel, elementId: string): Resolv
 
   const sb = model.systemBoundaries?.[elementId];
   if (sb) return { element: sb, kind: 'SYSTEM_BOUNDARY' };
+  const ucm = model.ucModules?.[elementId];
+  if (ucm) return { element: ucm, kind: 'UC_MODULE' };
 
   // TODO(post-v1 Fase 2): mover a ShapeRouter
   const de = model.domainEntities?.[elementId];
@@ -468,6 +473,30 @@ function makeReactFlowSystemBoundaryNode(
   };
 }
 
+function makeReactFlowUCModuleNode(
+  viewNode: ViewNode,
+  ucm: IRUCModule,
+  allViewNodes: ViewNode[],
+  onRename: (name: string) => void,
+) {
+  const vm: UCModuleViewModel = {
+    __brand: 'ucModule',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    name: ucm.name,
+    width: viewNode.width ?? UCM_DEFAULT_W,
+    height: viewNode.height ?? UCM_DEFAULT_H,
+    onRename,
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlUCModule',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
 function makeReactFlowDomainEntityNode(
   viewNode: ViewNode,
   entity: IRDomainEntity,
@@ -506,6 +535,7 @@ export type VFSReactFlowNode =
   | ReturnType<typeof makeReactFlowActorNode>
   | ReturnType<typeof makeReactFlowUseCaseNode>
   | ReturnType<typeof makeReactFlowSystemBoundaryNode>
+  | ReturnType<typeof makeReactFlowUCModuleNode>
   | ReturnType<typeof makeReactFlowDomainEntityNode>;
 
 // ─── Edge type ────────────────────────────────────────────────────────────────
@@ -805,6 +835,17 @@ export function useVFSCanvasController(): VFSCanvasResult {
           }
         };
         return makeReactFlowSystemBoundaryNode(viewNode, element as IRSystemBoundary, diagramView.nodes, onRenameSB);
+      }
+
+      if (kind === 'UC_MODULE') {
+        const onRenameUCM = (name: string) => {
+          if (isStandalone && activeTabId) {
+            standaloneModelOps(activeTabId).updateUCModule(viewNode.elementId, { name });
+          } else {
+            useModelStore.getState().updateUCModule(viewNode.elementId, { name });
+          }
+        };
+        return makeReactFlowUCModuleNode(viewNode, element as IRUCModule, diagramView.nodes, onRenameUCM);
       }
 
       // TODO(post-v1 Fase 2): mover a ShapeRouter

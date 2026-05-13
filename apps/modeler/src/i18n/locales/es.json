@@ -132,6 +132,7 @@
       "actor": "Actor",
       "useCase": "Caso de Uso",
       "systemBoundary": "Límite de Sistema",
+      "ucModule": "Módulo",
       "domainEntity": "Entidad"
     },
     "connections": {
@@ -157,6 +158,7 @@
       "addActor": "Agregar Actor",
       "addUseCase": "Agregar Caso de Uso",
       "addSystemBoundary": "Agregar Límite de Sistema",
+      "addModule": "Agregar Módulo",
       "addDomainEntity": "Agregar Entidad"
     },
     "node": {

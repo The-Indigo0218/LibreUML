@@ -16,6 +16,7 @@ import type {
   ActorNode,
   UseCaseNode,
   SystemBoundaryNode,
+  UCModuleNode,
 } from '../domain/models/nodes/use-case.types';
 import type {
   AssociationEdge,
@@ -226,6 +227,13 @@ function createUseCaseDiagramNode(
         name: (partial && 'name' in partial ? partial.name : undefined) || 'System',
         containedUseCaseIds: [],
       } as SystemBoundaryNode;
+
+    case 'UC_MODULE':
+      return {
+        ...baseNode,
+        type: 'UC_MODULE',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'Module',
+      } as UCModuleNode;
 
     default:
       throw new Error(`Unknown Use Case Diagram node type: ${type}`);
@@ -455,7 +463,7 @@ const useCaseDiagramRegistry: DiagramTypeRegistry = {
   displayName: 'Use Case Diagram',
   icon: 'users',
 
-  supportedNodeTypes: ['ACTOR', 'USE_CASE', 'SYSTEM_BOUNDARY'],
+  supportedNodeTypes: ['ACTOR', 'USE_CASE', 'SYSTEM_BOUNDARY', 'UC_MODULE'],
   supportedEdgeTypes: ['ASSOCIATION', 'INCLUDE', 'EXTEND', 'GENERALIZATION'],
 
   defaultNodeType: 'USE_CASE',
@@ -486,6 +494,14 @@ const useCaseDiagramRegistry: DiagramTypeRegistry = {
         icon: 'Square',
         color: '#8B5CF6',
         translationKey: 'sidebar.nodes.systemBoundary',
+      },
+      {
+        id: 'uc_module',
+        type: 'NODE',
+        label: 'Module',
+        icon: 'Package',
+        color: '#0d9488',
+        translationKey: 'sidebar.nodes.ucModule',
       },
     ],
     edges: [

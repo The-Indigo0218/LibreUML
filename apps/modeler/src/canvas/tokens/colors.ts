@@ -105,9 +105,9 @@ export interface KonvaUseCaseColors {
 
 /** Stick-figure stroke and label color for Actor nodes. */
 export function resolveActorColors(): KonvaUseCaseColors {
-  // Use slate-700 (#334155) in both modes — dark enough to be visible on white
-  // export backgrounds, yet clear enough against dark canvas backgrounds.
-  return { stroke: '#334155', fill: 'transparent', text: '#334155' };
+  const dark = isDark();
+  const color = dark ? '#cbd5e1' : '#334155'; // slate-300 on dark, slate-700 on light
+  return { stroke: color, fill: 'transparent', text: color };
 }
 
 /** Ellipse stroke, fill, and label color for UseCase nodes. */
@@ -124,6 +124,24 @@ export function resolveUseCaseColors(): KonvaUseCaseColors {
 export function resolveSystemBoundaryColors(): KonvaUseCaseColors {
   const text = getCSSVar('--text-secondary');
   return { stroke: text, fill: 'transparent', text };
+}
+
+export interface KonvaUCModuleColors {
+  border: string;
+  tabBg: string;
+  bodyBg: string;
+  text: string;
+}
+
+/** Teal palette for UC Module container nodes. */
+export function resolveUCModuleColors(): KonvaUCModuleColors {
+  const dark = isDark();
+  return {
+    border:  dark ? '#2dd4bf' : '#0d9488', // teal-400 / teal-600
+    tabBg:   dark ? '#0f3d38' : '#ccfbf1', // teal-900/40 / teal-100
+    bodyBg:  dark ? 'rgba(13,148,136,0.06)' : 'rgba(204,251,241,0.35)',
+    text:    dark ? '#99f6e4' : '#0f766e', // teal-200 / teal-700
+  };
 }
 
 export interface KonvaDomainEntityColors {

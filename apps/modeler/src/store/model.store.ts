@@ -10,6 +10,7 @@ import type {
   IRActor,
   IRUseCase,
   IRSystemBoundary,
+  IRUCModule,
   IRRelation,
   IRAttribute,
   IROperation,
@@ -52,6 +53,7 @@ interface ModelStoreState {
   updateActor: (id: string, patch: Partial<IRActor>) => void;
   updateUseCase: (id: string, patch: Partial<IRUseCase>) => void;
   updateSystemBoundary: (id: string, patch: Partial<IRSystemBoundary>) => void;
+  updateUCModule: (id: string, patch: Partial<IRUCModule>) => void;
 
   createDomainEntity: (data: Omit<IRDomainEntity, 'id' | 'kind'>) => string;
   updateDomainEntity: (id: string, patch: Partial<IRDomainEntity>) => void;
@@ -281,6 +283,15 @@ export const useModelStore = create<ModelStoreState>()(
       withUndo('model', `Rename System: ${name}`, 'global', (draft) => {
         if (!draft.model?.systemBoundaries?.[id]) return;
         draft.model.systemBoundaries![id] = { ...draft.model.systemBoundaries![id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    updateUCModule: (id, patch) => {
+      const name = useModelStore.getState().model?.ucModules?.[id]?.name ?? id;
+      withUndo('model', `Rename Module: ${name}`, 'global', (draft) => {
+        if (!draft.model?.ucModules?.[id]) return;
+        draft.model.ucModules![id] = { ...draft.model.ucModules![id], ...patch };
         draft.model.updatedAt = Date.now();
       });
     },

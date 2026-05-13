@@ -12,6 +12,7 @@ import { useKonvaCanvasController } from './hooks/useKonvaCanvasController';
 import { useKonvaDnD } from './hooks/useKonvaDnD';
 import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
 import { SB_MIN_W, SB_MIN_H } from './shapes/SystemBoundaryShape';
+import { UCM_MIN_W, UCM_MIN_H } from './shapes/UCModuleShape';
 import { getShapeSize, renderShape } from './ShapeRouter';
 
 // Layout constants mirrored from shape files for inline editor positioning
@@ -64,6 +65,7 @@ import {
   isActorViewModel,
   isUseCaseViewModel,
   isSystemBoundaryViewModel,
+  isUCModuleViewModel,
   isDomainEntityViewModel,
   type AnyNodeViewModel,
   type NodeViewModel,
@@ -506,6 +508,24 @@ export default function KonvaCanvas() {
     [activeTabId],
   );
 
+  const handleUCModuleResizeEnd = useCallback(
+    (shapeId: string, newWidth: number, newHeight: number) => {
+      if (!activeTabId) return;
+      const w = Math.max(UCM_MIN_W, Math.round(newWidth));
+      const h = Math.max(UCM_MIN_H, Math.round(newHeight));
+      withUndo('vfs', 'Resize Module', activeTabId, (draft: any) => {
+        const file = draft.project?.nodes[activeTabId];
+        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+        const viewNode = file.content.nodes.find((vn: any) => vn.id === shapeId);
+        if (viewNode) {
+          viewNode.width = w;
+          viewNode.height = h;
+        }
+      });
+    },
+    [activeTabId],
+  );
+
   const handleDeleteNodes = useCallback(
     (nodeIds: string[]) => {
       onNodeChange(nodeIds.map((id): KonvaNodeChange => ({ type: 'remove', id })));
@@ -688,6 +708,17 @@ export default function KonvaCanvas() {
           startInlineEditing(shapeId, vm.name, 'name',
             { x: screenPos.x, y: screenPos.y },
             { width: Math.min(width - 20, 280), height: 22 },
+            (text) => vm.onRename!(text));
+        }
+      } else if (isUCModuleViewModel(vm)) {
+        // Tab is 100px wide; title sits in the upper half of the tab (above body)
+        const stageScale = stageRef.current?.scaleX() ?? 1;
+        const TAB_H_SCREEN = 24 * stageScale;
+        const screenPos = transform.point({ x: pos.x + 4, y: pos.y - 24 + 12 });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.name, 'name',
+            { x: screenPos.x, y: screenPos.y - TAB_H_SCREEN / 2 },
+            { width: 90, height: 14 },
             (text) => vm.onRename!(text));
         }
       } else {
@@ -1050,6 +1081,7 @@ export default function KonvaCanvas() {
       if (activeModel.actors?.[viewNode.elementId]) return 'ACTOR';
       if (activeModel.useCases?.[viewNode.elementId]) return 'USECASE';
       if (activeModel.systemBoundaries?.[viewNode.elementId]) return 'SYSTEM_BOUNDARY';
+      if (activeModel.ucModules?.[viewNode.elementId]) return 'UC_MODULE';
       if (activeModel.domainEntities?.[viewNode.elementId]) return 'DOMAIN_ENTITY';
       return 'NOTE';
     },
@@ -1074,8 +1106,8 @@ export default function KonvaCanvas() {
 
   const sortedShapes = useMemo(() =>
     [...shapes].sort((a, b) => {
-      const aIsBackground = a.type === 'package' || isSystemBoundaryViewModel(a.data);
-      const bIsBackground = b.type === 'package' || isSystemBoundaryViewModel(b.data);
+      const aIsBackground = a.type === 'package' || isSystemBoundaryViewModel(a.data) || isUCModuleViewModel(a.data);
+      const bIsBackground = b.type === 'package' || isSystemBoundaryViewModel(b.data) || isUCModuleViewModel(b.data);
       if (aIsBackground && !bIsBackground) return -1;
       if (!aIsBackground && bIsBackground) return 1;
       if (a.type === 'package' && b.type === 'package') {
@@ -1418,7 +1450,9 @@ export default function KonvaCanvas() {
                   onContextMenu,
                   onMouseEnter: handleUseCaseMouseEnter,
                   onMouseLeave: handleUseCaseMouseLeave,
-                  onResizeEnd: handleSystemBoundaryResizeEnd,
+                  onResizeEnd: isUCModuleViewModel(vm)
+                    ? handleUCModuleResizeEnd
+                    : handleSystemBoundaryResizeEnd,
                   isDropTarget: hoveredPackageId === shape.id,
                 });
               })}

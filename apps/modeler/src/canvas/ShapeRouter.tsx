@@ -9,6 +9,7 @@ import {
   isActorViewModel,
   isUseCaseViewModel,
   isSystemBoundaryViewModel,
+  isUCModuleViewModel,
   isDomainEntityViewModel,
 } from '../adapters/react-flow/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
@@ -16,6 +17,7 @@ import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
 import ActorShape, { getActorShapeSize } from './shapes/ActorShape';
 import UseCaseShape, { getUseCaseShapeSize } from './shapes/UseCaseShape';
 import SystemBoundaryShape, { getSystemBoundaryShapeSize } from './shapes/SystemBoundaryShape';
+import UCModuleShape, { getUCModuleShapeSize } from './shapes/UCModuleShape';
 import DomainEntityShape, { getDomainEntityShapeSize } from './shapes/DomainEntityShape';
 
 export interface NodeShapeRenderProps {
@@ -43,6 +45,7 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
   if (isActorViewModel(vm))          return getActorShapeSize(vm);
   if (isUseCaseViewModel(vm))        return getUseCaseShapeSize(vm);
   if (isSystemBoundaryViewModel(vm)) return getSystemBoundaryShapeSize(vm);
+  if (isUCModuleViewModel(vm))       return getUCModuleShapeSize(vm);
   if (isDomainEntityViewModel(vm))   return getDomainEntityShapeSize(vm);
   return getClassShapeSize(vm as NodeViewModel);
 }
@@ -68,6 +71,15 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
   if (isSystemBoundaryViewModel(vm))
     return (
       <SystemBoundaryShape
+        key={key} viewModel={vm} {...common}
+        onResizeEnd={onResizeEnd}
+        isDropTarget={isDropTarget}
+      />
+    );
+
+  if (isUCModuleViewModel(vm))
+    return (
+      <UCModuleShape
         key={key} viewModel={vm} {...common}
         onResizeEnd={onResizeEnd}
         isDropTarget={isDropTarget}

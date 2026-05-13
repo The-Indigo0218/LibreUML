@@ -3,10 +3,11 @@ import type { BaseDomainNode, Documentable } from './base.types';
 /**
  * Use Case Diagram Node Types (Discriminated Union)
  */
-export type UseCaseDiagramNodeType = 
-  | 'ACTOR' 
-  | 'USE_CASE' 
-  | 'SYSTEM_BOUNDARY';
+export type UseCaseDiagramNodeType =
+  | 'ACTOR'
+  | 'USE_CASE'
+  | 'SYSTEM_BOUNDARY'
+  | 'UC_MODULE';
 
 /**
  * Actor Node (SSOT Domain Model)
@@ -37,9 +38,19 @@ export interface SystemBoundaryNode extends BaseDomainNode, Documentable {
 }
 
 /**
+ * UC Module Node — groups use cases into named modules within a diagram.
+ * Distinct from class-diagram packages; does NOT appear in the package explorer.
+ */
+export interface UCModuleNode extends BaseDomainNode, Documentable {
+  type: 'UC_MODULE';
+  name: string;
+}
+
+/**
  * Discriminated Union of all Use Case Diagram nodes
  */
-export type UseCaseDiagramNode = 
-  | ActorNode 
-  | UseCaseNode 
-  | SystemBoundaryNode;
+export type UseCaseDiagramNode =
+  | ActorNode
+  | UseCaseNode
+  | SystemBoundaryNode
+  | UCModuleNode;

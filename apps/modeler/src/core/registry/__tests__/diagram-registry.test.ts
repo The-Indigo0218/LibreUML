@@ -78,6 +78,7 @@ describe('Diagram Registry', () => {
         'ACTOR',
         'USE_CASE',
         'SYSTEM_BOUNDARY',
+        'UC_MODULE',
       ]);
     });
 

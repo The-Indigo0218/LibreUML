@@ -223,6 +223,7 @@ describe('Diagram Registry', () => {
     it('should check if diagram type is registered', () => {
       expect(isDiagramTypeRegistered('CLASS_DIAGRAM')).toBe(true);
       expect(isDiagramTypeRegistered('USE_CASE_DIAGRAM')).toBe(true);
+      expect(isDiagramTypeRegistered('DOMAIN_MODEL_DIAGRAM')).toBe(true);
       expect(isDiagramTypeRegistered('UNKNOWN')).toBe(false);
     });
 
@@ -230,7 +231,99 @@ describe('Diagram Registry', () => {
       const types = getRegisteredDiagramTypes();
       expect(types).toContain('CLASS_DIAGRAM');
       expect(types).toContain('USE_CASE_DIAGRAM');
-      expect(types).toHaveLength(2);
+      expect(types).toContain('DOMAIN_MODEL_DIAGRAM');
+      expect(types).toHaveLength(3);
+    });
+  });
+
+  describe('Domain Model Diagram Registry', () => {
+    const registry = diagramRegistry.DOMAIN_MODEL_DIAGRAM;
+
+    it('should be registered with correct type and displayName', () => {
+      expect(registry).toBeDefined();
+      expect(registry.type).toBe('DOMAIN_MODEL_DIAGRAM');
+      expect(registry.displayName).toBe('Domain Model');
+    });
+
+    it('should support only DOMAIN_ENTITY nodes', () => {
+      expect(registry.supportedNodeTypes).toEqual(['DOMAIN_ENTITY']);
+    });
+
+    it('should support only ASSOCIATION edges', () => {
+      expect(registry.supportedEdgeTypes).toEqual(['ASSOCIATION']);
+    });
+
+    it('should have DOMAIN_ENTITY as default node type', () => {
+      expect(registry.defaultNodeType).toBe('DOMAIN_ENTITY');
+    });
+
+    it('should have ASSOCIATION as default edge type', () => {
+      expect(registry.defaultEdgeType).toBe('ASSOCIATION');
+    });
+
+    it('should have no code generation actions', () => {
+      expect(registry.codeGenerationActions).toEqual([]);
+    });
+
+    it('should have image and xmi export actions', () => {
+      const ids = registry.exportActions.map((a) => a.id);
+      expect(ids).toContain('export-image');
+      expect(ids).toContain('export-xmi');
+    });
+
+    it('should have validator with all three methods', () => {
+      expect(registry.validator.validateConnection).toBeDefined();
+      expect(registry.validator.validateNode).toBeDefined();
+      expect(registry.validator.validateEdge).toBeDefined();
+    });
+
+    it('should have factory functions', () => {
+      expect(registry.factories.createNode).toBeDefined();
+      expect(registry.factories.createEdge).toBeDefined();
+    });
+
+    it('should retrieve via getDiagramRegistry', () => {
+      const r = getDiagramRegistry('DOMAIN_MODEL_DIAGRAM');
+      expect(r.type).toBe('DOMAIN_MODEL_DIAGRAM');
+    });
+  });
+
+  describe('Factory Functions - Domain Model Diagram', () => {
+    const { createNode, createEdge } = diagramRegistry.DOMAIN_MODEL_DIAGRAM.factories;
+
+    it('creates a DOMAIN_ENTITY node with defaults', () => {
+      const node = createNode('DOMAIN_ENTITY');
+      expect(node.type).toBe('DOMAIN_ENTITY');
+      expect(node.id).toBeDefined();
+      expect(node.createdAt).toBeDefined();
+      expect('name' in node && node.name).toBe('Entity');
+      expect('attributes' in node && node.attributes).toEqual([]);
+    });
+
+    it('creates a DOMAIN_ENTITY node with custom name', () => {
+      const node = createNode('DOMAIN_ENTITY', { name: 'Customer' });
+      expect('name' in node && node.name).toBe('Customer');
+    });
+
+    it('creates an ASSOCIATION edge with empty label by default', () => {
+      const edge = createEdge('ASSOCIATION', 'e1', 'e2');
+      expect(edge.type).toBe('ASSOCIATION');
+      expect(edge.sourceNodeId).toBe('e1');
+      expect(edge.targetNodeId).toBe('e2');
+      expect('label' in edge && edge.label).toBe('');
+    });
+
+    it('creates an ASSOCIATION edge with provided label', () => {
+      const edge = createEdge('ASSOCIATION', 'e1', 'e2', { label: 'places' } as any);
+      expect('label' in edge && edge.label).toBe('places');
+    });
+
+    it('throws for unknown node type', () => {
+      expect(() => createNode('CLASS')).toThrow('Unknown Domain Model Diagram node type');
+    });
+
+    it('throws for unknown edge type', () => {
+      expect(() => createEdge('INHERITANCE', 'e1', 'e2')).toThrow('Unknown Domain Model Diagram edge type');
     });
   });
 });

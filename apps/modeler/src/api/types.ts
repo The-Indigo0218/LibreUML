@@ -9,11 +9,12 @@ export type DiagramType =
   | 'DEPLOYMENT'
   | 'ER';
 
-// Extended type for the new projects API (includes PACKAGE, OBJECT, UNSPECIFIED)
+// Extended type for the new projects API (includes PACKAGE, OBJECT, DOMAIN, UNSPECIFIED)
 export type ProjectDiagramType =
   | DiagramType
   | 'PACKAGE'
   | 'OBJECT'
+  | 'DOMAIN'
   | 'UNSPECIFIED';
 
 export type DiagramVisibility = 'PRIVATE' | 'SHARED' | 'PUBLIC';

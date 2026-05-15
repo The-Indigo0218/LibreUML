@@ -41,6 +41,8 @@ export interface PartialSemanticModel {
   operations: Record<string, any>;
   actors?: Record<string, any>;
   useCases?: Record<string, any>;
+  systemBoundaries?: Record<string, any>;
+  ucModules?: Record<string, any>;
   activityNodes?: Record<string, any>;
   objectInstances?: Record<string, any>;
   components?: Record<string, any>;
@@ -173,6 +175,28 @@ export class ModelExtractor {
     // Extract package
     if (fullModel.packages[elementId]) {
       this.extractPackage(elementId, fullModel, partial);
+      return;
+    }
+
+    // UC Diagram elements
+    if (fullModel.actors?.[elementId]) {
+      partial.actors = partial.actors ?? {};
+      partial.actors[elementId] = fullModel.actors[elementId];
+      return;
+    }
+    if (fullModel.useCases?.[elementId]) {
+      partial.useCases = partial.useCases ?? {};
+      partial.useCases[elementId] = fullModel.useCases[elementId];
+      return;
+    }
+    if (fullModel.systemBoundaries?.[elementId]) {
+      partial.systemBoundaries = partial.systemBoundaries ?? {};
+      partial.systemBoundaries[elementId] = fullModel.systemBoundaries[elementId];
+      return;
+    }
+    if (fullModel.ucModules?.[elementId]) {
+      partial.ucModules = partial.ucModules ?? {};
+      partial.ucModules[elementId] = fullModel.ucModules[elementId];
       return;
     }
   }

@@ -46,6 +46,7 @@ import {
   isActorViewModel,
   isUseCaseViewModel,
   isSystemBoundaryViewModel,
+  isDomainEntityViewModel,
   type NodeViewModel,
 } from '../../adapters/react-flow/view-models/node.view-model';
 import { validateConnection } from '../../util/connectionValidator';
@@ -86,6 +87,7 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
 };
 
 const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'use_case', 'system_boundary']);
+const DOMAIN_MODEL_STEREOTYPES = new Set<stereotype>(['domain_entity']);
 
 function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isNoteViewModel(vm)) return 'note';
@@ -93,6 +95,8 @@ function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isActorViewModel(vm)) return 'actor';
   if (isUseCaseViewModel(vm)) return 'use_case';
   if (isSystemBoundaryViewModel(vm)) return 'system_boundary';
+  // TODO(post-v1 Fase 2): mover a ShapeRouter
+  if (isDomainEntityViewModel(vm)) return 'domain_entity';
   const nvm = vm as NodeViewModel;
   const s = nvm.stereotype;
   if (s === 'abstract' || s === 'interface' || s === 'enum') return s;
@@ -348,6 +352,8 @@ export function useConnectionDraw({
               if (srcStereotype === 'package' && tgtStereotype === 'package') {
                 onConnect(src.nodeId, snap.nodeId);
               } else if (USE_CASE_STEREOTYPES.has(srcStereotype) || USE_CASE_STEREOTYPES.has(tgtStereotype)) {
+                onConnect(src.nodeId, snap.nodeId);
+              } else if (DOMAIN_MODEL_STEREOTYPES.has(srcStereotype) || DOMAIN_MODEL_STEREOTYPES.has(tgtStereotype)) {
                 onConnect(src.nodeId, snap.nodeId);
               } else {
                 const wsState = useWorkspaceStore.getState();

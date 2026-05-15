@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import type { DomainNode } from "../core/domain/models/nodes";
 import type { DomainEdge } from "../core/domain/models/edges";
+import type { ClassAttribute } from "../core/domain/models/nodes/class-diagram.types";
 import { JavaGeneratorService } from "./javaGenerator.service"; 
 
 interface ProjectConfig {
@@ -220,7 +221,7 @@ java {
 
     // Scan attributes (CLASS and ABSTRACT_CLASS only)
     if ('attributes' in targetClass && targetClass.attributes) {
-      targetClass.attributes.forEach(attr => {
+      (targetClass.attributes as ClassAttribute[]).forEach(attr => {
         const typeName = extractTypeName(attr.type);
         const referencedClass = allNodes.find(n => 'name' in n && n.name === typeName);
         

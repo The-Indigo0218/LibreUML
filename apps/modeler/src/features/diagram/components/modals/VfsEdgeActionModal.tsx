@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, ArrowLeftRight, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../../../../store/uiStore';
-import AnchorPickerPanel from './AnchorPickerPanel';
+import AnchorPickerPanel, { toSafeHandle } from './AnchorPickerPanel';
 import type { LockedHandle } from '../../../../canvas/edges/geometry';
 import { useVFSStore } from '../../../../store/project-vfs.store';
 import { useModelStore } from '../../../../store/model.store';
@@ -12,6 +12,8 @@ import { standaloneModelOps } from '../../../../store/standaloneModelOps';
 import { undoTransaction } from '../../../../core/undo/undoBridge';
 import { isDiagramView } from '../../hooks/useVFSCanvasController';
 import type { VFSFile, RelationKind, SemanticModel } from '../../../../core/domain/vfs/vfs.types';
+import { isValidMultiplicity } from '../../../../core/domain/multiplicity.utils';
+import MultiplicitySelector from '../shared/MultiplicitySelector';
 
 const CLASS_RELATION_KINDS: { value: RelationKind; label: string }[] = [
   { value: 'ASSOCIATION',    label: 'Association' },
@@ -40,15 +42,6 @@ const MULTIPLICITY_KINDS = new Set<RelationKind>([
   'ASSOCIATION', 'AGGREGATION', 'COMPOSITION',
 ]);
 
-const MULTIPLICITY_PRESETS = ['1', '*', '0..1', '1..*', '0..*'];
-
-function isValidMultiplicity(v: string): boolean {
-  const s = v.trim();
-  if (!s) return true;
-  if (MULTIPLICITY_PRESETS.includes(s)) return true;
-  const n = parseInt(s, 10);
-  return !isNaN(n) && n > 0 && String(n) === s;
-}
 
 function getElementName(model: SemanticModel, elementId: string): string {
   return (
@@ -60,12 +53,6 @@ function getElementName(model: SemanticModel, elementId: string): string {
   );
 }
 
-const PRESET_BTN_BASE =
-  'text-[10px] px-1.5 py-0.5 rounded border transition-all';
-const PRESET_BTN_ACTIVE =
-  'bg-indigo-900/40 border-indigo-500 text-indigo-300 font-bold';
-const PRESET_BTN_IDLE =
-  'bg-surface-primary border-surface-border text-text-secondary hover:border-indigo-400';
 
 export default function VfsEdgeActionModal() {
   const { t } = useTranslation();
@@ -117,8 +104,8 @@ export default function VfsEdgeActionModal() {
       setTargetMul(viewEdge.targetMultiplicity ?? '');
       const locked = viewEdge.anchorLocked ?? false;
       setAnchorLocked(locked);
-      setSrcHandle((viewEdge.sourceHandle as LockedHandle | undefined) ?? anchorSnapshot?.src ?? 'R');
-      setTgtHandle((viewEdge.targetHandle as LockedHandle | undefined) ?? anchorSnapshot?.tgt ?? 'L');
+      setSrcHandle(toSafeHandle(viewEdge.sourceHandle ?? anchorSnapshot?.src, 'R'));
+      setTgtHandle(toSafeHandle(viewEdge.targetHandle ?? anchorSnapshot?.tgt, 'L'));
       setPickerOpen(locked);
     }
   // anchorSnapshot intentionally excluded — only run when the edge data changes
@@ -376,34 +363,12 @@ export default function VfsEdgeActionModal() {
                     placeholder="Rol (ej: empleado)"
                     className="w-full bg-surface-secondary border border-surface-border rounded px-2 py-1.5 text-xs text-text-primary outline-none focus:border-indigo-500 font-mono"
                   />
-                  <input
-                    type="text"
+                  <MultiplicitySelector
                     value={sourceMul}
-                    onChange={(e) => setSourceMul(e.target.value)}
-                    placeholder="Multiplicidad"
-                    className={`w-full bg-surface-secondary border rounded px-2 py-1.5 text-xs outline-none font-mono text-center ${
-                      srcMulValid
-                        ? 'border-surface-border focus:border-indigo-500 text-text-primary'
-                        : 'border-red-500 text-red-400'
-                    }`}
+                    onChange={setSourceMul}
+                    invalid={!srcMulValid}
+                    accent="indigo"
                   />
-                  <div className="flex flex-wrap gap-1">
-                    {MULTIPLICITY_PRESETS.map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setSourceMul(p)}
-                        className={`${PRESET_BTN_BASE} ${sourceMul === p ? PRESET_BTN_ACTIVE : PRESET_BTN_IDLE}`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setSourceMul('')}
-                      className="text-[10px] px-1.5 py-0.5 rounded border border-red-400/30 text-red-400 hover:bg-red-400/10"
-                    >
-                      ✕
-                    </button>
-                  </div>
                 </div>
 
                 <div className="space-y-2 border-l border-surface-border/50 pl-4">
@@ -417,34 +382,12 @@ export default function VfsEdgeActionModal() {
                     placeholder="Rol (ej: empresa)"
                     className="w-full bg-surface-secondary border border-surface-border rounded px-2 py-1.5 text-xs text-text-primary outline-none focus:border-indigo-500 font-mono"
                   />
-                  <input
-                    type="text"
+                  <MultiplicitySelector
                     value={targetMul}
-                    onChange={(e) => setTargetMul(e.target.value)}
-                    placeholder="Multiplicidad"
-                    className={`w-full bg-surface-secondary border rounded px-2 py-1.5 text-xs outline-none font-mono text-center ${
-                      tgtMulValid
-                        ? 'border-surface-border focus:border-indigo-500 text-text-primary'
-                        : 'border-red-500 text-red-400'
-                    }`}
+                    onChange={setTargetMul}
+                    invalid={!tgtMulValid}
+                    accent="indigo"
                   />
-                  <div className="flex flex-wrap gap-1">
-                    {MULTIPLICITY_PRESETS.map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setTargetMul(p)}
-                        className={`${PRESET_BTN_BASE} ${targetMul === p ? PRESET_BTN_ACTIVE : PRESET_BTN_IDLE}`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => setTargetMul('')}
-                      className="text-[10px] px-1.5 py-0.5 rounded border border-red-400/30 text-red-400 hover:bg-red-400/10"
-                    >
-                      ✕
-                    </button>
-                  </div>
                 </div>
 
               </div>

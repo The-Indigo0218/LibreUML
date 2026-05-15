@@ -48,6 +48,7 @@ function toApiDiagramType(vfsType: VfsDiagramType): ProjectDiagramType {
   const map: Record<VfsDiagramType, ProjectDiagramType> = {
     CLASS_DIAGRAM:         'CLASS',
     USE_CASE_DIAGRAM:      'USE_CASE',
+    DOMAIN_MODEL_DIAGRAM:  'DOMAIN',
     SEQUENCE_DIAGRAM:      'SEQUENCE',
     ACTIVITY_DIAGRAM:      'ACTIVITY',
     STATE_MACHINE_DIAGRAM: 'STATE',
@@ -251,7 +252,10 @@ class CloudSyncService {
           name:        file.name,
           diagramType: toApiDiagramType(file.diagramType),
           path:        vfsId,
-          viewData:    (file.content ?? { nodes: [], edges: [] }) as Record<string, unknown>,
+          viewData:    {
+            ...(file.content ?? { nodes: [], edges: [] }),
+            ...(file.standalone && file.localModel ? { _localModel: file.localModel } : {}),
+          } as Record<string, unknown>,
         });
         diagrams[vfsId] = { cloudId: diagramResp.id, version: diagramResp.version };
       }
@@ -413,7 +417,12 @@ class CloudSyncService {
     if (!node || node.type !== 'FILE') return false;
 
     const file = node as VFSFile;
-    const viewData = (file.content ?? { nodes: [], edges: [] }) as Record<string, unknown>;
+    const viewData: Record<string, unknown> = {
+      ...(file.content ?? { nodes: [], edges: [] }),
+      // Standalone diagrams carry their own semantic model in localModel.
+      // Embed it in the viewData payload so the backend preserves it.
+      ...(file.standalone && file.localModel ? { _localModel: file.localModel } : {}),
+    };
 
     syncStore.setSyncStatus('saving');
 
@@ -571,7 +580,10 @@ class CloudSyncService {
           const file = project?.nodes[item.vfsDiagramId] as VFSFile | undefined;
           if (!file) continue;
           const resp = await cloudAdapter.updateDiagramInCloud(item.projectId, entry.cloudId, {
-            viewData: (file.content ?? {}) as Record<string, unknown>,
+            viewData: {
+              ...(file.content ?? {}),
+              ...(file.standalone && file.localModel ? { _localModel: file.localModel } : {}),
+            } as Record<string, unknown>,
             version:  entry.version,
           });
           useSyncStore.getState().updateDiagramVersion(item.vfsDiagramId, resp.version);

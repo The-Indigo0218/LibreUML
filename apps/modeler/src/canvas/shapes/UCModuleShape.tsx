@@ -2,28 +2,29 @@ import { useRef, useEffect } from 'react';
 import { Group, Rect, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { SystemBoundaryViewModel } from '../../adapters/react-flow/view-models/node.view-model';
-import { resolveSystemBoundaryColors } from '../tokens/colors';
+import type { UCModuleViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import { resolveUCModuleColors } from '../tokens/colors';
 
 // ─── Layout constants ──────────────────────────────────────────────────────────
 
-export const SB_DEFAULT_W = 420;
-export const SB_DEFAULT_H = 320;
-export const SB_MIN_W = 200;
-export const SB_MIN_H = 150;
-const TITLE_FONT = 13;
-const TITLE_H = 22;
-const TITLE_PAD_X = 10;
-const TITLE_PAD_Y = 4;
-const STROKE_W = 1.5;
-const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
+export const UCM_DEFAULT_W = 380;
+export const UCM_DEFAULT_H = 280;
+export const UCM_MIN_W = 180;
+export const UCM_MIN_H = 120;
 
-export function getSystemBoundaryShapeSize(vm: SystemBoundaryViewModel): { width: number; height: number } {
+const TAB_H = 24;
+const TAB_W = 100;
+const STROKE_W = 1.5;
+const TITLE_FONT = 12;
+const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
+const STEREO_FONT = 10;
+
+export function getUCModuleShapeSize(vm: UCModuleViewModel): { width: number; height: number } {
   return { width: vm.width, height: vm.height };
 }
 
-interface SystemBoundaryShapeProps {
-  viewModel: SystemBoundaryViewModel;
+interface UCModuleShapeProps {
+  viewModel: UCModuleViewModel;
   x: number;
   y: number;
   selected?: boolean;
@@ -40,11 +41,12 @@ interface SystemBoundaryShapeProps {
   onResizeEnd?: (id: string, width: number, height: number) => void;
 }
 
-export default function SystemBoundaryShape({
+export default function UCModuleShape({
   viewModel: vm,
   x,
   y,
   selected,
+  isDropTarget = false,
   opacity,
   visible = true,
   onNodeClick,
@@ -55,9 +57,8 @@ export default function SystemBoundaryShape({
   onDragMove,
   onDragEnd,
   onResizeEnd,
-  isDropTarget = false,
-}: SystemBoundaryShapeProps) {
-  const colors = resolveSystemBoundaryColors();
+}: UCModuleShapeProps) {
+  const colors = resolveUCModuleColors();
   const W = vm.width;
   const H = vm.height;
 
@@ -75,6 +76,9 @@ export default function SystemBoundaryShape({
     tr.getLayer()?.batchDraw();
     return () => { tr.nodes([]); };
   }, [showTransformer]);
+
+  const borderColor = isDropTarget ? '#22d3ee' : colors.border;
+  const strokeW = isDropTarget ? 2 : STROKE_W;
 
   return (
     <>
@@ -104,57 +108,76 @@ export default function SystemBoundaryShape({
           onContextMenu?.(e, vm.id);
         }}
       >
-        {/* ── Dashed boundary rectangle ───────────────────────────────────── */}
+        {/* ── Tab (top-left folded header) ─────────────────────────────────── */}
         <Rect
-          width={W}
-          height={H}
-          fill={isDropTarget ? 'rgba(34,211,238,0.06)' : 'transparent'}
-          stroke={isDropTarget ? '#22d3ee' : colors.stroke}
-          strokeWidth={isDropTarget ? 2 : STROKE_W}
-          dash={isDropTarget ? undefined : [8, 5]}
+          x={0}
+          y={-TAB_H}
+          width={TAB_W}
+          height={TAB_H}
+          fill={isDropTarget ? 'rgba(34,211,238,0.15)' : colors.tabBg}
+          stroke={borderColor}
+          strokeWidth={strokeW}
           listening={false}
           perfectDrawEnabled={false}
         />
 
-        {/* ── System name label ────────────────────────────────────────────── */}
+        {/* ── «module» stereotype inside tab ───────────────────────────────── */}
         <Text
-          x={TITLE_PAD_X}
-          y={TITLE_PAD_Y}
-          width={W - TITLE_PAD_X * 2}
+          x={4}
+          y={-TAB_H + 2}
+          width={TAB_W - 8}
+          text="«module»"
+          fontSize={STEREO_FONT}
+          fontFamily={FONT_SANS}
+          fontStyle="italic"
+          fill={colors.text}
+          align="center"
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+
+        {/* ── Module name below stereotype in tab ──────────────────────────── */}
+        <Text
+          x={4}
+          y={-TAB_H + STEREO_FONT + 3}
+          width={TAB_W - 8}
           text={vm.name}
           fontSize={TITLE_FONT}
           fontFamily={FONT_SANS}
+          fontStyle="bold"
           fill={colors.text}
-          align="left"
+          align="center"
+          ellipsis={true}
           listening={false}
           perfectDrawEnabled={false}
         />
 
-        {/* ── Separator below title ─────────────────────────────────────────── */}
+        {/* ── Main body rectangle ──────────────────────────────────────────── */}
         <Rect
           x={0}
-          y={TITLE_PAD_Y + TITLE_H}
+          y={0}
           width={W}
-          height={1}
-          fill={colors.stroke}
-          opacity={0.4}
+          height={H}
+          fill={isDropTarget ? 'rgba(34,211,238,0.06)' : colors.bodyBg}
+          stroke={borderColor}
+          strokeWidth={strokeW}
           listening={false}
           perfectDrawEnabled={false}
         />
 
-        {/* ── Hit targets (border strips + title area) ──────────────────────── */}
-        <Rect x={0} y={0} width={W} height={TITLE_H + TITLE_PAD_Y + 4} listening={true} />
+        {/* ── Hit targets (borders + tab) ──────────────────────────────────── */}
+        <Rect x={0} y={-TAB_H} width={TAB_W} height={TAB_H + 8} listening={true} />
         <Rect x={0} y={H - 8} width={W} height={8} listening={true} />
         <Rect x={0} y={0} width={8} height={H} listening={true} />
         <Rect x={W - 8} y={0} width={8} height={H} listening={true} />
 
-        {/* ── Selection outline (only when no transformer) ─────────────────── */}
+        {/* ── Selection outline ────────────────────────────────────────────── */}
         {selected && !showTransformer && (
           <Rect
-            x={-2} y={-2}
-            width={W + 4} height={H + 4}
+            x={-2} y={-TAB_H - 2}
+            width={W + 4} height={H + TAB_H + 4}
             stroke="#22d3ee" strokeWidth={2}
-            dash={[6, 4]}
+            dash={[4, 3]}
             listening={false}
             perfectDrawEnabled={false}
           />
@@ -176,7 +199,7 @@ export default function SystemBoundaryShape({
           anchorStrokeWidth={1}
           boundBoxFunc={(oldBox, newBox) => {
             const stageScale = groupRef.current?.getStage()?.scaleX() ?? 1;
-            if (newBox.width < SB_MIN_W * stageScale || newBox.height < SB_MIN_H * stageScale) {
+            if (newBox.width < UCM_MIN_W * stageScale || newBox.height < UCM_MIN_H * stageScale) {
               return oldBox;
             }
             return newBox;
@@ -188,7 +211,7 @@ export default function SystemBoundaryShape({
             const sy = node.scaleY();
             node.scaleX(1);
             node.scaleY(1);
-            onResizeEnd?.(vm.id, Math.max(SB_MIN_W, W * sx), Math.max(SB_MIN_H, H * sy));
+            onResizeEnd?.(vm.id, Math.max(UCM_MIN_W, W * sx), Math.max(UCM_MIN_H, H * sy));
           }}
         />
       )}

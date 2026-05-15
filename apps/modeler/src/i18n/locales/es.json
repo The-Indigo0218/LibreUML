@@ -131,7 +131,9 @@
       "note": "Nota",
       "actor": "Actor",
       "useCase": "Caso de Uso",
-      "systemBoundary": "Límite de Sistema"
+      "systemBoundary": "Límite de Sistema",
+      "ucModule": "Módulo",
+      "domainEntity": "Entidad"
     },
     "connections": {
       "title": "Conexiones",
@@ -144,13 +146,6 @@
       "include": "«include»",
       "extend": "«extend»",
       "generalization": "Generalización"
-    },
-    "legend": {
-      "title": "Lógica de Conexión",
-      "source": "son Origen",
-      "target": "son Destino",
-      "blue": "Azules",
-      "green": "Verdes"
     }
   },
   "contextMenu": {
@@ -162,7 +157,9 @@
       "cleanCanvas": "Limpiar Lienzo",
       "addActor": "Agregar Actor",
       "addUseCase": "Agregar Caso de Uso",
-      "addSystemBoundary": "Agregar Límite de Sistema"
+      "addSystemBoundary": "Agregar Límite de Sistema",
+      "addModule": "Agregar Módulo",
+      "addDomainEntity": "Agregar Entidad"
     },
     "node": {
       "duplicate": "Duplicar",
@@ -305,7 +302,9 @@
       "svgWarningMessage": "Algunos visores de imágenes en Windows, Mac o Linux podrían no mostrar el SVG correctamente porque utiliza estilos HTML/CSS incrustados.",
       "svgTip": "Si el archivo se ve vacío o roto, intenta abrir el .svg en tu navegador web (Chrome, Edge, Firefox).",
       "dontShowAgain": "No mostrar este aviso de nuevo",
-      "wait": "Lee esto"
+      "wait": "Lee esto",
+      "preview": "Previsualizar",
+      "previewing": "Generando…"
     },
     "importCode": {
       "title": "Importar Código Java",

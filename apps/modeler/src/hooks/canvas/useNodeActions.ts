@@ -110,6 +110,7 @@ export function useNodeActions({
           localM.actors?.[elementId]?.name ??
           localM.useCases?.[elementId]?.name ??
           localM.systemBoundaries?.[elementId]?.name ??
+          localM.ucModules?.[elementId]?.name ??
           'Element';
 
         undoTransaction({
@@ -129,6 +130,7 @@ export function useNodeActions({
               else if (lm.actors?.[elementId])             { delete lm.actors![elementId]; }
               else if (lm.useCases?.[elementId])           { delete lm.useCases![elementId]; }
               else if (lm.systemBoundaries?.[elementId])   { delete lm.systemBoundaries![elementId]; }
+              else if (lm.ucModules?.[elementId])          { delete lm.ucModules![elementId]; }
               cascadeDeleteRelations(lm, elementId);
               lm.updatedAt = Date.now();
               if (isDiagramView(node.content)) {
@@ -154,6 +156,7 @@ export function useNodeActions({
           ms.model.actors?.[elementId]?.name ??
           ms.model.useCases?.[elementId]?.name ??
           ms.model.systemBoundaries?.[elementId]?.name ??
+          ms.model.ucModules?.[elementId]?.name ??
           'Element';
 
         const projectSnapshot = currentProject;
@@ -173,6 +176,7 @@ export function useNodeActions({
                 else if (draft.model.actors?.[elementId])             { delete draft.model.actors![elementId]; }
                 else if (draft.model.useCases?.[elementId])           { delete draft.model.useCases![elementId]; }
                 else if (draft.model.systemBoundaries?.[elementId])   { delete draft.model.systemBoundaries![elementId]; }
+                else if (draft.model.ucModules?.[elementId])          { delete draft.model.ucModules![elementId]; }
                 cascadeDeleteRelations(draft.model, elementId);
                 draft.model.updatedAt = Date.now();
               },
@@ -253,6 +257,7 @@ export function useNodeActions({
         const cls = localM.classes[elementId];
         const iface = localM.interfaces[elementId];
         const enm = localM.enums[elementId];
+        const domainEntity = localM.domainEntities?.[elementId];
 
         undoTransaction({
           label: 'Duplicate Node',
@@ -264,7 +269,20 @@ export function useNodeActions({
               if (!node || node.type !== 'FILE' || !node.localModel) return;
               const lm: SemanticModel = node.localModel;
 
-              if (cls) {
+              if (domainEntity) {
+                const newAttrIds: string[] = [];
+                lm.domainAttributes = lm.domainAttributes ?? {};
+                for (const aid of domainEntity.attributeIds) {
+                  const a = lm.domainAttributes[aid]; if (!a) continue;
+                  const nid = crypto.randomUUID();
+                  lm.domainAttributes[nid] = { ...a, id: nid };
+                  newAttrIds.push(nid);
+                }
+                const existingNames = Object.values(lm.domainEntities ?? {}).map((e: any) => e.name);
+                const newName = getNextName(existingNames, domainEntity.name);
+                lm.domainEntities = lm.domainEntities ?? {};
+                lm.domainEntities[newElementId] = { ...domainEntity, id: newElementId, name: newName, attributeIds: newAttrIds };
+              } else if (cls) {
                 const newAttrIds: string[] = [];
                 const newAttrs: IRAttribute[] = [];
                 for (const aid of cls.attributeIds) {
@@ -316,15 +334,19 @@ export function useNodeActions({
         const cls = ms.model.classes[elementId];
         const iface = ms.model.interfaces[elementId];
         const enm = ms.model.enums[elementId];
+        const domainEntity = ms.model.domainEntities?.[elementId];
 
         // Pre-compute new IDs for attrs/ops outside the transaction so they're consistent
         const attrMap = new Map<string, string>();
         const opMap = new Map<string, string>();
+        const domainAttrMap = new Map<string, string>();
         if (cls) {
           cls.attributeIds.forEach((id) => attrMap.set(id, crypto.randomUUID()));
           cls.operationIds.forEach((id) => opMap.set(id, crypto.randomUUID()));
         } else if (iface) {
           iface.operationIds.forEach((id) => opMap.set(id, crypto.randomUUID()));
+        } else if (domainEntity) {
+          domainEntity.attributeIds.forEach((id) => domainAttrMap.set(id, crypto.randomUUID()));
         }
 
         undoTransaction({
@@ -336,7 +358,17 @@ export function useNodeActions({
               mutate: (draft: any) => {
                 if (!draft.model) return;
                 const m = draft.model;
-                if (cls) {
+                if (domainEntity) {
+                  const newAttrIds = domainEntity.attributeIds.map((id: string) => domainAttrMap.get(id)!);
+                  domainEntity.attributeIds.forEach((id: string) => {
+                    const a = m.domainAttributes?.[id];
+                    if (a) { m.domainAttributes = m.domainAttributes ?? {}; m.domainAttributes[domainAttrMap.get(id)!] = { ...a, id: domainAttrMap.get(id)! }; }
+                  });
+                  const existingNames = Object.values(m.domainEntities ?? {}).map((e: any) => e.name);
+                  const newName = getNextName(existingNames, domainEntity.name);
+                  m.domainEntities = m.domainEntities ?? {};
+                  m.domainEntities[newElementId] = { ...domainEntity, id: newElementId, name: newName, attributeIds: newAttrIds };
+                } else if (cls) {
                   const newAttrIds = cls.attributeIds.map((id: string) => attrMap.get(id)!);
                   const newOpIds = cls.operationIds.map((id: string) => opMap.get(id)!);
                   cls.attributeIds.forEach((id: string) => {

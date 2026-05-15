@@ -19,6 +19,7 @@ import {
   isActorViewModel,
   isUseCaseViewModel,
   isSystemBoundaryViewModel,
+  isDomainEntityViewModel,
   type NodeViewModel,
   type PackageViewModel,
 } from '../adapters/react-flow/view-models/node.view-model';
@@ -28,6 +29,7 @@ import { getPackageShapeSize } from '../canvas/shapes/PackageShape';
 import { getActorShapeSize } from '../canvas/shapes/ActorShape';
 import { getUseCaseShapeSize } from '../canvas/shapes/UseCaseShape';
 import { getSystemBoundaryShapeSize } from '../canvas/shapes/SystemBoundaryShape';
+import { getDomainEntityShapeSize } from '../canvas/shapes/DomainEntityShape';
 import { diagramToSvg } from '../canvas/export/diagramToSvg';
 
 export interface ExportImageOptions {
@@ -83,6 +85,7 @@ function calculateBoundsFromShapes(shapes: ShapeDescriptor[]): DiagramBounds | n
     else if (isActorViewModel(vm))             { ({ width, height } = getActorShapeSize(vm)); }
     else if (isUseCaseViewModel(vm))           { ({ width, height } = getUseCaseShapeSize(vm)); }
     else if (isSystemBoundaryViewModel(vm))    { ({ width, height } = getSystemBoundaryShapeSize(vm)); }
+    else if (isDomainEntityViewModel(vm))      { ({ width, height } = getDomainEntityShapeSize(vm)); }
     else                                       { ({ width, height } = getClassShapeSize(vm as NodeViewModel)); }
 
     minX = Math.min(minX, shape.x);

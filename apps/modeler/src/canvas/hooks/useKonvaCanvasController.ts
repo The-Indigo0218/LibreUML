@@ -16,7 +16,7 @@
 
 import { useMemo } from 'react';
 import { useVFSCanvasController } from '../../features/diagram/hooks/useVFSCanvasController';
-import { isNoteViewModel, isPackageViewModel, isSystemBoundaryViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import { isNoteViewModel, isPackageViewModel, isSystemBoundaryViewModel, isUCModuleViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import type {
   ShapeDescriptor,
   EdgeDescriptor,
@@ -75,8 +75,8 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
         };
       }
       
-      // System boundaries also need stored dimensions (same as packages)
-      if (isSystemBoundaryViewModel(n.data)) {
+      // System boundaries and UC modules need stored dimensions (same as packages)
+      if (isSystemBoundaryViewModel(n.data) || isUCModuleViewModel(n.data)) {
         return {
           id: n.id,
           type: 'class' as const,
@@ -106,6 +106,7 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
       sourceId: e.source,
       targetId: e.target,
       kind: e.data.kind,
+      label: e.data.label,
       sourceMultiplicity: e.data.sourceMultiplicity,
       targetMultiplicity: e.data.targetMultiplicity,
       sourceRole: e.data.sourceRole,

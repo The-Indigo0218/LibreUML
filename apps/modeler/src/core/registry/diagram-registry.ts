@@ -16,6 +16,7 @@ import type {
   ActorNode,
   UseCaseNode,
   SystemBoundaryNode,
+  UCModuleNode,
 } from '../domain/models/nodes/use-case.types';
 import type {
   AssociationEdge,
@@ -35,8 +36,11 @@ import type {
   ExtendEdge,
   GeneralizationEdge,
 } from '../domain/models/edges/use-case.types';
+import type { DomainEntityNode } from '../domain/models/nodes/domain-model.types';
+import type { DomainAssociationEdge } from '../domain/models/edges/domain-model.types';
 import { classDiagramValidator } from '../validation/class-diagram.validator';
 import { useCaseDiagramValidator } from '../validation/use-case.validator';
+import { domainModelDiagramValidator } from '../validation/domain-model.validator';
 
 
 /**
@@ -223,6 +227,13 @@ function createUseCaseDiagramNode(
         name: (partial && 'name' in partial ? partial.name : undefined) || 'System',
         containedUseCaseIds: [],
       } as SystemBoundaryNode;
+
+    case 'UC_MODULE':
+      return {
+        ...baseNode,
+        type: 'UC_MODULE',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'Module',
+      } as UCModuleNode;
 
     default:
       throw new Error(`Unknown Use Case Diagram node type: ${type}`);
@@ -452,7 +463,7 @@ const useCaseDiagramRegistry: DiagramTypeRegistry = {
   displayName: 'Use Case Diagram',
   icon: 'users',
 
-  supportedNodeTypes: ['ACTOR', 'USE_CASE', 'SYSTEM_BOUNDARY'],
+  supportedNodeTypes: ['ACTOR', 'USE_CASE', 'SYSTEM_BOUNDARY', 'UC_MODULE'],
   supportedEdgeTypes: ['ASSOCIATION', 'INCLUDE', 'EXTEND', 'GENERALIZATION'],
 
   defaultNodeType: 'USE_CASE',
@@ -483,6 +494,14 @@ const useCaseDiagramRegistry: DiagramTypeRegistry = {
         icon: 'Square',
         color: '#8B5CF6',
         translationKey: 'sidebar.nodes.systemBoundary',
+      },
+      {
+        id: 'uc_module',
+        type: 'NODE',
+        label: 'Module',
+        icon: 'Package',
+        color: '#0d9488',
+        translationKey: 'sidebar.nodes.ucModule',
       },
     ],
     edges: [
@@ -548,14 +567,142 @@ const useCaseDiagramRegistry: DiagramTypeRegistry = {
 };
 
 /**
+ * Factory function for creating Domain Model Diagram nodes.
+ */
+function createDomainModelDiagramNode(
+  type: string,
+  partial?: Partial<DomainNode>
+): DomainNode {
+  const now = Date.now();
+  const baseNode = {
+    id: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+    ...partial,
+  };
+
+  switch (type) {
+    case 'DOMAIN_ENTITY':
+      return {
+        ...baseNode,
+        type: 'DOMAIN_ENTITY',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'Entity',
+        attributes: [],
+      } as DomainEntityNode;
+
+    default:
+      throw new Error(`Unknown Domain Model Diagram node type: ${type}`);
+  }
+}
+
+/**
+ * Factory function for creating Domain Model Diagram edges.
+ */
+function createDomainModelDiagramEdge(
+  type: string,
+  sourceId: string,
+  targetId: string,
+  partial?: Partial<DomainEdge>
+): DomainEdge {
+  const now = Date.now();
+  const baseEdge = {
+    id: crypto.randomUUID(),
+    sourceNodeId: sourceId,
+    targetNodeId: targetId,
+    createdAt: now,
+    updatedAt: now,
+    ...partial,
+  };
+
+  switch (type) {
+    case 'ASSOCIATION':
+      return {
+        ...baseEdge,
+        type: 'ASSOCIATION',
+        label: (partial && 'label' in partial ? (partial as Partial<DomainAssociationEdge>).label : undefined) || '',
+      } as DomainAssociationEdge;
+
+    default:
+      throw new Error(`Unknown Domain Model Diagram edge type: ${type}`);
+  }
+}
+
+/**
+ * Domain Model Diagram Registry Entry
+ */
+const domainModelDiagramRegistry: DiagramTypeRegistry = {
+  type: 'DOMAIN_MODEL_DIAGRAM',
+  displayName: 'Domain Model',
+  icon: 'network',
+
+  supportedNodeTypes: ['DOMAIN_ENTITY'],
+  supportedEdgeTypes: ['ASSOCIATION'],
+
+  defaultNodeType: 'DOMAIN_ENTITY',
+  defaultEdgeType: 'ASSOCIATION',
+
+  tools: {
+    nodes: [
+      {
+        id: 'domain_entity',
+        type: 'NODE',
+        label: 'Entity',
+        icon: 'Box',
+        color: '#F59E0B',
+        translationKey: 'sidebar.nodes.domainEntity',
+      },
+    ],
+    edges: [
+      {
+        id: 'association',
+        type: 'EDGE',
+        label: 'Association',
+        icon: 'MoveRight',
+        translationKey: 'sidebar.connections.association',
+      },
+    ],
+  },
+
+  codeGenerationActions: [],
+
+  exportActions: [
+    {
+      id: 'export-image',
+      label: 'Export Image',
+      translationKey: 'menubar.export.image',
+      icon: 'ImageIcon',
+      enabled: true,
+    },
+    {
+      id: 'export-xmi',
+      label: 'Export XMI',
+      translationKey: 'menubar.export.xmi',
+      icon: 'FileCode2',
+      enabled: true,
+    },
+  ],
+
+  nodeComponents: {},
+  edgeComponents: {},
+
+  validator: domainModelDiagramValidator,
+
+  factories: {
+    createNode: createDomainModelDiagramNode,
+    createEdge: createDomainModelDiagramEdge,
+  },
+};
+
+/**
  * Global Diagram Registry (Singleton)
- * 
+ *
  * This is the central registry for all diagram types in the application.
  * Each diagram type registers its capabilities, validators, and factory functions.
  */
 export const diagramRegistry: DiagramRegistryMap = {
   CLASS_DIAGRAM: classDiagramRegistry,
   USE_CASE_DIAGRAM: useCaseDiagramRegistry,
+  DOMAIN_MODEL_DIAGRAM: domainModelDiagramRegistry,
 };
 
 /**

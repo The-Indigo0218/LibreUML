@@ -123,7 +123,9 @@
       "note": "Note",
       "actor": "Actor",
       "useCase": "Use Case",
-      "systemBoundary": "System Boundary"
+      "systemBoundary": "System Boundary",
+      "ucModule": "Module",
+      "domainEntity": "Entity"
     },
     "connections": {
       "title": "Connections",
@@ -136,13 +138,6 @@
       "include": "«include»",
       "extend": "«extend»",
       "generalization": "Generalization"
-    },
-    "legend": {
-      "title": "Connection Logic",
-      "source": "handles are Source",
-      "target": "handles are Target",
-      "blue": "Blue",
-      "green": "Green"
     }
   },
   "contextMenu": {
@@ -154,7 +149,9 @@
       "cleanCanvas": "Clean Canvas",
       "addActor": "Add Actor",
       "addUseCase": "Add Use Case",
-      "addSystemBoundary": "Add System Boundary"
+      "addSystemBoundary": "Add System Boundary",
+      "addModule": "Add Module",
+      "addDomainEntity": "Add Entity"
     },
     "node": {
       "duplicate": "Duplicate",
@@ -296,7 +293,9 @@
       "svgWarningMessage": "Some image viewers on Windows, Mac, or Linux might not display the exported SVG correctly because it uses embedded HTML/CSS for styling.",
       "svgTip": "If the file looks empty or broken, try opening the .svg file in a web browser (Chrome, Edge, Firefox).",
       "dontShowAgain": "Don't show this warning again",
-      "wait": "Read this"
+      "wait": "Read this",
+      "preview": "Preview",
+      "previewing": "Generating…"
     },
     "importCode": {
       "title": "Import Java Code",

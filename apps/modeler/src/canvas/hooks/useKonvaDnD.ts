@@ -11,6 +11,7 @@ import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/domain/vfs/vfs.types';
 import type { stereotype } from '../../features/diagram/types/diagram.types';
 import { SB_DEFAULT_W, SB_DEFAULT_H } from '../shapes/SystemBoundaryShape';
+import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../shapes/UCModuleShape';
 
 export const DRAG_TYPE_NEW = 'application/libreuml-node' as const;
 export const DRAG_TYPE_EXISTING = 'application/libreuml-existing-node' as const;
@@ -133,6 +134,37 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
       lm.updatedAt = Date.now();
     },
     initialDimensions: { width: SB_DEFAULT_W, height: SB_DEFAULT_H },
+  },
+  uc_module: {
+    getNextName: (model) =>
+      getNextVFSName(Object.values(model.ucModules ?? {}).map((m) => m.name), 'Module'),
+    applyToModelDraft: (m, id, name) => {
+      m.ucModules = m.ucModules ?? {};
+      m.ucModules[id] = { id, name, kind: 'UC_MODULE' };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.ucModules = lm.ucModules ?? {};
+      lm.ucModules[id] = { id, name, kind: 'UC_MODULE' };
+      lm.updatedAt = Date.now();
+    },
+    initialDimensions: { width: UCM_DEFAULT_W, height: UCM_DEFAULT_H },
+  },
+  domain_entity: {
+    getNextName: (model) =>
+      getNextVFSName(Object.values(model.domainEntities ?? {}).map((e) => e.name), 'Entity'),
+    applyToModelDraft: (m, id, name) => {
+      m.domainEntities = m.domainEntities ?? {};
+      m.domainAttributes = m.domainAttributes ?? {};
+      m.domainEntities[id] = { id, name, kind: 'DOMAIN_ENTITY', attributeIds: [] };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.domainEntities = lm.domainEntities ?? {};
+      lm.domainAttributes = lm.domainAttributes ?? {};
+      lm.domainEntities[id] = { id, name, kind: 'DOMAIN_ENTITY', attributeIds: [] };
+      lm.updatedAt = Date.now();
+    },
   },
   package: {
     getNextName: (model) => getNextVFSName(Object.values(model.packages).map((p) => p.name), 'Package'),

@@ -30,6 +30,7 @@ export interface EdgeDescriptor {
   targetId: string;
   kind: RelationKind;
   // Label data (MAG-01.28)
+  label?: string;
   sourceMultiplicity?: string;
   targetMultiplicity?: string;
   sourceRole?: string;

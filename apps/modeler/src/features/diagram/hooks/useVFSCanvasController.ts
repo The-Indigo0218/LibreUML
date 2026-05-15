@@ -31,6 +31,8 @@ import type {
   IRActor,
   IRUseCase,
   IRSystemBoundary,
+  IRUCModule,
+  IRDomainEntity,
   SemanticModel,
   RelationKind,
 } from '../../../core/domain/vfs/vfs.types';
@@ -41,10 +43,13 @@ import type {
   ActorViewModel,
   UseCaseViewModel,
   SystemBoundaryViewModel,
+  UCModuleViewModel,
+  DomainEntityViewModel,
   NodeStyleConfig,
   NodeSection,
 } from '../../../adapters/react-flow/view-models/node.view-model';
 import { SB_DEFAULT_W, SB_DEFAULT_H } from '../../../canvas/shapes/SystemBoundaryShape';
+import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../../../canvas/shapes/UCModuleShape';
 import type { Visibility } from '../../../core/domain/vfs/vfs.types';
 
 // ─── Type guard ───────────────────────────────────────────────────────────────
@@ -201,10 +206,10 @@ function buildSections(
 
 // ─── Semantic resolution ──────────────────────────────────────────────────────
 
-type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'ACTOR' | 'USECASE' | 'SYSTEM_BOUNDARY' | 'UNKNOWN';
+type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'ACTOR' | 'USECASE' | 'SYSTEM_BOUNDARY' | 'UC_MODULE' | 'DOMAIN_ENTITY' | 'UNKNOWN';
 
 interface ResolvedElement {
-  element: IRClass | IRInterface | IREnum | IRPackage | IRActor | IRUseCase | IRSystemBoundary | null;
+  element: IRClass | IRInterface | IREnum | IRPackage | IRActor | IRUseCase | IRSystemBoundary | IRUCModule | IRDomainEntity | null;
   kind: SemanticKind;
 }
 
@@ -236,6 +241,12 @@ function resolveSemanticElement(model: SemanticModel, elementId: string): Resolv
 
   const sb = model.systemBoundaries?.[elementId];
   if (sb) return { element: sb, kind: 'SYSTEM_BOUNDARY' };
+  const ucm = model.ucModules?.[elementId];
+  if (ucm) return { element: ucm, kind: 'UC_MODULE' };
+
+  // TODO(post-v1 Fase 2): mover a ShapeRouter
+  const de = model.domainEntities?.[elementId];
+  if (de) return { element: de, kind: 'DOMAIN_ENTITY' };
 
   return { element: null, kind: 'UNKNOWN' };
 }
@@ -462,13 +473,70 @@ function makeReactFlowSystemBoundaryNode(
   };
 }
 
+function makeReactFlowUCModuleNode(
+  viewNode: ViewNode,
+  ucm: IRUCModule,
+  allViewNodes: ViewNode[],
+  onRename: (name: string) => void,
+) {
+  const vm: UCModuleViewModel = {
+    __brand: 'ucModule',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    name: ucm.name,
+    width: viewNode.width ?? UCM_DEFAULT_W,
+    height: viewNode.height ?? UCM_DEFAULT_H,
+    onRename,
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlUCModule',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
+function makeReactFlowDomainEntityNode(
+  viewNode: ViewNode,
+  entity: IRDomainEntity,
+  model: SemanticModel,
+  allViewNodes: ViewNode[],
+  onRename: (name: string) => void,
+  onOpenProps: () => void,
+) {
+  const attributes = entity.attributeIds
+    .map((id) => model.domainAttributes?.[id])
+    .filter((a): a is NonNullable<typeof a> => !!a)
+    .map((a) => ({ id: a.id, name: a.name }));
+
+  const vm: DomainEntityViewModel = {
+    __brand: 'domainEntity',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    name: entity.name,
+    attributes,
+    onRename,
+    onOpenProps,
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlDomainEntity',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
 export type VFSReactFlowNode =
   | ReturnType<typeof makeReactFlowNode>
   | ReturnType<typeof makeReactFlowNoteNode>
   | ReturnType<typeof makeReactFlowPackageNode>
   | ReturnType<typeof makeReactFlowActorNode>
   | ReturnType<typeof makeReactFlowUseCaseNode>
-  | ReturnType<typeof makeReactFlowSystemBoundaryNode>;
+  | ReturnType<typeof makeReactFlowSystemBoundaryNode>
+  | ReturnType<typeof makeReactFlowUCModuleNode>
+  | ReturnType<typeof makeReactFlowDomainEntityNode>;
 
 // ─── Edge type ────────────────────────────────────────────────────────────────
 
@@ -484,6 +552,7 @@ export interface VFSReactFlowEdge {
     domainId: string;
     kind: RelationKind;
     isHovered: boolean;
+    label?: string;
     sourceMultiplicity?: string;
     targetMultiplicity?: string;
     sourceRole?: string;
@@ -768,6 +837,38 @@ export function useVFSCanvasController(): VFSCanvasResult {
         return makeReactFlowSystemBoundaryNode(viewNode, element as IRSystemBoundary, diagramView.nodes, onRenameSB);
       }
 
+      if (kind === 'UC_MODULE') {
+        const onRenameUCM = (name: string) => {
+          if (isStandalone && activeTabId) {
+            standaloneModelOps(activeTabId).updateUCModule(viewNode.elementId, { name });
+          } else {
+            useModelStore.getState().updateUCModule(viewNode.elementId, { name });
+          }
+        };
+        return makeReactFlowUCModuleNode(viewNode, element as IRUCModule, diagramView.nodes, onRenameUCM);
+      }
+
+      // TODO(post-v1 Fase 2): mover a ShapeRouter
+      if (kind === 'DOMAIN_ENTITY') {
+        const onRenameDomainEntity = (name: string) => {
+          if (isStandalone && activeTabId) {
+            standaloneModelOps(activeTabId).updateDomainEntity(viewNode.elementId, { name });
+          } else {
+            useModelStore.getState().updateDomainEntity(viewNode.elementId, { name });
+          }
+        };
+        const onOpenDomainEntityProps = () =>
+          useUiStore.getState().openDomainEntityProps(viewNode.elementId);
+        return makeReactFlowDomainEntityNode(
+          viewNode,
+          element as IRDomainEntity,
+          model,
+          diagramView.nodes,
+          onRenameDomainEntity,
+          onOpenDomainEntityProps,
+        );
+      }
+
       const label = element?.name ?? 'NewClass';
       const displayConfig = VFS_DISPLAY[kind] ?? VFS_DISPLAY.CLASS;
       const sections = element ? buildSections(model, element as IRClass | IRInterface | IREnum, kind) : [];
@@ -856,8 +957,9 @@ export function useVFSCanvasController(): VFSCanvasResult {
           domainId: relation.id,
           kind: relation.kind,
           isHovered: false,
-          sourceMultiplicity: viewEdge.sourceMultiplicity,
-          targetMultiplicity: viewEdge.targetMultiplicity,
+          label: relation.name || undefined,
+          sourceMultiplicity: relation.sourceEnd?.multiplicity ?? viewEdge.sourceMultiplicity,
+          targetMultiplicity: relation.targetEnd?.multiplicity ?? viewEdge.targetMultiplicity,
           sourceRole: viewEdge.sourceRole,
           targetRole: viewEdge.targetRole,
           anchorLocked: viewEdge.anchorLocked,

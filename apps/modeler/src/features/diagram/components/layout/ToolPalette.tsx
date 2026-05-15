@@ -151,32 +151,6 @@ export default function ToolPalette() {
             })}
           </div>
 
-          <div className="px-4 py-4 pb-10 pt-6 border-t border-surface-border bg-surface-secondary/30">
-            <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-3">
-              {t("sidebar.legend.title")}
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-sm shadow-sm ring-1 ring-blue-500/30 shrink-0"></div>
-                <span className="text-xs text-text-secondary leading-relaxed">
-                  <span className="font-semibold text-text-primary">
-                    {t("sidebar.legend.blue")}
-                  </span>{" "}
-                  {t("sidebar.legend.source")}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-sm shadow-sm ring-1 ring-green-500/30 shrink-0"></div>
-                <span className="text-xs text-text-secondary leading-relaxed">
-                  <span className="font-semibold text-text-primary">
-                    {t("sidebar.legend.green")}
-                  </span>{" "}
-                  {t("sidebar.legend.target")}
-                </span>
-              </div>
-            </div>
-          </div>
         </CollapsibleSection>
       </div>
     </div>

@@ -106,8 +106,8 @@ export interface KonvaUseCaseColors {
 /** Stick-figure stroke and label color for Actor nodes. */
 export function resolveActorColors(): KonvaUseCaseColors {
   const dark = isDark();
-  const stroke = dark ? '#e6e9f2' : '#1e293b';
-  return { stroke, fill: '#ffffff', text: getCSSVar('--text-primary') };
+  const color = dark ? '#cbd5e1' : '#334155'; // slate-300 on dark, slate-700 on light
+  return { stroke: color, fill: 'transparent', text: color };
 }
 
 /** Ellipse stroke, fill, and label color for UseCase nodes. */
@@ -124,4 +124,42 @@ export function resolveUseCaseColors(): KonvaUseCaseColors {
 export function resolveSystemBoundaryColors(): KonvaUseCaseColors {
   const text = getCSSVar('--text-secondary');
   return { stroke: text, fill: 'transparent', text };
+}
+
+export interface KonvaUCModuleColors {
+  border: string;
+  tabBg: string;
+  bodyBg: string;
+  text: string;
+}
+
+/** Teal palette for UC Module container nodes. */
+export function resolveUCModuleColors(): KonvaUCModuleColors {
+  const dark = isDark();
+  return {
+    border:  dark ? '#2dd4bf' : '#0d9488', // teal-400 / teal-600
+    tabBg:   dark ? '#0f3d38' : '#ccfbf1', // teal-900/40 / teal-100
+    bodyBg:  dark ? 'rgba(13,148,136,0.06)' : 'rgba(204,251,241,0.35)',
+    text:    dark ? '#99f6e4' : '#0f766e', // teal-200 / teal-700
+  };
+}
+
+export interface KonvaDomainEntityColors {
+  bg: string;
+  headerBg: string;
+  border: string;
+  text: string;
+  textMuted: string;
+}
+
+/** Warm amber palette for Domain Entity nodes. */
+export function resolveDomainEntityColors(): KonvaDomainEntityColors {
+  const dark = isDark();
+  return {
+    bg:        dark ? '#1c1208' : '#fffbeb',
+    headerBg:  dark ? '#2d1f0a' : '#fef3c7',
+    border:    dark ? '#d97706' : '#f59e0b',
+    text:      getCSSVar('--text-primary'),
+    textMuted: getCSSVar('--text-secondary'),
+  };
 }

@@ -28,11 +28,13 @@ import {
   isActorViewModel,
   isUseCaseViewModel,
   isSystemBoundaryViewModel,
+  isDomainEntityViewModel,
   type NodeViewModel,
   type NoteViewModel,
   type ActorViewModel,
   type UseCaseViewModel,
   type SystemBoundaryViewModel,
+  type DomainEntityViewModel,
 } from '../../adapters/react-flow/view-models/node.view-model';
 import { resolveNodeColors, resolveNoteColors, resolveActorColors, resolveUseCaseColors, resolveSystemBoundaryColors } from '../tokens/colors';
 import { getClassShapeSize, computeClassLayout } from '../shapes/ClassShape';
@@ -40,6 +42,7 @@ import { getNoteShapeSize } from '../shapes/NoteShape';
 import { getActorShapeSize } from '../shapes/ActorShape';
 import { getUseCaseShapeSize } from '../shapes/UseCaseShape';
 import { getSystemBoundaryShapeSize } from '../shapes/SystemBoundaryShape';
+import { getDomainEntityShapeSize } from '../shapes/DomainEntityShape';
 import {
   selectAnchors,
   retractAnchor,
@@ -139,6 +142,7 @@ export function diagramToSvg(
       if (isActorViewModel(vm))           return svgActorShape(shape, vm);
       if (isUseCaseViewModel(vm))         return svgUseCaseShape(shape, vm);
       if (isSystemBoundaryViewModel(vm))  return svgSystemBoundaryShape(shape, vm);
+      if (isDomainEntityViewModel(vm))    return svgDomainEntityShape(shape, vm);
       return svgClassShape(shape, vm as NodeViewModel);
     })
     .join('\n');
@@ -232,6 +236,7 @@ function buildBoundsMap(shapes: ShapeDescriptor[]): Map<string, NodeBounds> {
     else if (isActorViewModel(vm))      { ({ width, height } = getActorShapeSize(vm)); }
     else if (isUseCaseViewModel(vm))    { ({ width, height } = getUseCaseShapeSize(vm)); }
     else if (isSystemBoundaryViewModel(vm)) { ({ width, height } = getSystemBoundaryShapeSize(vm)); }
+    else if (isDomainEntityViewModel(vm)) { ({ width, height } = getDomainEntityShapeSize(vm)); }
     else                                { ({ width, height } = getClassShapeSize(vm as NodeViewModel)); }
     map.set(shape.id, { x: shape.x, y: shape.y, width, height });
   }
@@ -344,6 +349,37 @@ function svgSystemBoundaryShape(shape: ShapeDescriptor, vm: SystemBoundaryViewMo
     `  <rect width="${W}" height="${H}" fill="none" stroke="${stroke}" stroke-width="${STROKE_W}" stroke-dasharray="8,5"/>`,
     `  <text x="${SB_TITLE_PAD_X}" y="${SB_TITLE_PAD_Y + SB_TITLE_FONT}" font-family="${FONT_SANS}" font-size="${SB_TITLE_FONT}" fill="${stroke}">${escapeXml(vm.name)}</text>`,
     `  <line x1="0" y1="${SB_TITLE_PAD_Y + SB_TITLE_H}" x2="${W}" y2="${SB_TITLE_PAD_Y + SB_TITLE_H}" stroke="${stroke}" stroke-width="1" opacity="0.4"/>`,
+    `</g>`,
+  ].join('\n');
+}
+
+// ─── Domain Model shapes ──────────────────────────────────────────────────────
+
+function svgDomainEntityShape(shape: ShapeDescriptor, vm: DomainEntityViewModel): string {
+  const { width: W, height: H } = getDomainEntityShapeSize(vm);
+  const x = shape.x;
+  const y = shape.y;
+  const BORDER = '#f59e0b';
+  const HEADER_BG = '#fef3c7';
+  const TEXT = '#1e293b';
+  const MUTED = '#475569';
+  const H_PAD = 12;
+  const HEADER_H = 42;
+  const ATTR_ROW_H = 20;
+  const ATTR_START_Y = HEADER_H + 6;
+
+  const attrLines = vm.attributes.map((a, i) =>
+    `  <text x="${H_PAD}" y="${ATTR_START_Y + (i + 1) * ATTR_ROW_H - 4}" font-family="${FONT_SANS}" font-size="12" fill="${MUTED}">${escapeXml(a.name)}</text>`,
+  );
+
+  return [
+    `<g transform="translate(${x},${y})">`,
+    `  <rect width="${W}" height="${H}" fill="#fffbeb" stroke="${BORDER}" stroke-width="3" rx="4"/>`,
+    `  <rect width="${W}" height="${HEADER_H}" fill="${HEADER_BG}" rx="4"/>`,
+    `  <rect y="2" width="${W}" height="${HEADER_H - 2}" fill="${HEADER_BG}"/>`,
+    `  <text x="${W / 2}" y="${HEADER_H / 2 + 5}" font-family="${FONT_SANS}" font-size="14" font-weight="bold" fill="${TEXT}" text-anchor="middle">${escapeXml(vm.name)}</text>`,
+    `  <line x1="0" y1="${HEADER_H}" x2="${W}" y2="${HEADER_H}" stroke="${BORDER}" stroke-width="3"/>`,
+    ...attrLines,
     `</g>`,
   ].join('\n');
 }

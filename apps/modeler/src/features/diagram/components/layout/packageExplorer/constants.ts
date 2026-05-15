@@ -11,6 +11,7 @@ export const CLASS_ICON_CONFIG: Record<stereotype, { bg: string; letter: string;
   use_case: { bg: "#7C83FF", letter: "U", color: "#FFFFFF" },
   system_boundary: { bg: "#607D8B", letter: "S", color: "#FFFFFF" },
   domain_entity: { bg: "#F59E0B", letter: "E", color: "#FFFFFF" },
+  uc_module: { bg: "#5C7CFA", letter: "M", color: "#FFFFFF" },
 };
 
 export const THEME_COLORS = {

@@ -35,7 +35,7 @@ function reconstructProject(full: ProjectFullResponse): LibreUMLProject | null {
         nodes[diag.path] = {
           ...file,
           content: diagramContent,
-          ...(file.standalone && _localModel ? { localModel: _localModel } : {}),
+          ...(file.standalone && _localModel ? { localModel: _localModel as SemanticModel } : {}),
         };
       }
     }

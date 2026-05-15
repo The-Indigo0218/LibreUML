@@ -185,7 +185,8 @@ export function usePackageDrop({
                 // When removing from a UC module, convert back to absolute
                 if (!targetPackageId && currentParentId) {
                   const prevParent = file.content.nodes.find((vn: any) => vn.id === currentParentId);
-                  if (prevParent && isUCModuleViewModel(shapes.find((s) => s.id === currentParentId)?.data)) {
+                  const prevParentData = shapes.find((s) => s.id === currentParentId)?.data;
+                  if (prevParent && prevParentData && isUCModuleViewModel(prevParentData)) {
                     viewNode.x = (viewNode.x ?? 0) + (prevParent.x ?? 0);
                     viewNode.y = (viewNode.y ?? 0) + (prevParent.y ?? 0);
                   }
@@ -225,7 +226,8 @@ export function usePackageDrop({
                 }
                 if (!targetPackageId && currentParentId) {
                   const prevParent = file.content.nodes.find((vn: any) => vn.id === currentParentId);
-                  if (prevParent && isUCModuleViewModel(shapes.find((s) => s.id === currentParentId)?.data)) {
+                  const prevParentData = shapes.find((s) => s.id === currentParentId)?.data;
+                  if (prevParent && prevParentData && isUCModuleViewModel(prevParentData)) {
                     viewNode.x = (viewNode.x ?? 0) + (prevParent.x ?? 0);
                     viewNode.y = (viewNode.y ?? 0) + (prevParent.y ?? 0);
                   }

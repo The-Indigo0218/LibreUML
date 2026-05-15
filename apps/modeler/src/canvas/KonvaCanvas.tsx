@@ -438,7 +438,7 @@ export default function KonvaCanvas() {
             maxDepth = shape.data.depth;
             foundPackage = shape.id;
           }
-        } else if (isSystemBoundaryViewModel(shape.data)) {
+        } else if (isSystemBoundaryViewModel(shape.data) || isUCModuleViewModel(shape.data)) {
           foundBoundary = shape.id;
         }
       }

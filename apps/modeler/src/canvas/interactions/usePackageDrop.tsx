@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { isPackageViewModel, isSystemBoundaryViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import { isPackageViewModel, isSystemBoundaryViewModel, isUCModuleViewModel } from '../../adapters/react-flow/view-models/node.view-model';
 import type { NodeBounds } from '../edges/geometry';
 import type { ShapeDescriptor } from '../types/canvas.types';
 import { undoTransaction } from '../../core/undo/undoBridge';
@@ -121,19 +121,21 @@ export function usePackageDrop({
 
       const isPackageDrop = droppedShape?.data && isPackageViewModel(droppedShape.data);
       const isBoundaryDrop = droppedShape?.data && isSystemBoundaryViewModel(droppedShape.data);
+      const isModuleDrop = droppedShape?.data && isUCModuleViewModel(droppedShape.data);
 
-      // System boundaries can't be nested inside other things
-      if (isBoundaryDrop) return;
+      // Containers can't be nested inside other things
+      if (isBoundaryDrop || isModuleDrop) return;
 
-      // Determine if target is a package or a system boundary
+      // Determine if target is a package, a system boundary, or a UC module
       const targetShape = targetPackageId ? shapes.find((s) => s.id === targetPackageId) : null;
       const targetIsBoundary = targetShape ? isSystemBoundaryViewModel(targetShape.data) : false;
+      const targetIsModule = targetShape ? isUCModuleViewModel(targetShape.data) : false;
 
       // Pre-compute the effective package path (walks ViewNode hierarchy) so we can
       // write element.packageName and keep the Model Explorer in sync.
-      // Skip for system boundary targets — actors/use cases have no packageName.
+      // Skip for boundary/module targets — UC actors/use cases have no packageName.
       let effectivePkgPath: string | undefined;
-      if (!isPackageDrop && !targetIsBoundary) {
+      if (!isPackageDrop && !targetIsBoundary && !targetIsModule) {
         const vfsProject = useVFSStore.getState().project;
         const file = vfsProject?.nodes[activeTabId] as any;
         if (file && isDiagramView(file.content)) {
@@ -153,6 +155,8 @@ export function usePackageDrop({
       const label = targetPackageId
         ? targetIsBoundary
           ? `Move into boundary: ${packageName ?? targetPackageId}`
+          : targetIsModule
+          ? `Move into module: ${packageName ?? targetPackageId}`
           : `Move into package: ${packageName ?? targetPackageId}`
         : 'Remove from container';
 
@@ -167,7 +171,26 @@ export function usePackageDrop({
               const file = draft.project.nodes[activeTabId];
               if (!isDiagramView(file.content)) return;
               const viewNode = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
-              if (viewNode) viewNode.parentPackageId = targetPackageId;
+              if (viewNode) {
+                viewNode.parentPackageId = targetPackageId;
+                // When assigning to a UC module, convert stored position to relative
+                // so that dragging the module brings its children along.
+                if (targetPackageId && targetIsModule) {
+                  const parentVN = file.content.nodes.find((vn: any) => vn.id === targetPackageId);
+                  if (parentVN) {
+                    viewNode.x = (viewNode.x ?? 0) - (parentVN.x ?? 0);
+                    viewNode.y = (viewNode.y ?? 0) - (parentVN.y ?? 0);
+                  }
+                }
+                // When removing from a UC module, convert back to absolute
+                if (!targetPackageId && currentParentId) {
+                  const prevParent = file.content.nodes.find((vn: any) => vn.id === currentParentId);
+                  if (prevParent && isUCModuleViewModel(shapes.find((s) => s.id === currentParentId)?.data)) {
+                    viewNode.x = (viewNode.x ?? 0) + (prevParent.x ?? 0);
+                    viewNode.y = (viewNode.y ?? 0) + (prevParent.y ?? 0);
+                  }
+                }
+              }
               // Sync element.packageName in localModel
               if (!isPackageDrop && file.localModel) {
                 const droppedVN = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
@@ -191,7 +214,23 @@ export function usePackageDrop({
               const file = draft.project.nodes[activeTabId];
               if (!isDiagramView(file.content)) return;
               const viewNode = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
-              if (viewNode) viewNode.parentPackageId = targetPackageId;
+              if (viewNode) {
+                viewNode.parentPackageId = targetPackageId;
+                if (targetPackageId && targetIsModule) {
+                  const parentVN = file.content.nodes.find((vn: any) => vn.id === targetPackageId);
+                  if (parentVN) {
+                    viewNode.x = (viewNode.x ?? 0) - (parentVN.x ?? 0);
+                    viewNode.y = (viewNode.y ?? 0) - (parentVN.y ?? 0);
+                  }
+                }
+                if (!targetPackageId && currentParentId) {
+                  const prevParent = file.content.nodes.find((vn: any) => vn.id === currentParentId);
+                  if (prevParent && isUCModuleViewModel(shapes.find((s) => s.id === currentParentId)?.data)) {
+                    viewNode.x = (viewNode.x ?? 0) + (prevParent.x ?? 0);
+                    viewNode.y = (viewNode.y ?? 0) + (prevParent.y ?? 0);
+                  }
+                }
+              }
             },
           },
         ];
@@ -245,6 +284,13 @@ export function usePackageDrop({
           });
         } else if (isSystemBoundaryViewModel(shape.data)) {
           // System boundaries act as containers with depth 0 (below packages)
+          packageBoundsMap.set(shape.id, {
+            bounds,
+            name: shape.data.name,
+            depth: 0,
+          });
+        } else if (isUCModuleViewModel(shape.data)) {
+          // UC modules act as containers with depth 0
           packageBoundsMap.set(shape.id, {
             bounds,
             name: shape.data.name,

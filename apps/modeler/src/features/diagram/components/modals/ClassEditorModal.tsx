@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { getDataTypes, type SupportedLanguage } from "../../../../config/dataTypeRegistry";
 import type {
   UmlClassData,
@@ -15,7 +14,6 @@ import type {
   AbstractClassNode,
   EnumNode,
 } from "../../../../core/domain/models";
-import type { ClassDiagramMetadata } from "../../../../core/domain/workspace/diagram-file.types";
 import { Plus, Trash2, ArrowUp, ArrowDown, Wand2, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -280,35 +278,10 @@ export default function ClassEditorModal({
 }: ClassEditorModalProps) {
   const nodes: never[] = [];
 
-  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
-  const getFile = useWorkspaceStore((s) => s.getFile);
-
-  const packages = useMemo(() => {
-    if (ssotContext)
-      return (ssotContext.packageNames ?? []).map((name, i) => ({ id: String(i), name }));
-    if (!activeFileId) return [];
-    const file = getFile(activeFileId);
-    if (!file) return [];
-
-    const classMeta = file.metadata as ClassDiagramMetadata | undefined;
-    const filePackages = classMeta?.packages ?? [];
-
-    const nodePackages = new Set<string>();
-    nodes.forEach((node) => {
-      if (!isPackageableNode(node)) return;
-      const pkg = node.package;
-      if (pkg?.trim()) nodePackages.add(pkg);
-    });
-
-    const allPackageNames = new Set([
-      ...filePackages.map((p) => p.name),
-      ...Array.from(nodePackages),
-    ]);
-
-    return Array.from(allPackageNames)
-      .sort()
-      .map((name) => ({ id: name, name }));
-  }, [activeFileId, getFile, nodes, ssotContext]);
+  const packages = useMemo(
+    () => (ssotContext?.packageNames ?? []).map((name, i) => ({ id: String(i), name })),
+    [ssotContext],
+  );
 
   const { t } = useTranslation();
 

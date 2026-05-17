@@ -5,21 +5,28 @@ import { MenubarTrigger } from "../../../../../components/ui/menubar/MenubarTrig
 import { MenubarItem } from "../../../../../components/ui/menubar/MenubarItem";
 import { useUiStore } from "../../../../../store/uiStore";
 import { useWorkspaceStore } from "../../../../../store/workspace.store";
+import { useVFSStore } from "../../../../../store/project-vfs.store";
 import { getDiagramRegistry } from "../../../../../core/registry/diagram-registry";
 import { getIconComponent } from "../../../../../core/registry/icon-map";
+import type { VFSFile } from "../../../../../core/domain/vfs/vfs.types";
 
 export function CodeMenu() {
   const { t } = useTranslation();
-  
-  const openSingleGenerator = useUiStore((s) => s.openSingleGenerator); 
-  const openProjectGenerator = useUiStore((s) => s.openProjectGenerator); 
+
+  const openSingleGenerator = useUiStore((s) => s.openSingleGenerator);
+  const openProjectGenerator = useUiStore((s) => s.openProjectGenerator);
   const openImportModal = useUiStore((s) => s.openImportCode);
   const openCodeExportConfig = useUiStore((s) => s.openCodeExportConfig);
 
-  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
-  const getFile = useWorkspaceStore((s) => s.getFile);
-  const activeFile = activeFileId ? getFile(activeFileId) : null;
-  const diagramType = activeFile?.diagramType || 'CLASS_DIAGRAM';
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const project = useVFSStore((s) => s.project);
+
+  const diagramType = (() => {
+    if (!activeTabId || !project) return 'CLASS_DIAGRAM';
+    const node = project.nodes[activeTabId];
+    if (node?.type === 'FILE') return (node as VFSFile).diagramType;
+    return 'CLASS_DIAGRAM';
+  })();
 
   const codeActions = useMemo(() => {
     try {

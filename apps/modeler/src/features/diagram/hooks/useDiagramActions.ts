@@ -1,5 +1,4 @@
-import { useCallback, useEffect } from "react"; 
-import { useWorkspaceStore } from "../../../store/workspace.store";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
 // Specialists
@@ -10,14 +9,9 @@ import { useAppLifecycle } from "./actions/useAppLifecycle";
 
 export const useDiagramActions = () => {
   const { t } = useTranslation();
-  
-  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
-  const getFile = useWorkspaceStore((s) => s.getFile);
 
-  const activeFile = activeFileId ? getFile(activeFileId) : undefined;
-  const isDirty = activeFile?.isDirty ?? false;
-  const currentFilePath = activeFile?.filePath;
-  const hasFilePath = !!currentFilePath;
+  const isDirty = false;
+  const hasFilePath = false;
 
   const { executeSafeAction, modalState } = useActionGuard();
 

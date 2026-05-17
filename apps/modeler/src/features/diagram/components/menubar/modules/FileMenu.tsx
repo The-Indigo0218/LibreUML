@@ -46,7 +46,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
 
   const activeProject = useVFSStore((s) => s.project);
   const closeProject = useVFSStore((s) => s.closeProject);
-  const closeAllFiles = useWorkspaceStore((s) => s.closeAllFiles);
+  const closeAllTabs = useWorkspaceStore((s) => s.closeAllTabs);
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const openOpenFileModal = useUiStore((s) => s.openOpenFileModal);
   const [isCloseProjectModalOpen, setIsCloseProjectModalOpen] = useState(false);
@@ -115,7 +115,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
     if (isCloseProjectWarningSuppressed()) {
       undoManager.clear();
       closeProject();
-      closeAllFiles();
+      closeAllTabs();
     } else {
       setIsCloseProjectModalOpen(true);
     }
@@ -240,7 +240,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
         onConfirm={() => {
           undoManager.clear();
           closeProject();
-          closeAllFiles();
+          closeAllTabs();
         }}
       />
 

@@ -385,7 +385,7 @@ export function loadParsedProject(
   model: SemanticModel | null,
 ): void {
   undoManager.clear();
-  useWorkspaceStore.getState().closeAllFiles();
+  useWorkspaceStore.getState().closeAllTabs();
   if (model !== null) {
     useModelStore.getState().loadModel(model);
   } else {

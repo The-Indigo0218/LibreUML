@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { useWorkspaceStore } from "../../../store/workspace.store";
 
 interface ConfirmationOptions {
   requireConfirm?: boolean;
@@ -8,12 +7,8 @@ interface ConfirmationOptions {
 }
 
 export const useActionGuard = () => {
-  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
-  const getFile = useWorkspaceStore((s) => s.getFile);
-  
-  const activeFile = activeFileId ? getFile(activeFileId) : undefined;
-  const isDirty = activeFile?.isDirty ?? false;
-  
+  const isDirty = false;
+
   const [modals, setModals] = useState({
     unsaved: {
       isOpen: false,
@@ -37,19 +32,6 @@ export const useActionGuard = () => {
 
 
   const executeSafeAction = useCallback((action: () => void, options?: ConfirmationOptions) => {
-    if (isDirty) {
-      const currentFile = activeFileId ? useWorkspaceStore.getState().getFile(activeFileId) : undefined;
-      setModals(prev => ({
-        ...prev,
-        unsaved: {
-          isOpen: true,
-          fileName: currentFile?.name || "Untitled",
-          pendingAction: action
-        }
-      }));
-      return;
-    }
-
     if (options?.requireConfirm) {
       setModals(prev => ({
         ...prev,
@@ -64,7 +46,7 @@ export const useActionGuard = () => {
     }
 
     action();
-  }, [isDirty, activeFileId]);
+  }, [isDirty]);
 
 
   const handleDiscard = useCallback(() => {

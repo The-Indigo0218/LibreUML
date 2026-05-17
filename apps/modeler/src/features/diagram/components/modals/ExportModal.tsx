@@ -120,8 +120,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
   const selectedFileName = selectedVFSFile?.name?.replace(/\.luml$/i, "") || "diagram";
 
-  const getFile = useWorkspaceStore((s) => s.getFile);
-  const legacyDiagramName = activeTabId ? getFile(activeTabId)?.name ?? "diagram" : "diagram";
+  const legacyDiagramName = activeTabId && project ? project.nodes[activeTabId]?.name ?? "diagram" : "diagram";
 
   const canvasBgColor =
     getComputedStyle(document.documentElement).getPropertyValue("--canvas-base").trim() || "#f8fafc";

@@ -13,6 +13,7 @@ export type DiagramType =
   | 'DEPLOYMENT_DIAGRAM'
   | 'PACKAGE_DIAGRAM'
   | 'OBJECT_DIAGRAM'
+  | 'ER_DIAGRAM'
   | 'UNSPECIFIED';
 
 export interface VFSBaseNode {

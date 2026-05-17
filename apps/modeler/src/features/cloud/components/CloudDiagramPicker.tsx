@@ -13,7 +13,26 @@ import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
 import { invalidateQuota } from '../hooks/useQuota';
 import type { ProjectSummaryResponse, ProjectFullResponse } from '../../../api/types';
-import type { LibreUMLProject, SemanticModel, VFSFile } from '../../../core/domain/vfs/vfs.types';
+import type { LibreUMLProject, SemanticModel, VFSFile, DiagramType } from '../../../core/domain/vfs/vfs.types';
+import type { ProjectDiagramType } from '../../../api/types';
+
+function fromApiDiagramType(apiType: ProjectDiagramType): DiagramType {
+  const map: Record<ProjectDiagramType, DiagramType> = {
+    CLASS:      'CLASS_DIAGRAM',
+    USE_CASE:   'USE_CASE_DIAGRAM',
+    DOMAIN:     'DOMAIN_MODEL_DIAGRAM',
+    SEQUENCE:   'SEQUENCE_DIAGRAM',
+    ACTIVITY:   'ACTIVITY_DIAGRAM',
+    STATE:      'STATE_MACHINE_DIAGRAM',
+    COMPONENT:  'COMPONENT_DIAGRAM',
+    DEPLOYMENT: 'DEPLOYMENT_DIAGRAM',
+    PACKAGE:    'PACKAGE_DIAGRAM',
+    OBJECT:     'OBJECT_DIAGRAM',
+    ER:         'ER_DIAGRAM',
+    UNSPECIFIED:'UNSPECIFIED',
+  };
+  return map[apiType] ?? 'UNSPECIFIED';
+}
 
 // ── Reconstruct LibreUMLProject from full response ────────────────────────────
 
@@ -64,7 +83,7 @@ function reconstructProject(full: ProjectFullResponse): LibreUMLProject | null {
       name:        diag.name,
       type:        'FILE',
       parentId:    null,
-      diagramType: diag.diagramType as VFSFile['diagramType'],
+      diagramType: fromApiDiagramType(diag.diagramType),
       extension:   '.luml',
       isExternal:  false,
       content:     diag.viewData,

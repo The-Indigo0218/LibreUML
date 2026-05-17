@@ -56,6 +56,7 @@ function toApiDiagramType(vfsType: VfsDiagramType): ProjectDiagramType {
     DEPLOYMENT_DIAGRAM:    'DEPLOYMENT',
     PACKAGE_DIAGRAM:       'PACKAGE',
     OBJECT_DIAGRAM:        'OBJECT',
+    ER_DIAGRAM:            'ER',
     UNSPECIFIED:           'UNSPECIFIED',
   };
   return map[vfsType];

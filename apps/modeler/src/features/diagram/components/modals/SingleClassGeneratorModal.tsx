@@ -1,11 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { X, Code2, ChevronDown, FileCode, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useProjectStore } from "../../../../store/project.store";
 import { useModelStore } from "../../../../store/model.store";
 import { useUiStore } from "../../../../store/uiStore";
 import { useCodeGenerationStore, LANGUAGE_OPTIONS, type TargetLanguage } from "../../../../store/codeGeneration.store";
-import { JavaGeneratorService } from "../../../../services/javaGenerator.service";
 import { JavaIRGeneratorService } from "../../../../services/javaIRGenerator.service";
 
 interface Props {
@@ -52,11 +50,6 @@ function ToggleOption({ label, description, checked, onChange }: ToggleOptionPro
 
 export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
   const { t } = useTranslation();
-  const projectNodes = useProjectStore((s) => s.nodes);
-  const nodes = useMemo(() => Object.values(projectNodes), [projectNodes]);
-  const projectEdges = useProjectStore((s) => s.edges);
-  const edges = useMemo(() => Object.values(projectEdges), [projectEdges]);
-
   const model = useModelStore((s) => s.model);
   const editingId = useUiStore((s) => s.editingId);
 
@@ -73,42 +66,20 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
 
-  // ── Combined class list (ProjectStore + ModelStore, deduplicated) ─────────
-
   const allClasses = useMemo(() => {
+    if (!model) return [];
     const entries: Array<{ id: string; name: string; type: string }> = [];
-    const seen = new Set<string>();
-
-    nodes.forEach((node) => {
-      if (node.type === 'CLASS' || node.type === 'INTERFACE' || node.type === 'ABSTRACT_CLASS' || node.type === 'ENUM') {
-        entries.push({ id: node.id, name: 'name' in node ? (node as { name: string }).name : 'Unknown', type: node.type });
-        seen.add(node.id);
-      }
+    Object.values(model.classes).forEach((cls) => {
+      entries.push({ id: cls.id, name: cls.name, type: cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS' });
     });
-
-    if (model) {
-      Object.values(model.classes).forEach((cls) => {
-        if (!seen.has(cls.id)) {
-          entries.push({ id: cls.id, name: cls.name, type: cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS' });
-          seen.add(cls.id);
-        }
-      });
-      Object.values(model.interfaces).forEach((iface) => {
-        if (!seen.has(iface.id)) {
-          entries.push({ id: iface.id, name: iface.name, type: 'INTERFACE' });
-          seen.add(iface.id);
-        }
-      });
-      Object.values(model.enums).forEach((enm) => {
-        if (!seen.has(enm.id)) {
-          entries.push({ id: enm.id, name: enm.name, type: 'ENUM' });
-          seen.add(enm.id);
-        }
-      });
-    }
-
+    Object.values(model.interfaces).forEach((iface) => {
+      entries.push({ id: iface.id, name: iface.name, type: 'INTERFACE' });
+    });
+    Object.values(model.enums).forEach((enm) => {
+      entries.push({ id: enm.id, name: enm.name, type: 'ENUM' });
+    });
     return entries;
-  }, [nodes, model]);
+  }, [model]);
 
   // ── Auto-select class when modal opens ───────────────────────────────────
 
@@ -121,14 +92,6 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
 
     if (editingId) {
       setSelectedClassId(editingId);
-      return;
-    }
-
-    const firstFromProject = nodes.find(
-      (n) => n.type === 'CLASS' || n.type === 'ABSTRACT_CLASS' || n.type === 'INTERFACE',
-    );
-    if (firstFromProject) {
-      setSelectedClassId(firstFromProject.id);
       return;
     }
 
@@ -178,20 +141,8 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
       }
     }
 
-    const projNode = nodes.find((n) => n.id === selectedClassId);
-    if (
-      projNode &&
-      (projNode.type === 'CLASS' ||
-        projNode.type === 'INTERFACE' ||
-        projNode.type === 'ABSTRACT_CLASS' ||
-        projNode.type === 'ENUM')
-    ) {
-      setGeneratedCode(JavaGeneratorService.generate(projNode, nodes, edges));
-      return;
-    }
-
     setGeneratedCode('// ' + t('modals.codePreview.invalidNode', 'Selected node is not a valid Class/Interface'));
-  }, [selectedClassId, config, model, nodes, edges, t]);
+  }, [selectedClassId, config, model, t]);
 
   const selectedEntry = allClasses.find((e) => e.id === selectedClassId);
   const selectedClassName = selectedEntry?.name ?? 'Unknown';

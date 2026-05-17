@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useProjectStore } from "../../../../store/project.store";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { getDataTypes, type SupportedLanguage } from "../../../../config/dataTypeRegistry";
 import type {
@@ -279,11 +278,7 @@ export default function ClassEditorModal({
   onClose,
   ssotContext,
 }: ClassEditorModalProps) {
-  const projectNodes = useProjectStore((state) => state.nodes);
-  const nodes = useMemo(
-    () => (ssotContext ? [] : Object.values(projectNodes)),
-    [projectNodes, ssotContext],
-  );
+  const nodes: never[] = [];
 
   const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const getFile = useWorkspaceStore((s) => s.getFile);

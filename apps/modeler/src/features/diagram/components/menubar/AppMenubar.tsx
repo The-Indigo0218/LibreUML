@@ -1,5 +1,4 @@
 import { Pencil, FileOutput, Settings, GraduationCap, HelpCircle, SlidersHorizontal, PanelLeft, PanelBottom, PanelRight, LogIn } from "lucide-react";
-import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import WindowControls from "../../../../components/ui/menubar/WindowControls";
 import { useDiagramActions } from "../../hooks/useDiagramActions";
@@ -29,18 +28,13 @@ import UserMenu from "../../../auth/components/UserMenu";
 export default function AppMenubar() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const getActiveFile = useWorkspaceStore((s) => s.getActiveFile);
-  const updateFile = useWorkspaceStore((s) => s.updateFile);
   const vfsProjectName = useVFSStore((s) => s.project?.projectName ?? null);
   const renameProject = useVFSStore((s) => s.renameProject);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const activeFile = getActiveFile();
   const isVFSProject = vfsProjectName !== null;
-  const displayName = isVFSProject
-    ? vfsProjectName
-    : (activeFile?.name?.replace(/\.luml$/i, "") || "LibreUML");
-  const isDirty = activeFile?.isDirty || false;
+  const displayName = vfsProjectName ?? "LibreUML";
+  const isDirty = false;
 
   const [isEditing, setIsEditing] = useState(false);
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
@@ -79,11 +73,7 @@ export default function AppMenubar() {
   };
 
   const handleNameChange = (newName: string) => {
-    if (isVFSProject) {
-      if (newName.trim()) renameProject(newName);
-    } else if (activeFile) {
-      updateFile(activeFile.id, { name: newName });
-    }
+    if (newName.trim()) renameProject(newName);
   };
 
   if (!modalState) return null;

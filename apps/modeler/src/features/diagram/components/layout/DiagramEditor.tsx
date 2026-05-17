@@ -27,7 +27,6 @@ import MethodGeneratorModal from "../modals/MethodGeneratorModal";
 import JavaImportPreferenceModal from "../../../../components/shared/JavaImportPreferenceModal";
 import TelemetryConsentBanner from "../../../telemetry/components/TelemetryConsentBanner";
 import { useUiStore } from "../../../../store/uiStore";
-import { useAutoSave } from "../../../../hooks/actions/useAutoSave";
 import { useVFSAutoSave } from "../../../../hooks/actions/useVFSAutoSave";
 import { useAutoRestore } from "../../../../hooks/useAutoRestore";
 import { useThemeSystem } from "../../../../hooks/useThemeSystem";
@@ -87,7 +86,6 @@ function EditorLogic() {
   const javaImportPreference = useSettingsStore((s) => s.javaImportPreference);
   const setJavaImportPreference = useSettingsStore((s) => s.setJavaImportPreference);
 
-  useAutoSave();
   useVFSAutoSave();
   useAutoRestore();
   useThemeSystem();

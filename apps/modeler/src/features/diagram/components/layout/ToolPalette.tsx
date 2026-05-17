@@ -13,23 +13,16 @@ import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import type { VFSFile } from "../../../../core/domain/vfs/vfs.types";
 
 export default function ToolPalette() {
-  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
-  const getFile = useWorkspaceStore((s) => s.getFile);
-  const updateFile = useWorkspaceStore((s) => s.updateFile);
   const project = useVFSStore((s) => s.project);
   const { runLayout } = useKonvaAutoLayout();
 
-  const activeFile = activeFileId ? getFile(activeFileId) : null;
-
-  // VFS-based diagrams store diagramType in project.nodes, not in the legacy workspace files.
-  // Prefer the VFS source of truth; fall back to legacy file for non-VFS diagrams.
   const diagramType = (() => {
     if (activeTabId && project) {
       const node = project.nodes[activeTabId];
       if (node?.type === 'FILE' && node.diagramType) return node.diagramType;
     }
-    return activeFile?.diagramType || 'CLASS_DIAGRAM';
+    return 'CLASS_DIAGRAM';
   })();
 
   const isVFSDiagram = useMemo(() => {
@@ -59,21 +52,7 @@ export default function ToolPalette() {
   const setConnectionMode = (mode: UmlRelationType) => {
     const tabId = useWorkspaceStore.getState().activeTabId;
     if (!tabId) return;
-    const upperMode = mode.toUpperCase();
-    setTabConnectionMode(tabId, upperMode);
-
-    // Keep legacy file metadata in sync for useDiagram.ts compatibility
-    if (activeFileId) {
-      const currentFile = useWorkspaceStore.getState().getFile(activeFileId);
-      if (currentFile) {
-        updateFile(activeFileId, {
-          metadata: {
-            ...(currentFile.metadata || {}),
-            activeConnectionMode: upperMode as any,
-          },
-        });
-      }
-    }
+    setTabConnectionMode(tabId, mode.toUpperCase());
   };
 
   const [isNodesOpen, setIsNodesOpen] = useState(true);

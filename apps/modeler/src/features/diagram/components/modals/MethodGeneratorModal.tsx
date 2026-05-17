@@ -1,9 +1,7 @@
 import { useState, useMemo } from "react";
 import { X, Check, Wand2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useProjectStore } from "../../../../store/project.store";
 import { useModelStore } from "../../../../store/model.store";
-import type { DomainNode } from "../../../../core/domain/models/nodes";
 import type { IROperation } from "../../../../core/domain/vfs/vfs.types";
 
 interface MethodGeneratorModalProps {
@@ -61,60 +59,37 @@ function domainMethodToIROperation(m: DomainMethod): IROperation {
 
 export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: MethodGeneratorModalProps) {
   const { t } = useTranslation();
-  const getNode = useProjectStore((s) => s.getNode);
-  const updateNode = useProjectStore((s) => s.updateNode);
   const model = useModelStore((s) => s.model);
 
-  // ── Resolve the class — ProjectStore first, then ModelStore ─────────────
-  const projectClassNode = useMemo(() => {
-    if (!nodeId) return undefined;
-    return getNode(nodeId);
-  }, [nodeId, getNode]);
-
   const irClass = useMemo(() => {
-    if (!nodeId || !model || projectClassNode) return null;
+    if (!nodeId || !model) return null;
     return model.classes[nodeId] ?? null;
-  }, [nodeId, model, projectClassNode]);
+  }, [nodeId, model]);
 
   const attributes = useMemo((): DomainAttribute[] => {
-    if (projectClassNode) {
-      const typed = projectClassNode as DomainNode & { attributes: DomainAttribute[] };
-      return typed.attributes || [];
-    }
-    if (irClass && model) {
-      return irClass.attributeIds
-        .map((id) => {
-          const attr = model.attributes[id];
-          if (!attr) return null;
-          return {
-            id: attr.id,
-            name: attr.name,
-            type: attr.type || 'String',
-            visibility: irVisToSymbol(attr.visibility),
-            isArray: false,
-            isStatic: attr.isStatic ?? false,
-          } as DomainAttribute;
-        })
-        .filter(Boolean) as DomainAttribute[];
-    }
-    return [];
-  }, [projectClassNode, irClass, model]);
+    if (!irClass || !model) return [];
+    return irClass.attributeIds
+      .map((id) => {
+        const attr = model.attributes[id];
+        if (!attr) return null;
+        return {
+          id: attr.id,
+          name: attr.name,
+          type: attr.type || 'String',
+          visibility: irVisToSymbol(attr.visibility),
+          isArray: false,
+          isStatic: attr.isStatic ?? false,
+        } as DomainAttribute;
+      })
+      .filter(Boolean) as DomainAttribute[];
+  }, [irClass, model]);
 
-  const existingMethods = useMemo((): DomainMethod[] => {
-    if (projectClassNode) {
-      const typed = projectClassNode as DomainNode & { methods: DomainMethod[] };
-      return typed.methods || [];
-    }
-    return [];
-  }, [projectClassNode]);
-
-  const className: string = (projectClassNode as any)?.name ?? irClass?.name ?? '';
+  const className: string = irClass?.name ?? '';
 
   const [selectedAttributes, setSelectedAttributes] = useState<Set<string>>(new Set());
 
   if (!isOpen) return null;
-  if (!projectClassNode && !irClass) return null;
-  if (projectClassNode && projectClassNode.type !== 'CLASS' && projectClassNode.type !== 'ABSTRACT_CLASS') return null;
+  if (!irClass) return null;
 
   const toggleAttribute = (attrId: string) => {
     setSelectedAttributes((prev) => {
@@ -169,20 +144,16 @@ export default function MethodGeneratorModal({ isOpen, nodeId, onClose }: Method
     parameters: selectedAttrs.map((attr) => ({ name: attr.name, type: attr.type, isArray: attr.isArray })),
   });
 
-  // Write-back: ProjectStore or ModelStore
   const commitMethods = (newMethods: DomainMethod[]) => {
-    if (projectClassNode) {
-      updateNode(projectClassNode.id, { methods: [...existingMethods, ...newMethods] } as any);
-    } else if (irClass && nodeId && model) {
-      const existingOps = irClass.operationIds
-        .map((id) => model.operations[id])
-        .filter(Boolean) as IROperation[];
-      const newOps = newMethods.map(domainMethodToIROperation);
-      const existingAttrs = irClass.attributeIds
-        .map((id) => model.attributes[id])
-        .filter(Boolean);
-      useModelStore.getState().setElementMembers(nodeId, existingAttrs as any, [...existingOps, ...newOps]);
-    }
+    if (!irClass || !nodeId || !model) return;
+    const existingOps = irClass.operationIds
+      .map((id) => model.operations[id])
+      .filter(Boolean) as IROperation[];
+    const newOps = newMethods.map(domainMethodToIROperation);
+    const existingAttrs = irClass.attributeIds
+      .map((id) => model.attributes[id])
+      .filter(Boolean);
+    useModelStore.getState().setElementMembers(nodeId, existingAttrs as any, [...existingOps, ...newOps]);
   };
 
   const handleGenerateGettersSetters = () => {

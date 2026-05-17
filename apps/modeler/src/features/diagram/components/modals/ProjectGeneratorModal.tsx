@@ -1,8 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { Package, Download, Box, Hammer, Coffee } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
-import { useProjectStore } from "../../../../store/project.store";
+import { useVFSStore } from "../../../../store/project-vfs.store";
+import { useModelStore } from "../../../../store/model.store";
+import { useCodeGenerationStore } from "../../../../store/codeGeneration.store";
 import { ProjectZipperService } from "../../../../services/project-zipper.service";
+import { isDiagramView } from "../../hooks/useVFSCanvasController";
+import type { VFSFile } from "../../../../core/domain/vfs/vfs.types";
 import { useTranslation } from "react-i18next";
 
 interface Props {
@@ -11,24 +15,30 @@ interface Props {
 }
 
 export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
-  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
-  const getFile = useWorkspaceStore((s) => s.getFile);
-  const getNodes = useProjectStore((s) => s.getNodes);
-  const getEdges = useProjectStore((s) => s.getEdges);
-  
-  const activeFile = activeFileId ? getFile(activeFileId) : undefined;
-  const diagramName = activeFile?.name || "Untitled";
-  
-  // PHASE 4: Fetch domain nodes and edges from ProjectStore
-  const nodes = useMemo(() => {
-    if (!activeFile) return [];
-    return getNodes(activeFile.nodeIds);
-  }, [activeFile, getNodes]);
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const project = useVFSStore((s) => s.project);
+  const globalModel = useModelStore((s) => s.model);
+  const codeConfig = useCodeGenerationStore((s) => s.config);
 
-  const edges = useMemo(() => {
-    if (!activeFile) return [];
-    return getEdges(activeFile.edgeIds);
-  }, [activeFile, getEdges]);
+  const { vfsFile, model } = useMemo(() => {
+    if (!activeTabId || !project) return { vfsFile: null, model: null };
+    const node = project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return { vfsFile: null, model: null };
+    const file = node as VFSFile;
+    return { vfsFile: file, model: file.localModel ?? globalModel };
+  }, [activeTabId, project, globalModel]);
+
+  const diagramName = useMemo(() => {
+    if (!activeTabId || !project) return 'Untitled';
+    return project.nodes[activeTabId]?.name ?? 'Untitled';
+  }, [activeTabId, project]);
+
+  const elementIds = useMemo(() => {
+    if (!vfsFile || !isDiagramView(vfsFile.content) || !model) return [];
+    return vfsFile.content.nodes
+      .map((vn) => vn.elementId)
+      .filter((id) => model.classes[id] || model.interfaces[id] || model.enums[id]);
+  }, [vfsFile, model]);
   
   const { t } = useTranslation();
   
@@ -47,28 +57,24 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
     }
   }, [isOpen, diagramName]);
 
-  const classNodes = useMemo(() => 
-    nodes.filter(n => n.type === 'CLASS' || n.type === 'INTERFACE' || n.type === 'ABSTRACT_CLASS' || n.type === 'ENUM'),
-  [nodes]);
-
   const packageName = `${groupId}.${artifactId}`.replace(/\.\./g, ".").toLowerCase();
 
   if (!isOpen) return null;
 
- const handleGenerate = async () => {
+  const handleGenerate = async () => {
+    if (!model) return;
     setIsGenerating(true);
     try {
-      // PHASE 4: Pass domain nodes directly to ProjectZipperService
-      await ProjectZipperService.generateAndDownloadZip({
-        projectName: artifactId, 
+      await ProjectZipperService.generateAndDownloadZipFromModel({
+        projectName: artifactId,
         groupId,
-        artifactId,      
-        packageName,     
-        nodes: classNodes,
-        allNodes: nodes, 
-        edges: edges,    
-        javaVersion,     
-        buildTool        
+        artifactId,
+        packageName,
+        elementIds,
+        model,
+        codeConfig,
+        javaVersion,
+        buildTool,
       });
       onClose();
     } catch (error) {
@@ -101,7 +107,7 @@ export default function ProjectGeneratorModal({ isOpen, onClose }: Props) {
           <div className="flex items-center justify-between p-3 bg-surface-secondary/30 rounded-lg border border-surface-border">
              <div className="flex items-center gap-2 text-sm text-text-secondary">
                 <Box className="w-4 h-4 text-purple-400" />
-                <span className="font-mono">{classNodes.length} {t("modals.projectGenerator.statsClasses")}</span>
+                <span className="font-mono">{elementIds.length} {t("modals.projectGenerator.statsClasses")}</span>
              </div>
              <div className="w-px h-4 bg-surface-border" />
              <div className="flex items-center gap-2 text-sm text-text-secondary">

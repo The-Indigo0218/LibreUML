@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { create } from "zustand";
 import { useViewportControlStore } from "../../../canvas/store/viewportControlStore";
-import { useProjectStore } from "../../../store/project.store";
 import { useWorkspaceStore } from "../../../store/workspace.store";
+import { useVFSStore } from "../../../store/project-vfs.store";
+import { useModelStore } from "../../../store/model.store";
+import { isDiagramView } from "./useVFSCanvasController";
+import type { VFSFile } from "../../../core/domain/vfs/vfs.types";
 
 interface SpotlightState {
   isOpen: boolean;
@@ -20,26 +23,51 @@ export const useSpotlight = () => {
   const { isOpen, setIsOpen } = useSpotlightStore();
   const [searchTerm, setSearchTerm] = useState("");
   const fitView = useViewportControlStore((s) => s.fitView);
-  
-  // Read from SSOT: get active file's node IDs, then get domain nodes
-  const activeFileId = useWorkspaceStore((s) => s.activeFileId);
-  const getFile = useWorkspaceStore((s) => s.getFile);
-  const projectNodes = useProjectStore((s) => s.nodes);
 
-  const file = activeFileId ? getFile(activeFileId) : undefined;
-  
-  // Build a lightweight node list for spotlight search
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const project = useVFSStore((s) => s.project);
+  const globalModel = useModelStore((s) => s.model);
+
   const nodes = useMemo(() => {
-    if (!file) return [];
-    return file.nodeIds
-      .map((id) => projectNodes[id])
-      .filter(Boolean)
-      .map((node) => ({
-        id: node.id,
-        name: (node as any).name || (node as any).label || (node as any).content || 'Unnamed Node',
-        type: node.type,
-      }));
-  }, [file, projectNodes]);
+    if (!activeTabId || !project) return [];
+    const vfsNode = project.nodes[activeTabId];
+    if (!vfsNode || vfsNode.type !== 'FILE') return [];
+    const vfsFile = vfsNode as VFSFile;
+    if (!isDiagramView(vfsFile.content)) return [];
+
+    const view = vfsFile.content;
+    const model = vfsFile.localModel ?? globalModel;
+
+    return view.nodes.flatMap((viewNode) => {
+      const { elementId } = viewNode;
+
+      if (model) {
+        if (model.classes[elementId])
+          return [{ id: viewNode.id, name: model.classes[elementId].name, type: 'CLASS' }];
+        if (model.interfaces[elementId])
+          return [{ id: viewNode.id, name: model.interfaces[elementId].name, type: 'INTERFACE' }];
+        if (model.enums[elementId])
+          return [{ id: viewNode.id, name: model.enums[elementId].name, type: 'ENUM' }];
+        if (model.actors?.[elementId])
+          return [{ id: viewNode.id, name: model.actors[elementId].name, type: 'ACTOR' }];
+        if (model.useCases?.[elementId])
+          return [{ id: viewNode.id, name: model.useCases[elementId].name, type: 'USE_CASE' }];
+        if (model.systemBoundaries?.[elementId])
+          return [{ id: viewNode.id, name: model.systemBoundaries[elementId].name, type: 'SYSTEM_BOUNDARY' }];
+        if (model.ucModules?.[elementId])
+          return [{ id: viewNode.id, name: model.ucModules[elementId].name, type: 'UC_MODULE' }];
+        if (model.domainEntities?.[elementId])
+          return [{ id: viewNode.id, name: model.domainEntities[elementId].name, type: 'ENTITY' }];
+      }
+
+      if (viewNode.packageName)
+        return [{ id: viewNode.id, name: viewNode.packageName, type: 'PACKAGE' }];
+      if (viewNode.content)
+        return [{ id: viewNode.id, name: viewNode.noteTitle || viewNode.content.slice(0, 40) || 'Note', type: 'NOTE' }];
+
+      return [];
+    });
+  }, [activeTabId, project, globalModel]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

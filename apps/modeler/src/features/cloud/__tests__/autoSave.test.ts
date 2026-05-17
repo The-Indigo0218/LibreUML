@@ -33,7 +33,27 @@ vi.mock('../../../api/diagrams.api', () => ({
   deleteDiagram: vi.fn(),
 }));
 
+vi.mock('../../../api/projects.api', () => ({
+  createProject:       vi.fn(),
+  updateProject:      vi.fn(),
+  updateProjectModel: vi.fn(),
+  getProjectFull:     vi.fn(),
+  deleteProject:      vi.fn(),
+  createProjectDiagram:  vi.fn(),
+  updateProjectDiagram:   vi.fn(),
+  deleteProjectDiagram:   vi.fn(),
+}));
+
+vi.mock('../../../adapters/storage/cloud.adapter', () => ({
+  cloudAdapter: {
+    updateModelInCloud:   vi.fn(),
+    updateProjectInCloud: vi.fn(),
+    updateDiagramInCloud: vi.fn(),
+  },
+}));
+
 import * as diagApi from '../../../api/diagrams.api';
+import { cloudAdapter } from '../../../adapters/storage/cloud.adapter';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -133,7 +153,7 @@ describe('backoffMs()', () => {
 
 // ── AutoSaveQueue — retry with exponential backoff ────────────────────────────
 
-describe.skip('AutoSaveQueue — 5xx exponential backoff', () => {
+describe('AutoSaveQueue — 5xx exponential backoff', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     setCloudReady();
@@ -149,42 +169,37 @@ describe.skip('AutoSaveQueue — 5xx exponential backoff', () => {
   });
 
   it('retries on 500 after 1 s, then 2 s, then 4 s', async () => {
-    vi.mocked(diagApi.updateDiagram)
-      .mockRejectedValueOnce(make5xxError(500))  // first try → fail
-      .mockRejectedValueOnce(make5xxError(503))  // second try → fail
-      .mockRejectedValueOnce(make5xxError(502))  // third try → fail
-      .mockResolvedValue(mockResponse);           // fourth try → success
+    vi.mocked(cloudAdapter.updateModelInCloud)
+      .mockRejectedValueOnce(make5xxError(500))
+      .mockRejectedValueOnce(make5xxError(503))
+      .mockRejectedValueOnce(make5xxError(502))
+      .mockResolvedValueOnce({ version: VERSION + 1 });
 
     autoSaveQueue.start();
     autoSaveQueue.enqueue(mockProject.id, 'model');
 
-    // ── First attempt fires after 1 s (backoffMs(0))
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(diagApi.updateDiagram).toHaveBeenCalledTimes(1);
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(1);
     expect(useSyncStore.getState().syncStatus).toBe('offline');
 
-    // ── Second attempt fires after 2 s (backoffMs(1))
     await vi.advanceTimersByTimeAsync(2_000);
-    expect(diagApi.updateDiagram).toHaveBeenCalledTimes(2);
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(2);
 
-    // ── Third attempt fires after 4 s (backoffMs(2))
     await vi.advanceTimersByTimeAsync(4_000);
-    expect(diagApi.updateDiagram).toHaveBeenCalledTimes(3);
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(3);
 
-    // ── Fourth attempt fires after 8 s (backoffMs(3)) — succeeds
     await vi.advanceTimersByTimeAsync(8_000);
-    expect(diagApi.updateDiagram).toHaveBeenCalledTimes(4);
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(4);
     expect(useSyncStore.getState().syncStatus).toBe('saved');
     expect(autoSaveQueue.size).toBe(0);
   });
 
   it('sets error status and drops item after MAX_ATTEMPTS failures', async () => {
-    vi.mocked(diagApi.updateDiagram).mockRejectedValue(make5xxError(500));
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValue(make5xxError(500));
 
     autoSaveQueue.start();
     autoSaveQueue.enqueue(mockProject.id, 'model');
 
-    // Advance through all 6 attempts: 1+2+4+8+16+30 = 61 s total
     for (const delay of [1_000, 2_000, 4_000, 8_000, 16_000, 30_000]) {
       await vi.advanceTimersByTimeAsync(delay);
     }
@@ -201,18 +216,16 @@ describe.skip('AutoSaveQueue — 5xx exponential backoff', () => {
   });
 
   it('reads version from store at fire time, not at enqueue time', async () => {
-    vi.mocked(diagApi.updateDiagram).mockResolvedValue(mockResponse);
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: 99 });
 
-    // Change version after enqueue but before retry fires
     autoSaveQueue.start();
     autoSaveQueue.enqueue(mockProject.id, 'model');
-    useSyncStore.setState({ modelVersion: 99 }); // update AFTER enqueue
+    useSyncStore.setState({ modelVersion: 99 });
 
     await vi.advanceTimersByTimeAsync(1_000);
 
-    // The PATCH should use the current version (99), not the one at enqueue time (3)
-    const [, req] = vi.mocked(diagApi.updateDiagram).mock.calls[0];
-    expect(req.version).toBe(99);
+    const args = vi.mocked(cloudAdapter.updateModelInCloud).mock.calls[0];
+    expect(args[1].version).toBe(99);
   });
 });
 
@@ -233,7 +246,7 @@ describe.skip('AutoSaveQueue — conflict and quota errors', () => {
   });
 
   it('409 → sets conflict status, drops item, does NOT retry', async () => {
-    vi.mocked(diagApi.updateDiagram).mockRejectedValue(make409Error(10));
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValue(make409Error(10));
 
     autoSaveQueue.start();
     autoSaveQueue.enqueue(mockProject.id, 'model');
@@ -244,13 +257,12 @@ describe.skip('AutoSaveQueue — conflict and quota errors', () => {
     expect(useSyncStore.getState().conflictDetails?.serverVersion).toBe(10);
     expect(autoSaveQueue.size).toBe(0);
 
-    // No further retries after another 30 s
     await vi.advanceTimersByTimeAsync(30_000);
-    expect(diagApi.updateDiagram).toHaveBeenCalledTimes(1);
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(1);
   });
 
   it('422 → sets error status with quota message, drops item, does NOT retry', async () => {
-    vi.mocked(diagApi.updateDiagram).mockRejectedValue(make422Error());
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValue(make422Error());
 
     autoSaveQueue.start();
     autoSaveQueue.enqueue(mockProject.id, 'model');
@@ -263,7 +275,7 @@ describe.skip('AutoSaveQueue — conflict and quota errors', () => {
     expect(autoSaveQueue.size).toBe(0);
 
     await vi.advanceTimersByTimeAsync(30_000);
-    expect(diagApi.updateDiagram).toHaveBeenCalledTimes(1);
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -286,68 +298,60 @@ describe.skip('CloudSyncService debounce', () => {
   });
 
   it('fires exactly 1 PATCH after 5 s debounce regardless of how many edits', async () => {
-    vi.mocked(diagApi.updateDiagram).mockResolvedValue(mockResponse);
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: VERSION + 1 });
 
     cloudSyncService.start();
 
-    // Simulate 10 rapid VFS mutations
     for (let i = 0; i < 10; i++) {
       useVFSStore.setState({
         project: { ...mockProject, updatedAt: Date.now() + i },
         isLoading: false,
       });
-      await vi.advanceTimersByTimeAsync(200); // 200 ms between edits
+      await vi.advanceTimersByTimeAsync(200);
     }
 
-    // Before the debounce window closes: no PATCH yet
-    expect(diagApi.updateDiagram).not.toHaveBeenCalled();
+    expect(cloudAdapter.updateModelInCloud).not.toHaveBeenCalled();
 
-    // Advance past the debounce window
     await vi.advanceTimersByTimeAsync(DEBOUNCE);
 
-    expect(diagApi.updateDiagram).toHaveBeenCalledTimes(1);
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(1);
     expect(useSyncStore.getState().syncStatus).toBe('saved');
   });
 
   it('each new edit resets the debounce timer', async () => {
-    vi.mocked(diagApi.updateDiagram).mockResolvedValue(mockResponse);
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: VERSION + 1 });
 
     cloudSyncService.start();
 
-    // Edit → 4.9 s → edit again → only fires after another 5 s
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
     await vi.advanceTimersByTimeAsync(4_900);
-    expect(diagApi.updateDiagram).not.toHaveBeenCalled();
+    expect(cloudAdapter.updateModelInCloud).not.toHaveBeenCalled();
 
-    // Reset the debounce with a new edit
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 2 }, isLoading: false });
     await vi.advanceTimersByTimeAsync(4_900);
-    expect(diagApi.updateDiagram).not.toHaveBeenCalled();
+    expect(cloudAdapter.updateModelInCloud).not.toHaveBeenCalled();
 
-    // Now let it fire
     await vi.advanceTimersByTimeAsync(200);
-    expect(diagApi.updateDiagram).toHaveBeenCalledTimes(1);
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(1);
   });
 
   it('reads version from store at PATCH fire time, not at debounce-schedule time', async () => {
-    vi.mocked(diagApi.updateDiagram).mockResolvedValue(mockResponse);
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: 42 });
 
     cloudSyncService.start();
 
-    // Trigger debounce
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
 
-    // Change version AFTER scheduling but BEFORE timer fires
     useSyncStore.setState({ modelVersion: 42 });
 
     await vi.advanceTimersByTimeAsync(DEBOUNCE);
 
-    const [, req] = vi.mocked(diagApi.updateDiagram).mock.calls[0];
-    expect(req.version).toBe(42); // must be the version at fire time
+    const args = vi.mocked(cloudAdapter.updateModelInCloud).mock.calls[0];
+    expect(args[1].version).toBe(42);
   });
 
   it('5xx during debounce-fired PATCH adds item to autoSaveQueue', async () => {
-    vi.mocked(diagApi.updateDiagram).mockRejectedValueOnce(make5xxError(500));
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValueOnce(make5xxError(500));
 
     cloudSyncService.start();
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
@@ -357,14 +361,12 @@ describe.skip('CloudSyncService debounce', () => {
     expect(useSyncStore.getState().syncStatus).toBe('offline');
     expect(autoSaveQueue.size).toBe(1);
 
-    // cleanup
     autoSaveQueue.stop();
-    // drain queue internals
     autoSaveQueue.dequeue(`${mockProject.id}:model:`);
   });
 
   it('network error (no response) adds to offline queue, NOT autoSaveQueue', async () => {
-    vi.mocked(diagApi.updateDiagram).mockRejectedValueOnce(makeNetworkError());
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValueOnce(makeNetworkError());
 
     cloudSyncService.start();
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
@@ -373,7 +375,7 @@ describe.skip('CloudSyncService debounce', () => {
 
     expect(useSyncStore.getState().syncStatus).toBe('offline');
     expect(useSyncStore.getState().offlineQueue).toHaveLength(1);
-    expect(autoSaveQueue.size).toBe(0); // NOT in autoSaveQueue
+    expect(autoSaveQueue.size).toBe(0);
   });
 });
 
@@ -442,7 +444,7 @@ describe.skip('CloudSyncService.forceSyncNow() — flush on demand', () => {
   });
 
   it('cancels pending debounce and fires PATCH immediately', async () => {
-    vi.mocked(diagApi.updateDiagram).mockResolvedValue(mockResponse);
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: VERSION + 1 });
 
     cloudSyncService.start();
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
@@ -452,7 +454,7 @@ describe.skip('CloudSyncService.forceSyncNow() — flush on demand', () => {
 
     expect(result).toBe(true);
     expect(cloudSyncService.hasPendingDebounce()).toBe(false);
-    expect(diagApi.updateDiagram).toHaveBeenCalledTimes(1);
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(1);
     expect(useSyncStore.getState().syncStatus).toBe('saved');
   });
 });

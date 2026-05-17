@@ -8,12 +8,6 @@ import type {
   UmlEnumLiteral,
   visibility as Visibility,
 } from "../../types/diagram.types";
-import type {
-  ClassNode,
-  InterfaceNode,
-  AbstractClassNode,
-  EnumNode,
-} from "../../../../core/domain/models";
 import { Plus, Trash2, ArrowUp, ArrowDown, Wand2, ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -256,16 +250,6 @@ interface ClassEditorModalProps {
 
 const VISIBILITY_OPTIONS: Visibility[] = ['+', '-', '#', '~'];
 
-type PackageableClassNode = ClassNode | InterfaceNode | AbstractClassNode | EnumNode;
-
-function isPackageableNode(node: { type: string }): node is PackageableClassNode {
-  return (
-    node.type === 'CLASS' ||
-    node.type === 'INTERFACE' ||
-    node.type === 'ABSTRACT_CLASS' ||
-    node.type === 'ENUM'
-  );
-}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -276,8 +260,6 @@ export default function ClassEditorModal({
   onClose,
   ssotContext,
 }: ClassEditorModalProps) {
-  const nodes: never[] = [];
-
   const packages = useMemo(
     () => (ssotContext?.packageNames ?? []).map((name, i) => ({ id: String(i), name })),
     [ssotContext],
@@ -289,14 +271,9 @@ export default function ClassEditorModal({
 
   const availableTypes = useMemo(() => {
     const baseTypes = getDataTypes(typeContext);
-    if (ssotContext) {
-      return [...baseTypes, ...ssotContext.availableTypeNames];
-    }
-    const classTypes = nodes
-      .filter((node): node is PackageableClassNode => isPackageableNode(node))
-      .map((node) => node.name);
-    return [...baseTypes, ...classTypes];
-  }, [nodes, ssotContext, typeContext]);
+    if (ssotContext) return [...baseTypes, ...ssotContext.availableTypeNames];
+    return baseTypes;
+  }, [ssotContext, typeContext]);
 
   const [draft, setDraft] = useState<UmlClassData>(() => ({
     ...umlData,

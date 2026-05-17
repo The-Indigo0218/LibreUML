@@ -104,7 +104,7 @@ export default function SingleClassGeneratorModal({ isOpen, onClose }: Props) {
     }
 
     setSelectedClassId('');
-  }, [isOpen, editingId, nodes]);
+  }, [isOpen, editingId]);
 
   // ── Close dropdown when clicking outside ─────────────────────────────────
 

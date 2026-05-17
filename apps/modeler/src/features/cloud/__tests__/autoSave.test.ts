@@ -173,7 +173,7 @@ describe('AutoSaveQueue — 5xx exponential backoff', () => {
       .mockRejectedValueOnce(make5xxError(500))
       .mockRejectedValueOnce(make5xxError(503))
       .mockRejectedValueOnce(make5xxError(502))
-      .mockResolvedValueOnce({ version: VERSION + 1 });
+      .mockResolvedValueOnce({ id: 'mock-id', version: VERSION + 1, updatedAt: '2024-01-01' });
 
     autoSaveQueue.start();
     autoSaveQueue.enqueue(mockProject.id, 'model');
@@ -216,7 +216,7 @@ describe('AutoSaveQueue — 5xx exponential backoff', () => {
   });
 
   it('reads version from store at fire time, not at enqueue time', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: 99 });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ id: 'mock-id', version: 99, updatedAt: '2024-01-01' });
 
     autoSaveQueue.start();
     autoSaveQueue.enqueue(mockProject.id, 'model');
@@ -298,7 +298,7 @@ describe.skip('CloudSyncService debounce', () => {
   });
 
   it('fires exactly 1 PATCH after 5 s debounce regardless of how many edits', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: VERSION + 1 });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ id: 'mock-id', version: VERSION + 1, updatedAt: '2024-01-01' });
 
     cloudSyncService.start();
 
@@ -319,7 +319,7 @@ describe.skip('CloudSyncService debounce', () => {
   });
 
   it('each new edit resets the debounce timer', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: VERSION + 1 });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ id: 'mock-id', version: VERSION + 1, updatedAt: '2024-01-01' });
 
     cloudSyncService.start();
 
@@ -336,7 +336,7 @@ describe.skip('CloudSyncService debounce', () => {
   });
 
   it('reads version from store at PATCH fire time, not at debounce-schedule time', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: 42 });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ id: 'mock-id', version: 42, updatedAt: '2024-01-01' });
 
     cloudSyncService.start();
 
@@ -444,7 +444,7 @@ describe.skip('CloudSyncService.forceSyncNow() — flush on demand', () => {
   });
 
   it('cancels pending debounce and fires PATCH immediately', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ version: VERSION + 1 });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ id: 'mock-id', version: VERSION + 1, updatedAt: '2024-01-01' });
 
     cloudSyncService.start();
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });

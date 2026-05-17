@@ -26,31 +26,7 @@ vi.mock('../../../api/diagrams.api', () => ({
   deleteDiagram: vi.fn(),
 }));
 
-vi.mock('../../../api/projects.api', () => ({
-  createProject:       vi.fn(),
-  updateProject:      vi.fn(),
-  updateProjectModel: vi.fn(),
-  getProjectFull:     vi.fn(),
-  deleteProject:      vi.fn(),
-  createProjectDiagram:  vi.fn(),
-  updateProjectDiagram:   vi.fn(),
-  deleteProjectDiagram:   vi.fn(),
-}));
-
-vi.mock('../../../adapters/storage/cloud.adapter', () => ({
-  cloudAdapter: {
-    createProjectInCloud:    vi.fn(),
-    updateProjectInCloud:   vi.fn(),
-    getProjectFromCloud:    vi.fn(),
-    createDiagramInCloud:   vi.fn(),
-    updateDiagramInCloud:  vi.fn(),
-    deleteDiagramInCloud:  vi.fn(),
-    updateModelInCloud:    vi.fn(),
-  },
-}));
-
 import * as diagApi from '../../../api/diagrams.api';
-import { cloudAdapter } from '../../../adapters/storage/cloud.adapter';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

@@ -150,10 +150,10 @@ LibreUML/
 ## Documentación
 
 - [Visión del proyecto](docs/VISION.md)
-- [LibreUML Academy](docs/education/ACADEMY_VISION.md)
-- [Arquitectura técnica](docs/ARCHITECTURE_v0.7.0.md)
-- [Para educadores](docs/education/FOR_EDUCATORS.md)
-- [Getting started completo](docs/onboarding/GETTING_STARTED.md)
+- [Modeler — Arquitectura técnica](docs/modeler/ARCHITECTURE.md)
+- [Modeler — Getting started](docs/modeler/onboarding/GETTING_STARTED.md)
+- [Academy — Visión educativa](docs/academy/VISION.md)
+- [Academy — Para educadores](docs/academy/FOR_EDUCATORS.md)
 
 ---
 

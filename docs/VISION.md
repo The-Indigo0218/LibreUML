@@ -1,130 +1,100 @@
-# 🌍 LibreUML — Visión del Proyecto
+# LibreUML — Visión del Proyecto
+
+> Última actualización: 2026-05-18
+
+---
 
 ## Por qué existe LibreUML
 
-LibreUML nace a partir de una necesidad académica concreta: aprender y enseñar **Programación Orientada a Objetos y diseño de software** sin depender de herramientas de pago, cerradas o visualmente obsoletas.
+LibreUML nació de una necesidad concreta: los estudiantes que aprenden diseño y arquitectura de software no tienen una herramienta gratuita, moderna y que funcione bien. EA (Enterprise Architect) es la referencia de la industria pero es caro, pesado y solo corre en Windows. StarUML está desactualizado. draw.io y Lucidchart son editores de formas genéricos — las cajas no tienen semántica UML real.
 
-En muchos entornos educativos, el modelado (UML, diagramas de flujo, diagramas de bases de datos) se presenta como teoría aislada, con herramientas poco accesibles o desalineadas con la forma en que hoy se construye software. Como resultado, el modelado termina siendo percibido como una obligación académica y no como una herramienta de pensamiento.
-
-LibreUML surge con la intención de **modernizar, democratizar y dignificar el modelado visual**, convirtiéndolo en una parte natural del proceso de aprendizaje y diseño de sistemas.
+Esa brecha sigue existiendo. LibreUML la cierra.
 
 ---
 
-## Para quién está pensado LibreUML
+## Qué es LibreUML hoy
 
-LibreUML está pensado principalmente para:
+Un ecosistema de dos productos que crecen juntos:
 
-- 🎓 Estudiantes que están aprendiendo a razonar en términos de clases, flujos, relaciones y estructuras.
-- 👨‍🏫 Docentes que buscan una herramienta clara, gratuita y pedagógica para enseñar modelado.
-- 👩‍💻 Personas en formación técnica que desean fortalecer fundamentos de diseño sin barreras económicas.
+**LibreUML Modeler** — el editor de diagramas. Soporta Class Diagrams, Use Case Diagrams y Domain Model Diagrams con un modelo semántico compartido entre vistas. La misma clase definida en el Class Diagram es la misma entidad que aparece como actor en el Use Case — sin duplicación, igual que en EA.
 
-Aunque su foco es educativo, LibreUML aspira a crecer junto al usuario y acompañarlo hacia escenarios de mayor complejidad.
+**LibreUML Academy** — el componente educativo. Transforma el editor en un entorno de aprendizaje guiado donde los estudiantes construyen sistemas, los rompen y entienden por qué. No memorizar notación — desarrollar pensamiento de diseño.
 
 ---
 
-## Principios Fundamentales
+## A dónde va
 
-LibreUML se guiará por principios claros y no negociables:
+LibreUML quiere ser la herramienta de referencia para modelado de arquitectura de software — en academia y en equipos profesionales.
 
-- **Education-first**: el aprendizaje estará siempre por encima de cualquier interés comercial.
-- **Open Source**: el proyecto será abierto, auditable y colaborativo.
-- **Local-first**: el editor funcionará sin depender obligatoriamente de la nube.
-- **Respeto por la privacidad**: no se recolectarán datos sensibles ni contenido privado.
-- **Accesibilidad**: el uso del editor será gratuito y sin bloqueos funcionales.
+El diferenciador real: al crear un proyecto, el usuario elige qué framework de arquitectura quiere usar. LibreUML pre-configura el espacio de trabajo con los tipos de diagrama correctos, interconectados por el mismo modelo semántico.
 
-Estos principios definirán los límites del proyecto y orientarán su evolución.
+### Frameworks objetivo
 
----
+**UML completo con el modelo de vistas 4+1 (Kruchten)**
 
-## Qué es LibreUML (y qué no es)
+El estándar más usado en la industria para describir arquitectura de software. Cinco vistas que juntas dan un retrato completo de un sistema:
 
-**LibreUML será:**
-- Un editor visual de modelado enfocado en el aprendizaje.
-- Un entorno para razonar sistemas, no solo para dibujar diagramas.
-- Un proyecto académico con ambición técnica y pedagógica.
+| Vista | Responde a | Diagramas |
+|---|---|---|
+| Lógica | ¿Qué hace el sistema? | Class, Object, State Machine |
+| Proceso | ¿Cómo fluye la ejecución? | Sequence, Activity |
+| Desarrollo | ¿Cómo está organizado el código? | Component, Package |
+| Física | ¿Dónde corre el software? | Deployment |
+| Escenarios (+1) | ¿Qué une a las 4 vistas? | Use Case |
 
-**LibreUML no será:**
-- Un producto de pago.
-- - Un SaaS cerrado o restrictivo (el motor de diseño core siempre será libre y accesible, la nube es un añadido de valor, no una barrera)..
-- Un reemplazo de un IDE.
-- Una herramienta limitada a un solo tipo de diagrama.
+El mismo elemento aparece en múltiples vistas — la clase `Customer` es actor en Use Case, lifeline en Sequence, y nodo en el Class Diagram. Eso es lo que hace poderoso al 4+1 y es exactamente lo que permite el SemanticModel compartido de LibreUML.
 
----
+**Template C4 (Simon Brown)**
 
-## El Modelado como Habilidad Universal
+Un modelo más simple y moderno, muy adoptado en equipos ágiles. Cuatro niveles de zoom: Context → Containers → Components → Code. El nivel Code enlaza directamente con los Class Diagrams del proyecto. LibreUML lo implementará como un tipo de proyecto con notación y shapes propios.
 
-La visión de LibreUML no se limitará únicamente a UML.
+**ArchiMate (a futuro)**
 
-LibreUML aspira a convertirse en un entorno unificado para **distintas formas de modelado visual**, entendidas como expresiones del pensamiento lógico y estructural.
-
-A largo plazo, LibreUML buscará ofrecer soporte para:
-
-- Diagramas UML (clases, relaciones, patrones).
-- Diagramas de flujo para lógica y algoritmos.
-- Modelado de bases de datos y relaciones.
-- Representaciones visuales de estructuras y procesos.
-
-El objetivo no será fragmentar el aprendizaje entre múltiples herramientas, sino **unificar el modelado visual como una competencia transversal** en la formación técnica.
+Para equipos que trabajan con TOGAF y necesitan modelar Business + Application + Technology layers. Es Enterprise Architecture real, más allá del software. Se evalúa después de tener C4 sólido.
 
 ---
 
-## LibreUML Academy como Pilar Educativo (Proyección)
+## Principios que no cambian
 
-Como extensión natural del editor, LibreUML proyecta el desarrollo de **LibreUML Academy**, un componente educativo integrado que buscará transformar el editor en un entorno de aprendizaje guiado.
+**Open source.** Siempre. El código es abierto, auditable y libre de modificar.
 
-LibreUML Academy no se concibe como un producto separado ni como un servicio de pago, sino como una forma de **aprender diseño practicando**, mediante retos progresivos, retroalimentación y reflexión sobre decisiones de modelado.
+**Web-first.** Sin instalación obligatoria. El browser es suficiente. Electron no es un objetivo.
 
-Su propósito será:
-- Enseñar a pensar en sistemas, no a memorizar notación.
-- Convertir el modelado en un ejercicio lógico y práctico.
-- Complementar la educación universitaria tradicional.
-- Facilitar la transición entre diagramas y código real.
+**Local-first.** El proyecto vive en el dispositivo del usuario. La nube es opcional, no el default.
 
----
+**Semántica antes que apariencia.** Un diagrama debe ser correcto antes de ser bonito. Los elementos tienen tipo, atributos y relaciones — no son solo formas.
 
-## Métricas para Mejora, no para Monetización
+**Cross-diagram element sharing.** El mismo elemento semántico puede aparecer en múltiples diagramas del mismo proyecto. Es el modelo que usan EA y StarUML y es lo que diferencia un modelador serio de un editor de cajas.
 
-LibreUML podrá incorporar de forma opcional mecanismos de registro y sincronización con el único objetivo de **mejorar la herramienta y comprender cómo se aprende el modelado**.
-
-Las métricas consideradas serán:
-- Anónimas y agregadas.
-- Enfocadas en uso y patrones generales.
-- Utilizadas para toma de decisiones pedagógicas y técnicas.
-
-El uso del editor **no requerirá login obligatorio**, Sin embargo, la integración opcional con cuentas (como GitHub) permitirá a los estudiantes sincronizar su progreso, integrarse con sus repositorios y acceder a herramientas de validación avanzada (Linter en la nube). La nube en LibreUML existe para dar superpoderes al estudiante, no para secuestrar sus datos.
+**Education-first en Academy.** El aprendizaje siempre por encima del interés comercial. Academy será gratuita y abierta.
 
 ---
 
-## Visión a Largo Plazo
+## Para quién
 
-A largo plazo, LibreUML aspira a:
+**Academia** — estudiantes y docentes que modelan como parte del aprendizaje de diseño y arquitectura de software. LibreUML puede reemplazar a EA y StarUML sin que nadie extrañe nada.
 
-- Convertirse en una herramienta de referencia en contextos educativos.
-- Democratizar el acceso al diseño y modelado de software.
-- Integrar modelado visual, lógica y estructuras en un solo entorno.
-- Acompañar el crecimiento del estudiante desde los fundamentos hasta el diseño de sistemas más complejos.
+**Equipos de desarrollo** — equipos que documentan arquitectura antes de construir o mientras construyen. El template C4 les habla directamente.
 
-LibreUML no busca reemplazar a la universidad, sino **fortalecer la forma en que se enseña y se aprende diseño de software**.
+**Formación independiente** — personas aprendiendo arquitectura de software por su cuenta, sin acceso a licencias institucionales.
 
 ---
 
-## Qué LibreUML Nunca Será
+## Lo que LibreUML no es
 
-LibreUML nunca será:
-- Una herramienta que cobre por aprender.
-- Una plataforma que oculte funciones educativas detrás de cuentas obligatorias.
-- Un sistema que dependa exclusivamente de la nube (siempre podrás abrir LibreUML y diseñar offline).
-- Un proyecto que sacrifique principios por crecimiento rápido.
+- No es un IDE. No escribe código por ti. La generación Java es un bonus, no el foco.
+- No es draw.io. Los elementos tienen semántica real.
+- No es un LMS. Academy no califica estudiantes ni emite certificados.
+- No reemplaza la documentación escrita. La complementa.
+- No es una herramienta de gestión de proyectos.
 
 ---
 
-## Definición de Éxito
+## Documentación por producto
 
-LibreUML considerará su misión cumplida si:
-
-- Los estudiantes dejan de temerle al modelado.
-- El diseño se convierte en una herramienta cotidiana de pensamiento.
-- Los diagramas dejan de ser ejercicios mecánicos y pasan a ser comprensibles.
-- El conocimiento permanece libre, accesible y abierto.
-
-LibreUML existe para **hacer del modelado una habilidad universal**, no un privilegio.
+- [Modeler — Arquitectura técnica](modeler/ARCHITECTURE.md)
+- [Modeler — Estándar UML](modeler/uml/UML_STANDARD.md)
+- [Modeler — Ingeniería de código](modeler/engineering/ENGINEERING_EXPORTS.md)
+- [Academy — Visión educativa](academy/VISION.md)
+- [Academy — Para educadores](academy/FOR_EDUCATORS.md)
+- [Academy — Guía de estudiantes](academy/STUDENT_GUIDE.md)

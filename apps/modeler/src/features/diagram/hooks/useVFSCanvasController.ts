@@ -8,10 +8,8 @@ import type {
 import { useWorkspaceStore } from '../../../store/workspace.store';
 import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
-import { useUiStore } from '../../../store/uiStore';
 import {
   ensureLocalModel,
-  standaloneModelOps,
 } from '../../../store/standaloneModelOps';
 import {
   useCanvasEventHandlers,
@@ -20,24 +18,17 @@ import {
 } from '../../../hooks/canvas';
 import type {
   DiagramView,
-  ViewNode,
   VFSFile,
   VFSFolder,
   LibreUMLProject,
-  IRClass,
-  IRInterface,
-  IREnum,
-  IRPackage,
-  IRActor,
-  IRUseCase,
-  IRSystemBoundary,
-  IRUCModule,
-  IRDomainEntity,
   SemanticModel,
   RelationKind,
 } from '../../../core/domain/vfs/vfs.types';
+import { buildClassDiagramNodes } from './controllers/classDiagramNodes';
+import { buildUseCaseDiagramNodes } from './controllers/useCaseDiagramNodes';
+import { buildDomainModelNodes } from './controllers/domainModelNodes';
+import type { NodeBuilderContext } from './controllers/sharedNodeBuilders';
 import type {
-  NodeViewModel,
   NoteViewModel,
   PackageViewModel,
   ActorViewModel,
@@ -45,19 +36,11 @@ import type {
   SystemBoundaryViewModel,
   UCModuleViewModel,
   DomainEntityViewModel,
-  NodeStyleConfig,
-  NodeSection,
+  NodeViewModel,
 } from '../../../adapters/react-flow/view-models/node.view-model';
-import { SB_DEFAULT_W, SB_DEFAULT_H } from '../../../canvas/shapes/SystemBoundaryShape';
-import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../../../canvas/shapes/UCModuleShape';
-import type { Visibility } from '../../../core/domain/vfs/vfs.types';
 
 // ─── Type guard ───────────────────────────────────────────────────────────────
 
-/**
- * Safely checks if an unknown value is a valid DiagramView.
- * Required because VFSFile.content is typed as `unknown | null`.
- */
 export function isDiagramView(content: unknown): content is DiagramView {
   return (
     content !== null &&
@@ -70,475 +53,15 @@ export function isDiagramView(content: unknown): content is DiagramView {
   );
 }
 
-// ─── Style registry ───────────────────────────────────────────────────────────
+// ─── Exported node/edge types ─────────────────────────────────────────────────
 
-interface ElementDisplayConfig {
-  style: NodeStyleConfig;
-  stereotype?: string;
-}
-
-const VFS_DISPLAY: Record<string, ElementDisplayConfig> = {
-  CLASS: {
-    style: {
-      containerClass: 'bg-uml-class-bg border-uml-class-border',
-      headerClass: 'bg-surface-hover border-uml-class-border',
-      badgeColor: 'text-uml-class-border',
-      labelFormat: 'font-bold',
-      showStereotype: false,
-    },
-  },
-  ABSTRACT_CLASS: {
-    stereotype: 'abstract',
-    style: {
-      containerClass: 'bg-uml-abstract-bg border-uml-abstract-border',
-      headerClass: 'bg-surface-hover border-uml-abstract-border',
-      badgeColor: 'text-uml-abstract-border',
-      labelFormat: 'italic font-bold',
-      showStereotype: true,
-    },
-  },
-  INTERFACE: {
-    stereotype: 'interface',
-    style: {
-      containerClass: 'bg-uml-interface-bg border-uml-interface-border',
-      headerClass: 'bg-surface-secondary border-uml-interface-border',
-      badgeColor: 'text-uml-interface-border',
-      labelFormat: 'font-normal',
-      showStereotype: true,
-    },
-  },
-  ENUM: {
-    stereotype: 'enum',
-    style: {
-      containerClass: 'bg-purple-100 dark:bg-purple-900/20 border-purple-400 dark:border-purple-500',
-      headerClass: 'bg-purple-200 dark:bg-purple-900/50 border-purple-400 dark:border-purple-500',
-      badgeColor: 'text-purple-700 dark:text-purple-300',
-      labelFormat: 'font-bold',
-      showStereotype: true,
-    },
-  },
+export type VFSReactFlowNode = {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  data: NodeViewModel | NoteViewModel | PackageViewModel | ActorViewModel | UseCaseViewModel | SystemBoundaryViewModel | UCModuleViewModel | DomainEntityViewModel;
+  domainId?: string;
 };
-
-// ─── Visibility symbol ────────────────────────────────────────────────────────
-
-function irVisSymbol(v: Visibility | undefined): string {
-  switch (v) {
-    case 'private':   return '-';
-    case 'protected': return '#';
-    case 'package':   return '~';
-    default:          return '+';
-  }
-}
-
-// ─── Section builder ──────────────────────────────────────────────────────────
-
-function buildSections(
-  model: SemanticModel,
-  element: IRClass | IRInterface | IREnum,
-  kind: SemanticKind,
-): NodeSection[] {
-  const sections: NodeSection[] = [];
-
-  if (kind === 'CLASS' || kind === 'ABSTRACT_CLASS') {
-    const cls = element as IRClass;
-    const attrs = cls.attributeIds.map((id) => model.attributes[id]).filter(Boolean);
-    const ops = cls.operationIds.map((id) => model.operations[id]).filter(Boolean);
-
-    sections.push({
-      id: 'attributes',
-      items: attrs.map((a) => ({
-        id: a.id,
-        text: `${irVisSymbol(a.visibility)}${a.name}: ${a.type}${a.multiplicity === '*' || a.multiplicity === '0..*' ? '[]' : ''}`,
-        isStatic: a.isStatic,
-      })),
-    });
-
-    sections.push({
-      id: 'operations',
-      items: ops.map((o) => {
-        const paramsStr = o.parameters.map((p) => `${p.name}: ${p.type}`).join(', ');
-        // A constructor's name matches the enclosing class name — omit the return type.
-        const isConstructor = o.name === element.name;
-        const text = isConstructor
-          ? `${irVisSymbol(o.visibility)}${o.name}(${paramsStr})`
-          : `${irVisSymbol(o.visibility)}${o.name}(${paramsStr}): ${o.returnType ?? 'void'}`;
-        return { id: o.id, text, isStatic: o.isStatic, isAbstract: o.isAbstract };
-      }),
-    });
-  } else if (kind === 'INTERFACE') {
-    const iface = element as IRInterface;
-    const attrs = (iface.attributeIds ?? []).map((id) => model.attributes[id]).filter(Boolean);
-    const ops = iface.operationIds.map((id) => model.operations[id]).filter(Boolean);
-
-    sections.push({
-      id: 'attributes',
-      items: attrs.map((a) => ({
-        id: a.id,
-        text: `${irVisSymbol(a.visibility)}${a.name}: ${a.type}`,
-        isStatic: a.isStatic,
-      })),
-    });
-
-    sections.push({
-      id: 'operations',
-      items: ops.map((o) => {
-        const paramsStr = o.parameters.map((p) => `${p.name}: ${p.type}`).join(', ');
-        const isConstructor = o.name === element.name;
-        const text = isConstructor
-          ? `${irVisSymbol(o.visibility)}${o.name}(${paramsStr})`
-          : `${irVisSymbol(o.visibility)}${o.name}(${paramsStr}): ${o.returnType ?? 'void'}`;
-        return { id: o.id, text, isAbstract: o.isAbstract };
-      }),
-    });
-  } else if (kind === 'ENUM') {
-    const enm = element as IREnum;
-    sections.push({
-      id: 'literals',
-      items: enm.literals.map((lit, i) => ({
-        id: `${enm.id}-lit-${i}`,
-        text: lit.name,
-      })),
-    });
-  }
-
-  return sections;
-}
-
-// ─── Semantic resolution ──────────────────────────────────────────────────────
-
-type SemanticKind = 'CLASS' | 'ABSTRACT_CLASS' | 'INTERFACE' | 'ENUM' | 'PACKAGE' | 'NOTE' | 'ACTOR' | 'USECASE' | 'SYSTEM_BOUNDARY' | 'UC_MODULE' | 'DOMAIN_ENTITY' | 'UNKNOWN';
-
-interface ResolvedElement {
-  element: IRClass | IRInterface | IREnum | IRPackage | IRActor | IRUseCase | IRSystemBoundary | IRUCModule | IRDomainEntity | null;
-  kind: SemanticKind;
-}
-
-/**
- * Looks up a semantic element by ID across all relevant dictionaries in SemanticModel.
- * An empty elementId is the sentinel for visual-only elements (notes).
- */
-function resolveSemanticElement(model: SemanticModel, elementId: string): ResolvedElement {
-  if (!elementId) return { element: null, kind: 'NOTE' };
-
-  const cls = model.classes[elementId];
-  if (cls) {
-    return { element: cls, kind: cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS' };
-  }
-  const iface = model.interfaces[elementId];
-  if (iface) return { element: iface, kind: 'INTERFACE' };
-
-  const enm = model.enums[elementId];
-  if (enm) return { element: enm, kind: 'ENUM' };
-
-  const pkg = model.packages[elementId];
-  if (pkg) return { element: pkg, kind: 'PACKAGE' };
-
-  const actor = model.actors?.[elementId];
-  if (actor) return { element: actor, kind: 'ACTOR' };
-
-  const uc = model.useCases?.[elementId];
-  if (uc) return { element: uc, kind: 'USECASE' };
-
-  const sb = model.systemBoundaries?.[elementId];
-  if (sb) return { element: sb, kind: 'SYSTEM_BOUNDARY' };
-  const ucm = model.ucModules?.[elementId];
-  if (ucm) return { element: ucm, kind: 'UC_MODULE' };
-
-  // TODO(post-v1 Fase 2): mover a ShapeRouter
-  const de = model.domainEntities?.[elementId];
-  if (de) return { element: de, kind: 'DOMAIN_ENTITY' };
-
-  return { element: null, kind: 'UNKNOWN' };
-}
-
-// ─── Node builders ────────────────────────────────────────────────────────────
-
-/**
- * Converts ViewNode position to absolute canvas coordinates.
- * If the node has a parentPackageId, its stored x/y are relative to the parent.
- * This function adds the parent's position to get absolute coordinates.
- */
-function getAbsolutePosition(
-  viewNode: ViewNode,
-  allViewNodes: ViewNode[],
-): { x: number; y: number } {
-  if (!viewNode.parentPackageId) {
-    // Root-level node, position is already absolute
-    return { x: viewNode.x, y: viewNode.y };
-  }
-  
-  // Find parent package
-  const parentNode = allViewNodes.find((n) => n.id === viewNode.parentPackageId);
-  if (!parentNode) {
-    // Parent not found, use stored position as-is
-    return { x: viewNode.x, y: viewNode.y };
-  }
-  
-  // Recursively get parent's absolute position (in case parent is also nested)
-  const parentPos = getAbsolutePosition(parentNode, allViewNodes);
-  
-  // Add relative position to parent's absolute position
-  return {
-    x: parentPos.x + viewNode.x,
-    y: parentPos.y + viewNode.y,
-  };
-}
-
-function makeReactFlowNode(
-  viewNode: ViewNode,
-  label: string,
-  displayConfig: ElementDisplayConfig,
-  sections: NodeSection[],
-  onRename: (name: string, generics?: string) => void,
-  allViewNodes: ViewNode[],
-  badge?: string,
-) {
-  const viewModel: NodeViewModel = {
-    id: viewNode.id,
-    domainId: viewNode.elementId,
-    label,
-    stereotype: displayConfig.stereotype,
-    badge: badge || undefined,
-    sections,
-    style: displayConfig.style,
-    metadata: {
-      onRename,
-    },
-  };
-
-  return {
-    id: viewNode.id,
-    type: 'umlClass',
-    position: getAbsolutePosition(viewNode, allViewNodes),
-    data: viewModel,
-    domainId: viewNode.elementId,
-  };
-}
-
-/**
- * Builds a ReactFlow note node (visual-only, no IR element).
- * Content is persisted inside the ViewNode itself (content / noteTitle fields).
- * The onSave callback writes updates back to VFSStore so they survive re-renders.
- */
-function makeReactFlowNoteNode(
-  viewNode: ViewNode,
-  onSave: (viewNodeId: string, update: { content?: string; title?: string }) => void,
-  allViewNodes: ViewNode[],
-) {
-  const viewModel: NoteViewModel = {
-    id: viewNode.id,
-    domainId: viewNode.id,
-    title: viewNode.noteTitle ?? 'Note',
-    content: viewNode.content ?? '',
-    onSave: (update) => onSave(viewNode.id, update),
-  };
-
-  return {
-    id: viewNode.id,
-    type: 'umlNote',
-    position: getAbsolutePosition(viewNode, allViewNodes),
-    data: viewModel,
-  };
-}
-
-function computePackageDisplayName(
-  viewNode: ViewNode,
-  pkg: IRPackage,
-): string {
-  if (!viewNode.parentPackageId) {
-    // Root-level package — show the full stored name (e.g. "com")
-    return pkg.name;
-  }
-  // Nested package — show only the simple name (last segment).
-  // The parent is already visible on the canvas so the prefix is redundant.
-  return pkg.name.split('.').pop() || pkg.name;
-}
-
-function makeReactFlowPackageNode(
-  viewNode: ViewNode,
-  pkg: IRPackage,
-  allViewNodes: ViewNode[],
-  _allPackages: Record<string, IRPackage>,
-) {
-  const childCount = allViewNodes.filter(vn => vn.parentPackageId === viewNode.id).length;
-
-  const depth = (() => {
-    let d = 0;
-    let currentId = viewNode.parentPackageId;
-    while (currentId && d < 10) {
-      const parent = allViewNodes.find(vn => vn.id === currentId);
-      if (!parent) break;
-      d++;
-      currentId = parent.parentPackageId;
-    }
-    return d;
-  })();
-
-  const viewModel: PackageViewModel = {
-    __brand: 'package',
-    id: viewNode.id,
-    name: computePackageDisplayName(viewNode, pkg),
-    collapsed: viewNode.collapsed ?? false,
-    color: viewNode.color,
-    childCount,
-    depth,
-  };
-
-  return {
-    id: viewNode.id,
-    type: 'umlPackage',
-    position: getAbsolutePosition(viewNode, allViewNodes),
-    data: viewModel,
-    domainId: viewNode.elementId,
-  };
-}
-
-function makeReactFlowActorNode(
-  viewNode: ViewNode,
-  actor: IRActor,
-  allViewNodes: ViewNode[],
-  onRename: (name: string) => void,
-  onOpenProps: () => void,
-) {
-  const vm: ActorViewModel = {
-    __brand: 'actor',
-    id: viewNode.id,
-    domainId: viewNode.elementId,
-    name: actor.name,
-    isAbstract: actor.isAbstract ?? false,
-    actorType: actor.actorType,
-    onRename,
-    onOpenProps,
-  };
-  return {
-    id: viewNode.id,
-    type: 'umlActor',
-    position: getAbsolutePosition(viewNode, allViewNodes),
-    data: vm,
-    domainId: viewNode.elementId,
-  };
-}
-
-function makeReactFlowUseCaseNode(
-  viewNode: ViewNode,
-  uc: IRUseCase,
-  allViewNodes: ViewNode[],
-  onRename: (name: string) => void,
-  onOpenSpec: () => void,
-) {
-  const hasSpec = !!(
-    uc.briefDescription || uc.preconditions || uc.postconditions ||
-    (uc.basicFlow?.length) || (uc.alternativeFlows?.length)
-  );
-  const vm: UseCaseViewModel = {
-    __brand: 'useCase',
-    id: viewNode.id,
-    domainId: viewNode.elementId,
-    name: uc.name,
-    extensionPoints: uc.extensionPoints ?? [],
-    hasSpec,
-    onRename,
-    onOpenSpec,
-  };
-  return {
-    id: viewNode.id,
-    type: 'umlUseCase',
-    position: getAbsolutePosition(viewNode, allViewNodes),
-    data: vm,
-    domainId: viewNode.elementId,
-  };
-}
-
-function makeReactFlowSystemBoundaryNode(
-  viewNode: ViewNode,
-  sb: IRSystemBoundary,
-  allViewNodes: ViewNode[],
-  onRename: (name: string) => void,
-) {
-  const vm: SystemBoundaryViewModel = {
-    __brand: 'systemBoundary',
-    id: viewNode.id,
-    domainId: viewNode.elementId,
-    name: sb.name,
-    width: viewNode.width ?? SB_DEFAULT_W,
-    height: viewNode.height ?? SB_DEFAULT_H,
-    onRename,
-  };
-  return {
-    id: viewNode.id,
-    type: 'umlSystemBoundary',
-    position: getAbsolutePosition(viewNode, allViewNodes),
-    data: vm,
-    domainId: viewNode.elementId,
-  };
-}
-
-function makeReactFlowUCModuleNode(
-  viewNode: ViewNode,
-  ucm: IRUCModule,
-  allViewNodes: ViewNode[],
-  onRename: (name: string) => void,
-) {
-  const vm: UCModuleViewModel = {
-    __brand: 'ucModule',
-    id: viewNode.id,
-    domainId: viewNode.elementId,
-    name: ucm.name,
-    width: viewNode.width ?? UCM_DEFAULT_W,
-    height: viewNode.height ?? UCM_DEFAULT_H,
-    onRename,
-  };
-  return {
-    id: viewNode.id,
-    type: 'umlUCModule',
-    position: getAbsolutePosition(viewNode, allViewNodes),
-    data: vm,
-    domainId: viewNode.elementId,
-  };
-}
-
-function makeReactFlowDomainEntityNode(
-  viewNode: ViewNode,
-  entity: IRDomainEntity,
-  model: SemanticModel,
-  allViewNodes: ViewNode[],
-  onRename: (name: string) => void,
-  onOpenProps: () => void,
-) {
-  const attributes = entity.attributeIds
-    .map((id) => model.domainAttributes?.[id])
-    .filter((a): a is NonNullable<typeof a> => !!a)
-    .map((a) => ({ id: a.id, name: a.name }));
-
-  const vm: DomainEntityViewModel = {
-    __brand: 'domainEntity',
-    id: viewNode.id,
-    domainId: viewNode.elementId,
-    name: entity.name,
-    attributes,
-    onRename,
-    onOpenProps,
-  };
-  return {
-    id: viewNode.id,
-    type: 'umlDomainEntity',
-    position: getAbsolutePosition(viewNode, allViewNodes),
-    data: vm,
-    domainId: viewNode.elementId,
-  };
-}
-
-export type VFSReactFlowNode =
-  | ReturnType<typeof makeReactFlowNode>
-  | ReturnType<typeof makeReactFlowNoteNode>
-  | ReturnType<typeof makeReactFlowPackageNode>
-  | ReturnType<typeof makeReactFlowActorNode>
-  | ReturnType<typeof makeReactFlowUseCaseNode>
-  | ReturnType<typeof makeReactFlowSystemBoundaryNode>
-  | ReturnType<typeof makeReactFlowUCModuleNode>
-  | ReturnType<typeof makeReactFlowDomainEntityNode>;
-
-// ─── Edge type ────────────────────────────────────────────────────────────────
 
 export interface VFSReactFlowEdge {
   id: string;
@@ -566,41 +89,23 @@ export interface VFSReactFlowEdge {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export interface VFSCanvasResult {
-  /** True when the active tab is a .luml VFS file with a valid DiagramView. */
   isVFSFile: boolean;
-  /** True when the active file is a standalone diagram (uses localModel). */
   isStandalone: boolean;
-  /** The file's localModel when isStandalone, otherwise null. */
   localModel: SemanticModel | null;
-  /** ReactFlow-compatible nodes derived from DiagramView + SemanticModel. */
   nodes: VFSReactFlowNode[];
-  /** ReactFlow-compatible edges derived from DiagramView + SemanticModel. */
   edges: VFSReactFlowEdge[];
-  /** The raw DiagramView, or null. */
   diagramView: DiagramView | null;
-  /** The VFSFile node, or null. */
   vfsFile: VFSFile | null;
-  /** Active tab ID from WorkspaceStore. */
   activeTabId: string | null;
-  /** Konva-native onConnect handler (creates relation). */
   onConnect: (connection: KonvaConnection) => void;
-  /** Konva-typed onNodesChange — used by useKonvaCanvasController. */
   onKonvaNodesChange: (changes: KonvaNodeChange[]) => void;
-  /** Konva-typed onEdgesChange — used by useKonvaCanvasController. */
   onKonvaEdgesChange: (changes: KonvaEdgeChange[]) => void;
-  /** View-only removal: removes ViewNode from this diagram only. */
   removeNodeFromDiagram: (viewNodeId: string) => void;
-  /** Full cascade: deletes semantic element from ModelStore + all diagrams. */
   deleteElementFromModel: (viewNodeId: string) => void;
-  /** Duplicates a node: creates a copy of the semantic element and ViewNode at +50px offset. */
   duplicateNode: (viewNodeId: string) => void;
-  /** Deletes a VFS edge by ViewEdge.id. */
   deleteEdgeById: (viewEdgeId: string) => void;
-  /** Reverses a VFS edge by swapping source ↔ target. */
   reverseEdgeById: (viewEdgeId: string) => void;
-  /** Updates a VFS edge's IRRelation.kind. */
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;
-  /** Updates display properties stored on ViewEdge. */
   updateVFSEdgeProps: (
     viewEdgeId: string,
     props: {
@@ -613,16 +118,11 @@ export interface VFSCanvasResult {
   ) => void;
 }
 
-// ─── Auto-VFS project generation ────────────────────────────────────────────
+// ─── Default project bootstrap ────────────────────────────────────────────────
 
-/**
- * Creates a default VFS project with a single empty class diagram file,
- * loads it into VFSStore, and opens a tab for the diagram.
- * Called silently when no project exists so the canvas is always VFS-backed.
- */
 function ensureDefaultVFSProject(): void {
   const vfs = useVFSStore.getState();
-  if (vfs.project) return; // Already has a project
+  if (vfs.project) return;
 
   const now = Date.now();
   const projectId = crypto.randomUUID();
@@ -687,35 +187,35 @@ function ensureDefaultVFSProject(): void {
   useWorkspaceStore.getState().openTab(defaultDiagramId);
 }
 
-/**
- * useVFSCanvasController
- *
- * Single hook encapsulating all canvas state for VFS .luml files.
- *
- * ISOLATION: `activeTabId` is the reactive key. Switching tabs automatically
- * re-derives nodes/edges from the new tab's DiagramView without any manual cleanup.
- *
- * ARCHITECTURE:
- *   Visual positions (x, y)  → VFSStore  (DiagramView.ViewNode)
- *   Semantic names / kinds   → ModelStore (SemanticModel)
- *   Semantic relations        → ModelStore (SemanticModel.relations)
- *   Visual edge layout        → VFSStore  (DiagramView.ViewEdge)
- */
+// ─── Router ───────────────────────────────────────────────────────────────────
+
+function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSReactFlowNode[] {
+  switch (vfsFile.diagramType) {
+    case 'CLASS_DIAGRAM':
+    case 'PACKAGE_DIAGRAM':
+    case 'OBJECT_DIAGRAM':
+      return buildClassDiagramNodes(ctx) as VFSReactFlowNode[];
+    case 'USE_CASE_DIAGRAM':
+      return buildUseCaseDiagramNodes(ctx) as VFSReactFlowNode[];
+    case 'DOMAIN_MODEL_DIAGRAM':
+      return buildDomainModelNodes(ctx) as VFSReactFlowNode[];
+    default:
+      return buildClassDiagramNodes(ctx) as VFSReactFlowNode[];
+  }
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 export function useVFSCanvasController(): VFSCanvasResult {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const project = useVFSStore((s) => s.project);
   const globalModel = useModelStore((s) => s.model);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
 
-  // Auto-generate a default VFS project if none exists.
-  // This ensures the canvas always has a VFS-backed diagram to render.
   useEffect(() => {
-    if (!project) {
-      ensureDefaultVFSProject();
-    }
+    if (!project) ensureDefaultVFSProject();
   }, [project]);
 
-  // Resolve VFS file for the active tab
   const vfsFile = useMemo((): VFSFile | null => {
     if (!activeTabId || !project) return null;
     const node = project.nodes[activeTabId];
@@ -725,7 +225,6 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
   const isStandalone = vfsFile?.standalone === true;
 
-  // Subscribe to localModel from VFSStore (reactive — updates when model mutates)
   const localModel = useVFSStore((s): SemanticModel | null => {
     if (!activeTabId || !s.project) return null;
     const node = s.project.nodes[activeTabId];
@@ -733,24 +232,13 @@ export function useVFSCanvasController(): VFSCanvasResult {
     return (node as VFSFile).localModel ?? null;
   });
 
-  // Active model: per-file local for standalone, shared global for project files
   const model = isStandalone ? localModel : globalModel;
 
-  // Safely extract DiagramView
   const diagramView = useMemo((): DiagramView | null => {
     if (!vfsFile) return null;
     return isDiagramView(vfsFile.content) ? vfsFile.content : null;
   }, [vfsFile]);
 
-  // Ensure ModelStore is initialised and matches the current project.
-  //
-  // Two cases that require initialisation:
-  //   (a) model is null — first visit or cleared storage.
-  //   (b) model.id ≠ project.domainModelId — a persisted model from a different project
-  //       is in storage; must be replaced so ViewNode.elementId lookups work correctly.
-  //
-  // Case (b) also acts as cross-project contamination protection now that ModelStore
-  // is persisted: if the user switches projects the old model is never used.
   useEffect(() => {
     if (!project?.domainModelId) return;
     const ms = useModelStore.getState();
@@ -759,14 +247,11 @@ export function useVFSCanvasController(): VFSCanvasResult {
     }
   }, [project?.domainModelId]);
 
-  // Backward-compat: standalone files created before localModel was introduced
-  // (or ejected via handleMakeStandalone) may lack a localModel. Seed it lazily.
   useEffect(() => {
     if (!activeTabId || !isStandalone) return;
     ensureLocalModel(activeTabId);
   }, [activeTabId, isStandalone]);
 
-  // Stable callback: persists note content / title back into the ViewNode inside VFSStore.
   const handleNoteUpdate = useCallback(
     (viewNodeId: string, update: { content?: string; title?: string }) => {
       if (!activeTabId || !diagramView) return;
@@ -786,148 +271,25 @@ export function useVFSCanvasController(): VFSCanvasResult {
     [activeTabId, diagramView],
   );
 
+  // ── Route nodes by diagram type ───────────────────────────────────────────
+
   const nodes = useMemo((): VFSReactFlowNode[] => {
-    if (!diagramView || !model) return [];
+    if (!diagramView || !model || !vfsFile) return [];
+    const ctx: NodeBuilderContext = {
+      diagramView,
+      model,
+      isStandalone,
+      activeTabId,
+      handleNoteUpdate,
+    };
+    return routeNodes(vfsFile, ctx);
+  }, [diagramView, model, vfsFile, isStandalone, activeTabId, handleNoteUpdate]);
 
-    return diagramView.nodes.map((viewNode: ViewNode) => {
-      const { element, kind } = resolveSemanticElement(model, viewNode.elementId);
+  // ── Edges (generic — all diagram types share the relations model) ─────────
 
-      if (kind === 'NOTE') {
-        return makeReactFlowNoteNode(viewNode, handleNoteUpdate, diagramView.nodes);
-      }
-
-      if (kind === 'PACKAGE') {
-        return makeReactFlowPackageNode(viewNode, element as IRPackage, diagramView.nodes, model.packages);
-      }
-
-      if (kind === 'ACTOR') {
-        const onRenameActor = (name: string) => {
-          if (isStandalone && activeTabId) {
-            standaloneModelOps(activeTabId).updateActor(viewNode.elementId, { name });
-          } else {
-            useModelStore.getState().updateActor(viewNode.elementId, { name });
-          }
-        };
-        const onOpenProps = () => useUiStore.getState().openActorProps(viewNode.elementId);
-        return makeReactFlowActorNode(viewNode, element as IRActor, diagramView.nodes, onRenameActor, onOpenProps);
-      }
-
-      if (kind === 'USECASE') {
-        const onRenameUC = (name: string) => {
-          if (isStandalone && activeTabId) {
-            standaloneModelOps(activeTabId).updateUseCase(viewNode.elementId, { name });
-          } else {
-            useModelStore.getState().updateUseCase(viewNode.elementId, { name });
-          }
-        };
-        const onOpenSpec = () => {
-          useUiStore.getState().openUseCaseSpec(viewNode.elementId);
-        };
-        return makeReactFlowUseCaseNode(viewNode, element as IRUseCase, diagramView.nodes, onRenameUC, onOpenSpec);
-      }
-
-      if (kind === 'SYSTEM_BOUNDARY') {
-        const onRenameSB = (name: string) => {
-          if (isStandalone && activeTabId) {
-            standaloneModelOps(activeTabId).updateSystemBoundary(viewNode.elementId, { name });
-          } else {
-            useModelStore.getState().updateSystemBoundary(viewNode.elementId, { name });
-          }
-        };
-        return makeReactFlowSystemBoundaryNode(viewNode, element as IRSystemBoundary, diagramView.nodes, onRenameSB);
-      }
-
-      if (kind === 'UC_MODULE') {
-        const onRenameUCM = (name: string) => {
-          if (isStandalone && activeTabId) {
-            standaloneModelOps(activeTabId).updateUCModule(viewNode.elementId, { name });
-          } else {
-            useModelStore.getState().updateUCModule(viewNode.elementId, { name });
-          }
-        };
-        return makeReactFlowUCModuleNode(viewNode, element as IRUCModule, diagramView.nodes, onRenameUCM);
-      }
-
-      // TODO(post-v1 Fase 2): mover a ShapeRouter
-      if (kind === 'DOMAIN_ENTITY') {
-        const onRenameDomainEntity = (name: string) => {
-          if (isStandalone && activeTabId) {
-            standaloneModelOps(activeTabId).updateDomainEntity(viewNode.elementId, { name });
-          } else {
-            useModelStore.getState().updateDomainEntity(viewNode.elementId, { name });
-          }
-        };
-        const onOpenDomainEntityProps = () =>
-          useUiStore.getState().openDomainEntityProps(viewNode.elementId);
-        return makeReactFlowDomainEntityNode(
-          viewNode,
-          element as IRDomainEntity,
-          model,
-          diagramView.nodes,
-          onRenameDomainEntity,
-          onOpenDomainEntityProps,
-        );
-      }
-
-      const label = element?.name ?? 'NewClass';
-      const displayConfig = VFS_DISPLAY[kind] ?? VFS_DISPLAY.CLASS;
-      const sections = element ? buildSections(model, element as IRClass | IRInterface | IREnum, kind) : [];
-      // Only show the package badge when the element is NOT already visually
-      // inside a package on the canvas — avoids redundant labelling.
-      const badge = viewNode.parentPackageId
-        ? undefined
-        : (element as IRClass | IRInterface | IREnum | null)?.packageName ?? undefined;
-
-      const onRename = (name: string, generics?: string) => {
-        if (isStandalone && activeTabId) {
-          const ops = standaloneModelOps(activeTabId);
-          switch (kind) {
-            case 'CLASS':
-            case 'ABSTRACT_CLASS':
-              ops.updateClass(viewNode.elementId, {
-                name,
-                ...(generics !== undefined ? { stereotypes: [generics] } : {}),
-              });
-              break;
-            case 'INTERFACE':
-              ops.updateInterface(viewNode.elementId, { name });
-              break;
-            case 'ENUM':
-              ops.updateEnum(viewNode.elementId, { name });
-              break;
-          }
-        } else {
-          const ms = useModelStore.getState();
-          if (!ms.model) return;
-          switch (kind) {
-            case 'CLASS':
-            case 'ABSTRACT_CLASS':
-              ms.updateClass(viewNode.elementId, {
-                name,
-                ...(generics !== undefined ? { stereotypes: [generics] } : {}),
-              });
-              break;
-            case 'INTERFACE':
-              ms.updateInterface(viewNode.elementId, { name });
-              break;
-            case 'ENUM':
-              ms.updateEnum(viewNode.elementId, { name });
-              break;
-          }
-        }
-      };
-
-      return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename, diagramView.nodes, badge);
-    });
-  }, [diagramView, model, isStandalone, activeTabId, handleNoteUpdate]);
-
-  // Map ViewEdges → ReactFlow edges.
-  // Requires a reverse lookup from semantic elementId → ReactFlow node ID (ViewNode.id).
   const edges = useMemo((): VFSReactFlowEdge[] => {
     if (!diagramView || !model) return [];
 
-    // Build reverse map: elementId → ViewNode.id (ReactFlow node ID)
-    // Notes have no elementId so they use their viewNode.id as the relation endpoint.
     const elementIdToNodeId = new Map<string, string>();
     for (const vn of diagramView.nodes) {
       if (vn.elementId) {
@@ -940,11 +302,11 @@ export function useVFSCanvasController(): VFSCanvasResult {
     const result: VFSReactFlowEdge[] = [];
     for (const viewEdge of diagramView.edges) {
       const relation = model.relations[viewEdge.relationId];
-      if (!relation) continue; // Orphaned ViewEdge — invisible until next explicit delete
+      if (!relation) continue;
 
       const sourceNodeId = elementIdToNodeId.get(relation.sourceId);
       const targetNodeId = elementIdToNodeId.get(relation.targetId);
-      if (!sourceNodeId || !targetNodeId) continue; // Dangling reference — skip
+      if (!sourceNodeId || !targetNodeId) continue;
 
       result.push({
         id: viewEdge.id,
@@ -973,23 +335,9 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
   // ── Delegate to extracted hooks ───────────────────────────────────────────
 
-  const eventHandlers = useCanvasEventHandlers({
-    activeTabId,
-    isStandalone,
-    updateFileContent,
-  });
-
-  const nodeActions = useNodeActions({
-    activeTabId,
-    isStandalone,
-    updateFileContent,
-  });
-
-  const edgeActions = useEdgeActions({
-    activeTabId,
-    isStandalone,
-    updateFileContent,
-  });
+  const eventHandlers = useCanvasEventHandlers({ activeTabId, isStandalone, updateFileContent });
+  const nodeActions = useNodeActions({ activeTabId, isStandalone, updateFileContent });
+  const edgeActions = useEdgeActions({ activeTabId, isStandalone, updateFileContent });
 
   return {
     isVFSFile: !!vfsFile && !!diagramView,

@@ -15,6 +15,19 @@ import { storageAdapter } from '../adapters/storage/storage.adapter';
 
 type VFSNode = VFSFolder | VFSFile;
 
+function readLegacyModelFromStorage(expectedModelId: string): SemanticModel | null {
+  try {
+    const raw = storageAdapter.getItem('libreuml-model-storage');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: { model?: SemanticModel } };
+    const model = parsed?.state?.model ?? null;
+    if (!model || model.id !== expectedModelId) return null;
+    return model;
+  } catch {
+    return null;
+  }
+}
+
 interface VFSStoreState {
   project: LibreUMLProject | null;
   isLoading: boolean;
@@ -68,11 +81,21 @@ export const useVFSStore = create<VFSStoreState>()(
       project: null,
       isLoading: false,
 
-      loadProject: (project) =>
-        set({
-          project,
-          isLoading: false,
-        }),
+      loadProject: (project) => {
+        if (!project.semanticModel) {
+          const legacyModel = readLegacyModelFromStorage(project.domainModelId);
+          if (legacyModel) {
+            project = { ...project, semanticModel: legacyModel };
+          }
+        }
+        set({ project, isLoading: false });
+        const ms = useModelStore.getState();
+        if (project.semanticModel) {
+          ms.loadModel(project.semanticModel);
+        } else {
+          ms.initModel(project.domainModelId);
+        }
+      },
 
       closeProject: () => {
         set({ project: null, isLoading: false });
@@ -449,18 +472,26 @@ export const useVFSStore = create<VFSStoreState>()(
           storageAdapter.removeItem(name);
         },
       },
-      onRehydrateStorage: () => {
-        return () => {
-          setTimeout(() => {
-            import('../core/undo/instance').then(({ undoManager }) => {
-              undoManager.clear();
-            });
-          }, 0);
-        };
+      onRehydrateStorage: () => (state) => {
+        setTimeout(() => {
+          import('../core/undo/instance').then(({ undoManager }) => {
+            undoManager.clear();
+          });
+        }, 0);
+        if (state?.project) {
+          useVFSStore.getState().loadProject(state.project);
+        }
       },
     }
   )
 );
+
+useModelStore.subscribe((state, prev) => {
+  if (!state.model || state.model.updatedAt === prev.model?.updatedAt) return;
+  const project = useVFSStore.getState().project;
+  if (!project) return;
+  useVFSStore.setState({ project: { ...project, semanticModel: state.model } });
+});
 
 export function getNodePath(
   nodeId: string,

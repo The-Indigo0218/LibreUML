@@ -370,7 +370,7 @@ export async function openLumlFile(file: File, mode: OpenMode): Promise<void> {
   const result = await parseLumlFile(file);
 
   if (result.exportType === 'project') {
-    loadParsedProject(result.project, result.model);
+    loadParsedProject(result.project);
   } else {
     await injectDiagramIntoVFS(
       result.view,

@@ -83,6 +83,11 @@ export function useAutoSave(): void {
     const project = useVFSStore.getState().project;
     const model   = useModelStore.getState().model;
     if (!project && !model) return;
+
+    if (project && model && project.semanticModel !== model) {
+      useVFSStore.setState({ project: { ...project, semanticModel: model } });
+    }
+
     try {
       localStorage.setItem(
         LOCAL_SAVE_KEY,

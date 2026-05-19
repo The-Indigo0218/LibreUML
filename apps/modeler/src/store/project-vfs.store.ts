@@ -71,6 +71,12 @@ interface VFSStoreState {
    * the file does not exist or has no localModel.
    */
   updateLocalModel: (fileId: string, updater: (draft: SemanticModel) => void) => void;
+  /**
+   * Syncs the current SemanticModel back into project.semanticModel so persist
+   * captures it. Called by the model-store subscription and the autosave interval.
+   * Uses the internal `set` (guaranteed to trigger persist) instead of external setState.
+   */
+  syncSemanticModel: (model: SemanticModel) => void;
 }
 
 export type VFSStore = VFSStoreState;
@@ -433,6 +439,14 @@ export const useVFSStore = create<VFSStoreState>()(
         });
       },
 
+      syncSemanticModel: (model) => {
+        set((state) => {
+          if (!state.project) return state;
+          if (state.project.semanticModel === model) return state;
+          return { project: { ...state.project, semanticModel: model } };
+        });
+      },
+
       updateFileContent: (fileId, content) => {
         set((state) => {
           if (!state.project) return state;
@@ -488,9 +502,8 @@ export const useVFSStore = create<VFSStoreState>()(
 
 useModelStore.subscribe((state, prev) => {
   if (!state.model || state.model.updatedAt === prev.model?.updatedAt) return;
-  const project = useVFSStore.getState().project;
-  if (!project) return;
-  useVFSStore.setState({ project: { ...project, semanticModel: state.model } });
+  if (!useVFSStore.getState().project) return;
+  useVFSStore.getState().syncSemanticModel(state.model);
 });
 
 export function getNodePath(

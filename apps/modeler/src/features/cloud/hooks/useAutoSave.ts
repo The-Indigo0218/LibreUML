@@ -85,7 +85,7 @@ export function useAutoSave(): void {
     if (!project && !model) return;
 
     if (project && model && project.semanticModel !== model) {
-      useVFSStore.setState({ project: { ...project, semanticModel: model } });
+      useVFSStore.getState().syncSemanticModel(model);
     }
 
     try {

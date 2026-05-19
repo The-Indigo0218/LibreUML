@@ -486,6 +486,13 @@ export const useVFSStore = create<VFSStoreState>()(
   )
 );
 
+useModelStore.subscribe((state, prev) => {
+  if (!state.model || state.model.updatedAt === prev.model?.updatedAt) return;
+  const project = useVFSStore.getState().project;
+  if (!project) return;
+  useVFSStore.setState({ project: { ...project, semanticModel: state.model } });
+});
+
 export function getNodePath(
   nodeId: string,
   nodes: Record<string, VFSNode>

@@ -240,14 +240,6 @@ export function useVFSCanvasController(): VFSCanvasResult {
   }, [vfsFile]);
 
   useEffect(() => {
-    if (!project?.domainModelId) return;
-    const ms = useModelStore.getState();
-    if (!ms.model || ms.model.id !== project.domainModelId) {
-      ms.initModel(project.domainModelId);
-    }
-  }, [project?.domainModelId]);
-
-  useEffect(() => {
     if (!activeTabId || !isStandalone) return;
     ensureLocalModel(activeTabId);
   }, [activeTabId, isStandalone]);

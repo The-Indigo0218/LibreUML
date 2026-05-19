@@ -86,7 +86,10 @@ export function useAutoSave(): void {
     try {
       localStorage.setItem(
         LOCAL_SAVE_KEY,
-        JSON.stringify({ project, model, savedAt: Date.now() }),
+        JSON.stringify({
+          project: model && project ? { ...project, semanticModel: model } : project,
+          savedAt: Date.now(),
+        }),
       );
     } catch {
       // localStorage quota exceeded — silent failure

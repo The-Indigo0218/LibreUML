@@ -76,8 +76,8 @@ function buildVfsSnapshot(project: LibreUMLProject): Record<string, unknown> {
       nodes[id] = node;
     }
   }
-  const { nodes: _nodes, ...projectMeta } = project;
-  void _nodes;
+  const { nodes: _nodes, semanticModel: _model, ...projectMeta } = project;
+  void _nodes; void _model;
   return { ...projectMeta, nodes };
 }
 

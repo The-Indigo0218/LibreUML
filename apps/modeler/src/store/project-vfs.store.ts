@@ -68,11 +68,15 @@ export const useVFSStore = create<VFSStoreState>()(
       project: null,
       isLoading: false,
 
-      loadProject: (project) =>
-        set({
-          project,
-          isLoading: false,
-        }),
+      loadProject: (project) => {
+        set({ project, isLoading: false });
+        const ms = useModelStore.getState();
+        if (project.semanticModel) {
+          ms.loadModel(project.semanticModel);
+        } else {
+          ms.initModel(project.domainModelId);
+        }
+      },
 
       closeProject: () => {
         set({ project: null, isLoading: false });
@@ -449,14 +453,20 @@ export const useVFSStore = create<VFSStoreState>()(
           storageAdapter.removeItem(name);
         },
       },
-      onRehydrateStorage: () => {
-        return () => {
-          setTimeout(() => {
-            import('../core/undo/instance').then(({ undoManager }) => {
-              undoManager.clear();
-            });
-          }, 0);
-        };
+      onRehydrateStorage: () => (state) => {
+        setTimeout(() => {
+          import('../core/undo/instance').then(({ undoManager }) => {
+            undoManager.clear();
+          });
+        }, 0);
+        if (state?.project) {
+          const ms = useModelStore.getState();
+          if (state.project.semanticModel) {
+            ms.loadModel(state.project.semanticModel);
+          } else {
+            ms.initModel(state.project.domainModelId);
+          }
+        }
       },
     }
   )

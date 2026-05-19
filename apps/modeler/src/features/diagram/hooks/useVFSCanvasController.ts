@@ -27,7 +27,10 @@ import type {
 import { buildClassDiagramNodes } from './controllers/classDiagramNodes';
 import { buildUseCaseDiagramNodes } from './controllers/useCaseDiagramNodes';
 import { buildDomainModelNodes } from './controllers/domainModelNodes';
-import type { NodeBuilderContext } from './controllers/sharedNodeBuilders';
+import {
+  resolveSemanticElement,
+  type NodeBuilderContext,
+} from './controllers/sharedNodeBuilders';
 import type {
   NoteViewModel,
   PackageViewModel,
@@ -38,6 +41,11 @@ import type {
   DomainEntityViewModel,
   NodeViewModel,
 } from '../../../adapters/react-flow/view-models/node.view-model';
+
+// ─── Module-scoped state ──────────────────────────────────────────────────────
+
+/** Per-tab dedup for orphan elementId warnings — fires once per session per tab. */
+const warnedOrphanTabs = new Set<string>();
 
 // ─── Type guard ───────────────────────────────────────────────────────────────
 
@@ -243,6 +251,26 @@ export function useVFSCanvasController(): VFSCanvasResult {
     if (!activeTabId || !isStandalone) return;
     ensureLocalModel(activeTabId);
   }, [activeTabId, isStandalone]);
+
+  useEffect(() => {
+    if (!diagramView || !model || !activeTabId) return;
+    const orphanIds: string[] = [];
+    for (const vn of diagramView.nodes) {
+      if (!vn.elementId) continue;
+      if (resolveSemanticElement(model, vn.elementId).kind === 'UNKNOWN') {
+        orphanIds.push(vn.elementId);
+      }
+    }
+    if (orphanIds.length === 0) return;
+    if (warnedOrphanTabs.has(activeTabId)) return;
+    warnedOrphanTabs.add(activeTabId);
+    console.warn(
+      `[LibreUML] Diagram "${vfsFile?.name ?? activeTabId}" references ` +
+        `${orphanIds.length} element(s) not present in the semantic model. ` +
+        `These nodes will render as Notes. Orphan elementIds:`,
+      orphanIds,
+    );
+  }, [diagramView, model, activeTabId, vfsFile]);
 
   const handleNoteUpdate = useCallback(
     (viewNodeId: string, update: { content?: string; title?: string }) => {

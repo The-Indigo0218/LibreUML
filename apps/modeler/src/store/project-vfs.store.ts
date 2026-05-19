@@ -15,14 +15,49 @@ import { storageAdapter } from '../adapters/storage/storage.adapter';
 
 type VFSNode = VFSFolder | VFSFile;
 
-function readLegacyModelFromStorage(expectedModelId: string): SemanticModel | null {
+/**
+ * Reads the legacy persist key from the pre-715d195 era when useModelStore
+ * had its own persist middleware. Used as the first recovery source when a
+ * rehydrated project lacks `semanticModel`.
+ */
+function readLegacyModelFromStorage(
+  expectedModelId: string,
+  expectedProjectId?: string,
+): SemanticModel | null {
   try {
     const raw = storageAdapter.getItem('libreuml-model-storage');
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { state?: { model?: SemanticModel } };
     const model = parsed?.state?.model ?? null;
-    if (!model || model.id !== expectedModelId) return null;
-    return model;
+    if (!model) return null;
+    // Match by model.id first; fall back to project.id when callers provide
+    // it (model.id can be regenerated, project.id is stable).
+    if (model.id === expectedModelId) return model;
+    if (expectedProjectId && (model as { projectId?: string }).projectId === expectedProjectId) {
+      return model;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the local autosave snapshot written by useAutoSave (every 3 s).
+ * Acts as a second recovery source: even if the legacy key is gone, the
+ * snapshot holds a complete {project, semanticModel} blob from the last
+ * 3 s of activity in the previous session.
+ */
+function readAutosaveSnapshot(expectedProjectId: string): SemanticModel | null {
+  try {
+    const raw = storageAdapter.getItem('libreuml-autosave-snapshot');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      project?: { id?: string; semanticModel?: SemanticModel };
+    };
+    const snap = parsed?.project;
+    if (!snap || snap.id !== expectedProjectId) return null;
+    return snap.semanticModel ?? null;
   } catch {
     return null;
   }
@@ -89,9 +124,11 @@ export const useVFSStore = create<VFSStoreState>()(
 
       loadProject: (project) => {
         if (!project.semanticModel) {
-          const legacyModel = readLegacyModelFromStorage(project.domainModelId);
-          if (legacyModel) {
-            project = { ...project, semanticModel: legacyModel };
+          const recovered =
+            readLegacyModelFromStorage(project.domainModelId, project.id) ??
+            readAutosaveSnapshot(project.id);
+          if (recovered) {
+            project = { ...project, semanticModel: recovered };
           }
         }
         set({ project, isLoading: false });
@@ -474,6 +511,8 @@ export const useVFSStore = create<VFSStoreState>()(
     {
       name: 'libreuml-vfs-storage',
       version: 1,
+      partialize: (state) => ({ project: state.project }) as VFSStoreState,
+      migrate: (persistedState) => persistedState as VFSStoreState,
       storage: {
         getItem: (name) => {
           const value = storageAdapter.getItem(name);
@@ -493,7 +532,11 @@ export const useVFSStore = create<VFSStoreState>()(
           });
         }, 0);
         if (state?.project) {
-          useVFSStore.getState().loadProject(state.project);
+          // Hydration runs synchronously inside create(), so the module-level
+          // `useVFSStore` const is still in its temporal dead zone. Call the
+          // method via the rehydrated state directly — it carries the bound
+          // action functions from the initializer.
+          state.loadProject(state.project);
         }
       },
     }

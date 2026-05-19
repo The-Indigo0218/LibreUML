@@ -64,7 +64,7 @@ export function OpenFileModal() {
           );
           return;
         }
-        loadParsedProject(result.project, result.model);
+        loadParsedProject(result.project);
         closeModals();
 
       } else if (nameLower.endsWith('.luml')) {

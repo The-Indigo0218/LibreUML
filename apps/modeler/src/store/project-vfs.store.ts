@@ -15,6 +15,19 @@ import { storageAdapter } from '../adapters/storage/storage.adapter';
 
 type VFSNode = VFSFolder | VFSFile;
 
+function readLegacyModelFromStorage(expectedModelId: string): SemanticModel | null {
+  try {
+    const raw = storageAdapter.getItem('libreuml-model-storage');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: { model?: SemanticModel } };
+    const model = parsed?.state?.model ?? null;
+    if (!model || model.id !== expectedModelId) return null;
+    return model;
+  } catch {
+    return null;
+  }
+}
+
 interface VFSStoreState {
   project: LibreUMLProject | null;
   isLoading: boolean;
@@ -69,6 +82,12 @@ export const useVFSStore = create<VFSStoreState>()(
       isLoading: false,
 
       loadProject: (project) => {
+        if (!project.semanticModel) {
+          const legacyModel = readLegacyModelFromStorage(project.domainModelId);
+          if (legacyModel) {
+            project = { ...project, semanticModel: legacyModel };
+          }
+        }
         set({ project, isLoading: false });
         const ms = useModelStore.getState();
         if (project.semanticModel) {
@@ -460,12 +479,7 @@ export const useVFSStore = create<VFSStoreState>()(
           });
         }, 0);
         if (state?.project) {
-          const ms = useModelStore.getState();
-          if (state.project.semanticModel) {
-            ms.loadModel(state.project.semanticModel);
-          } else {
-            ms.initModel(state.project.domainModelId);
-          }
+          useVFSStore.getState().loadProject(state.project);
         }
       },
     }

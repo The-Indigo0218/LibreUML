@@ -70,7 +70,7 @@ import {
   type AnyNodeViewModel,
   type NodeViewModel,
   type PackageViewModel,
-} from '../adapters/react-flow/view-models/node.view-model';
+} from '../adapters/view-models/node.view-model';
 import { selectAnchors, anchorPointToHandle, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';

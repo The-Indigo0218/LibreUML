@@ -35,7 +35,7 @@ import {
   type UseCaseViewModel,
   type SystemBoundaryViewModel,
   type DomainEntityViewModel,
-} from '../../adapters/react-flow/view-models/node.view-model';
+} from '../../adapters/view-models/node.view-model';
 import { resolveNodeColors, resolveNoteColors, resolveActorColors, resolveUseCaseColors, resolveSystemBoundaryColors } from '../tokens/colors';
 import { getClassShapeSize, computeClassLayout } from '../shapes/ClassShape';
 import { getNoteShapeSize } from '../shapes/NoteShape';

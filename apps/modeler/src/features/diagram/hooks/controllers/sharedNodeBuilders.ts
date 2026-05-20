@@ -12,7 +12,7 @@ import type {
   ViewNode,
   DiagramView,
 } from '../../../../core/domain/vfs/vfs.types';
-import type { NoteViewModel } from '../../../../adapters/react-flow/view-models/node.view-model';
+import type { NoteViewModel } from '../../../../adapters/view-models/node.view-model';
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ export function getAbsolutePosition(
   return { x: parentPos.x + viewNode.x, y: parentPos.y + viewNode.y };
 }
 
-export function makeReactFlowNoteNode(
+export function makeNoteNode(
   viewNode: ViewNode,
   onSave: (viewNodeId: string, update: { content?: string; title?: string }) => void,
   allViewNodes: ViewNode[],

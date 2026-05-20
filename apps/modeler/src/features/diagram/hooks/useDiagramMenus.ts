@@ -34,11 +34,11 @@ interface UseDiagramMenusProps {
   onChangeEdgeKind: (edgeId: string, kind: string) => void;
   onAddToProject: (nodeId: string) => void;
   onDuplicateNode: (nodeId: string) => void;
-  /** Returns the semantic kind ('CLASS', 'INTERFACE', etc.) of a node by its ReactFlow ID. */
+  /** Returns the semantic kind ('CLASS', 'INTERFACE', etc.) of a node by its ViewNode.id. */
   getVFSNodeKind: (nodeId: string) => string | undefined;
   /** Returns true if the node's IR element has isExternal: true. */
   getIsNodeExternal: (nodeId: string) => boolean;
-  /** Resolves a ReactFlow ViewNode.id to its semantic elementId. */
+  /** Resolves a ViewNode.id to its semantic elementId. */
   getElementId: (nodeId: string) => string | undefined;
   /** True when the active diagram is a standalone .luml file (no project). */
   isStandalone?: boolean;

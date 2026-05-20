@@ -13,11 +13,11 @@ import type {
   PackageViewModel,
   NodeStyleConfig,
   NodeSection,
-} from '../../../../adapters/react-flow/view-models/node.view-model';
+} from '../../../../adapters/view-models/node.view-model';
 import {
   resolveSemanticElement,
   getAbsolutePosition,
-  makeReactFlowNoteNode,
+  makeNoteNode,
   type SemanticKind,
   type NodeBuilderContext,
 } from './sharedNodeBuilders';
@@ -156,7 +156,7 @@ function computePackageDisplayName(viewNode: ViewNode, pkg: IRPackage): string {
   return pkg.name.split('.').pop() || pkg.name;
 }
 
-function makeReactFlowNode(
+function makeClassNode(
   viewNode: ViewNode,
   label: string,
   displayConfig: ElementDisplayConfig,
@@ -184,7 +184,7 @@ function makeReactFlowNode(
   };
 }
 
-function makeReactFlowPackageNode(
+function makePackageNode(
   viewNode: ViewNode,
   pkg: IRPackage,
   allViewNodes: ViewNode[],
@@ -230,11 +230,11 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
     const { element, kind } = resolveSemanticElement(model, viewNode.elementId);
 
     if (kind === 'NOTE') {
-      return makeReactFlowNoteNode(viewNode, handleNoteUpdate, diagramView.nodes);
+      return makeNoteNode(viewNode, handleNoteUpdate, diagramView.nodes);
     }
 
     if (kind === 'PACKAGE') {
-      return makeReactFlowPackageNode(viewNode, element as IRPackage, diagramView.nodes, model.packages);
+      return makePackageNode(viewNode, element as IRPackage, diagramView.nodes, model.packages);
     }
 
     const label = element?.name ?? 'NewClass';
@@ -285,6 +285,6 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
       }
     };
 
-    return makeReactFlowNode(viewNode, label, displayConfig, sections, onRename, diagramView.nodes, badge);
+    return makeClassNode(viewNode, label, displayConfig, sections, onRename, diagramView.nodes, badge);
   });
 }

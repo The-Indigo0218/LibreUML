@@ -28,11 +28,11 @@ export interface DragSnapshot {
  *
  * POSITION FLOW:
  *   During drag → onNodesChange (in useVFSCanvasController) writes intermediate
- *                 positions to VFSStore so the controlled ReactFlow rerenders correctly.
+ *                 positions to VFSStore so the controlled canvas rerenders correctly.
  *   Drag end   → onNodeDragStop writes the final positions (authoritative commit)
  *                 and stores the pre-drag snapshot for undo.
  *
- * The intermediate writes in onNodesChange are necessary because ReactFlow is
+ * The intermediate writes in onNodesChange are necessary because the canvas is
  * fully controlled (nodes come from VFSStore via useMemo). Without them the
  * visual drag wouldn't work.
  */

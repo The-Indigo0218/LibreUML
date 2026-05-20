@@ -32,7 +32,7 @@
 import { useMemo } from 'react';
 import { Group, Rect, Text, Line } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { NodeViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { NodeViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveNodeColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
 

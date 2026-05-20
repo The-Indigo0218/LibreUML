@@ -40,7 +40,7 @@ import type {
   UCModuleViewModel,
   DomainEntityViewModel,
   NodeViewModel,
-} from '../../../adapters/react-flow/view-models/node.view-model';
+} from '../../../adapters/view-models/node.view-model';
 
 // ─── Module-scoped state ──────────────────────────────────────────────────────
 
@@ -63,7 +63,7 @@ export function isDiagramView(content: unknown): content is DiagramView {
 
 // ─── Exported node/edge types ─────────────────────────────────────────────────
 
-export type VFSReactFlowNode = {
+export type VFSCanvasNode = {
   id: string;
   type: string;
   position: { x: number; y: number };
@@ -71,7 +71,7 @@ export type VFSReactFlowNode = {
   domainId?: string;
 };
 
-export interface VFSReactFlowEdge {
+export interface VFSCanvasEdge {
   id: string;
   source: string;
   target: string;
@@ -100,8 +100,8 @@ export interface VFSCanvasResult {
   isVFSFile: boolean;
   isStandalone: boolean;
   localModel: SemanticModel | null;
-  nodes: VFSReactFlowNode[];
-  edges: VFSReactFlowEdge[];
+  nodes: VFSCanvasNode[];
+  edges: VFSCanvasEdge[];
   diagramView: DiagramView | null;
   vfsFile: VFSFile | null;
   activeTabId: string | null;
@@ -197,18 +197,18 @@ function ensureDefaultVFSProject(): void {
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
-function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSReactFlowNode[] {
+function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSCanvasNode[] {
   switch (vfsFile.diagramType) {
     case 'CLASS_DIAGRAM':
     case 'PACKAGE_DIAGRAM':
     case 'OBJECT_DIAGRAM':
-      return buildClassDiagramNodes(ctx) as VFSReactFlowNode[];
+      return buildClassDiagramNodes(ctx) as VFSCanvasNode[];
     case 'USE_CASE_DIAGRAM':
-      return buildUseCaseDiagramNodes(ctx) as VFSReactFlowNode[];
+      return buildUseCaseDiagramNodes(ctx) as VFSCanvasNode[];
     case 'DOMAIN_MODEL_DIAGRAM':
-      return buildDomainModelNodes(ctx) as VFSReactFlowNode[];
+      return buildDomainModelNodes(ctx) as VFSCanvasNode[];
     default:
-      return buildClassDiagramNodes(ctx) as VFSReactFlowNode[];
+      return buildClassDiagramNodes(ctx) as VFSCanvasNode[];
   }
 }
 
@@ -293,7 +293,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
   // ── Route nodes by diagram type ───────────────────────────────────────────
 
-  const nodes = useMemo((): VFSReactFlowNode[] => {
+  const nodes = useMemo((): VFSCanvasNode[] => {
     if (!diagramView || !model || !vfsFile) return [];
     const ctx: NodeBuilderContext = {
       diagramView,
@@ -307,7 +307,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
   // ── Edges (generic — all diagram types share the relations model) ─────────
 
-  const edges = useMemo((): VFSReactFlowEdge[] => {
+  const edges = useMemo((): VFSCanvasEdge[] => {
     if (!diagramView || !model) return [];
 
     const elementIdToNodeId = new Map<string, string>();
@@ -319,7 +319,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
       }
     }
 
-    const result: VFSReactFlowEdge[] = [];
+    const result: VFSCanvasEdge[] = [];
     for (const viewEdge of diagramView.edges) {
       const relation = model.relations[viewEdge.relationId];
       if (!relation) continue;

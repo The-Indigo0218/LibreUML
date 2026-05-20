@@ -1,11 +1,9 @@
 // src/features/cloud/__tests__/cloudSync.service.test.ts
 //
-// TODO(cloud-tests-rewrite): These tests target the legacy diagram-centric API
-// (diagApi.createDiagram / updateDiagram / getDiagram). The service was refactored
-// to a project-centric model that drives `cloudAdapter` (createProjectInCloud,
-// updateModelInCloud, createDiagramInCloud, etc.) defined in
-// adapters/storage/cloud.adapter.ts. These tests are skipped in bulk until they
-// are rewritten against the new adapter surface.
+// Unit tests for cloudSync.service against the project-centric cloud adapter
+// (createProjectInCloud, updateModelInCloud, createDiagramInCloud,
+// updateDiagramInCloud, loadProjectFull). The legacy diagram-centric API
+// (diagApi.createDiagram / updateDiagram) is no longer used here.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { cloudSyncService } from '../services/cloudSync.service';
@@ -13,52 +11,88 @@ import { useSyncStore } from '../../../store/sync.store';
 import { useAuthStore } from '../../auth/store/auth.store';
 import { useVFSStore } from '../../../store/project-vfs.store';
 import { useModelStore } from '../../../store/model.store';
-import type { DiagramDetailResponse } from '../../../api/types';
 import type { OfflineQueueItem } from '../../../store/sync.store';
-import type { LibreUMLProject } from '../../../core/domain/vfs/vfs.types';
+import type { LibreUMLProject, SemanticModel } from '../../../core/domain/vfs/vfs.types';
 
-// ── Module mock ───────────────────────────────────────────────────────────────
+// ── Module mocks ──────────────────────────────────────────────────────────────
+//
+// We mock the cloud adapter wholesale. Every test stubs the adapter methods
+// it touches via `vi.mocked(cloudAdapter.<method>).mockResolvedValueOnce(...)`.
 
-vi.mock('../../../api/diagrams.api', () => ({
-  createDiagram: vi.fn(),
-  updateDiagram: vi.fn(),
-  getDiagram:    vi.fn(),
-  deleteDiagram: vi.fn(),
+vi.mock('../../../adapters/storage/cloud.adapter', () => ({
+  cloudAdapter: {
+    createProjectInCloud: vi.fn(),
+    updateProjectInCloud: vi.fn(),
+    loadProjectFull:      vi.fn(),
+    updateModelInCloud:   vi.fn(),
+    createDiagramInCloud: vi.fn(),
+    updateDiagramInCloud: vi.fn(),
+  },
 }));
 
-import * as diagApi from '../../../api/diagrams.api';
+// invalidateQuota touches React Query state; in tests we don't have a client,
+// so silence the call and avoid a noisy console.warn.
+vi.mock('../hooks/useQuota', () => ({
+  invalidateQuota: vi.fn(),
+  useQuota:        vi.fn(),
+}));
+
+vi.mock('../../telemetry/posthog.client', () => ({
+  track: vi.fn(),
+}));
+
+import { cloudAdapter } from '../../../adapters/storage/cloud.adapter';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
+const emptyModel: SemanticModel = {
+  id:              'model-1',
+  name:            'Domain Model',
+  version:         '1.0.0',
+  packages:        {},
+  classes:         {},
+  interfaces:      {},
+  enums:           {},
+  dataTypes:       {},
+  attributes:      {},
+  operations:      {},
+  actors:          {},
+  useCases:        {},
+  activityNodes:   {},
+  objectInstances: {},
+  components:      {},
+  nodes:           {},
+  artifacts:       {},
+  relations:       {},
+  createdAt:       Date.now(),
+  updatedAt:       Date.now(),
+};
+
 const mockProject: LibreUMLProject = {
-  id:            'proj-1',
+  id:            'proj-local-1',
   projectName:   'Test Project',
   version:       '1.0.0',
+  description:   'Test description',
+  author:        'Tester',
+  targetLanguage:'Java',
+  basePackage:   'com.test',
   domainModelId: 'model-1',
   nodes:         {},
   createdAt:     Date.now(),
   updatedAt:     Date.now(),
 };
 
-const mockResponse: DiagramDetailResponse = {
-  id:         'diag-1',
-  ownerId:    'user-1',
-  title:      'Test Project',
-  type:       'CLASS',
-  visibility: 'PRIVATE',
-  content:    { project: mockProject, model: null },
-  version:    1,
-  createdAt:  new Date().toISOString(),
-  updatedAt:  new Date().toISOString(),
-};
+const isoNow = () => new Date().toISOString();
 
 // ── Reset helpers ─────────────────────────────────────────────────────────────
 
 function resetStores() {
   useSyncStore.setState({
     cloudProjectId:           null,
+    projectVersion:           0,
     modelVersion:             0,
     cloudDiagrams:            {},
+    legacyCloudDiagramId:     null,
     storageMode:              'local',
     syncStatus:               'idle',
     lastSyncedAt:             null,
@@ -78,7 +112,7 @@ function resetStores() {
     error:           null,
   });
   useVFSStore.setState({ project: mockProject, isLoading: false });
-  useModelStore.setState({ model: null });
+  useModelStore.setState({ model: emptyModel });
 }
 
 beforeEach(() => {
@@ -92,38 +126,87 @@ afterEach(() => {
 
 // ── saveToCloud() ─────────────────────────────────────────────────────────────
 
-describe.skip('CloudSyncService.saveToCloud()', () => {
-  it('creates a new cloud diagram and links the project on success', async () => {
-    vi.mocked(diagApi.createDiagram).mockResolvedValueOnce(mockResponse);
+describe('CloudSyncService.saveToCloud()', () => {
+  it('creates project, uploads model, and switches to cloud mode on success', async () => {
+    vi.mocked(cloudAdapter.createProjectInCloud).mockResolvedValueOnce({
+      id: 'cloud-proj-1', modelId: 'cloud-model-1', version: 1, createdAt: isoNow(),
+    });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValueOnce({
+      id: 'cloud-model-1', version: 1, updatedAt: isoNow(),
+    });
 
     const ok = await cloudSyncService.saveToCloud();
 
     expect(ok).toBe(true);
-    expect(diagApi.createDiagram).toHaveBeenCalledOnce();
+    expect(cloudAdapter.createProjectInCloud).toHaveBeenCalledOnce();
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledOnce();
 
     const { cloudProjectId, modelVersion, storageMode, syncStatus } = useSyncStore.getState();
-    expect(cloudProjectId).toBeDefined();
-    expect(modelVersion).toBeGreaterThanOrEqual(0);
+    expect(cloudProjectId).toBe('cloud-proj-1');
+    expect(modelVersion).toBe(1);
     expect(storageMode).toBe('cloud');
     expect(syncStatus).toBe('saved');
   });
 
-  it('sends the project name as title', async () => {
-    vi.mocked(diagApi.createDiagram).mockResolvedValueOnce(mockResponse);
+  it('sends the project metadata in the createProject payload', async () => {
+    vi.mocked(cloudAdapter.createProjectInCloud).mockResolvedValueOnce({
+      id: 'cloud-proj-1', modelId: 'cloud-model-1', version: 1, createdAt: isoNow(),
+    });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValueOnce({
+      id: 'cloud-model-1', version: 1, updatedAt: isoNow(),
+    });
 
     await cloudSyncService.saveToCloud();
 
-    const [req] = vi.mocked(diagApi.createDiagram).mock.calls[0];
-    expect(req.title).toBe('Test Project');
+    const [req] = vi.mocked(cloudAdapter.createProjectInCloud).mock.calls[0];
+    expect(req.name).toBe('Test Project');
+    expect(req.description).toBe('Test description');
+    expect(req.author).toBe('Tester');
+    expect(req.targetLanguage).toBe('Java');
+    expect(req.basePackage).toBe('com.test');
+    expect(req.vfsSnapshot).toBeDefined();
   });
 
-  it('sets error state when API rejects', async () => {
-    vi.mocked(diagApi.createDiagram).mockRejectedValueOnce(new Error('Network error'));
+  it('uploads the semantic model with version 1 on first save', async () => {
+    vi.mocked(cloudAdapter.createProjectInCloud).mockResolvedValueOnce({
+      id: 'cloud-proj-1', modelId: 'cloud-model-1', version: 1, createdAt: isoNow(),
+    });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValueOnce({
+      id: 'cloud-model-1', version: 1, updatedAt: isoNow(),
+    });
+
+    await cloudSyncService.saveToCloud();
+
+    const [projectId, req] = vi.mocked(cloudAdapter.updateModelInCloud).mock.calls[0];
+    expect(projectId).toBe('cloud-proj-1');
+    expect(req.version).toBe(1);
+    expect(req.data).toBeDefined();
+  });
+
+  it('sets error state when createProject rejects', async () => {
+    vi.mocked(cloudAdapter.createProjectInCloud).mockRejectedValueOnce(
+      new Error('Network error'),
+    );
 
     const ok = await cloudSyncService.saveToCloud();
 
     expect(ok).toBe(false);
     expect(useSyncStore.getState().syncStatus).toBe('error');
+    expect(useSyncStore.getState().error).toBeTruthy();
+  });
+
+  it('sets quota-specific error message on HTTP 422', async () => {
+    const quotaErr = Object.assign(new Error('Quota'), {
+      isAxiosError: true,
+      response:     { status: 422, data: { message: 'Storage quota exceeded' } },
+    });
+    vi.mocked(cloudAdapter.createProjectInCloud).mockRejectedValueOnce(quotaErr);
+
+    const ok = await cloudSyncService.saveToCloud();
+
+    expect(ok).toBe(false);
+    expect(useSyncStore.getState().syncStatus).toBe('error');
+    expect(useSyncStore.getState().error).toContain('Storage quota exceeded');
   });
 
   it('returns false without calling the API when no project is open', async () => {
@@ -132,7 +215,16 @@ describe.skip('CloudSyncService.saveToCloud()', () => {
     const ok = await cloudSyncService.saveToCloud();
 
     expect(ok).toBe(false);
-    expect(diagApi.createDiagram).not.toHaveBeenCalled();
+    expect(cloudAdapter.createProjectInCloud).not.toHaveBeenCalled();
+  });
+
+  it('returns false without calling the API when no model is loaded', async () => {
+    useModelStore.setState({ model: null });
+
+    const ok = await cloudSyncService.saveToCloud();
+
+    expect(ok).toBe(false);
+    expect(cloudAdapter.createProjectInCloud).not.toHaveBeenCalled();
   });
 
   it('returns false without calling the API when not authenticated', async () => {
@@ -141,52 +233,69 @@ describe.skip('CloudSyncService.saveToCloud()', () => {
     const ok = await cloudSyncService.saveToCloud();
 
     expect(ok).toBe(false);
-    expect(diagApi.createDiagram).not.toHaveBeenCalled();
+    expect(cloudAdapter.createProjectInCloud).not.toHaveBeenCalled();
   });
 });
 
 // ── forceSyncNow() — PATCH path ───────────────────────────────────────────────
 
-describe.skip('CloudSyncService.forceSyncNow() — PATCH path', () => {
+describe('CloudSyncService.forceSyncNow() — model channel', () => {
   beforeEach(() => {
     useSyncStore.setState({
-      cloudProjectId: 'proj-1',
+      cloudProjectId: 'cloud-proj-1',
+      projectVersion: 1,
       modelVersion:   1,
+      cloudDiagrams:  {},
       storageMode:    'cloud',
     });
   });
 
-  it('sends PATCH and updates version on success', async () => {
-    const v2Response = { ...mockResponse, version: 2 };
-    vi.mocked(diagApi.updateDiagram).mockResolvedValueOnce(v2Response);
+  it('PATCHes the model and bumps modelVersion on success', async () => {
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValueOnce({
+      id: 'cloud-proj-1', version: 2, updatedAt: isoNow(),
+    });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValueOnce({
+      id: 'cloud-model-1', version: 2, updatedAt: isoNow(),
+    });
 
     const ok = await cloudSyncService.forceSyncNow();
 
     expect(ok).toBe(true);
-    expect(diagApi.updateDiagram).toHaveBeenCalledWith(
-      'diag-1',
+    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledWith(
+      'cloud-proj-1',
       expect.objectContaining({ version: 1 }),
     );
-    expect(useSyncStore.getState().modelVersion).toBeGreaterThanOrEqual(0);
+    expect(useSyncStore.getState().modelVersion).toBe(2);
     expect(useSyncStore.getState().syncStatus).toBe('saved');
   });
 
-  it('includes the current version in the PATCH body (optimistic lock)', async () => {
+  it('sends the local modelVersion in the PATCH body (optimistic lock)', async () => {
     useSyncStore.setState({ modelVersion: 7 });
-    vi.mocked(diagApi.updateDiagram).mockResolvedValueOnce({ ...mockResponse, version: 8 });
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValueOnce({
+      id: 'cloud-proj-1', version: 2, updatedAt: isoNow(),
+    });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValueOnce({
+      id: 'cloud-model-1', version: 8, updatedAt: isoNow(),
+    });
 
     await cloudSyncService.forceSyncNow();
 
-    const [, req] = vi.mocked(diagApi.updateDiagram).mock.calls[0];
+    const [, req] = vi.mocked(cloudAdapter.updateModelInCloud).mock.calls[0];
     expect(req.version).toBe(7);
   });
 
-  it('sets conflict state and records conflictDetails on HTTP 409', async () => {
-    const conflictError = Object.assign(new Error('Conflict'), {
-      isAxiosError: true,
-      response: { status: 409, data: { version: 5, message: 'Version conflict' } },
+  it('sets conflict state with serverVersion and localPayload on HTTP 409 for the model', async () => {
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValueOnce({
+      id: 'cloud-proj-1', version: 2, updatedAt: isoNow(),
     });
-    vi.mocked(diagApi.updateDiagram).mockRejectedValueOnce(conflictError);
+    const conflictErr = Object.assign(new Error('Conflict'), {
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: { version: 5, serverVersion: 5, serverData: { foo: 'bar' } },
+      },
+    });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValueOnce(conflictErr);
 
     const ok = await cloudSyncService.forceSyncNow();
 
@@ -194,16 +303,20 @@ describe.skip('CloudSyncService.forceSyncNow() — PATCH path', () => {
     const { syncStatus, conflictDetails } = useSyncStore.getState();
     expect(syncStatus).toBe('conflict');
     expect(conflictDetails).not.toBeNull();
+    expect(conflictDetails?.kind).toBe('model');
     expect(conflictDetails?.serverVersion).toBe(5);
     expect(conflictDetails?.localPayload).toBeDefined();
   });
 
-  it('sets error state with message on HTTP 422', async () => {
-    const quotaError = Object.assign(new Error('Quota exceeded'), {
+  it('sets quota-specific error on HTTP 422 for the model', async () => {
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValueOnce({
+      id: 'cloud-proj-1', version: 2, updatedAt: isoNow(),
+    });
+    const quotaErr = Object.assign(new Error('Quota'), {
       isAxiosError: true,
       response: { status: 422, data: { message: 'Storage quota exceeded' } },
     });
-    vi.mocked(diagApi.updateDiagram).mockRejectedValueOnce(quotaError);
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValueOnce(quotaErr);
 
     const ok = await cloudSyncService.forceSyncNow();
 
@@ -213,12 +326,15 @@ describe.skip('CloudSyncService.forceSyncNow() — PATCH path', () => {
     expect(error).toContain('Storage quota exceeded');
   });
 
-  it('adds to offline queue on network error (no HTTP response)', async () => {
-    const networkError = Object.assign(new Error('Network Error'), {
+  it('pushes to offlineQueue on a network error (no HTTP response)', async () => {
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValueOnce({
+      id: 'cloud-proj-1', version: 2, updatedAt: isoNow(),
+    });
+    const networkErr = Object.assign(new Error('Network Error'), {
       isAxiosError: true,
       response:     undefined,
     });
-    vi.mocked(diagApi.updateDiagram).mockRejectedValueOnce(networkError);
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValueOnce(networkErr);
 
     const ok = await cloudSyncService.forceSyncNow();
 
@@ -226,7 +342,8 @@ describe.skip('CloudSyncService.forceSyncNow() — PATCH path', () => {
     const { syncStatus, offlineQueue } = useSyncStore.getState();
     expect(syncStatus).toBe('offline');
     expect(offlineQueue).toHaveLength(1);
-    expect(offlineQueue[0].id).toBe('diag-1');
+    expect(offlineQueue[0].kind).toBe('model');
+    expect(offlineQueue[0].projectId).toBe('cloud-proj-1');
     expect(offlineQueue[0].attempts).toBe(0);
   });
 });
@@ -236,51 +353,87 @@ describe.skip('CloudSyncService.forceSyncNow() — PATCH path', () => {
 describe('CloudSyncService.forceSyncNow() — guard conditions', () => {
   it('skips PATCH when not authenticated', async () => {
     useAuthStore.setState({ isAuthenticated: false });
-    useSyncStore.setState({ cloudProjectId: 'proj-1', storageMode: 'cloud', modelVersion: 1 });
+    useSyncStore.setState({ cloudProjectId: 'cloud-proj-1', storageMode: 'cloud', modelVersion: 1 });
 
     const ok = await cloudSyncService.forceSyncNow();
 
     expect(ok).toBe(false);
-    expect(diagApi.updateDiagram).not.toHaveBeenCalled();
+    expect(cloudAdapter.updateModelInCloud).not.toHaveBeenCalled();
   });
 
   it('skips PATCH in local storage mode', async () => {
-    useSyncStore.setState({ cloudProjectId: 'proj-1', storageMode: 'local', modelVersion: 1 });
+    useSyncStore.setState({ cloudProjectId: 'cloud-proj-1', storageMode: 'local', modelVersion: 1 });
 
     const ok = await cloudSyncService.forceSyncNow();
 
     expect(ok).toBe(false);
-    expect(diagApi.updateDiagram).not.toHaveBeenCalled();
+    expect(cloudAdapter.updateModelInCloud).not.toHaveBeenCalled();
   });
 
-  it('skips PATCH when cloudDiagramId is null', async () => {
+  it('skips PATCH when cloudProjectId is null', async () => {
     useSyncStore.setState({ cloudProjectId: null, storageMode: 'cloud', modelVersion: 0 });
 
     const ok = await cloudSyncService.forceSyncNow();
 
     expect(ok).toBe(false);
-    expect(diagApi.updateDiagram).not.toHaveBeenCalled();
+    expect(cloudAdapter.updateModelInCloud).not.toHaveBeenCalled();
   });
 });
 
 // ── loadFromCloud() ───────────────────────────────────────────────────────────
 
-describe.skip('CloudSyncService.loadFromCloud()', () => {
-  it('fetches diagram, sets the cloud link, and returns content', async () => {
-    vi.mocked(diagApi.getDiagram).mockResolvedValueOnce(mockResponse);
+describe('CloudSyncService.loadFromCloud()', () => {
+  it('fetches the full project, sets cloud link, and returns the payload', async () => {
+    vi.mocked(cloudAdapter.loadProjectFull).mockResolvedValueOnce({
+      project: {
+        id: 'cloud-proj-1',
+        name: 'Test Project',
+        projectVersion: '1.0.0',
+        visibility: 'PRIVATE',
+        version: 4,
+        vfsSnapshot: {},
+        diagrams: [],
+        createdAt: isoNow(),
+        updatedAt: isoNow(),
+      },
+      model: {
+        id: 'cloud-model-1',
+        projectId: 'cloud-proj-1',
+        data: {},
+        version: 9,
+        updatedAt: isoNow(),
+      },
+      diagrams: [
+        {
+          id: 'cloud-diag-1',
+          projectId: 'cloud-proj-1',
+          name: 'Main.luml',
+          diagramType: 'CLASS',
+          path: 'vfs-file-uuid-1',
+          viewData: { nodes: [], edges: [] },
+          version: 2,
+          createdAt: isoNow(),
+          updatedAt: isoNow(),
+        },
+      ],
+    });
 
-    const content = await cloudSyncService.loadFromCloud('diag-1');
+    const content = await cloudSyncService.loadFromCloud('cloud-proj-1');
 
     expect(content).not.toBeNull();
     expect((content as Record<string, unknown>)?.project).toBeDefined();
-    expect(useSyncStore.getState().cloudProjectId).toBeDefined();
-    expect(useSyncStore.getState().modelVersion).toBeGreaterThanOrEqual(0);
+
+    const { cloudProjectId, projectVersion, modelVersion, cloudDiagrams } = useSyncStore.getState();
+    expect(cloudProjectId).toBe('cloud-proj-1');
+    expect(projectVersion).toBe(4);
+    expect(modelVersion).toBe(9);
+    expect(cloudDiagrams['vfs-file-uuid-1']).toEqual({ cloudId: 'cloud-diag-1', version: 2 });
   });
 
-  it('returns null when the API rejects', async () => {
-    vi.mocked(diagApi.getDiagram).mockRejectedValueOnce(new Error('Not found'));
+  it('returns null when the adapter throws', async () => {
+    vi.mocked(cloudAdapter.loadProjectFull).mockRejectedValueOnce(new Error('Not found'));
 
-    const content = await cloudSyncService.loadFromCloud('diag-1');
+    const content = await cloudSyncService.loadFromCloud('cloud-proj-1');
 
     expect(content).toBeNull();
   });
@@ -289,7 +442,7 @@ describe.skip('CloudSyncService.loadFromCloud()', () => {
 // ── useSyncStore — state transitions ─────────────────────────────────────────
 
 describe('useSyncStore state transitions', () => {
-  it('setCloudProject sets cloud mode and stores id + version', () => {
+  it('setCloudProject sets cloud mode and stores id + versions', () => {
     useSyncStore.getState().setCloudProject('abc', 3, 3, {});
 
     const { cloudProjectId, modelVersion, storageMode } = useSyncStore.getState();

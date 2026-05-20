@@ -13,19 +13,19 @@ import type {
   UseCaseViewModel,
   SystemBoundaryViewModel,
   UCModuleViewModel,
-} from '../../../../adapters/react-flow/view-models/node.view-model';
+} from '../../../../adapters/view-models/node.view-model';
 import { SB_DEFAULT_W, SB_DEFAULT_H } from '../../../../canvas/shapes/SystemBoundaryShape';
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../../../../canvas/shapes/UCModuleShape';
 import {
   resolveSemanticElement,
   getAbsolutePosition,
-  makeReactFlowNoteNode,
+  makeNoteNode,
   type NodeBuilderContext,
 } from './sharedNodeBuilders';
 
 // ─── Node builders ────────────────────────────────────────────────────────────
 
-function makeReactFlowActorNode(
+function makeActorNode(
   viewNode: ViewNode,
   actor: IRActor,
   allViewNodes: ViewNode[],
@@ -51,7 +51,7 @@ function makeReactFlowActorNode(
   };
 }
 
-function makeReactFlowUseCaseNode(
+function makeUseCaseNode(
   viewNode: ViewNode,
   uc: IRUseCase,
   allViewNodes: ViewNode[],
@@ -84,7 +84,7 @@ function makeReactFlowUseCaseNode(
   };
 }
 
-function makeReactFlowSystemBoundaryNode(
+function makeSystemBoundaryNode(
   viewNode: ViewNode,
   sb: IRSystemBoundary,
   allViewNodes: ViewNode[],
@@ -108,7 +108,7 @@ function makeReactFlowSystemBoundaryNode(
   };
 }
 
-function makeReactFlowUCModuleNode(
+function makeUCModuleNode(
   viewNode: ViewNode,
   ucm: IRUCModule,
   allViewNodes: ViewNode[],
@@ -141,7 +141,7 @@ export function buildUseCaseDiagramNodes(ctx: NodeBuilderContext) {
     const { element, kind } = resolveSemanticElement(model, viewNode.elementId);
 
     if (kind === 'NOTE') {
-      return makeReactFlowNoteNode(viewNode, handleNoteUpdate, diagramView.nodes);
+      return makeNoteNode(viewNode, handleNoteUpdate, diagramView.nodes);
     }
 
     if (kind === 'ACTOR') {
@@ -153,7 +153,7 @@ export function buildUseCaseDiagramNodes(ctx: NodeBuilderContext) {
         }
       };
       const onOpenProps = () => useUiStore.getState().openActorProps(viewNode.elementId);
-      return makeReactFlowActorNode(viewNode, element as IRActor, diagramView.nodes, onRename, onOpenProps);
+      return makeActorNode(viewNode, element as IRActor, diagramView.nodes, onRename, onOpenProps);
     }
 
     if (kind === 'USECASE') {
@@ -165,7 +165,7 @@ export function buildUseCaseDiagramNodes(ctx: NodeBuilderContext) {
         }
       };
       const onOpenSpec = () => useUiStore.getState().openUseCaseSpec(viewNode.elementId);
-      return makeReactFlowUseCaseNode(viewNode, element as IRUseCase, diagramView.nodes, onRename, onOpenSpec);
+      return makeUseCaseNode(viewNode, element as IRUseCase, diagramView.nodes, onRename, onOpenSpec);
     }
 
     if (kind === 'SYSTEM_BOUNDARY') {
@@ -176,7 +176,7 @@ export function buildUseCaseDiagramNodes(ctx: NodeBuilderContext) {
           useModelStore.getState().updateSystemBoundary(viewNode.elementId, { name });
         }
       };
-      return makeReactFlowSystemBoundaryNode(viewNode, element as IRSystemBoundary, diagramView.nodes, onRename);
+      return makeSystemBoundaryNode(viewNode, element as IRSystemBoundary, diagramView.nodes, onRename);
     }
 
     if (kind === 'UC_MODULE') {
@@ -187,11 +187,11 @@ export function buildUseCaseDiagramNodes(ctx: NodeBuilderContext) {
           useModelStore.getState().updateUCModule(viewNode.elementId, { name });
         }
       };
-      return makeReactFlowUCModuleNode(viewNode, element as IRUCModule, diagramView.nodes, onRename);
+      return makeUCModuleNode(viewNode, element as IRUCModule, diagramView.nodes, onRename);
     }
 
     // Unknown element — render note as fallback
-    return makeReactFlowNoteNode(
+    return makeNoteNode(
       { ...viewNode, content: `Unknown: ${viewNode.elementId}` },
       handleNoteUpdate,
       diagramView.nodes,

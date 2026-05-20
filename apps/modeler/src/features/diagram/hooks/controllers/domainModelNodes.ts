@@ -2,17 +2,17 @@ import { standaloneModelOps } from '../../../../store/standaloneModelOps';
 import { useModelStore } from '../../../../store/model.store';
 import { useUiStore } from '../../../../store/uiStore';
 import type { IRDomainEntity, ViewNode } from '../../../../core/domain/vfs/vfs.types';
-import type { DomainEntityViewModel } from '../../../../adapters/react-flow/view-models/node.view-model';
+import type { DomainEntityViewModel } from '../../../../adapters/view-models/node.view-model';
 import {
   resolveSemanticElement,
   getAbsolutePosition,
-  makeReactFlowNoteNode,
+  makeNoteNode,
   type NodeBuilderContext,
 } from './sharedNodeBuilders';
 
 // ─── Node builder ─────────────────────────────────────────────────────────────
 
-function makeReactFlowDomainEntityNode(
+function makeDomainEntityNode(
   viewNode: ViewNode,
   entity: IRDomainEntity,
   model: { domainAttributes?: Record<string, { id: string; name: string }> },
@@ -52,7 +52,7 @@ export function buildDomainModelNodes(ctx: NodeBuilderContext) {
     const { element, kind } = resolveSemanticElement(model, viewNode.elementId);
 
     if (kind === 'NOTE') {
-      return makeReactFlowNoteNode(viewNode, handleNoteUpdate, diagramView.nodes);
+      return makeNoteNode(viewNode, handleNoteUpdate, diagramView.nodes);
     }
 
     if (kind === 'DOMAIN_ENTITY') {
@@ -64,7 +64,7 @@ export function buildDomainModelNodes(ctx: NodeBuilderContext) {
         }
       };
       const onOpenProps = () => useUiStore.getState().openDomainEntityProps(viewNode.elementId);
-      return makeReactFlowDomainEntityNode(
+      return makeDomainEntityNode(
         viewNode,
         element as IRDomainEntity,
         model,
@@ -74,7 +74,7 @@ export function buildDomainModelNodes(ctx: NodeBuilderContext) {
       );
     }
 
-    return makeReactFlowNoteNode(
+    return makeNoteNode(
       { ...viewNode, content: `Unknown: ${viewNode.elementId}` },
       handleNoteUpdate,
       diagramView.nodes,

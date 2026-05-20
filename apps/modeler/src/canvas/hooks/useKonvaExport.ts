@@ -17,7 +17,7 @@ import {
   isUseCaseViewModel,
   isSystemBoundaryViewModel,
   type NodeViewModel,
-} from '../../adapters/react-flow/view-models/node.view-model';
+} from '../../adapters/view-models/node.view-model';
 import { getClassShapeSize } from '../shapes/ClassShape';
 import { getNoteShapeSize } from '../shapes/NoteShape';
 import { getActorShapeSize } from '../shapes/ActorShape';

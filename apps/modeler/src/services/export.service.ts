@@ -22,7 +22,7 @@ import {
   isDomainEntityViewModel,
   type NodeViewModel,
   type PackageViewModel,
-} from '../adapters/react-flow/view-models/node.view-model';
+} from '../adapters/view-models/node.view-model';
 import { getClassShapeSize } from '../canvas/shapes/ClassShape';
 import { getNoteShapeSize } from '../canvas/shapes/NoteShape';
 import { getPackageShapeSize } from '../canvas/shapes/PackageShape';

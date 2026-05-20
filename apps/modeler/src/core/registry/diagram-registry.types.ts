@@ -74,8 +74,10 @@ export interface DiagramTypeRegistry {
   // Export actions available for this diagram type
   exportActions: ExportAction[];
   
-  // PHASE 3: React Flow component registry
-  // Maps React Flow node/edge type strings to their React components
+  // Component registry — maps node/edge type strings to their React components.
+  // Vestigial slot kept for parity with the old per-diagram routing; the Konva
+  // renderer dispatches through ShapeRouter today and these maps are populated
+  // with `{}` everywhere.
   nodeComponents: Record<string, React.ComponentType<any>>;
   edgeComponents: Record<string, React.ComponentType<any>>;
   

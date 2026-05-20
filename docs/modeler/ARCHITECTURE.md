@@ -103,7 +103,7 @@ resolveSemanticElement(model, viewNode.elementId)
         ↓
 useModelStore.model  (o vfsFile.localModel si standalone === true)
         ↓
-makeReactFlowNode(viewNode, element, ...)
+makeClassNode(viewNode, element, ...)        ← (o makeActorNode / makeUseCaseNode / etc. según el tipo)
         ↓
 KonvaCanvas.nodes
 ```
@@ -123,7 +123,7 @@ KonvaCanvas.nodes
 3. **Edges:** construir aristas (genérico — todos los tipos usan `model.relations`)
 
 ```ts
-function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSReactFlowNode[] {
+function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSCanvasNode[] {
   switch (vfsFile.diagramType) {
     case 'CLASS_DIAGRAM':         return buildClassDiagramNodes(ctx);
     case 'USE_CASE_DIAGRAM':      return buildUseCaseDiagramNodes(ctx);

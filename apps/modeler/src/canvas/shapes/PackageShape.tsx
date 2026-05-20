@@ -4,7 +4,7 @@ import type Konva from 'konva';
 import type { Context } from 'konva/lib/Context';
 import type { Shape as KonvaShape } from 'konva/lib/Shape';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { PackageViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { PackageViewModel } from '../../adapters/view-models/node.view-model';
 import { measureTextWidth } from './measureText';
 
 const TAB_W = 80;

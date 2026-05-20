@@ -1,9 +1,9 @@
 /**
  * useKonvaCanvasController — Konva-native canvas state hook.
  *
- * Wraps useVFSCanvasController and adapts its RF-typed output into
- * Konva-native types (ShapeDescriptor, EdgeDescriptor). No ReactFlow
- * types escape this module.
+ * Wraps useVFSCanvasController and flattens its richer node/edge view models
+ * into the lean ShapeDescriptor / EdgeDescriptor shapes that the Konva
+ * renderer consumes.
  *
  * Returns:
  *   shapes       — flat node descriptors for the Konva canvas
@@ -16,7 +16,7 @@
 
 import { useMemo } from 'react';
 import { useVFSCanvasController } from '../../features/diagram/hooks/useVFSCanvasController';
-import { isNoteViewModel, isPackageViewModel, isSystemBoundaryViewModel, isUCModuleViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import { isNoteViewModel, isPackageViewModel, isSystemBoundaryViewModel, isUCModuleViewModel } from '../../adapters/view-models/node.view-model';
 import type {
   ShapeDescriptor,
   EdgeDescriptor,

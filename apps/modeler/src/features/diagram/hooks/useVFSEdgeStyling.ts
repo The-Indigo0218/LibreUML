@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { RelationKind } from '../../../core/domain/vfs/vfs.types';
-import type { VFSReactFlowEdge } from './useVFSCanvasController';
+import type { VFSCanvasEdge } from './useVFSCanvasController';
 import { useSettingsStore } from '../../../store/settingsStore';
 
 const KIND_HIGHLIGHT: Record<string, string> = {
@@ -30,7 +30,7 @@ const DIM_STYLE = {
   transition: 'opacity 0.2s ease',
 } as const;
 
-export function useVFSEdgeStyling(edges: VFSReactFlowEdge[], modalEdgeId?: string | null) {
+export function useVFSEdgeStyling(edges: VFSCanvasEdge[], modalEdgeId?: string | null) {
   const showAllEdges = useSettingsStore((s) => s.showAllEdges);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export function useVFSEdgeStyling(edges: VFSReactFlowEdge[], modalEdgeId?: strin
   // Combine hover state with modal editing state
   const effectiveHoveredEdgeId = hoveredEdgeId || modalEdgeId;
 
-  const styledEdges = useMemo((): VFSReactFlowEdge[] => {
+  const styledEdges = useMemo((): VFSCanvasEdge[] => {
     if (showAllEdges) {
       return edges.map((edge) => ({
         ...edge,

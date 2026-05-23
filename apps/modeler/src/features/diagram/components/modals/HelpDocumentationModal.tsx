@@ -94,15 +94,11 @@ const COPY = {
     s4Limitations: [
       {
         title: 'Performance on Massive Diagrams',
-        body: 'Diagrams with 80+ nodes might experience latency. The technical reason is our current DOM-based rendering engine (React Flow). Rendering massive nested subtrees bottlenecks the browser\'s repaint cycle. Our top short-term priority is migrating the engine to HTML5 Canvas (React-Konva) for infinite scalability.',
+        body: 'The canvas runs on a GPU-accelerated HTML5 engine (Konva), so it handles hundreds of nodes comfortably. Even so, very dense diagrams with many overlapping relationships can feel sluggish during sustained dragging or auto-layout — we keep tuning the hot paths as we grow.',
       },
     ],
     s4RoadmapTitle: 'Coming Soon',
     s4Roadmap: [
-      {
-        title: 'Canvas Engine Migration → React-Konva (HTML5 Canvas)',
-        body: 'We are planning a full migration of the rendering engine from DOM-based React Flow to a native HTML5 Canvas implementation using React-Konva. This will unlock near-infinite scalability, GPU-accelerated rendering, and dramatically smoother interactions on large diagrams.',
-      },
       {
         title: 'Undo / Redo (Ctrl+Z / Ctrl+Y)',
         body: 'A full command-history stack for all diagram editing operations is one of our highest-priority short-term features.',
@@ -223,15 +219,11 @@ const COPY = {
     s4Limitations: [
       {
         title: 'Rendimiento en Diagramas Masivos',
-        body: 'Los diagramas con más de 80 nodos pueden experimentar latencia. La razón técnica es nuestro motor actual (React Flow), el cual depende del DOM. Renderizar árboles anidados masivos satura el repintado del navegador. Nuestra máxima prioridad a corto plazo es migrar el motor a HTML5 Canvas (React-Konva) para lograr escalabilidad infinita.',
+        body: 'El canvas corre sobre un motor HTML5 acelerado por GPU (Konva), así que maneja cientos de nodos sin problema. Aun así, diagramas muy densos con muchas relaciones superpuestas pueden sentirse menos fluidos durante arrastres sostenidos o auto-layout — seguimos afinando los caminos críticos a medida que crecemos.',
       },
     ],
     s4RoadmapTitle: 'Próximamente',
     s4Roadmap: [
-      {
-        title: 'Migración del Motor de Canvas → React-Konva (HTML5 Canvas)',
-        body: 'Estamos planeando una migración completa del motor de renderizado desde React Flow (basado en DOM) hacia una implementación nativa en HTML5 Canvas usando React-Konva. Esto desbloqueará escalabilidad prácticamente ilimitada, renderizado acelerado por GPU e interacciones mucho más fluidas en diagramas grandes.',
-      },
       {
         title: 'Deshacer / Rehacer (Ctrl+Z / Ctrl+Y)',
         body: 'Una pila de historial de comandos completa para todas las operaciones de edición de diagramas es una de nuestras funcionalidades de mayor prioridad a corto plazo.',

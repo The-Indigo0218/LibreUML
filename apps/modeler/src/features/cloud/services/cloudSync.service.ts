@@ -32,6 +32,7 @@ import { cloudAdapter }  from '../../../adapters/storage/cloud.adapter';
 import { canSaveToCloud } from '../utils/payloadSize';
 import { invalidateQuota } from '../hooks/useQuota';
 import { autoSaveQueue }   from './autoSaveQueue';
+import { buildVfsSnapshot } from './vfsSnapshot';
 import { track } from '../../telemetry/posthog.client';
 import type { DiagramType as VfsDiagramType, VFSFile, LibreUMLProject } from '../../../core/domain/vfs/vfs.types';
 import type { ProjectDiagramType } from '../../../api/types';
@@ -60,25 +61,6 @@ function toApiDiagramType(vfsType: VfsDiagramType): ProjectDiagramType {
     UNSPECIFIED:           'UNSPECIFIED',
   };
   return map[vfsType];
-}
-
-// ── VFS snapshot builder ───────────────────────────────────────────────────────
-// Strips viewData (content) from VFSFile nodes — that lives in the diagrams table.
-
-function buildVfsSnapshot(project: LibreUMLProject): Record<string, unknown> {
-  const nodes: Record<string, unknown> = {};
-  for (const [id, node] of Object.entries(project.nodes)) {
-    if (node.type === 'FILE') {
-      const { content, localModel, ...meta } = node as VFSFile;
-      void content; void localModel;
-      nodes[id] = meta;
-    } else {
-      nodes[id] = node;
-    }
-  }
-  const { nodes: _nodes, ...projectMeta } = project;
-  void _nodes;
-  return { ...projectMeta, nodes };
 }
 
 // ── Metadata fields that trigger the metadata channel ────────────────────────

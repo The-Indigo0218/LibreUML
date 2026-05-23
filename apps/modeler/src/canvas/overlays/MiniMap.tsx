@@ -3,7 +3,7 @@ import { useViewportControlStore } from '../store/viewportControlStore';
 import {
   isNoteViewModel,
   isPackageViewModel,
-} from '../../adapters/react-flow/view-models/node.view-model';
+} from '../../adapters/view-models/node.view-model';
 import type { NodeBounds } from '../edges/geometry';
 
 const MM_W      = 200;

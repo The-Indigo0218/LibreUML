@@ -83,10 +83,18 @@ export function useAutoSave(): void {
     const project = useVFSStore.getState().project;
     const model   = useModelStore.getState().model;
     if (!project && !model) return;
+
+    if (project && model && project.semanticModel !== model) {
+      useVFSStore.getState().syncSemanticModel(model);
+    }
+
     try {
       localStorage.setItem(
         LOCAL_SAVE_KEY,
-        JSON.stringify({ project, model, savedAt: Date.now() }),
+        JSON.stringify({
+          project: model && project ? { ...project, semanticModel: model } : project,
+          savedAt: Date.now(),
+        }),
       );
     } catch {
       // localStorage quota exceeded — silent failure

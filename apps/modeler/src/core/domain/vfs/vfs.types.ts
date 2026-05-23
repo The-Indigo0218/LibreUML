@@ -110,6 +110,7 @@ export interface LibreUMLProject {
   basePackage?: string;
   domainModelId: string;
   modelIds?: string[];
+  semanticModel?: SemanticModel;
   nodes: Record<string, VFSFolder | VFSFile>;
   createdAt: number;
   updatedAt: number;

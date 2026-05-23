@@ -129,22 +129,6 @@
 }
 
 /* Estilos Globales y Overrides */
-.react-flow__controls-button {
-  background-color: var(--surface-primary) !important;
-  border-bottom: 1px solid var(--surface-border) !important;
-  fill: var(--text-secondary) !important;
-  transition: all 0.2s ease;
-}
-
-.react-flow__controls-button:hover {
-  background-color: var(--surface-hover) !important;
-  fill: var(--text-primary) !important;
-}
-
-.react-flow__controls-button:last-child {
-  border-bottom: none !important;
-}
-
 html,
 body,
 #root {

@@ -39,9 +39,8 @@
  *   └───────────────────────────────────────────────────────────────────┘
  *
  * ─── Hydration order (critical for project imports) ──────────────────────────
- *   1. closeAllFiles()  — wipes stale tab IDs before any re-render
- *   2. loadModel()      — semantic data ready before canvas mounts
- *   3. loadProject()    — triggers React re-render into clean state
+ *   1. closeAllTabs()   — wipes stale tab IDs before any re-render
+ *   2. loadProject()    — embeds semanticModel and triggers React re-render
  */
 
 import JSZip from 'jszip';
@@ -85,7 +84,7 @@ export interface LumlDiagramManifest {
 
 /** Discriminated union returned by parseLumlFile(). */
 export type LumlParseResult =
-  | { exportType: 'project'; project: LibreUMLProject; model: SemanticModel | null }
+  | { exportType: 'project'; project: LibreUMLProject }
   | {
       exportType: 'diagram';
       view: DiagramView;
@@ -370,27 +369,23 @@ async function parseProjectPayload(
     }),
   );
 
-  const project: LibreUMLProject = { ...manifest, nodes };
-  return { exportType: 'project', project, model };
+  const project: LibreUMLProject = {
+    ...manifest,
+    nodes,
+    semanticModel: model ?? undefined,
+  };
+  return { exportType: 'project', project };
 }
 
 // ─── Store hydration ──────────────────────────────────────────────────────────
 
 /**
- * Rehydrates all three stores with a pre-parsed project result.
- * Order is critical — see module header.
+ * Rehydrates stores with a pre-parsed project result.
+ * loadProject handles model loading internally — see module header.
  */
-export function loadParsedProject(
-  project: LibreUMLProject,
-  model: SemanticModel | null,
-): void {
+export function loadParsedProject(project: LibreUMLProject): void {
   undoManager.clear();
   useWorkspaceStore.getState().closeAllTabs();
-  if (model !== null) {
-    useModelStore.getState().loadModel(model);
-  } else {
-    useModelStore.getState().initModel(project.domainModelId);
-  }
   useVFSStore.getState().loadProject(project);
 }
 
@@ -411,7 +406,7 @@ export async function importProject(file: File): Promise<LibreUMLProject> {
     );
   }
 
-  loadParsedProject(result.project, result.model);
+  loadParsedProject(result.project);
   return result.project;
 }
 
@@ -443,8 +438,9 @@ export async function downloadProject(): Promise<void> {
         : node;
   }
 
+  const { semanticModel: _omit, ...projectMeta } = project;
   const manifest: LumlProjectManifest = {
-    ...project,
+    ...projectMeta,
     _lumlVersion: LUML_FORMAT_VERSION,
     exportType: 'project',
     nodes: nodesStripped,

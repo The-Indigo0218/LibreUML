@@ -1,6 +1,6 @@
 import { Group, Ellipse, Text, Line, Rect, Circle } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { UseCaseViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { UseCaseViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveUseCaseColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
 

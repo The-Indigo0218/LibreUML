@@ -1,7 +1,6 @@
 /**
- * useKonvaAutoLayout — dagre-based auto-layout for Konva canvas (MAG-01.13)
+ * useKonvaAutoLayout — dagre-based auto-layout for the Konva canvas (MAG-01.13).
  *
- * Replaces useAutoLayout (ReactFlow) with a Konva-native version.
  * Reads node/edge data from VFSStore, runs dagre layout, writes back
  * updated positions via updateFileContent, then calls fitView.
  */

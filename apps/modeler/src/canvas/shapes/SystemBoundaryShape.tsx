@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { Group, Rect, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { SystemBoundaryViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { SystemBoundaryViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveSystemBoundaryColors } from '../tokens/colors';
 
 // ─── Layout constants ──────────────────────────────────────────────────────────

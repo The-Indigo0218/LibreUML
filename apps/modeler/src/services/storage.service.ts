@@ -6,7 +6,7 @@ interface DiagramJsonObject {
   viewport: { x: number; y: number; zoom: number };
 }
 
-// PHASE 4: Remove UI type dependencies - storage works with generic React Flow objects
+// Storage works with generic diagram JSON objects — no UI framework coupling.
 export const StorageService = {
   // --- SAVE DIAGRAM ---
   saveDiagram: async (

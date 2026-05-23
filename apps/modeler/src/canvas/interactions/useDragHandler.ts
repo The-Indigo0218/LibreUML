@@ -30,7 +30,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { RefObject } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { AnyNodeViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { AnyNodeViewModel } from '../../adapters/view-models/node.view-model';
 import type { ShapeDescriptor } from '../types/canvas.types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────

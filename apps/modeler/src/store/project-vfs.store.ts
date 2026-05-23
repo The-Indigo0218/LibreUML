@@ -15,6 +15,54 @@ import { storageAdapter } from '../adapters/storage/storage.adapter';
 
 type VFSNode = VFSFolder | VFSFile;
 
+/**
+ * Reads the legacy persist key from the pre-715d195 era when useModelStore
+ * had its own persist middleware. Used as the first recovery source when a
+ * rehydrated project lacks `semanticModel`.
+ */
+function readLegacyModelFromStorage(
+  expectedModelId: string,
+  expectedProjectId?: string,
+): SemanticModel | null {
+  try {
+    const raw = storageAdapter.getItem('libreuml-model-storage');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { state?: { model?: SemanticModel } };
+    const model = parsed?.state?.model ?? null;
+    if (!model) return null;
+    // Match by model.id first; fall back to project.id when callers provide
+    // it (model.id can be regenerated, project.id is stable).
+    if (model.id === expectedModelId) return model;
+    if (expectedProjectId && (model as { projectId?: string }).projectId === expectedProjectId) {
+      return model;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the local autosave snapshot written by useAutoSave (every 3 s).
+ * Acts as a second recovery source: even if the legacy key is gone, the
+ * snapshot holds a complete {project, semanticModel} blob from the last
+ * 3 s of activity in the previous session.
+ */
+function readAutosaveSnapshot(expectedProjectId: string): SemanticModel | null {
+  try {
+    const raw = storageAdapter.getItem('libreuml-autosave-snapshot');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      project?: { id?: string; semanticModel?: SemanticModel };
+    };
+    const snap = parsed?.project;
+    if (!snap || snap.id !== expectedProjectId) return null;
+    return snap.semanticModel ?? null;
+  } catch {
+    return null;
+  }
+}
+
 interface VFSStoreState {
   project: LibreUMLProject | null;
   isLoading: boolean;
@@ -58,6 +106,12 @@ interface VFSStoreState {
    * the file does not exist or has no localModel.
    */
   updateLocalModel: (fileId: string, updater: (draft: SemanticModel) => void) => void;
+  /**
+   * Syncs the current SemanticModel back into project.semanticModel so persist
+   * captures it. Called by the model-store subscription and the autosave interval.
+   * Uses the internal `set` (guaranteed to trigger persist) instead of external setState.
+   */
+  syncSemanticModel: (model: SemanticModel) => void;
 }
 
 export type VFSStore = VFSStoreState;
@@ -68,11 +122,23 @@ export const useVFSStore = create<VFSStoreState>()(
       project: null,
       isLoading: false,
 
-      loadProject: (project) =>
-        set({
-          project,
-          isLoading: false,
-        }),
+      loadProject: (project) => {
+        if (!project.semanticModel) {
+          const recovered =
+            readLegacyModelFromStorage(project.domainModelId, project.id) ??
+            readAutosaveSnapshot(project.id);
+          if (recovered) {
+            project = { ...project, semanticModel: recovered };
+          }
+        }
+        set({ project, isLoading: false });
+        const ms = useModelStore.getState();
+        if (project.semanticModel) {
+          ms.loadModel(project.semanticModel);
+        } else {
+          ms.initModel(project.domainModelId);
+        }
+      },
 
       closeProject: () => {
         set({ project: null, isLoading: false });
@@ -410,6 +476,14 @@ export const useVFSStore = create<VFSStoreState>()(
         });
       },
 
+      syncSemanticModel: (model) => {
+        set((state) => {
+          if (!state.project) return state;
+          if (state.project.semanticModel === model) return state;
+          return { project: { ...state.project, semanticModel: model } };
+        });
+      },
+
       updateFileContent: (fileId, content) => {
         set((state) => {
           if (!state.project) return state;
@@ -437,6 +511,8 @@ export const useVFSStore = create<VFSStoreState>()(
     {
       name: 'libreuml-vfs-storage',
       version: 1,
+      partialize: (state) => ({ project: state.project }) as VFSStoreState,
+      migrate: (persistedState) => persistedState as VFSStoreState,
       storage: {
         getItem: (name) => {
           const value = storageAdapter.getItem(name);
@@ -449,18 +525,29 @@ export const useVFSStore = create<VFSStoreState>()(
           storageAdapter.removeItem(name);
         },
       },
-      onRehydrateStorage: () => {
-        return () => {
-          setTimeout(() => {
-            import('../core/undo/instance').then(({ undoManager }) => {
-              undoManager.clear();
-            });
-          }, 0);
-        };
+      onRehydrateStorage: () => (state) => {
+        setTimeout(() => {
+          import('../core/undo/instance').then(({ undoManager }) => {
+            undoManager.clear();
+          });
+        }, 0);
+        if (state?.project) {
+          // Hydration runs synchronously inside create(), so the module-level
+          // `useVFSStore` const is still in its temporal dead zone. Call the
+          // method via the rehydrated state directly — it carries the bound
+          // action functions from the initializer.
+          state.loadProject(state.project);
+        }
       },
     }
   )
 );
+
+useModelStore.subscribe((state, prev) => {
+  if (!state.model || state.model.updatedAt === prev.model?.updatedAt) return;
+  if (!useVFSStore.getState().project) return;
+  useVFSStore.getState().syncSemanticModel(state.model);
+});
 
 export function getNodePath(
   nodeId: string,

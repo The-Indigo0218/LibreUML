@@ -16,7 +16,7 @@
 import { useMemo } from 'react';
 import { Group, Rect, Text, Line } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { DomainEntityViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { DomainEntityViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveDomainEntityColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
 

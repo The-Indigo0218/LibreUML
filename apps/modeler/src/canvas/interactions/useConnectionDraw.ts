@@ -39,7 +39,7 @@ import type { RefObject } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { NodeBounds } from '../edges/geometry';
-import type { AnyNodeViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { AnyNodeViewModel } from '../../adapters/view-models/node.view-model';
 import {
   isNoteViewModel,
   isPackageViewModel,
@@ -48,7 +48,7 @@ import {
   isSystemBoundaryViewModel,
   isDomainEntityViewModel,
   type NodeViewModel,
-} from '../../adapters/react-flow/view-models/node.view-model';
+} from '../../adapters/view-models/node.view-model';
 import { validateConnection } from '../../util/connectionValidator';
 import type { stereotype, UmlRelationType } from '../../features/diagram/types/diagram.types';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';

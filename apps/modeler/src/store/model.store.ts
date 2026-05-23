@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { withUndo } from '../core/undo/undoBridge';
 import type {
@@ -17,8 +16,23 @@ import type {
   IRDomainEntity,
   IRDomainAttribute,
 } from '../core/domain/vfs/vfs.types';
-import { storageAdapter } from '../adapters/storage/storage.adapter';
 import { getPackageHierarchy } from '../utils/packageHelpers';
+
+function normalize(m: SemanticModel): SemanticModel {
+  m.enums           = m.enums           ?? {};
+  m.dataTypes       = m.dataTypes       ?? {};
+  m.actors          = m.actors          ?? {};
+  m.useCases        = m.useCases        ?? {};
+  m.activityNodes   = m.activityNodes   ?? {};
+  m.objectInstances = m.objectInstances ?? {};
+  m.components      = m.components      ?? {};
+  m.nodes           = m.nodes           ?? {};
+  m.artifacts       = m.artifacts       ?? {};
+  m.packageNames    = m.packageNames    ?? [];
+  if (m.domainEntities  !== undefined) m.domainEntities  = m.domainEntities  ?? {};
+  if (m.domainAttributes !== undefined) m.domainAttributes = m.domainAttributes ?? {};
+  return m;
+}
 
 const newId = () => crypto.randomUUID();
 
@@ -78,8 +92,7 @@ interface ModelStoreState {
 export type ModelStore = ModelStoreState;
 
 export const useModelStore = create<ModelStoreState>()(
-  persist(
-    immer((set) => ({
+  immer((set) => ({
     model: null,
 
     initModel: (domainModelId) =>
@@ -112,7 +125,7 @@ export const useModelStore = create<ModelStoreState>()(
 
     loadModel: (model) =>
       set((state) => {
-        state.model = model;
+        state.model = normalize(model);
       }),
 
     createClass: (data) => {
@@ -492,52 +505,5 @@ export const useModelStore = create<ModelStoreState>()(
         draft.model.updatedAt = Date.now();
       });
     },
-  })),
-  {
-    name: 'libreuml-model-storage',
-    version: 1,
-    migrate: (persistedState: unknown, version: number): { model: SemanticModel | null } => {
-      const typed = persistedState as { model: SemanticModel | null };
-      if (version < 1 && typed.model) {
-        const m = typed.model;
-        m.enums            = m.enums            ?? {};
-        m.dataTypes        = m.dataTypes        ?? {};
-        m.actors           = m.actors           ?? {};
-        m.useCases         = m.useCases         ?? {};
-        m.activityNodes    = m.activityNodes    ?? {};
-        m.objectInstances  = m.objectInstances  ?? {};
-        m.components       = m.components       ?? {};
-        m.nodes            = m.nodes            ?? {};
-        m.artifacts        = m.artifacts        ?? {};
-        m.packageNames     = m.packageNames     ?? [];
-        // domain model (optional — backward-compat with projects that pre-date this field)
-        if (m.domainEntities !== undefined)  m.domainEntities  = m.domainEntities  ?? {};
-        if (m.domainAttributes !== undefined) m.domainAttributes = m.domainAttributes ?? {};
-      }
-      return typed;
-    },
-    partialize: (state) => ({ model: state.model }),
-    storage: {
-      getItem: (name) => {
-        const value = storageAdapter.getItem(name);
-        return value ? JSON.parse(value) : null;
-      },
-      setItem: (name, value) => {
-        storageAdapter.setItem(name, JSON.stringify(value));
-      },
-      removeItem: (name) => {
-        storageAdapter.removeItem(name);
-      },
-    },
-    onRehydrateStorage: () => {
-      return () => {
-        setTimeout(() => {
-          import('../core/undo/instance').then(({ undoManager }) => {
-            undoManager?.clear();
-          });
-        }, 0);
-      };
-    },
-  }
-  )
+  }))
 );

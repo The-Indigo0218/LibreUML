@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 
 interface SelectionStoreState {
-  /** IDs of currently selected ReactFlow nodes (ViewNode.id). */
+  /** IDs of currently selected canvas nodes (ViewNode.id). */
   selectedNodeIds: string[];
-  /** IDs of currently selected ReactFlow edges (ViewEdge.id). */
+  /** IDs of currently selected canvas edges (ViewEdge.id). */
   selectedEdgeIds: string[];
 
   /** Replace the full node selection. */

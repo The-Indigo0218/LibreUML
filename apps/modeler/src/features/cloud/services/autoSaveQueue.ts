@@ -15,6 +15,7 @@ import { useSyncStore }  from '../../../store/sync.store';
 import { useAuthStore }  from '../../auth/store/auth.store';
 import { cloudAdapter }  from '../../../adapters/storage/cloud.adapter';
 import { invalidateQuota } from '../hooks/useQuota';
+import { buildVfsSnapshot } from './vfsSnapshot';
 import type { VFSFile } from '../../../core/domain/vfs/vfs.types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -128,11 +129,19 @@ class AutoSaveQueue {
       } else if (item.kind === 'metadata') {
         const project = useVFSStore.getState().project;
         if (!project) { this.dequeue(item.id); this.scheduleNext(); return; }
-        // Metadata retries always use current store state; version field is a best-effort
-        await cloudAdapter.updateProjectInCloud(cloudProjectId, {
-          name:    project.projectName,
-          version: useSyncStore.getState().modelVersion,
+        // Match the full payload shape of cloudSync.service.syncMetadata so a
+        // retry doesn't silently drop description/author/lang/basePackage/VFS
+        // structure and uses the right version field for the optimistic lock.
+        const resp = await cloudAdapter.updateProjectInCloud(cloudProjectId, {
+          name:           project.projectName,
+          description:    project.description,
+          author:         project.author,
+          targetLanguage: project.targetLanguage,
+          basePackage:    project.basePackage,
+          vfsSnapshot:    buildVfsSnapshot(project),
+          version:        useSyncStore.getState().projectVersion,
         });
+        useSyncStore.getState().updateProjectVersion(resp.version);
       }
 
       useSyncStore.getState().setSyncStatus('saved');
@@ -151,12 +160,16 @@ class AutoSaveQueue {
       const status = err.response?.status;
 
       if (status === 409) {
-        // Conflict — let the ConflictResolutionDialog handle it
-        const serverVersion: number =
-          (err.response?.data as { serverVersion?: number })?.serverVersion ?? 0;
+        // Conflict — let the ConflictResolutionDialog handle it.
+        // Backend may return the server version under either `serverVersion`
+        // (cloudSync.service convention) or `version`; accept both.
+        const data = err.response?.data as
+          | { serverVersion?: number; version?: number; serverData?: Record<string, unknown> }
+          | undefined;
+        const serverVersion: number = data?.serverVersion ?? data?.version ?? 0;
 
         if (item.kind === 'model') {
-          const serverData = (err.response?.data as { serverData?: Record<string, unknown> })?.serverData ?? {};
+          const serverData = data?.serverData ?? {};
           syncStore.setConflictDetails({
             kind: 'model',
             serverVersion,
@@ -170,6 +183,14 @@ class AutoSaveQueue {
             kind: 'diagram',
             vfsDiagramId:   item.vfsDiagramId ?? '',
             cloudDiagramId: entry?.cloudId ?? '',
+            serverVersion,
+            localPayload: {},
+          });
+        } else {
+          // metadata — without these details the ConflictResolutionDialog
+          // bails out (it short-circuits on `!conflictDetails`).
+          syncStore.setConflictDetails({
+            kind: 'metadata',
             serverVersion,
             localPayload: {},
           });

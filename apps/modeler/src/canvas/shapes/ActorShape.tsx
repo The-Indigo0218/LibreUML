@@ -1,6 +1,6 @@
 import { Group, Circle, Line, Text, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { ActorViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { ActorViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveActorColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
 

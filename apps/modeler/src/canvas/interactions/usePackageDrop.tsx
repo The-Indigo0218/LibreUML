@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { isPackageViewModel, isSystemBoundaryViewModel, isUCModuleViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import { isPackageViewModel, isSystemBoundaryViewModel, isUCModuleViewModel } from '../../adapters/view-models/node.view-model';
 import type { NodeBounds } from '../edges/geometry';
 import type { ShapeDescriptor } from '../types/canvas.types';
 import { undoTransaction } from '../../core/undo/undoBridge';

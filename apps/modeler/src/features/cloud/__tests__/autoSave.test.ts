@@ -46,10 +46,22 @@ vi.mock('../../../api/projects.api', () => ({
 
 vi.mock('../../../adapters/storage/cloud.adapter', () => ({
   cloudAdapter: {
-    updateModelInCloud:   vi.fn(),
+    createProjectInCloud: vi.fn(),
     updateProjectInCloud: vi.fn(),
+    loadProjectFull:      vi.fn(),
+    updateModelInCloud:   vi.fn(),
+    createDiagramInCloud: vi.fn(),
     updateDiagramInCloud: vi.fn(),
   },
+}));
+
+// Silence quota/posthog side-effects in tests.
+vi.mock('../hooks/useQuota', () => ({
+  invalidateQuota: vi.fn(),
+  useQuota:        vi.fn(),
+}));
+vi.mock('../../telemetry/posthog.client', () => ({
+  track: vi.fn(),
 }));
 
 import * as diagApi from '../../../api/diagrams.api';
@@ -115,13 +127,6 @@ function make5xxError(status: number) {
   return Object.assign(new Error(`${status}`), {
     isAxiosError: true,
     response:     { status, data: { message: 'Server error' } },
-  });
-}
-
-function make409Error(serverVersion: number) {
-  return Object.assign(new Error('Conflict'), {
-    isAxiosError: true,
-    response:     { status: 409, data: { version: serverVersion, message: 'Conflict' } },
   });
 }
 
@@ -231,7 +236,7 @@ describe('AutoSaveQueue — 5xx exponential backoff', () => {
 
 // ── AutoSaveQueue — 409 and 422 are NOT retried ───────────────────────────────
 
-describe.skip('AutoSaveQueue — conflict and quota errors', () => {
+describe('AutoSaveQueue — conflict and quota errors', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     setCloudReady();
@@ -246,7 +251,14 @@ describe.skip('AutoSaveQueue — conflict and quota errors', () => {
   });
 
   it('409 → sets conflict status, drops item, does NOT retry', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValue(make409Error(10));
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValue(
+      // autoSaveQueue.handleRetryError reads `serverVersion` from response.data,
+      // so the conflict payload must use that key.
+      Object.assign(new Error('Conflict'), {
+        isAxiosError: true,
+        response: { status: 409, data: { serverVersion: 10, message: 'Conflict' } },
+      }),
+    );
 
     autoSaveQueue.start();
     autoSaveQueue.enqueue(mockProject.id, 'model');
@@ -280,9 +292,13 @@ describe.skip('AutoSaveQueue — conflict and quota errors', () => {
 });
 
 // ── CloudSyncService debounce — rapid edits produce 1 PATCH ──────────────────
+//
+// The metadata channel (`updateProjectInCloud`) is driven by VFS changes; the
+// model channel (`updateModelInCloud`) is driven by useModelStore changes.
+// Both share the same 30 s debounce.
 
-describe.skip('CloudSyncService debounce', () => {
-  const DEBOUNCE = 5_000;
+describe('CloudSyncService debounce — metadata channel', () => {
+  const DEBOUNCE_MS = 30_000;
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -293,88 +309,97 @@ describe.skip('CloudSyncService debounce', () => {
 
   afterEach(() => {
     cloudSyncService.stop();
+    autoSaveQueue.stop();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  it('fires exactly 1 PATCH after 5 s debounce regardless of how many edits', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ id: 'mock-id', version: VERSION + 1, updatedAt: '2024-01-01' });
+  it('fires exactly 1 PATCH after the debounce window regardless of how many edits', async () => {
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValue({
+      id: mockProject.id, version: VERSION + 1, updatedAt: '2024-01-01',
+    });
 
     cloudSyncService.start();
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 1; i <= 10; i++) {
       useVFSStore.setState({
-        project: { ...mockProject, updatedAt: Date.now() + i },
+        project: { ...mockProject, updatedAt: i },
         isLoading: false,
       });
       await vi.advanceTimersByTimeAsync(200);
     }
 
-    expect(cloudAdapter.updateModelInCloud).not.toHaveBeenCalled();
+    expect(cloudAdapter.updateProjectInCloud).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(DEBOUNCE);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
 
-    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(1);
+    expect(cloudAdapter.updateProjectInCloud).toHaveBeenCalledTimes(1);
     expect(useSyncStore.getState().syncStatus).toBe('saved');
   });
 
   it('each new edit resets the debounce timer', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ id: 'mock-id', version: VERSION + 1, updatedAt: '2024-01-01' });
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValue({
+      id: mockProject.id, version: VERSION + 1, updatedAt: '2024-01-01',
+    });
 
     cloudSyncService.start();
 
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
-    await vi.advanceTimersByTimeAsync(4_900);
-    expect(cloudAdapter.updateModelInCloud).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS - 100);
+    expect(cloudAdapter.updateProjectInCloud).not.toHaveBeenCalled();
 
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 2 }, isLoading: false });
-    await vi.advanceTimersByTimeAsync(4_900);
-    expect(cloudAdapter.updateModelInCloud).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS - 100);
+    expect(cloudAdapter.updateProjectInCloud).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(200);
-    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(1);
+    expect(cloudAdapter.updateProjectInCloud).toHaveBeenCalledTimes(1);
   });
 
-  it('reads version from store at PATCH fire time, not at debounce-schedule time', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ id: 'mock-id', version: 42, updatedAt: '2024-01-01' });
+  it('reads projectVersion from store at PATCH fire time, not at debounce-schedule time', async () => {
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValue({
+      id: mockProject.id, version: 42, updatedAt: '2024-01-01',
+    });
 
     cloudSyncService.start();
-
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
 
-    useSyncStore.setState({ modelVersion: 42 });
+    // Bump projectVersion AFTER the debounce was scheduled — the PATCH should
+    // pick up the latest value, not the value at scheduling time.
+    useSyncStore.setState({ projectVersion: 42 });
 
-    await vi.advanceTimersByTimeAsync(DEBOUNCE);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
 
-    const args = vi.mocked(cloudAdapter.updateModelInCloud).mock.calls[0];
+    const args = vi.mocked(cloudAdapter.updateProjectInCloud).mock.calls[0];
     expect(args[1].version).toBe(42);
   });
 
-  it('5xx during debounce-fired PATCH adds item to autoSaveQueue', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValueOnce(make5xxError(500));
+  it('5xx during debounce-fired PATCH enqueues a retry in autoSaveQueue', async () => {
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockRejectedValueOnce(make5xxError(500));
 
     cloudSyncService.start();
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
 
-    await vi.advanceTimersByTimeAsync(DEBOUNCE);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
 
     expect(useSyncStore.getState().syncStatus).toBe('offline');
     expect(autoSaveQueue.size).toBe(1);
 
     autoSaveQueue.stop();
-    autoSaveQueue.dequeue(`${mockProject.id}:model:`);
+    autoSaveQueue.dequeue(`${mockProject.id}:metadata:`);
   });
 
-  it('network error (no response) adds to offline queue, NOT autoSaveQueue', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValueOnce(makeNetworkError());
+  it('network error (no response) pushes to sync-store offline queue, NOT autoSaveQueue', async () => {
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockRejectedValueOnce(makeNetworkError());
 
     cloudSyncService.start();
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
 
-    await vi.advanceTimersByTimeAsync(DEBOUNCE);
+    await vi.advanceTimersByTimeAsync(DEBOUNCE_MS);
 
     expect(useSyncStore.getState().syncStatus).toBe('offline');
     expect(useSyncStore.getState().offlineQueue).toHaveLength(1);
+    expect(useSyncStore.getState().offlineQueue[0].kind).toBe('metadata');
     expect(autoSaveQueue.size).toBe(0);
   });
 });
@@ -429,7 +454,7 @@ describe('CloudSyncService — debounce inspection', () => {
 
 // ── forceSyncNow — flush-on-demand ────────────────────────────────────────────
 
-describe.skip('CloudSyncService.forceSyncNow() — flush on demand', () => {
+describe('CloudSyncService.forceSyncNow() — flush on demand', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     setCloudReady();
@@ -443,8 +468,26 @@ describe.skip('CloudSyncService.forceSyncNow() — flush on demand', () => {
     vi.restoreAllMocks();
   });
 
-  it('cancels pending debounce and fires PATCH immediately', async () => {
-    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({ id: 'mock-id', version: VERSION + 1, updatedAt: '2024-01-01' });
+  it('cancels pending debounce and fires both metadata and model PATCHes immediately', async () => {
+    // forceSyncNow always runs metadata + model + pending diagrams in parallel,
+    // so both channels need a stub even though only metadata had a pending edit.
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValue({
+      id: mockProject.id, version: VERSION + 1, updatedAt: '2024-01-01',
+    });
+    vi.mocked(cloudAdapter.updateModelInCloud).mockResolvedValue({
+      id: 'cloud-model-1', version: VERSION + 1, updatedAt: '2024-01-01',
+    });
+
+    useModelStore.setState({
+      model: {
+        id: 'cloud-model-1', name: 'Domain Model', version: '1.0.0',
+        packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+        attributes: {}, operations: {}, actors: {}, useCases: {},
+        activityNodes: {}, objectInstances: {}, components: {}, nodes: {},
+        artifacts: {}, relations: {},
+        createdAt: Date.now(), updatedAt: Date.now(),
+      },
+    });
 
     cloudSyncService.start();
     useVFSStore.setState({ project: { ...mockProject, updatedAt: 1 }, isLoading: false });
@@ -454,7 +497,130 @@ describe.skip('CloudSyncService.forceSyncNow() — flush on demand', () => {
 
     expect(result).toBe(true);
     expect(cloudSyncService.hasPendingDebounce()).toBe(false);
-    expect(cloudAdapter.updateModelInCloud).toHaveBeenCalledTimes(1);
+    expect(cloudAdapter.updateProjectInCloud).toHaveBeenCalledTimes(1);
     expect(useSyncStore.getState().syncStatus).toBe('saved');
+  });
+});
+
+// ── AutoSaveQueue — metadata retry parity ─────────────────────────────────────
+//
+// The metadata retry path used to send just `name` + the wrong version field
+// (modelVersion instead of projectVersion). These tests pin the corrected
+// behaviour against cloudSync.service.syncMetadata's payload shape.
+
+describe('AutoSaveQueue — metadata retry payload', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setCloudReady();
+    vi.clearAllMocks();
+    autoSaveQueue.stop();
+  });
+
+  afterEach(() => {
+    autoSaveQueue.stop();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('sends the full metadata payload (not just name) and projectVersion (not modelVersion)', async () => {
+    useSyncStore.setState({ projectVersion: 5, modelVersion: 99 });
+    useVFSStore.setState({
+      project: {
+        ...mockProject,
+        description:    'A description',
+        author:         'Indigo',
+        targetLanguage: 'Java',
+        basePackage:    'com.libreuml',
+      },
+      isLoading: false,
+    });
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValueOnce({
+      id: mockProject.id, version: 6, updatedAt: '2024-01-01',
+    });
+
+    autoSaveQueue.start();
+    autoSaveQueue.enqueue(mockProject.id, 'metadata');
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(cloudAdapter.updateProjectInCloud).toHaveBeenCalledTimes(1);
+    const [, payload] = vi.mocked(cloudAdapter.updateProjectInCloud).mock.calls[0];
+    expect(payload.name).toBe(mockProject.projectName);
+    expect(payload.description).toBe('A description');
+    expect(payload.author).toBe('Indigo');
+    expect(payload.targetLanguage).toBe('Java');
+    expect(payload.basePackage).toBe('com.libreuml');
+    expect(payload.vfsSnapshot).toBeDefined();
+    expect(payload.version).toBe(5); // projectVersion, NOT modelVersion (99)
+  });
+
+  it('captures the response and bumps projectVersion on success', async () => {
+    useSyncStore.setState({ projectVersion: 5 });
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockResolvedValueOnce({
+      id: mockProject.id, version: 6, updatedAt: '2024-01-01',
+    });
+
+    autoSaveQueue.start();
+    autoSaveQueue.enqueue(mockProject.id, 'metadata');
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(useSyncStore.getState().projectVersion).toBe(6);
+    expect(useSyncStore.getState().syncStatus).toBe('saved');
+    expect(autoSaveQueue.size).toBe(0);
+  });
+});
+
+// ── AutoSaveQueue — 409 handler covers all kinds + parses both shapes ────────
+
+describe('AutoSaveQueue — 409 conflict details', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setCloudReady();
+    vi.clearAllMocks();
+    autoSaveQueue.stop();
+  });
+
+  afterEach(() => {
+    autoSaveQueue.stop();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('sets conflictDetails of kind "metadata" on a metadata-retry 409 (was previously skipped, leaving the dialog null-guarded)', async () => {
+    vi.mocked(cloudAdapter.updateProjectInCloud).mockRejectedValueOnce(
+      Object.assign(new Error('Conflict'), {
+        isAxiosError: true,
+        response: { status: 409, data: { serverVersion: 7 } },
+      }),
+    );
+
+    autoSaveQueue.start();
+    autoSaveQueue.enqueue(mockProject.id, 'metadata');
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    const { syncStatus, conflictDetails } = useSyncStore.getState();
+    expect(syncStatus).toBe('conflict');
+    expect(conflictDetails).not.toBeNull();
+    expect(conflictDetails?.kind).toBe('metadata');
+    expect(conflictDetails?.serverVersion).toBe(7);
+  });
+
+  it('accepts `data.version` as a fallback when `serverVersion` is absent (cloudSync.service parity)', async () => {
+    vi.mocked(cloudAdapter.updateModelInCloud).mockRejectedValueOnce(
+      Object.assign(new Error('Conflict'), {
+        isAxiosError: true,
+        response: { status: 409, data: { version: 11 } }, // no serverVersion key
+      }),
+    );
+
+    autoSaveQueue.start();
+    autoSaveQueue.enqueue(mockProject.id, 'model');
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    const { conflictDetails } = useSyncStore.getState();
+    expect(conflictDetails?.serverVersion).toBe(11); // not 0
   });
 });

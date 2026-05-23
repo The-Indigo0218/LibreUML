@@ -3,7 +3,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type {
   AnyNodeViewModel,
   NodeViewModel,
-} from '../adapters/react-flow/view-models/node.view-model';
+} from '../adapters/view-models/node.view-model';
 import {
   isNoteViewModel,
   isActorViewModel,
@@ -11,7 +11,7 @@ import {
   isSystemBoundaryViewModel,
   isUCModuleViewModel,
   isDomainEntityViewModel,
-} from '../adapters/react-flow/view-models/node.view-model';
+} from '../adapters/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
 import ActorShape, { getActorShapeSize } from './shapes/ActorShape';

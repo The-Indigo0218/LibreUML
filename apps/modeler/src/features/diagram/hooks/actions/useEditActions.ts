@@ -11,8 +11,6 @@ import type { VFSFile, DiagramView } from "../../../../core/domain/vfs/vfs.types
 
 /**
  * Edit Actions — reads selection from useSelectionStore (Zustand).
- *
- * Selection is managed via SelectionStore; no ReactFlow context needed.
  */
 export const useEditActions = () => {
   const { openSSoTClassEditor } = useUiStore();

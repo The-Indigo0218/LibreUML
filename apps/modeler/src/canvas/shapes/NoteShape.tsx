@@ -43,7 +43,7 @@ import type Konva from 'konva';
 import type { Context } from 'konva/lib/Context';
 import type { Shape as KonvaShape } from 'konva/lib/Shape';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { NoteViewModel } from '../../adapters/react-flow/view-models/node.view-model';
+import type { NoteViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveNoteColors } from '../tokens/colors';
 
 // ─── Layout constants ──────────────────────────────────────────────────────────

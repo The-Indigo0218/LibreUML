@@ -152,6 +152,7 @@ interface ModelStoreState {
   createMessage: (data: Omit<IRMessage, 'id' | 'kind'>) => string;
   updateMessage: (id: string, patch: Partial<IRMessage>) => void;
   deleteMessage: (id: string) => void;
+  reorderMessages: (updates: Array<{ id: string; sequenceNumber: number }>) => void;
 
   createActivation: (data: Omit<IRActivation, 'id' | 'kind'>) => string;
   updateActivation: (id: string, patch: Partial<IRActivation>) => void;
@@ -563,6 +564,18 @@ export const useModelStore = create<ModelStoreState>()(
         });
         cascadeDeleteActivationsForMessage(draft.model, id);
         stripMessageFromFragments(draft.model, id);
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    reorderMessages: (updates) => {
+      withUndo('model', 'Reorder Messages', 'global', (draft) => {
+        if (!draft.model?.messages) return;
+        for (const { id, sequenceNumber } of updates) {
+          if (draft.model.messages[id]) {
+            draft.model.messages[id].sequenceNumber = sequenceNumber;
+          }
+        }
         draft.model.updatedAt = Date.now();
       });
     },

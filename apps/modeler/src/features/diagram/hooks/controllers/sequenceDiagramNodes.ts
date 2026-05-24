@@ -25,9 +25,9 @@ import {
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
 const LIFELINE_HEAD_W = 140;
-const LIFELINE_HEAD_H = 50;
-const MESSAGE_BAND_H = 50;
-const TIMELINE_TOP_PAD = 30;
+export const LIFELINE_HEAD_H = 50;
+export const MESSAGE_BAND_H = 50;
+export const TIMELINE_TOP_PAD = 30;
 const TIMELINE_BOTTOM_PAD = 60;
 const MIN_TIMELINE = 200;
 const ACTIVATION_W = 10;
@@ -194,6 +194,9 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   });
 
   // 5. Emit Messages (as pseudo-edge nodes — see plan §5).
+  const allFragments = Object.values(model.interactionFragments ?? {}) as IRInteractionFragment[];
+  const hierarchicalNumbers = computeHierarchicalNumbers(allMessages, allFragments);
+
   const messageNodes = allMessages.map((msg, idx) => {
     const srcX = lifelineCenterX.get(msg.sourceLifelineId) ?? 0;
     const tgtX = lifelineCenterX.get(msg.targetLifelineId) ?? srcX;
@@ -207,6 +210,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       name: msg.name || '',
       messageKind: msg.messageKind,
       sequenceNumber: msg.sequenceNumber,
+      displayNumber: hierarchicalNumbers.get(msg.id) ?? `${msg.sequenceNumber}`,
       length: isSelf ? 0 : tgtX - srcX,
       isSelfMessage: isSelf,
       onRename: (name: string) => {
@@ -337,4 +341,104 @@ function buildFragmentNodes(
   // Note: totalMessages currently unused in geometry calc but kept in signature
   // for future use (e.g. clamping bottom to within-the-timeline).
   void totalMessages;
+}
+
+/**
+ * Convert a canvas Y coordinate (from a MessageShape drag) to a 1-based
+ * slot index, clamped within [1, totalMessages].
+ *
+ * Inverse of `messageYForIndex`.
+ */
+export function yToMessageSlot(y: number, totalMessages: number): number {
+  const raw = (y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD) / MESSAGE_BAND_H + 0.5;
+  return Math.max(1, Math.min(totalMessages, Math.round(raw)));
+}
+
+/**
+ * Compute hierarchical display numbers for messages.
+ *
+ * Root messages (not inside any fragment) get 1, 2, 3 …
+ * Messages inside a fragment get <rootContext>.<positionInOperand> …
+ * Sub-fragment messages get <rootContext>.<parentPos>.<positionInOperand> …
+ *
+ * Returns a Map<messageId, displayString>.
+ */
+export function computeHierarchicalNumbers(
+  messages: IRMessage[],
+  fragments: IRInteractionFragment[],
+): Map<string, string> {
+  const result = new Map<string, string>();
+  if (messages.length === 0) return result;
+
+  const sorted = [...messages].sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+  const fragById = new Map(fragments.map((f) => [f.id, f]));
+
+  // Build: messageId → { fragmentId, posInOp (1-based, sorted by sequenceNumber) }
+  const msgInFrag = new Map<string, { fragmentId: string; posInOp: number }>();
+  for (const frag of fragments) {
+    for (const op of frag.operands) {
+      const opMsgsSorted = op.messageIds
+        .map((id) => sorted.find((m) => m.id === id))
+        .filter((m): m is IRMessage => !!m);
+      opMsgsSorted.forEach((msg, pos) => {
+        // Last writer wins: deeper fragment takes precedence over its parent.
+        msgInFrag.set(msg.id, { fragmentId: frag.id, posInOp: pos + 1 });
+      });
+    }
+  }
+
+  // Root messages are those not directly inside any fragment operand.
+  const rootMsgs = sorted.filter((m) => !msgInFrag.has(m.id));
+  rootMsgs.forEach((m, i) => result.set(m.id, `${i + 1}`));
+
+  // Compute prefix for a fragment, cached to avoid redundant work.
+  const prefixCache = new Map<string, string>();
+
+  function getFragPrefix(fragId: string, visited = new Set<string>()): string {
+    if (prefixCache.has(fragId)) return prefixCache.get(fragId)!;
+    if (visited.has(fragId)) return ''; // cycle guard
+    visited.add(fragId);
+
+    const frag = fragById.get(fragId);
+    if (!frag) return '';
+
+    // Min sequenceNumber of direct messages in this fragment.
+    const directMsgIds = new Set(frag.operands.flatMap((op) => op.messageIds));
+    const directMsgs = sorted.filter((m) => directMsgIds.has(m.id));
+    const minSeq = directMsgs.length > 0
+      ? Math.min(...directMsgs.map((m) => m.sequenceNumber))
+      : 0;
+
+    let prefix: string;
+    if (!frag.parentFragmentId) {
+      // Root fragment: count root messages that appear before it.
+      const prevRootCount = rootMsgs.filter((m) => m.sequenceNumber < minSeq).length;
+      prefix = prevRootCount > 0 ? `${prevRootCount}` : '';
+    } else {
+      const parentPrefix = getFragPrefix(frag.parentFragmentId, visited);
+      const parentFrag = fragById.get(frag.parentFragmentId);
+      if (!parentFrag) {
+        prefix = parentPrefix;
+      } else {
+        // Count direct messages of the parent that precede this fragment's first message.
+        const parentDirectIds = new Set(parentFrag.operands.flatMap((op) => op.messageIds));
+        const prevParentCount = sorted.filter(
+          (m) => parentDirectIds.has(m.id) && m.sequenceNumber < minSeq,
+        ).length;
+        const pos = prevParentCount + 1;
+        prefix = parentPrefix ? `${parentPrefix}.${pos}` : `${pos}`;
+      }
+    }
+
+    prefixCache.set(fragId, prefix);
+    return prefix;
+  }
+
+  // Assign display numbers to fragment-nested messages.
+  for (const [msgId, { fragmentId, posInOp }] of msgInFrag) {
+    const prefix = getFragPrefix(fragmentId);
+    result.set(msgId, prefix ? `${prefix}.${posInOp}` : `${posInOp}`);
+  }
+
+  return result;
 }

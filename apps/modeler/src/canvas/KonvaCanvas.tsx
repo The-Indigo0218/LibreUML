@@ -43,6 +43,7 @@ import UseCaseSpecModal from '../features/diagram/components/modals/UseCaseSpecM
 import ActorPropsModal from '../features/diagram/components/modals/ActorPropsModal';
 import ExtendEdgePropsModal from '../features/diagram/components/modals/ExtendEdgePropsModal';
 import FragmentPropertiesModal from '../features/diagram/components/modals/FragmentPropertiesModal';
+import MessagePropertiesModal from '../features/diagram/components/modals/MessagePropertiesModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -70,6 +71,7 @@ import {
   isDomainEntityViewModel,
   isLifelineViewModel,
   isFragmentViewModel,
+  isMessageViewModel,
   type AnyNodeViewModel,
   type NodeViewModel,
   type PackageViewModel,
@@ -77,6 +79,8 @@ import {
 import { selectAnchors, anchorPointToHandle, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
+import { yToMessageSlot } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
+import { standaloneModelOps } from '../store/standaloneModelOps';
 
 const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
   ASSOCIATION: 'ASSOCIATION',
@@ -454,6 +458,52 @@ export default function KonvaCanvas() {
       }
     },
     [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId],
+  );
+
+  const handleMessageDragEnd = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      const node = e.target;
+      const newY = node.y();
+      const draggedId = node.id();
+
+      // Collect all message shapes and cast to MessageViewModel.
+      const msgShapes = shapes
+        .filter((s) => isMessageViewModel(s.data))
+        .map((s) => ({ shape: s, vm: s.data as import('../adapters/view-models/node.view-model').MessageViewModel }));
+
+      const totalMessages = msgShapes.length;
+      if (totalMessages === 0) return;
+
+      const draggedEntry = msgShapes.find((e) => e.shape.id === draggedId);
+      if (!draggedEntry) return;
+
+      const targetSlot = yToMessageSlot(newY, totalMessages);
+      const currentSlot = draggedEntry.vm.sequenceNumber;
+
+      if (currentSlot === targetSlot) {
+        node.position({ x: draggedEntry.shape.x, y: draggedEntry.shape.y });
+        return;
+      }
+
+      // Sort by current sequenceNumber, then move dragged item to targetSlot.
+      const sorted = [...msgShapes].sort((a, b) => a.vm.sequenceNumber - b.vm.sequenceNumber);
+      const withoutDragged = sorted.filter((e) => e.shape.id !== draggedId);
+      withoutDragged.splice(targetSlot - 1, 0, draggedEntry);
+
+      const updates = withoutDragged.map((e, i) => ({
+        id: e.vm.domainId,
+        sequenceNumber: i + 1,
+      }));
+
+      if (vfsController.isStandalone && activeTabId) {
+        standaloneModelOps(activeTabId).reorderMessages(updates);
+      } else {
+        useModelStore.getState().reorderMessages(updates);
+      }
+
+      node.position({ x: draggedEntry.shape.x, y: newY });
+    },
+    [shapes, vfsController.isStandalone, activeTabId],
   );
 
   const handleToggleCollapse = useCallback(
@@ -1441,6 +1491,8 @@ export default function KonvaCanvas() {
                   ? () => startUseCaseInlineEdit(shape.id)
                   : isFragmentViewModel(vm)
                   ? () => useUiStore.getState().openFragmentProps(vm.domainId)
+                  : isMessageViewModel(vm)
+                  ? () => useUiStore.getState().openMessageProps(vm.domainId)
                   : isNodeViewModel(vm)
                   ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
                   : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
@@ -1453,6 +1505,8 @@ export default function KonvaCanvas() {
                     }
                   : handleNodeContextMenu;
 
+                const isMsg = isMessageViewModel(vm);
+                const isLifeline = isLifelineViewModel(vm);
                 return renderShape(vm, {
                   key: shape.id,
                   x: pos.x,
@@ -1460,9 +1514,14 @@ export default function KonvaCanvas() {
                   selected: selectedIds.has(shape.id),
                   draggable: true,
                   visible: isVisible && !isDescendantOfCollapsed,
-                  onDragStart: guardedDragStart,
-                  onDragMove: handleDragMove,
-                  onDragEnd: handleDragEnd,
+                  onDragStart: isMsg ? undefined : guardedDragStart,
+                  onDragMove: isMsg ? undefined : handleDragMove,
+                  onDragEnd: isMsg ? handleMessageDragEnd : handleDragEnd,
+                  dragBoundFunc: isMsg
+                    ? (p: { x: number; y: number }) => ({ x: pos.x, y: p.y })
+                    : isLifeline
+                    ? (p: { x: number; y: number }) => ({ x: p.x, y: pos.y })
+                    : undefined,
                   onNodeClick,
                   onDblClick,
                   onContextMenu,
@@ -1702,6 +1761,7 @@ export default function KonvaCanvas() {
       <DomainEntityPropsModal />
       <DomainAssociationPropsModal />
       <FragmentPropertiesModal />
+      <MessagePropertiesModal />
     </div>
   );
 }

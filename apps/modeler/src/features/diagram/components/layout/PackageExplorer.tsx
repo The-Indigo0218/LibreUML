@@ -15,11 +15,10 @@ import { InlinePackageInput } from "./packageExplorer/InlinePackageInput";
 import { DeletePackageModal } from "./packageExplorer/DeletePackageModal";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import { undoTransaction } from "../../../../core/undo/undoBridge";
+import { SIDEBAR_DND_TYPE } from "../../../../canvas/hooks/useKonvaDnD";
 import type { UmlClassNode, UmlAttribute, UmlMethod, visibility as UmlVisibility } from "../../types/diagram.types";
 import type { DeletePackageState, TreeNode } from "./packageExplorer/types";
 import type { SemanticModel, VFSFile, ViewNode } from "../../../../core/domain/vfs/vfs.types";
-
-const SIDEBAR_DND_TYPE = 'application/libreuml-sidebar-class';
 const EMPTY_VIEW_NODES: ViewNode[] = [];
 
 

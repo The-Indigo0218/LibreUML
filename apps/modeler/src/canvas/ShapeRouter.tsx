@@ -42,6 +42,7 @@ export interface NodeShapeRenderProps {
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
+  dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
   onMouseEnter?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   onMouseLeave?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   onResizeEnd?: (id: string, width: number, height: number) => void;

@@ -5,7 +5,7 @@ import { useVFSStore } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useToastStore } from '../../store/toast.store';
-import { getLocalModel } from '../../store/standaloneModelOps';
+import { getLocalModel, standaloneModelOps } from '../../store/standaloneModelOps';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/domain/vfs/vfs.types';
@@ -16,6 +16,7 @@ import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../shapes/UCModuleShape';
 export const DRAG_TYPE_NEW = 'application/libreuml-node' as const;
 export const DRAG_TYPE_EXISTING = 'application/libreuml-existing-node' as const;
 export const DRAG_TYPE_PACKAGE = 'application/libreuml-package' as const;
+export const SIDEBAR_DND_TYPE = 'application/libreuml-sidebar-class' as const;
 
 const NODE_WIDTH = 256;
 const NODE_HEIGHT = 120;
@@ -844,8 +845,9 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       const hasPackageData = event.dataTransfer.types.includes(DRAG_TYPE_PACKAGE.toLowerCase());
       const hasNewData = event.dataTransfer.types.includes(DRAG_TYPE_NEW.toLowerCase());
       const hasExistingData = event.dataTransfer.types.includes(DRAG_TYPE_EXISTING.toLowerCase());
-      
-      if (!hasPackageData && !hasNewData && !hasExistingData) {
+      const hasSidebarClass = event.dataTransfer.types.includes(SIDEBAR_DND_TYPE.toLowerCase());
+
+      if (!hasPackageData && !hasNewData && !hasExistingData && !hasSidebarClass) {
         return;
       }
 
@@ -1110,6 +1112,126 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
         return;
       }
 
+      // ── Sidebar class/interface/actor → new Lifeline (Sequence Diagrams only) ──
+      const sidebarClassRaw = event.dataTransfer.getData(SIDEBAR_DND_TYPE);
+      if (sidebarClassRaw) {
+        if (!activeTabId) return;
+        const freshProject = useVFSStore.getState().project;
+        if (!freshProject) return;
+        const freshFileNode = freshProject.nodes[activeTabId];
+        if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+
+        if ((freshFileNode as VFSFile).diagramType !== 'SEQUENCE_DIAGRAM') return;
+
+        const freshContent = (freshFileNode as VFSFile).content;
+        if (!isDiagramView(freshContent)) return;
+        const freshView = freshContent as DiagramView;
+        const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
+
+        let parsed: { elementId: string };
+        try { parsed = JSON.parse(sidebarClassRaw); }
+        catch { return; }
+        const { elementId } = parsed;
+
+        const model = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
+        if (!model) return;
+
+        // Infer participantKind and display name from the element type.
+        type ParticipantKind = 'CLASS' | 'INTERFACE' | 'ACTOR' | 'ANONYMOUS';
+        let participantKind: ParticipantKind = 'ANONYMOUS';
+        let elementName = 'Lifeline';
+
+        if (model.classes[elementId]) {
+          participantKind = 'CLASS';
+          elementName = model.classes[elementId].name;
+        } else if (model.interfaces[elementId]) {
+          participantKind = 'INTERFACE';
+          elementName = model.interfaces[elementId].name;
+        } else if (model.actors[elementId]) {
+          participantKind = 'ACTOR';
+          elementName = model.actors[elementId].name;
+        }
+
+        // Duplicate check: any existing lifeline in this diagram that represents the same element.
+        const isDuplicate = freshView.nodes.some((vn) => {
+          const ll = model.lifelines?.[vn.elementId];
+          return ll?.represents === elementId;
+        });
+        if (isDuplicate) {
+          showToast(`"${elementName}" is already in this diagram`);
+          return;
+        }
+
+        // Compute drop position: center the lifeline head (140px wide) at the cursor X, y=0.
+        const stage = stageRef.current;
+        if (!stage) return;
+        const rect = stage.container().getBoundingClientRect();
+        const scale = stage.scaleX();
+        const canvasX = (event.clientX - rect.left - stage.x()) / scale;
+        const lifelineX = canvasX - 70; // 70 = LIFELINE_HEAD_W / 2
+
+        const lifelineId = crypto.randomUUID();
+        const viewNodeId = crypto.randomUUID();
+
+        if (isStandaloneFile) {
+          undoTransaction({
+            label: `Add Lifeline: ${elementName}`,
+            scope: activeTabId,
+            mutations: [{
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const fileNode = draft.project?.nodes[activeTabId];
+                if (!fileNode || fileNode.type !== 'FILE') return;
+                fileNode.localModel = fileNode.localModel ?? {
+                  id: crypto.randomUUID(), name: 'standalone', version: '1.0.0',
+                  packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                  attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                  objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                  createdAt: Date.now(), updatedAt: Date.now(),
+                };
+                fileNode.localModel.lifelines = fileNode.localModel.lifelines ?? {};
+                fileNode.localModel.lifelines[lifelineId] = {
+                  id: lifelineId, kind: 'LIFELINE', name: elementName,
+                  participantKind, represents: elementId,
+                };
+                fileNode.localModel.updatedAt = Date.now();
+                if (isDiagramView(fileNode.content)) {
+                  fileNode.content.nodes.push({ id: viewNodeId, elementId: lifelineId, x: lifelineX, y: 0 });
+                }
+              },
+            }],
+          });
+        } else {
+          undoTransaction({
+            label: `Add Lifeline: ${elementName}`,
+            scope: 'global',
+            mutations: [
+              {
+                store: 'model',
+                mutate: (draft: any) => {
+                  if (!draft.model) return;
+                  draft.model.lifelines = draft.model.lifelines ?? {};
+                  draft.model.lifelines[lifelineId] = {
+                    id: lifelineId, kind: 'LIFELINE', name: elementName,
+                    participantKind, represents: elementId,
+                  };
+                  draft.model.updatedAt = Date.now();
+                },
+              },
+              {
+                store: 'vfs',
+                mutate: (draft: any) => {
+                  const fileNode = draft.project?.nodes[activeTabId];
+                  if (!fileNode || fileNode.type !== 'FILE' || !isDiagramView(fileNode.content)) return;
+                  fileNode.content.nodes.push({ id: viewNodeId, elementId: lifelineId, x: lifelineX, y: 0 });
+                },
+              },
+            ],
+          });
+        }
+        return;
+      }
+
       const stereotype = event.dataTransfer.getData(DRAG_TYPE_NEW) as stereotype;
 
       if (!stereotype) return;
@@ -1238,6 +1360,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       hideDuplicateFileWarning,
       showToast,
       addElementToDiagram,
+      stageRef,
     ],
   );
 

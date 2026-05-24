@@ -40,6 +40,7 @@ interface LifelineShapeProps {
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
+  dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
 }
 
 export default function LifelineShape({
@@ -56,6 +57,7 @@ export default function LifelineShape({
   onDragStart,
   onDragMove,
   onDragEnd,
+  dragBoundFunc,
 }: LifelineShapeProps) {
   const colors = resolveLifelineColors();
   const { width: W } = getLifelineShapeSize(vm);
@@ -75,6 +77,7 @@ export default function LifelineShape({
       onDragStart={onDragStart}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
+      dragBoundFunc={dragBoundFunc}
       onClick={(e) => {
         e.cancelBubble = true;
         onNodeClick?.(vm.id, e.evt.ctrlKey || e.evt.metaKey);

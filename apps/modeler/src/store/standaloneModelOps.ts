@@ -483,6 +483,18 @@ export function standaloneModelOps(fileId: string) {
       });
     },
 
+    reorderMessages: (updates: Array<{ id: string; sequenceNumber: number }>) => {
+      update((m) => {
+        if (!m.messages) return;
+        for (const { id, sequenceNumber } of updates) {
+          if (m.messages[id]) {
+            m.messages[id].sequenceNumber = sequenceNumber;
+          }
+        }
+        m.updatedAt = Date.now();
+      });
+    },
+
     // ── Activations (sequence diagrams) ───────────────────────────────────────
 
     createActivation: (data: Omit<IRActivation, 'id' | 'kind'>): string => {

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
+  ChevronDown,
+  ChevronRight,
   Layers,
   Users,
   Network,
@@ -61,6 +63,7 @@ export default function CreateFileModal({
     initialParentId ?? parentId ?? null,
   );
   const [standalone, setStandalone] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [validationError, setValidationError] = useState("");
 
   const { project, createFile, updateNode } = useVFSStore();
@@ -88,6 +91,7 @@ export default function CreateFileModal({
       setDescription("");
       setSelectedParentId(initialParentId ?? parentId ?? null);
       setStandalone(false);
+      setShowAdvanced(false);
     }
     setValidationError("");
   }, [editNodeId, project, isOpen, initialParentId, parentId]);
@@ -148,6 +152,7 @@ export default function CreateFileModal({
     setDiagramType("CLASS_DIAGRAM");
     setDescription("");
     setStandalone(false);
+    setShowAdvanced(false);
     setValidationError("");
     onClose();
   };
@@ -323,37 +328,89 @@ export default function CreateFileModal({
             />
           </div>
           {!editNodeId && (
-            <div className="flex items-start gap-3 px-3 py-3 rounded-lg border border-[#2a3358] bg-[#0f1419]">
-              <button
-                id="standalone"
-                type="button"
-                role="switch"
-                aria-checked={standalone}
-                onClick={() => setStandalone((v) => !v)}
-                className={`relative mt-0.5 shrink-0 w-9 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7C83FF] ${
-                  standalone ? "bg-[#7C83FF]" : "bg-[#2a3358]"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                    standalone ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
-              </button>
-              <div className="flex flex-col gap-0.5">
-                <label
-                  htmlFor="standalone"
-                  className="text-sm font-medium text-[#cbd5e1] cursor-pointer select-none"
-                  onClick={() => setStandalone((v) => !v)}
+            diagramType === "SEQUENCE_DIAGRAM" ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !showAdvanced;
+                    setShowAdvanced(next);
+                    if (!next) setStandalone(false);
+                  }}
+                  className="flex items-center gap-1 text-xs font-medium text-[#64748b] hover:text-[#94a3b8] transition-colors"
                 >
-                  Standalone File
-                </label>
-                <p className="text-xs text-[#64748b] leading-snug">
-                  Isolates this diagram from the shared workspace model. The
-                  global Model Explorer will be hidden while this file is active.
-                </p>
+                  {showAdvanced
+                    ? <ChevronDown className="w-3.5 h-3.5" />
+                    : <ChevronRight className="w-3.5 h-3.5" />}
+                  Advanced Options
+                </button>
+                {showAdvanced && (
+                  <div className="mt-2 flex items-start gap-3 px-3 py-3 rounded-lg border border-[#2a3358] bg-[#0f1419]">
+                    <button
+                      id="standalone"
+                      type="button"
+                      role="switch"
+                      aria-checked={standalone}
+                      onClick={() => setStandalone((v) => !v)}
+                      className={`relative mt-0.5 shrink-0 w-9 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7C83FF] ${
+                        standalone ? "bg-[#7C83FF]" : "bg-[#2a3358]"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                          standalone ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                    <div className="flex flex-col gap-0.5">
+                      <label
+                        htmlFor="standalone"
+                        className="text-sm font-medium text-[#cbd5e1] cursor-pointer select-none"
+                        onClick={() => setStandalone((v) => !v)}
+                      >
+                        Standalone File
+                      </label>
+                      <p className="text-xs text-[#64748b] leading-snug">
+                        Isolates this diagram from the shared workspace model. The
+                        global Model Explorer will be hidden while this file is active.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="flex items-start gap-3 px-3 py-3 rounded-lg border border-[#2a3358] bg-[#0f1419]">
+                <button
+                  id="standalone"
+                  type="button"
+                  role="switch"
+                  aria-checked={standalone}
+                  onClick={() => setStandalone((v) => !v)}
+                  className={`relative mt-0.5 shrink-0 w-9 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#7C83FF] ${
+                    standalone ? "bg-[#7C83FF]" : "bg-[#2a3358]"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                      standalone ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+                <div className="flex flex-col gap-0.5">
+                  <label
+                    htmlFor="standalone"
+                    className="text-sm font-medium text-[#cbd5e1] cursor-pointer select-none"
+                    onClick={() => setStandalone((v) => !v)}
+                  >
+                    Standalone File
+                  </label>
+                  <p className="text-xs text-[#64748b] leading-snug">
+                    Isolates this diagram from the shared workspace model. The
+                    global Model Explorer will be hidden while this file is active.
+                  </p>
+                </div>
+              </div>
+            )
           )}
           </div>
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[#2a3358] shrink-0">

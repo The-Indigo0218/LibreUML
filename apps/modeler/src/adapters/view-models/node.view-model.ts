@@ -174,6 +174,8 @@ export interface MessageViewModel {
   name: string;
   messageKind: MessageKindVM;
   sequenceNumber: number;
+  /** Hierarchical display label: "1", "2", "1.1", "2.3.2", etc. */
+  displayNumber: string;
   /** Signed horizontal length: positive = arrow right, negative = left, 0 = self. */
   length: number;
   isSelfMessage: boolean;

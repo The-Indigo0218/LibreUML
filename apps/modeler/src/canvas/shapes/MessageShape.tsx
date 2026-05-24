@@ -32,6 +32,8 @@ interface MessageShapeProps {
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
   onDblClick?: (e: KonvaEventObject<MouseEvent>) => void;
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, nodeId: string) => void;
+  onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
+  dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
 }
 
 export default function MessageShape({
@@ -41,16 +43,19 @@ export default function MessageShape({
   selected,
   opacity,
   visible = true,
+  draggable,
   onNodeClick,
   onDblClick,
   onContextMenu,
+  onDragEnd,
+  dragBoundFunc,
 }: MessageShapeProps) {
   const colors = resolveMessageColors();
   const dashed = vm.messageKind === 'REPLY';
   const openHead = vm.messageKind === 'ASYNC' || vm.messageKind === 'REPLY';
   const labelText = vm.name
-    ? `${vm.sequenceNumber}: ${vm.name}`
-    : `${vm.sequenceNumber}:`;
+    ? `${vm.displayNumber}: ${vm.name}`
+    : `${vm.displayNumber}:`;
 
   const labelY = -LABEL_H - 2;
   const labelW = Math.max(40, Math.abs(vm.length));
@@ -64,6 +69,9 @@ export default function MessageShape({
         y={y}
         opacity={opacity}
         visible={visible}
+        draggable={draggable}
+        onDragEnd={onDragEnd}
+        dragBoundFunc={dragBoundFunc}
         listening={true}
         onClick={(e) => {
           e.cancelBubble = true;
@@ -159,6 +167,9 @@ export default function MessageShape({
       y={y}
       opacity={opacity}
       visible={visible}
+      draggable={draggable}
+      onDragEnd={onDragEnd}
+      dragBoundFunc={dragBoundFunc}
       listening={true}
       onClick={(e) => {
         e.cancelBubble = true;

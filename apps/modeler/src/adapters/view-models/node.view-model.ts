@@ -194,6 +194,31 @@ export interface ActivationViewModel {
   nestingDepth: number;
 }
 
+export type FragmentKindVM =
+  | 'ALT' | 'OPT' | 'LOOP' | 'PAR' | 'SEQ' | 'BREAK' | 'CRITICAL';
+
+export interface FragmentOperandVM {
+  id: string;
+  guard?: string;
+  /** Y offset within the fragment where this operand begins (used for separator lines). */
+  yOffset: number;
+}
+
+export interface FragmentViewModel {
+  __brand: 'fragment';
+  id: string;
+  domainId: string;
+  fragmentKind: FragmentKindVM;
+  /** Bounding box width (covers all coveredLifelineIds). */
+  width: number;
+  /** Bounding box height (top to bottom across all operands). */
+  height: number;
+  /** Operands in order; the first one has yOffset=0 (no separator above it). */
+  operands: FragmentOperandVM[];
+  /** Visual offset depth for nested fragments. */
+  nestingDepth: number;
+}
+
 /**
  * Union type for all node view models
  */
@@ -208,7 +233,8 @@ export type AnyNodeViewModel =
   | DomainEntityViewModel
   | LifelineViewModel
   | MessageViewModel
-  | ActivationViewModel;
+  | ActivationViewModel
+  | FragmentViewModel;
 
 /**
  * Type guard for NodeViewModel
@@ -258,4 +284,8 @@ export function isMessageViewModel(vm: AnyNodeViewModel): vm is MessageViewModel
 
 export function isActivationViewModel(vm: AnyNodeViewModel): vm is ActivationViewModel {
   return '__brand' in vm && vm.__brand === 'activation';
+}
+
+export function isFragmentViewModel(vm: AnyNodeViewModel): vm is FragmentViewModel {
+  return '__brand' in vm && vm.__brand === 'fragment';
 }

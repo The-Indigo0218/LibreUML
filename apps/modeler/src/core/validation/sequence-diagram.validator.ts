@@ -8,6 +8,7 @@ import type {
   IRMessage,
   IRClass,
   IRInterface,
+  IRInteractionFragment,
 } from '../domain/vfs/vfs.types';
 
 export class SequenceDiagramValidator implements BaseValidator {
@@ -122,8 +123,72 @@ export class SequenceDiagramValidator implements BaseValidator {
       warnings.push('REPLY message has no inReplyTo set — no SYNC will be closed by it');
     }
 
+    // Fragment containment: if the message claims a fragment, the fragment must
+    // cover both source and target lifelines, otherwise the visual containment
+    // is meaningless.
+    if (message.fragmentId) {
+      const frag = model.interactionFragments?.[message.fragmentId];
+      if (!frag) {
+        warnings.push(`Message references missing fragment "${message.fragmentId}"`);
+      } else {
+        const covered = new Set(frag.coveredLifelineIds);
+        if (!covered.has(message.sourceLifelineId) || !covered.has(message.targetLifelineId)) {
+          warnings.push(
+            `Message claims fragment "${frag.name || frag.id}" but the fragment doesn't cover both endpoints`,
+          );
+        }
+      }
+    }
+
     return {
       isValid: true,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific fragment validation.
+   * Errors for structural problems (no covered lifelines, missing references).
+   * Warnings for UX-level hints (LOOP without a guard).
+   */
+  validateFragment(fragment: IRInteractionFragment, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!fragment.coveredLifelineIds || fragment.coveredLifelineIds.length === 0) {
+      errors.push('Fragment must cover at least one lifeline');
+    } else {
+      const orphans = fragment.coveredLifelineIds.filter((id) => !model.lifelines?.[id]);
+      if (orphans.length > 0) {
+        errors.push(
+          `Fragment references missing lifelines: ${orphans.join(', ')}`,
+        );
+      }
+    }
+
+    if (fragment.fragmentKind === 'LOOP') {
+      const op = fragment.operands[0];
+      if (!op || !op.guard || op.guard.trim() === '') {
+        warnings.push('LOOP fragment without a guard will be ambiguous (defaults to true)');
+      }
+    }
+
+    if (fragment.fragmentKind === 'OPT' && fragment.operands.length !== 1) {
+      warnings.push('OPT fragment should have exactly one operand');
+    }
+
+    if (fragment.parentFragmentId) {
+      const parent = model.interactionFragments?.[fragment.parentFragmentId];
+      if (!parent) {
+        warnings.push(
+          `parentFragmentId "${fragment.parentFragmentId}" does not resolve to a fragment`,
+        );
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
       warnings: warnings.length > 0 ? warnings : undefined,
     };
   }

@@ -14,6 +14,7 @@ import {
   isLifelineViewModel,
   isMessageViewModel,
   isActivationViewModel,
+  isFragmentViewModel,
 } from '../adapters/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
@@ -25,6 +26,7 @@ import DomainEntityShape, { getDomainEntityShapeSize } from './shapes/DomainEnti
 import LifelineShape, { getLifelineShapeSize } from './shapes/LifelineShape';
 import MessageShape, { getMessageShapeSize } from './shapes/MessageShape';
 import ActivationShape, { getActivationShapeSize } from './shapes/ActivationShape';
+import FragmentShape, { getFragmentShapeSize } from './shapes/FragmentShape';
 
 export interface NodeShapeRenderProps {
   key: string;
@@ -56,6 +58,7 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
   if (isLifelineViewModel(vm))       return getLifelineShapeSize(vm);
   if (isMessageViewModel(vm))        return getMessageShapeSize(vm);
   if (isActivationViewModel(vm))     return getActivationShapeSize(vm);
+  if (isFragmentViewModel(vm))       return getFragmentShapeSize(vm);
   return getClassShapeSize(vm as NodeViewModel);
 }
 
@@ -106,6 +109,9 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
 
   if (isActivationViewModel(vm))
     return <ActivationShape key={key} viewModel={vm} {...common} />;
+
+  if (isFragmentViewModel(vm))
+    return <FragmentShape key={key} viewModel={vm} {...common} />;
 
   return <ClassShape key={key} viewModel={vm as NodeViewModel} {...common} />;
 }

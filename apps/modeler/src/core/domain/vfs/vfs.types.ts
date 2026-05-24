@@ -352,6 +352,34 @@ export interface IRActivation extends IRElement {
   parentActivationId?: string;
 }
 
+export type FragmentKind =
+  | 'ALT'      // alternative (if/else) with multiple guarded operands
+  | 'OPT'      // optional (single guarded operand)
+  | 'LOOP'     // iteration with guard
+  | 'PAR'      // parallel (Fase 4)
+  | 'SEQ'      // weak sequencing (Fase 4)
+  | 'BREAK'    // break (Fase 4)
+  | 'CRITICAL'; // critical region (Fase 4)
+
+export interface IRInteractionOperand {
+  id: string;
+  guard?: string;
+  /** Messages contained in this operand (in `sequenceNumber` order). */
+  messageIds: string[];
+  /** Sub-fragments nested inside this operand. */
+  fragmentIds: string[];
+}
+
+export interface IRInteractionFragment extends IRElement {
+  kind: 'FRAGMENT';
+  fragmentKind: FragmentKind;
+  /** Lifelines spanned horizontally by this fragment's rectangle. */
+  coveredLifelineIds: string[];
+  /** Operands. ALT supports many; OPT/LOOP/PAR support one. */
+  operands: IRInteractionOperand[];
+  parentFragmentId?: string;
+}
+
 export type RelationKind =
   | 'ASSOCIATION'
   | 'AGGREGATION'
@@ -419,6 +447,7 @@ export interface SemanticModel {
   lifelines?: Record<string, IRLifeline>;
   messages?: Record<string, IRMessage>;
   activations?: Record<string, IRActivation>;
+  interactionFragments?: Record<string, IRInteractionFragment>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

@@ -4,12 +4,15 @@ import type {
   IRLifeline,
   IRMessage,
   IRActivation,
+  IRInteractionFragment,
   ViewNode,
 } from '../../../../core/domain/vfs/vfs.types';
 import type {
   LifelineViewModel,
   MessageViewModel,
   ActivationViewModel,
+  FragmentViewModel,
+  FragmentOperandVM,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -29,6 +32,11 @@ const TIMELINE_BOTTOM_PAD = 60;
 const MIN_TIMELINE = 200;
 const ACTIVATION_W = 10;
 const ACTIVATION_END_PAD = 16; // extra height when activation is still open
+const FRAGMENT_X_PAD = 20;
+const FRAGMENT_TOP_PAD = 28;
+const FRAGMENT_BOTTOM_PAD = 16;
+const FRAGMENT_MIN_W = 120;
+const FRAGMENT_MIN_H = 60;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -224,5 +232,109 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     makeNoteNode(vn, handleNoteUpdate, diagramView.nodes),
   );
 
-  return [...lifelineNodes, ...activationNodes, ...messageNodes, ...noteNodes];
+  // 7. Emit Combined Fragments. They must render BEHIND messages/activations
+  //    so we prepend them to the result.
+  const fragmentNodes = buildFragmentNodes(
+    Object.values(model.interactionFragments ?? {}),
+    lifelineViewNodes,
+    lifelineCenterX,
+    messageIndex,
+    allMessages.length,
+  );
+
+  return [...fragmentNodes, ...lifelineNodes, ...activationNodes, ...messageNodes, ...noteNodes];
+}
+
+// ─── Fragment geometry ────────────────────────────────────────────────────────
+
+function buildFragmentNodes(
+  fragments: IRInteractionFragment[],
+  _lifelineViewNodes: ViewNode[],
+  lifelineCenterX: Map<string, number>,
+  messageIndex: Map<string, number>,
+  totalMessages: number,
+) {
+  // Compute nesting depth = number of ancestors.
+  const depthFor = (frag: IRInteractionFragment): number => {
+    let d = 0;
+    let current = frag.parentFragmentId;
+    const guard = new Set<string>([frag.id]);
+    while (current && !guard.has(current)) {
+      guard.add(current);
+      const parent = fragments.find((f) => f.id === current);
+      if (!parent) break;
+      d++;
+      current = parent.parentFragmentId;
+    }
+    return d;
+  };
+
+  return fragments
+    .map((frag) => {
+      // Filter to lifelines actually present in the diagram.
+      const liveLifelineIds = frag.coveredLifelineIds.filter((id) => lifelineCenterX.has(id));
+      if (liveLifelineIds.length === 0) return null;
+
+      const xs = liveLifelineIds.map((id) => lifelineCenterX.get(id)!).sort((a, b) => a - b);
+      const left = xs[0] - FRAGMENT_X_PAD;
+      const right = xs[xs.length - 1] + FRAGMENT_X_PAD;
+      const width = Math.max(FRAGMENT_MIN_W, right - left);
+
+      // Y bounds: derived from the messages contained in any operand.
+      const allMsgIds = frag.operands.flatMap((op) => op.messageIds);
+      const messageYs = allMsgIds
+        .map((mid) => messageIndex.get(mid))
+        .filter((idx): idx is number => idx !== undefined)
+        .map((idx) => messageYForIndex(idx));
+
+      let top: number;
+      let bottom: number;
+      if (messageYs.length > 0) {
+        top = Math.min(...messageYs) - FRAGMENT_TOP_PAD;
+        bottom = Math.max(...messageYs) + MESSAGE_BAND_H / 2 + FRAGMENT_BOTTOM_PAD;
+      } else {
+        // Empty fragment: anchor below the lifeline head.
+        top = LIFELINE_HEAD_H + TIMELINE_TOP_PAD;
+        bottom = top + FRAGMENT_MIN_H;
+      }
+      const height = Math.max(FRAGMENT_MIN_H, bottom - top);
+
+      // Operand yOffsets: first = 0; rest distributed by message count.
+      const operandVMs: FragmentOperandVM[] = (() => {
+        const result: FragmentOperandVM[] = [];
+        const totalOps = frag.operands.length || 1;
+        const operandBandH = height / totalOps;
+        frag.operands.forEach((op, idx) => {
+          result.push({
+            id: op.id,
+            guard: op.guard,
+            yOffset: idx * operandBandH,
+          });
+        });
+        return result;
+      })();
+
+      const viewModel: FragmentViewModel = {
+        __brand: 'fragment',
+        id: frag.id,
+        domainId: frag.id,
+        fragmentKind: frag.fragmentKind,
+        width,
+        height,
+        operands: operandVMs,
+        nestingDepth: depthFor(frag),
+      };
+
+      return {
+        id: `frag-${frag.id}`,
+        type: 'umlFragment',
+        position: { x: left, y: top },
+        data: viewModel,
+        domainId: frag.id,
+      };
+    })
+    .filter(<T>(n: T | null): n is T => n !== null);
+  // Note: totalMessages currently unused in geometry calc but kept in signature
+  // for future use (e.g. clamping bottom to within-the-timeline).
+  void totalMessages;
 }

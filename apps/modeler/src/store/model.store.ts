@@ -18,6 +18,7 @@ import type {
   IRLifeline,
   IRMessage,
   IRActivation,
+  IRInteractionFragment,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -32,9 +33,10 @@ function normalize(m: SemanticModel): SemanticModel {
   m.nodes           = m.nodes           ?? {};
   m.artifacts       = m.artifacts       ?? {};
   m.packageNames    = m.packageNames    ?? [];
-  m.lifelines       = m.lifelines       ?? {};
-  m.messages        = m.messages        ?? {};
-  m.activations     = m.activations     ?? {};
+  m.lifelines           = m.lifelines           ?? {};
+  m.messages            = m.messages            ?? {};
+  m.activations         = m.activations         ?? {};
+  m.interactionFragments = m.interactionFragments ?? {};
   if (m.domainEntities  !== undefined) m.domainEntities  = m.domainEntities  ?? {};
   if (m.domainAttributes !== undefined) m.domainAttributes = m.domainAttributes ?? {};
   return m;
@@ -63,6 +65,20 @@ function cascadeDeleteMessages(model: SemanticModel, lifelineId: string) {
       }
     });
   }
+  // Strip the lifeline from any fragment that covered it; drop empty fragments.
+  if (model.interactionFragments) {
+    Object.keys(model.interactionFragments).forEach((fid) => {
+      const frag = model.interactionFragments![fid];
+      frag.coveredLifelineIds = frag.coveredLifelineIds.filter((id) => id !== lifelineId);
+      // Strip removed message ids from operands too.
+      frag.operands.forEach((op) => {
+        op.messageIds = op.messageIds.filter((mid) => !removedMessageIds.has(mid));
+      });
+      if (frag.coveredLifelineIds.length === 0) {
+        delete model.interactionFragments![fid];
+      }
+    });
+  }
 }
 
 function cascadeDeleteActivationsForMessage(model: SemanticModel, messageId: string) {
@@ -75,6 +91,15 @@ function cascadeDeleteActivationsForMessage(model: SemanticModel, messageId: str
       // Just clear the end so the activation stays open until something else closes it.
       delete (model.activations![aid] as { endMessageId?: string }).endMessageId;
     }
+  });
+}
+
+function stripMessageFromFragments(model: SemanticModel, messageId: string) {
+  if (!model.interactionFragments) return;
+  Object.values(model.interactionFragments).forEach((frag) => {
+    frag.operands.forEach((op) => {
+      op.messageIds = op.messageIds.filter((mid) => mid !== messageId);
+    });
   });
 }
 
@@ -132,6 +157,10 @@ interface ModelStoreState {
   updateActivation: (id: string, patch: Partial<IRActivation>) => void;
   deleteActivation: (id: string) => void;
 
+  createFragment: (data: Omit<IRInteractionFragment, 'id' | 'kind'>) => string;
+  updateFragment: (id: string, patch: Partial<IRInteractionFragment>) => void;
+  deleteFragment: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -175,6 +204,7 @@ export const useModelStore = create<ModelStoreState>()(
           lifelines: {},
           messages: {},
           activations: {},
+          interactionFragments: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -528,9 +558,11 @@ export const useModelStore = create<ModelStoreState>()(
         Object.keys(draft.model.messages).forEach((mid) => {
           if (draft.model.messages![mid].inReplyTo === id) {
             delete draft.model.messages![mid];
+            stripMessageFromFragments(draft.model, mid);
           }
         });
         cascadeDeleteActivationsForMessage(draft.model, id);
+        stripMessageFromFragments(draft.model, id);
         draft.model.updatedAt = Date.now();
       });
     },
@@ -558,6 +590,55 @@ export const useModelStore = create<ModelStoreState>()(
       withUndo('model', 'Delete Activation', 'global', (draft) => {
         if (!draft.model?.activations?.[id]) return;
         delete draft.model.activations[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createFragment: (data) => {
+      const id = newId();
+      withUndo('model', `Create Fragment: ${data.fragmentKind}`, 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.interactionFragments = draft.model.interactionFragments ?? {};
+        draft.model.interactionFragments[id] = { ...data, id, kind: 'FRAGMENT' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateFragment: (id, patch) => {
+      withUndo('model', 'Update Fragment', 'global', (draft) => {
+        if (!draft.model?.interactionFragments?.[id]) return;
+        draft.model.interactionFragments[id] = {
+          ...draft.model.interactionFragments[id],
+          ...patch,
+        };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteFragment: (id) => {
+      withUndo('model', 'Delete Fragment', 'global', (draft) => {
+        if (!draft.model?.interactionFragments?.[id]) return;
+        const fragments = draft.model.interactionFragments as Record<string, IRInteractionFragment>;
+        // Re-parent children: clear their parentFragmentId. The plan §7.3 / §11.3
+        // calls for cascade-configurable; default to "orphan children to root".
+        for (const other of Object.values(fragments)) {
+          if (other.parentFragmentId === id) {
+            delete (other as { parentFragmentId?: string }).parentFragmentId;
+          }
+          // Strip from any parent's operand fragmentIds.
+          other.operands.forEach((op) => {
+            op.fragmentIds = op.fragmentIds.filter((fid) => fid !== id);
+          });
+        }
+        // Strip messages contained in this fragment of their fragmentId.
+        if (draft.model.messages) {
+          const messages = draft.model.messages as Record<string, IRMessage>;
+          for (const m of Object.values(messages)) {
+            if (m.fragmentId === id) delete (m as { fragmentId?: string }).fragmentId;
+          }
+        }
+        delete draft.model.interactionFragments[id];
         draft.model.updatedAt = Date.now();
       });
     },

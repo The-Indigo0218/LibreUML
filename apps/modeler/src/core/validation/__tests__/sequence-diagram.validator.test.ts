@@ -7,6 +7,7 @@ import type {
   IRMessage,
   IRLifeline,
   IRClass,
+  IRInteractionFragment,
 } from '../../domain/vfs/vfs.types';
 
 function makeLifeline(partial: Partial<LifelineNode> = {}): LifelineNode {
@@ -199,6 +200,115 @@ describe('SequenceDiagramValidator.validateMessage', () => {
     });
     const r = sequenceDiagramValidator.validateMessage(
       makeIRMessage({ operationId: 'op-x' }),
+      model,
+    );
+    expect(r.isValid).toBe(true);
+    expect(r.warnings).toBeUndefined();
+  });
+
+  it('warns when message references a fragment that does not cover both endpoints', () => {
+    const frag: IRInteractionFragment = {
+      id: 'f1', kind: 'FRAGMENT', name: 'alt',
+      fragmentKind: 'ALT',
+      coveredLifelineIds: ['ll1'], // ll2 NOT covered
+      operands: [{ id: 'op1', messageIds: [], fragmentIds: [] }],
+    };
+    const model = makeModelWith({
+      lifelines: { ll1: makeIRLifeline('ll1'), ll2: makeIRLifeline('ll2') },
+      interactionFragments: { f1: frag },
+    });
+    const r = sequenceDiagramValidator.validateMessage(
+      makeIRMessage({ fragmentId: 'f1' }),
+      model,
+    );
+    expect(r.warnings?.[0]).toMatch(/doesn't cover both endpoints/);
+  });
+
+  it('warns when message references a missing fragment', () => {
+    const model = makeModelWith({
+      lifelines: { ll1: makeIRLifeline('ll1'), ll2: makeIRLifeline('ll2') },
+    });
+    const r = sequenceDiagramValidator.validateMessage(
+      makeIRMessage({ fragmentId: 'f-missing' }),
+      model,
+    );
+    expect(r.warnings?.[0]).toMatch(/missing fragment/);
+  });
+});
+
+// ─── validateFragment ─────────────────────────────────────────────────────────
+
+function makeFragment(partial: Partial<IRInteractionFragment> = {}): IRInteractionFragment {
+  return {
+    id: 'f1', kind: 'FRAGMENT', name: 'alt-1',
+    fragmentKind: 'ALT',
+    coveredLifelineIds: ['ll1'],
+    operands: [{ id: 'op1', messageIds: [], fragmentIds: [] }],
+    ...partial,
+  };
+}
+
+describe('SequenceDiagramValidator.validateFragment', () => {
+  it('rejects fragment with no covered lifelines', () => {
+    const model = makeModelWith({ lifelines: { ll1: makeIRLifeline('ll1') } });
+    const r = sequenceDiagramValidator.validateFragment(
+      makeFragment({ coveredLifelineIds: [] }),
+      model,
+    );
+    expect(r.isValid).toBe(false);
+    expect(r.errors?.[0]).toMatch(/at least one lifeline/);
+  });
+
+  it('rejects fragment whose covered lifelines do not exist', () => {
+    const model = makeModelWith({ lifelines: { ll1: makeIRLifeline('ll1') } });
+    const r = sequenceDiagramValidator.validateFragment(
+      makeFragment({ coveredLifelineIds: ['ll1', 'ghost'] }),
+      model,
+    );
+    expect(r.isValid).toBe(false);
+    expect(r.errors?.[0]).toMatch(/missing lifelines/);
+  });
+
+  it('warns when LOOP has no guard', () => {
+    const model = makeModelWith({ lifelines: { ll1: makeIRLifeline('ll1') } });
+    const r = sequenceDiagramValidator.validateFragment(
+      makeFragment({ fragmentKind: 'LOOP', operands: [{ id: 'op', messageIds: [], fragmentIds: [] }] }),
+      model,
+    );
+    expect(r.isValid).toBe(true);
+    expect(r.warnings?.[0]).toMatch(/LOOP.*without a guard/);
+  });
+
+  it('warns when OPT has more than one operand', () => {
+    const model = makeModelWith({ lifelines: { ll1: makeIRLifeline('ll1') } });
+    const r = sequenceDiagramValidator.validateFragment(
+      makeFragment({
+        fragmentKind: 'OPT',
+        operands: [
+          { id: 'op1', messageIds: [], fragmentIds: [] },
+          { id: 'op2', messageIds: [], fragmentIds: [] },
+        ],
+      }),
+      model,
+    );
+    expect(r.warnings?.[0]).toMatch(/OPT.*exactly one operand/);
+  });
+
+  it('warns when parentFragmentId does not resolve', () => {
+    const model = makeModelWith({ lifelines: { ll1: makeIRLifeline('ll1') } });
+    const r = sequenceDiagramValidator.validateFragment(
+      makeFragment({ parentFragmentId: 'missing' }),
+      model,
+    );
+    expect(r.warnings?.[0]).toMatch(/parentFragmentId.*does not resolve/);
+  });
+
+  it('passes a well-formed ALT with covered lifelines', () => {
+    const model = makeModelWith({
+      lifelines: { ll1: makeIRLifeline('ll1'), ll2: makeIRLifeline('ll2') },
+    });
+    const r = sequenceDiagramValidator.validateFragment(
+      makeFragment({ coveredLifelineIds: ['ll1', 'll2'] }),
       model,
     );
     expect(r.isValid).toBe(true);

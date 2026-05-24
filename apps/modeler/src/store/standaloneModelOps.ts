@@ -32,6 +32,7 @@ import type {
   IRLifeline,
   IRMessage,
   IRActivation,
+  IRInteractionFragment,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -68,6 +69,18 @@ function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: strin
       }
     }
   }
+  if (model.interactionFragments) {
+    for (const fid of Object.keys(model.interactionFragments)) {
+      const frag = model.interactionFragments[fid];
+      frag.coveredLifelineIds = frag.coveredLifelineIds.filter((id) => id !== lifelineId);
+      frag.operands.forEach((op) => {
+        op.messageIds = op.messageIds.filter((mid) => !removed.has(mid));
+      });
+      if (frag.coveredLifelineIds.length === 0) {
+        delete model.interactionFragments[fid];
+      }
+    }
+  }
 }
 
 function cascadeDeleteActivationsForMessageLocal(model: SemanticModel, messageId: string) {
@@ -79,6 +92,15 @@ function cascadeDeleteActivationsForMessageLocal(model: SemanticModel, messageId
     } else if (act.endMessageId === messageId) {
       delete (model.activations[aid] as { endMessageId?: string }).endMessageId;
     }
+  }
+}
+
+function stripMessageFromFragmentsLocal(model: SemanticModel, messageId: string) {
+  if (!model.interactionFragments) return;
+  for (const frag of Object.values(model.interactionFragments)) {
+    frag.operands.forEach((op) => {
+      op.messageIds = op.messageIds.filter((mid) => mid !== messageId);
+    });
   }
 }
 
@@ -450,9 +472,13 @@ export function standaloneModelOps(fileId: string) {
         if (!m.messages?.[id]) return;
         delete m.messages[id];
         for (const mid of Object.keys(m.messages)) {
-          if (m.messages[mid].inReplyTo === id) delete m.messages[mid];
+          if (m.messages[mid].inReplyTo === id) {
+            delete m.messages[mid];
+            stripMessageFromFragmentsLocal(m, mid);
+          }
         }
         cascadeDeleteActivationsForMessageLocal(m, id);
+        stripMessageFromFragmentsLocal(m, id);
         m.updatedAt = Date.now();
       });
     },
@@ -481,6 +507,47 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.activations?.[id]) return;
         delete m.activations[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Combined Fragments (sequence diagrams) ────────────────────────────────
+
+    createFragment: (data: Omit<IRInteractionFragment, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.interactionFragments = m.interactionFragments ?? {};
+        m.interactionFragments[id] = { ...data, id, kind: 'FRAGMENT' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateFragment: (id: string, patch: Partial<IRInteractionFragment>) => {
+      update((m) => {
+        if (!m.interactionFragments?.[id]) return;
+        m.interactionFragments[id] = { ...m.interactionFragments[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteFragment: (id: string) => {
+      update((m) => {
+        if (!m.interactionFragments?.[id]) return;
+        for (const other of Object.values(m.interactionFragments)) {
+          if (other.parentFragmentId === id) {
+            delete (other as { parentFragmentId?: string }).parentFragmentId;
+          }
+          other.operands.forEach((op) => {
+            op.fragmentIds = op.fragmentIds.filter((fid) => fid !== id);
+          });
+        }
+        if (m.messages) {
+          for (const msg of Object.values(m.messages)) {
+            if (msg.fragmentId === id) delete (msg as { fragmentId?: string }).fragmentId;
+          }
+        }
+        delete m.interactionFragments[id];
         m.updatedAt = Date.now();
       });
     },

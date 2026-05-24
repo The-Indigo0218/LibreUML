@@ -6,12 +6,14 @@ import type {
   IRLifeline,
   IRMessage,
   IRActivation,
+  IRInteractionFragment,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
   isLifelineViewModel,
   isMessageViewModel,
   isActivationViewModel,
+  isFragmentViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
@@ -216,6 +218,101 @@ describe('buildSequenceDiagramNodes', () => {
     };
     const result = buildSequenceDiagramNodes(makeCtx(model, view));
     expect(result.find((n) => n.type === 'umlActivation')).toBeUndefined();
+  });
+
+  it('emits a Fragment view model with width spanning covered lifelines', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const msg = makeMessage('m1', 'll1', 'll2', 1);
+    const frag: IRInteractionFragment = {
+      id: 'f1',
+      kind: 'FRAGMENT',
+      name: 'alt-1',
+      fragmentKind: 'ALT',
+      coveredLifelineIds: ['ll1', 'll2'],
+      operands: [
+        { id: 'op1', guard: 'x>0', messageIds: ['m1'], fragmentIds: [] },
+        { id: 'op2', guard: 'else', messageIds: [], fragmentIds: [] },
+      ],
+    };
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: msg },
+      interactionFragments: { f1: frag },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const fragNode = result.find((n) => n.type === 'umlFragment');
+    expect(fragNode).toBeDefined();
+    if (fragNode && isFragmentViewModel(fragNode.data)) {
+      expect(fragNode.data.fragmentKind).toBe('ALT');
+      expect(fragNode.data.operands).toHaveLength(2);
+      // Width should span at least from ll1 center to ll2 center.
+      const ll1CenterX = 50 + 70; // headWidth/2 = 70
+      const ll2CenterX = 250 + 70;
+      expect(fragNode.data.width).toBeGreaterThanOrEqual(ll2CenterX - ll1CenterX);
+    }
+  });
+
+  it('skips fragments whose covered lifelines are all absent from the diagram', () => {
+    const ll1 = makeLifeline('ll1');
+    const frag: IRInteractionFragment = {
+      id: 'f1',
+      kind: 'FRAGMENT',
+      name: 'orphan',
+      fragmentKind: 'OPT',
+      coveredLifelineIds: ['ll99'],
+      operands: [{ id: 'op1', messageIds: [], fragmentIds: [] }],
+    };
+    const model = makeModel({
+      lifelines: { ll1 },
+      interactionFragments: { f1: frag },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    expect(result.find((n) => n.type === 'umlFragment')).toBeUndefined();
+  });
+
+  it('renders fragments BEFORE lifelines/messages so they sit visually behind', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const frag: IRInteractionFragment = {
+      id: 'f1',
+      kind: 'FRAGMENT',
+      name: 'alt',
+      fragmentKind: 'ALT',
+      coveredLifelineIds: ['ll1', 'll2'],
+      operands: [{ id: 'op1', messageIds: [], fragmentIds: [] }],
+    };
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      interactionFragments: { f1: frag },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const fragIdx = result.findIndex((n) => n.type === 'umlFragment');
+    const lifelineIdx = result.findIndex((n) => n.type === 'umlLifeline');
+    expect(fragIdx).toBeGreaterThanOrEqual(0);
+    expect(lifelineIdx).toBeGreaterThanOrEqual(0);
+    expect(fragIdx).toBeLessThan(lifelineIdx);
   });
 
   it('orders messages by sequenceNumber', () => {

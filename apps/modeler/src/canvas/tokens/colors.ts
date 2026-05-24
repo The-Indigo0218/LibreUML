@@ -212,3 +212,23 @@ export function resolveActivationColors(): KonvaActivationColors {
     border: dark ? '#6366f1' : '#4338ca', // indigo-500 / indigo-700
   };
 }
+
+export interface KonvaFragmentColors {
+  border: string;
+  labelBg: string;
+  labelText: string;
+  separator: string;
+  guardText: string;
+}
+
+/** Combined-fragment palette — translucent border + tab label. */
+export function resolveFragmentColors(): KonvaFragmentColors {
+  const dark = isDark();
+  return {
+    border:    dark ? '#94a3b8' : '#475569', // slate-400 / slate-600
+    labelBg:   dark ? '#1e293b' : '#e2e8f0', // slate-800 / slate-200
+    labelText: dark ? '#e2e8f0' : '#1e293b',
+    separator: dark ? '#64748b' : '#94a3b8', // slate-500 / slate-400 (dashed)
+    guardText: dark ? '#cbd5e1' : '#334155',
+  };
+}

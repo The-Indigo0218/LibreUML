@@ -47,6 +47,7 @@ import {
   isUseCaseViewModel,
   isSystemBoundaryViewModel,
   isDomainEntityViewModel,
+  isLifelineViewModel,
   type NodeViewModel,
 } from '../../adapters/view-models/node.view-model';
 import { validateConnection } from '../../util/connectionValidator';
@@ -88,8 +89,9 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
 
 const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'use_case', 'system_boundary']);
 const DOMAIN_MODEL_STEREOTYPES = new Set<stereotype>(['domain_entity']);
+export const SEQUENCE_STEREOTYPES = new Set<stereotype>(['lifeline']);
 
-function resolveStereotype(vm: AnyNodeViewModel): stereotype {
+export function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isNoteViewModel(vm)) return 'note';
   if (isPackageViewModel(vm)) return 'package';
   if (isActorViewModel(vm)) return 'actor';
@@ -97,6 +99,7 @@ function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isSystemBoundaryViewModel(vm)) return 'system_boundary';
   // TODO(post-v1 Fase 2): mover a ShapeRouter
   if (isDomainEntityViewModel(vm)) return 'domain_entity';
+  if (isLifelineViewModel(vm)) return 'lifeline';
   const nvm = vm as NodeViewModel;
   const s = nvm.stereotype;
   if (s === 'abstract' || s === 'interface' || s === 'enum') return s;
@@ -348,12 +351,14 @@ export function useConnectionDraw({
               const tgtStereotype = resolveStereotype(tgtNode.data);
 
               // Package→package: always allowed. Kind is forced to DEPENDENCY in the handler.
-              // Use case diagram nodes: delegate entirely to the registry validator in onConnect.
+              // Use case / domain / sequence diagram nodes: delegate entirely to onConnect.
               if (srcStereotype === 'package' && tgtStereotype === 'package') {
                 onConnect(src.nodeId, snap.nodeId);
               } else if (USE_CASE_STEREOTYPES.has(srcStereotype) || USE_CASE_STEREOTYPES.has(tgtStereotype)) {
                 onConnect(src.nodeId, snap.nodeId);
               } else if (DOMAIN_MODEL_STEREOTYPES.has(srcStereotype) || DOMAIN_MODEL_STEREOTYPES.has(tgtStereotype)) {
+                onConnect(src.nodeId, snap.nodeId);
+              } else if (SEQUENCE_STEREOTYPES.has(srcStereotype) || SEQUENCE_STEREOTYPES.has(tgtStereotype)) {
                 onConnect(src.nodeId, snap.nodeId);
               } else {
                 const wsState = useWorkspaceStore.getState();

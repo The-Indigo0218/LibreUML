@@ -11,8 +11,16 @@ import type {
   VFSFile,
   ViewEdge,
   RelationKind,
+  MessageKind,
+  IRMessage,
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+import { standaloneModelOps } from '../../store/standaloneModelOps';
+import {
+  TOOL_TO_MESSAGE_KIND,
+  findMatchingSyncForReply,
+  nextMessageSequenceNumber,
+} from './sequenceMessageHelpers';
 
 const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   ASSOCIATION:    'ASSOCIATION',
@@ -206,6 +214,53 @@ export function useCanvasEventHandlers({
       const sourceVN = currentView.nodes.find((vn) => vn.id === connection.source);
       const targetVN = currentView.nodes.find((vn) => vn.id === connection.target);
       if (!sourceVN || !targetVN) return;
+
+      // ── Sequence diagram branch: create an IRMessage instead of an IRRelation ──
+      if ((fileNode as VFSFile).diagramType === 'SEQUENCE_DIAGRAM') {
+        const activeModel = isStandalone
+          ? getLocalModel(activeTabId)
+          : useModelStore.getState().model;
+        if (!activeModel) return;
+
+        const srcLifelineId = sourceVN.elementId;
+        const tgtLifelineId = targetVN.elementId;
+
+        // Both endpoints must resolve to actual lifelines in the active model.
+        if (!srcLifelineId || !tgtLifelineId) return;
+        if (!activeModel.lifelines?.[srcLifelineId] || !activeModel.lifelines?.[tgtLifelineId]) {
+          useToastStore.getState().show('⚠️ Los mensajes deben conectar dos lifelines');
+          return;
+        }
+
+        const wsState = useWorkspaceStore.getState();
+        const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
+        const messageKind: MessageKind =
+          TOOL_TO_MESSAGE_KIND[rawMode ?? ''] ?? 'SYNC';
+
+        const existingMessages = activeModel.messages ?? {};
+        const sequenceNumber = nextMessageSequenceNumber(existingMessages);
+
+        const inReplyTo =
+          messageKind === 'REPLY'
+            ? findMatchingSyncForReply(existingMessages, srcLifelineId, tgtLifelineId)
+            : undefined;
+
+        const payload: Omit<IRMessage, 'id' | 'kind'> = {
+          name: '',
+          messageKind,
+          sourceLifelineId: srcLifelineId,
+          targetLifelineId: tgtLifelineId,
+          sequenceNumber,
+          ...(inReplyTo ? { inReplyTo } : {}),
+        };
+
+        if (isStandalone) {
+          standaloneModelOps(activeTabId).createMessage(payload);
+        } else {
+          useModelStore.getState().createMessage(payload);
+        }
+        return;
+      }
 
       // Notes have no semantic elementId — use the viewNode.id as the relation endpoint.
       const sourceIsNote = !sourceVN.elementId;

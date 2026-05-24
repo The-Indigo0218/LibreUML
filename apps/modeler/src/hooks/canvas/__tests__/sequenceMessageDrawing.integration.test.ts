@@ -12,6 +12,7 @@ import {
   TOOL_TO_MESSAGE_KIND,
   findMatchingSyncForReply,
   nextMessageSequenceNumber,
+  autoAssignFragmentForNewMessage,
 } from '../sequenceMessageHelpers';
 import type { IRMessage } from '../../../core/domain/vfs/vfs.types';
 
@@ -29,6 +30,14 @@ function simulateConnect(
       ? findMatchingSyncForReply(model.messages ?? {}, srcLifelineId, tgtLifelineId)
       : undefined;
 
+  const autoAssignment = autoAssignFragmentForNewMessage(
+    model.interactionFragments ?? {},
+    model.messages ?? {},
+    srcLifelineId,
+    tgtLifelineId,
+    sequenceNumber,
+  );
+
   const payload: Omit<IRMessage, 'id' | 'kind'> = {
     name: '',
     messageKind,
@@ -36,8 +45,22 @@ function simulateConnect(
     targetLifelineId: tgtLifelineId,
     sequenceNumber,
     ...(inReplyTo ? { inReplyTo } : {}),
+    ...(autoAssignment ? { fragmentId: autoAssignment.fragmentId } : {}),
   };
-  return useModelStore.getState().createMessage(payload);
+  const newMessageId = useModelStore.getState().createMessage(payload);
+
+  if (autoAssignment) {
+    const refreshed = useModelStore.getState().model!;
+    const frag = refreshed.interactionFragments![autoAssignment.fragmentId];
+    const updatedOperands = frag.operands.map((op) =>
+      op.id === autoAssignment.operandId
+        ? { ...op, messageIds: [...op.messageIds, newMessageId] }
+        : op,
+    );
+    useModelStore.getState().updateFragment(autoAssignment.fragmentId, { operands: updatedOperands });
+  }
+
+  return newMessageId;
 }
 
 function setup(): { ll1: string; ll2: string } {
@@ -148,5 +171,64 @@ describe('onConnect simulation — SEQUENCE_DIAGRAM creates IRMessage', () => {
     const acts = Object.values(state.activations!);
     expect(acts).toHaveLength(1);
     expect(acts[0].endMessageId).toBeUndefined();
+  });
+
+  // ─── Auto-assignment of fragmentId ──────────────────────────────────────────
+
+  it('auto-assigns a new message to a fragment when the previous message is inside it', () => {
+    const { ll1, ll2 } = setup();
+    const firstMsgId = simulateConnect(ll1, ll2, 'MESSAGE_SYNC');
+    // Manually wrap the first message in an ALT fragment.
+    const fragId = useModelStore.getState().createFragment({
+      name: 'alt-1',
+      fragmentKind: 'ALT',
+      coveredLifelineIds: [ll1, ll2],
+      operands: [
+        { id: 'op1', messageIds: [firstMsgId], fragmentIds: [] },
+        { id: 'op2', messageIds: [], fragmentIds: [] },
+      ],
+    });
+    // Now create a new message — it should auto-assign to fragId.
+    const secondMsgId = simulateConnect(ll1, ll2, 'MESSAGE_ASYNC');
+
+    const state = useModelStore.getState().model!;
+    expect(state.messages![secondMsgId].fragmentId).toBe(fragId);
+    const frag = state.interactionFragments![fragId];
+    expect(frag.operands[0].messageIds).toContain(secondMsgId);
+  });
+
+  it('does NOT auto-assign when the previous message lives outside any matching fragment', () => {
+    const { ll1, ll2 } = setup();
+    simulateConnect(ll1, ll2, 'MESSAGE_SYNC');
+    // Create an empty fragment (no messages inside).
+    useModelStore.getState().createFragment({
+      name: 'opt-empty',
+      fragmentKind: 'OPT',
+      coveredLifelineIds: [ll1, ll2],
+      operands: [{ id: 'op1', messageIds: [], fragmentIds: [] }],
+    });
+    const newMsgId = simulateConnect(ll1, ll2, 'MESSAGE_ASYNC');
+
+    const state = useModelStore.getState().model!;
+    expect(state.messages![newMsgId].fragmentId).toBeUndefined();
+  });
+
+  it('does NOT auto-assign when the new message endpoints are not all covered', () => {
+    const { ll1, ll2 } = setup();
+    const ll3 = useModelStore.getState().createLifeline({
+      name: 'C', participantKind: 'ANONYMOUS', alias: 'C',
+    });
+    const firstMsgId = simulateConnect(ll1, ll2, 'MESSAGE_SYNC');
+    useModelStore.getState().createFragment({
+      name: 'alt-narrow',
+      fragmentKind: 'ALT',
+      coveredLifelineIds: [ll1, ll2], // does NOT cover ll3
+      operands: [{ id: 'op1', messageIds: [firstMsgId], fragmentIds: [] }],
+    });
+
+    // New message ll1 → ll3 — endpoints not both covered, so no auto-assign.
+    const newMsgId = simulateConnect(ll1, ll3, 'MESSAGE_ASYNC');
+    const state = useModelStore.getState().model!;
+    expect(state.messages![newMsgId].fragmentId).toBeUndefined();
   });
 });

@@ -3,8 +3,12 @@ import {
   TOOL_TO_MESSAGE_KIND,
   findMatchingSyncForReply,
   nextMessageSequenceNumber,
+  autoAssignFragmentForNewMessage,
 } from '../sequenceMessageHelpers';
-import type { IRMessage } from '../../../core/domain/vfs/vfs.types';
+import type {
+  IRMessage,
+  IRInteractionFragment,
+} from '../../../core/domain/vfs/vfs.types';
 
 function msg(
   id: string,
@@ -92,5 +96,69 @@ describe('findMatchingSyncForReply', () => {
       m1: msg('m1', 'A', 'B', 1, 'SYNC'),
     };
     expect(findMatchingSyncForReply(messages, 'A', 'B')).toBeUndefined();
+  });
+});
+
+// ─── autoAssignFragmentForNewMessage ──────────────────────────────────────────
+
+function frag(
+  id: string,
+  covered: string[],
+  operandMessages: string[],
+): IRInteractionFragment {
+  return {
+    id,
+    kind: 'FRAGMENT',
+    name: id,
+    fragmentKind: 'ALT',
+    coveredLifelineIds: covered,
+    operands: [
+      { id: `${id}-op1`, messageIds: operandMessages, fragmentIds: [] },
+    ],
+  };
+}
+
+describe('autoAssignFragmentForNewMessage', () => {
+  it('returns undefined when there is no previous message', () => {
+    const result = autoAssignFragmentForNewMessage({}, {}, 'A', 'B', 1);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when the previous message exists but no fragment owns it', () => {
+    const messages = { m1: msg('m1', 'A', 'B', 1) };
+    const result = autoAssignFragmentForNewMessage({}, messages, 'A', 'B', 2);
+    expect(result).toBeUndefined();
+  });
+
+  it('assigns to a fragment whose operand contains the previous message and covers both endpoints', () => {
+    const messages = { m1: msg('m1', 'A', 'B', 1) };
+    const fragments = { f1: frag('f1', ['A', 'B'], ['m1']) };
+    const result = autoAssignFragmentForNewMessage(fragments, messages, 'A', 'B', 2);
+    expect(result?.fragmentId).toBe('f1');
+    expect(result?.operandId).toBe('f1-op1');
+  });
+
+  it('does NOT assign when target lifeline is not covered', () => {
+    const messages = { m1: msg('m1', 'A', 'B', 1) };
+    const fragments = { f1: frag('f1', ['A'], ['m1']) }; // B not covered
+    const result = autoAssignFragmentForNewMessage(fragments, messages, 'A', 'B', 2);
+    expect(result).toBeUndefined();
+  });
+
+  it('picks the deepest (smallest covered set) when multiple fragments qualify', () => {
+    const messages = { m1: msg('m1', 'A', 'B', 1) };
+    const outer = frag('outer', ['A', 'B', 'C'], ['m1']);
+    const inner = frag('inner', ['A', 'B'], ['m1']);
+    const fragments = { outer, inner };
+    const result = autoAssignFragmentForNewMessage(fragments, messages, 'A', 'B', 2);
+    expect(result?.fragmentId).toBe('inner');
+  });
+
+  it('does NOT assign when the sequence gap is broken (previous=seq-2 not seq-1)', () => {
+    // Only m1 with seq=1 exists; new message would be seq=3 (e.g. seq=2 was deleted).
+    const messages = { m1: msg('m1', 'A', 'B', 1) };
+    const fragments = { f1: frag('f1', ['A', 'B'], ['m1']) };
+    const result = autoAssignFragmentForNewMessage(fragments, messages, 'A', 'B', 3);
+    expect(result).toBeUndefined();
   });
 });

@@ -4,6 +4,7 @@ import { useUiStore } from "../../../store/uiStore";
 import { useWorkspaceStore } from "../../../store/workspace.store";
 import { useVFSStore } from "../../../store/project-vfs.store";
 import { useModelStore } from "../../../store/model.store";
+import { useToastStore } from "../../../store/toast.store";
 import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../store/standaloneModelOps";
 import { isDiagramView } from "./useVFSCanvasController";
 import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
@@ -70,6 +71,7 @@ export const useDiagramMenus = ({
 }: UseDiagramMenusProps) => {
   const isUseCaseDiagram = diagramType === 'USE_CASE_DIAGRAM';
   const isDomainModelDiagram = diagramType === 'DOMAIN_MODEL_DIAGRAM';
+  const isSequenceDiagram = diagramType === 'SEQUENCE_DIAGRAM';
   const { t } = useTranslation();
 
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator);
@@ -249,6 +251,69 @@ export const useDiagramMenus = ({
     [],
   );
 
+  // ── Fragment insertion (sequence diagrams) ────────────────────────────────
+
+  const addFragmentToDiagram = useCallback(
+    (fragmentKind: 'ALT' | 'OPT' | 'LOOP') => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
+
+      const project = useVFSStore.getState().project;
+      if (!project) return;
+      const fileNode = project.nodes[tabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      const content = (fileNode as VFSFile).content;
+      if (!isDiagramView(content)) return;
+
+      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+      const activeModel = isStandaloneFile
+        ? getLocalModel(tabId)
+        : useModelStore.getState().model;
+      if (!activeModel) return;
+
+      // Gather covered lifelines: every ViewNode whose elementId resolves to a
+      // lifeline in the active model. This is the MVP "cover everything"
+      // policy; later phases can refine to clicked-X-range only.
+      const lifelineIds = (content as DiagramView).nodes
+        .map((vn) => vn.elementId)
+        .filter((id): id is string => !!id && !!activeModel.lifelines?.[id]);
+
+      if (lifelineIds.length === 0) {
+        useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un fragmento');
+        return;
+      }
+
+      const operandCount = fragmentKind === 'ALT' ? 2 : 1;
+      const operands = Array.from({ length: operandCount }, (_, i) => ({
+        id: crypto.randomUUID(),
+        guard: fragmentKind === 'ALT' && i === 1 ? 'else' : '',
+        messageIds: [] as string[],
+        fragmentIds: [] as string[],
+      }));
+
+      const name = `${fragmentKind.toLowerCase()}-${
+        Object.keys(activeModel.interactionFragments ?? {}).length + 1
+      }`;
+
+      if (isStandaloneFile) {
+        standaloneModelOps(tabId).createFragment({
+          name,
+          fragmentKind,
+          coveredLifelineIds: lifelineIds,
+          operands,
+        });
+      } else {
+        useModelStore.getState().createFragment({
+          name,
+          fragmentKind,
+          coveredLifelineIds: lifelineIds,
+          operands,
+        });
+      }
+    },
+    [],
+  );
+
   // ── getMenuOptions ────────────────────────────────────────────────────────
 
   const getMenuOptions = useCallback(
@@ -272,6 +337,15 @@ export const useDiagramMenus = ({
             { label: t("contextMenu.pane.addDomainEntity"), onClick: () => addVFSNode("DOMAIN_ENTITY", pos()) },
             { label: t("contextMenu.pane.addNote"),         onClick: () => addVFSNode("NOTE", pos()) },
             { label: t("contextMenu.pane.cleanCanvas"),     onClick: onClearCanvas, danger: true },
+          ];
+        }
+        if (isSequenceDiagram) {
+          return [
+            { label: t("contextMenu.pane.insertAltFragment"),  onClick: () => addFragmentToDiagram("ALT") },
+            { label: t("contextMenu.pane.insertOptFragment"),  onClick: () => addFragmentToDiagram("OPT") },
+            { label: t("contextMenu.pane.insertLoopFragment"), onClick: () => addFragmentToDiagram("LOOP") },
+            { label: t("contextMenu.pane.addNote"),            onClick: () => addVFSNode("NOTE", pos()) },
+            { label: t("contextMenu.pane.cleanCanvas"),        onClick: onClearCanvas, danger: true },
           ];
         }
         return [

@@ -155,7 +155,10 @@
       "addUseCase": "Add Use Case",
       "addSystemBoundary": "Add System Boundary",
       "addModule": "Add Module",
-      "addDomainEntity": "Add Entity"
+      "addDomainEntity": "Add Entity",
+      "insertAltFragment": "Insert ALT Fragment",
+      "insertOptFragment": "Insert OPT Fragment",
+      "insertLoopFragment": "Insert LOOP Fragment"
     },
     "node": {
       "duplicate": "Duplicate",

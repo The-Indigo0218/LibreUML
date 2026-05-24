@@ -163,7 +163,10 @@
       "addUseCase": "Agregar Caso de Uso",
       "addSystemBoundary": "Agregar Límite de Sistema",
       "addModule": "Agregar Módulo",
-      "addDomainEntity": "Agregar Entidad"
+      "addDomainEntity": "Agregar Entidad",
+      "insertAltFragment": "Insertar Fragmento ALT",
+      "insertOptFragment": "Insertar Fragmento OPT",
+      "insertLoopFragment": "Insertar Fragmento LOOP"
     },
     "node": {
       "duplicate": "Duplicar",

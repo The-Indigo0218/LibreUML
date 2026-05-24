@@ -20,6 +20,7 @@ import {
   TOOL_TO_MESSAGE_KIND,
   findMatchingSyncForReply,
   nextMessageSequenceNumber,
+  autoAssignFragmentForNewMessage,
 } from './sequenceMessageHelpers';
 
 const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
@@ -245,6 +246,16 @@ export function useCanvasEventHandlers({
             ? findMatchingSyncForReply(existingMessages, srcLifelineId, tgtLifelineId)
             : undefined;
 
+        // Auto-assign to a containing fragment when the previous message lives
+        // in one (sequential heuristic — see helper docs).
+        const autoAssignment = autoAssignFragmentForNewMessage(
+          activeModel.interactionFragments ?? {},
+          existingMessages,
+          srcLifelineId,
+          tgtLifelineId,
+          sequenceNumber,
+        );
+
         const payload: Omit<IRMessage, 'id' | 'kind'> = {
           name: '',
           messageKind,
@@ -252,12 +263,33 @@ export function useCanvasEventHandlers({
           targetLifelineId: tgtLifelineId,
           sequenceNumber,
           ...(inReplyTo ? { inReplyTo } : {}),
+          ...(autoAssignment ? { fragmentId: autoAssignment.fragmentId } : {}),
         };
 
+        let newMessageId: string;
         if (isStandalone) {
-          standaloneModelOps(activeTabId).createMessage(payload);
+          newMessageId = standaloneModelOps(activeTabId).createMessage(payload);
         } else {
-          useModelStore.getState().createMessage(payload);
+          newMessageId = useModelStore.getState().createMessage(payload);
+        }
+
+        // Push the new message into the matched operand's messageIds.
+        if (autoAssignment) {
+          const ops = isStandalone
+            ? standaloneModelOps(activeTabId)
+            : useModelStore.getState();
+          const refreshedModel = isStandalone
+            ? getLocalModel(activeTabId)
+            : useModelStore.getState().model;
+          const frag = refreshedModel?.interactionFragments?.[autoAssignment.fragmentId];
+          if (frag) {
+            const updatedOperands = frag.operands.map((op) =>
+              op.id === autoAssignment.operandId
+                ? { ...op, messageIds: [...op.messageIds, newMessageId] }
+                : op,
+            );
+            ops.updateFragment(autoAssignment.fragmentId, { operands: updatedOperands });
+          }
         }
         return;
       }

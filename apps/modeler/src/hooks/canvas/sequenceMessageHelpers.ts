@@ -5,7 +5,11 @@
  * full React hook (which depends on workspace store, VFS store, etc.).
  */
 
-import type { IRMessage, MessageKind } from '../../core/domain/vfs/vfs.types';
+import type {
+  IRMessage,
+  MessageKind,
+  IRInteractionFragment,
+} from '../../core/domain/vfs/vfs.types';
 
 export const TOOL_TO_MESSAGE_KIND: Record<string, MessageKind> = {
   MESSAGE_SYNC:  'SYNC',
@@ -42,4 +46,55 @@ export function nextMessageSequenceNumber(messages: Record<string, IRMessage>): 
     0,
   );
   return max + 1;
+}
+
+export interface FragmentAutoAssignment {
+  fragmentId: string;
+  operandId: string;
+}
+
+/**
+ * Auto-assign a newly-created message to a fragment using a sequential heuristic.
+ *
+ * Rule: returns the fragment that
+ *   (1) covers BOTH source and target lifelines, AND
+ *   (2) contains a message whose sequenceNumber === newSequenceNumber - 1.
+ *
+ * Picks the deepest match (smallest covered-lifelines set) when several
+ * fragments qualify, so nested fragments win over their parents.
+ *
+ * Returns the fragmentId + the operandId where the message should be appended,
+ * or undefined if no fragment qualifies.
+ */
+export function autoAssignFragmentForNewMessage(
+  fragments: Record<string, IRInteractionFragment>,
+  messages: Record<string, IRMessage>,
+  sourceLifelineId: string,
+  targetLifelineId: string,
+  newSequenceNumber: number,
+): FragmentAutoAssignment | undefined {
+  const previousSeq = newSequenceNumber - 1;
+  if (previousSeq < 1) return undefined;
+
+  // Find the message with sequenceNumber === previousSeq.
+  const prevMsg = Object.values(messages).find((m) => m.sequenceNumber === previousSeq);
+  if (!prevMsg) return undefined;
+
+  const candidates: Array<{ frag: IRInteractionFragment; operandId: string }> = [];
+
+  for (const frag of Object.values(fragments)) {
+    const covers = new Set(frag.coveredLifelineIds);
+    if (!covers.has(sourceLifelineId) || !covers.has(targetLifelineId)) continue;
+    // The previous message must live in one of this fragment's operands.
+    const owningOperand = frag.operands.find((op) => op.messageIds.includes(prevMsg.id));
+    if (owningOperand) {
+      candidates.push({ frag, operandId: owningOperand.id });
+    }
+  }
+
+  if (candidates.length === 0) return undefined;
+
+  // Deepest match = smallest coveredLifelineIds size (proxy for "innermost").
+  candidates.sort((a, b) => a.frag.coveredLifelineIds.length - b.frag.coveredLifelineIds.length);
+  return { fragmentId: candidates[0].frag.id, operandId: candidates[0].operandId };
 }

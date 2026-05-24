@@ -198,3 +198,17 @@ export function resolveMessageColors(): KonvaMessageColors {
     fill: stroke,
   };
 }
+
+export interface KonvaActivationColors {
+  fill: string;
+  border: string;
+}
+
+/** Activation bar palette — slightly stronger indigo than the lifeline head to stand out. */
+export function resolveActivationColors(): KonvaActivationColors {
+  const dark = isDark();
+  return {
+    fill:   dark ? '#a5b4fc' : '#c7d2fe', // indigo-300 / indigo-200
+    border: dark ? '#6366f1' : '#4338ca', // indigo-500 / indigo-700
+  };
+}

@@ -340,6 +340,18 @@ export interface IRMessage extends IRElement {
   inReplyTo?: string;
 }
 
+export interface IRActivation extends IRElement {
+  kind: 'ACTIVATION';
+  /** Lifeline that owns this activation bar. */
+  lifelineId: string;
+  /** Message id that opened this activation (typically a SYNC entering the lifeline). */
+  startMessageId: string;
+  /** Message id that closed this activation (typically the REPLY pairing); undefined while open. */
+  endMessageId?: string;
+  /** When set, nests this activation inside a parent (re-entrancy). */
+  parentActivationId?: string;
+}
+
 export type RelationKind =
   | 'ASSOCIATION'
   | 'AGGREGATION'
@@ -406,6 +418,7 @@ export interface SemanticModel {
   artifacts: Record<string, IRArtifact>;
   lifelines?: Record<string, IRLifeline>;
   messages?: Record<string, IRMessage>;
+  activations?: Record<string, IRActivation>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

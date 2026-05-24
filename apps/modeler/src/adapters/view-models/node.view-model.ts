@@ -180,6 +180,20 @@ export interface MessageViewModel {
   onRename?: (name: string) => void;
 }
 
+export interface ActivationViewModel {
+  __brand: 'activation';
+  id: string;             // synthetic id (== domain activation id)
+  domainId: string;       // IRActivation.id
+  /** Width of the bar (typically 10px). */
+  width: number;
+  /** Length of the bar (top to bottom). */
+  height: number;
+  /** True while the activation has no endMessageId (rendered with dashed bottom). */
+  isOpen: boolean;
+  /** Visual offset for nested activations (re-entrancy). */
+  nestingDepth: number;
+}
+
 /**
  * Union type for all node view models
  */
@@ -193,7 +207,8 @@ export type AnyNodeViewModel =
   | UCModuleViewModel
   | DomainEntityViewModel
   | LifelineViewModel
-  | MessageViewModel;
+  | MessageViewModel
+  | ActivationViewModel;
 
 /**
  * Type guard for NodeViewModel
@@ -239,4 +254,8 @@ export function isLifelineViewModel(vm: AnyNodeViewModel): vm is LifelineViewMod
 
 export function isMessageViewModel(vm: AnyNodeViewModel): vm is MessageViewModel {
   return '__brand' in vm && vm.__brand === 'message';
+}
+
+export function isActivationViewModel(vm: AnyNodeViewModel): vm is ActivationViewModel {
+  return '__brand' in vm && vm.__brand === 'activation';
 }

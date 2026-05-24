@@ -3,11 +3,13 @@ import { useModelStore } from '../../../../store/model.store';
 import type {
   IRLifeline,
   IRMessage,
+  IRActivation,
   ViewNode,
 } from '../../../../core/domain/vfs/vfs.types';
 import type {
   LifelineViewModel,
   MessageViewModel,
+  ActivationViewModel,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -25,6 +27,8 @@ const MESSAGE_BAND_H = 50;
 const TIMELINE_TOP_PAD = 30;
 const TIMELINE_BOTTOM_PAD = 60;
 const MIN_TIMELINE = 200;
+const ACTIVATION_W = 10;
+const ACTIVATION_END_PAD = 16; // extra height when activation is still open
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -125,6 +129,62 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     };
   });
 
+  // 4b. Build a lookup from messageId → 1-based index for activation Y maths.
+  const messageIndex = new Map<string, number>();
+  allMessages.forEach((m, i) => messageIndex.set(m.id, i + 1));
+
+  // 4c. Emit Activations BEFORE messages so arrows render on top of bars.
+  const allActivations: IRActivation[] = Object.values(model.activations ?? {}).filter((a) => {
+    const lifelineInDiagram = lifelineViewNodes.some((vn) => vn.elementId === a.lifelineId);
+    return lifelineInDiagram && messageIndex.has(a.startMessageId);
+  });
+
+  // Compute nesting depth per activation: how many other activations on the same
+  // lifeline overlap and started earlier. Used as visual X offset.
+  const nestingDepthFor = (act: IRActivation): number => {
+    const startIdx = messageIndex.get(act.startMessageId)!;
+    let depth = 0;
+    for (const other of allActivations) {
+      if (other.id === act.id) continue;
+      if (other.lifelineId !== act.lifelineId) continue;
+      const otherStart = messageIndex.get(other.startMessageId)!;
+      const otherEnd = other.endMessageId ? messageIndex.get(other.endMessageId) ?? allMessages.length + 1 : allMessages.length + 1;
+      if (otherStart < startIdx && otherEnd > startIdx) depth++;
+    }
+    return depth;
+  };
+
+  const activationNodes = allActivations.map((act) => {
+    const startIdx = messageIndex.get(act.startMessageId)!;
+    const endIdx = act.endMessageId
+      ? messageIndex.get(act.endMessageId) ?? null
+      : null;
+    const topY = messageYForIndex(startIdx);
+    const bottomY = endIdx
+      ? messageYForIndex(endIdx)
+      : topY + MESSAGE_BAND_H + ACTIVATION_END_PAD;
+    const height = Math.max(MESSAGE_BAND_H * 0.6, bottomY - topY);
+    const centerX = lifelineCenterX.get(act.lifelineId) ?? 0;
+
+    const viewModel: ActivationViewModel = {
+      __brand: 'activation',
+      id: act.id,
+      domainId: act.id,
+      width: ACTIVATION_W,
+      height,
+      isOpen: !act.endMessageId,
+      nestingDepth: nestingDepthFor(act),
+    };
+
+    return {
+      id: `act-${act.id}`,
+      type: 'umlActivation',
+      position: { x: centerX, y: topY },
+      data: viewModel,
+      domainId: act.id,
+    };
+  });
+
   // 5. Emit Messages (as pseudo-edge nodes — see plan §5).
   const messageNodes = allMessages.map((msg, idx) => {
     const srcX = lifelineCenterX.get(msg.sourceLifelineId) ?? 0;
@@ -164,5 +224,5 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     makeNoteNode(vn, handleNoteUpdate, diagramView.nodes),
   );
 
-  return [...lifelineNodes, ...messageNodes, ...noteNodes];
+  return [...lifelineNodes, ...activationNodes, ...messageNodes, ...noteNodes];
 }

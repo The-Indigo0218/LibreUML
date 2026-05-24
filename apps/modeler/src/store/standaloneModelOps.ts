@@ -31,6 +31,7 @@ import type {
   IRDomainAttribute,
   IRLifeline,
   IRMessage,
+  IRActivation,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -47,10 +48,36 @@ function cascadeDeleteRelations(model: SemanticModel, elementId: string) {
 
 function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: string) {
   if (!model.messages) return;
+  const removed = new Set<string>();
   for (const mid of Object.keys(model.messages)) {
     const msg = model.messages[mid];
     if (msg.sourceLifelineId === lifelineId || msg.targetLifelineId === lifelineId) {
+      removed.add(mid);
       delete model.messages[mid];
+    }
+  }
+  if (model.activations) {
+    for (const aid of Object.keys(model.activations)) {
+      const act = model.activations[aid];
+      if (
+        act.lifelineId === lifelineId ||
+        removed.has(act.startMessageId) ||
+        (act.endMessageId && removed.has(act.endMessageId))
+      ) {
+        delete model.activations[aid];
+      }
+    }
+  }
+}
+
+function cascadeDeleteActivationsForMessageLocal(model: SemanticModel, messageId: string) {
+  if (!model.activations) return;
+  for (const aid of Object.keys(model.activations)) {
+    const act = model.activations[aid];
+    if (act.startMessageId === messageId) {
+      delete model.activations[aid];
+    } else if (act.endMessageId === messageId) {
+      delete (model.activations[aid] as { endMessageId?: string }).endMessageId;
     }
   }
 }
@@ -379,9 +406,32 @@ export function standaloneModelOps(fileId: string) {
 
     createMessage: (data: Omit<IRMessage, 'id' | 'kind'>): string => {
       const id = crypto.randomUUID();
+      const activationId = crypto.randomUUID();
       update((m) => {
         m.messages = m.messages ?? {};
+        m.activations = m.activations ?? {};
         m.messages[id] = { ...data, id, kind: 'MESSAGE' };
+
+        if (data.messageKind === 'SYNC') {
+          m.activations[activationId] = {
+            id: activationId,
+            kind: 'ACTIVATION',
+            name: '',
+            lifelineId: data.targetLifelineId,
+            startMessageId: id,
+          };
+        }
+
+        if (data.messageKind === 'REPLY' && data.inReplyTo) {
+          for (const aid of Object.keys(m.activations)) {
+            const act = m.activations[aid];
+            if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
+              act.endMessageId = id;
+              break;
+            }
+          }
+        }
+
         m.updatedAt = Date.now();
       });
       return id;
@@ -399,10 +449,38 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.messages?.[id]) return;
         delete m.messages[id];
-        // Cascade REPLY messages that reference this one.
         for (const mid of Object.keys(m.messages)) {
           if (m.messages[mid].inReplyTo === id) delete m.messages[mid];
         }
+        cascadeDeleteActivationsForMessageLocal(m, id);
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Activations (sequence diagrams) ───────────────────────────────────────
+
+    createActivation: (data: Omit<IRActivation, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.activations = m.activations ?? {};
+        m.activations[id] = { ...data, id, kind: 'ACTIVATION' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateActivation: (id: string, patch: Partial<IRActivation>) => {
+      update((m) => {
+        if (!m.activations?.[id]) return;
+        m.activations[id] = { ...m.activations[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteActivation: (id: string) => {
+      update((m) => {
+        if (!m.activations?.[id]) return;
+        delete m.activations[id];
         m.updatedAt = Date.now();
       });
     },

@@ -17,6 +17,7 @@ import type {
   IRDomainAttribute,
   IRLifeline,
   IRMessage,
+  IRActivation,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -33,6 +34,7 @@ function normalize(m: SemanticModel): SemanticModel {
   m.packageNames    = m.packageNames    ?? [];
   m.lifelines       = m.lifelines       ?? {};
   m.messages        = m.messages        ?? {};
+  m.activations     = m.activations     ?? {};
   if (m.domainEntities  !== undefined) m.domainEntities  = m.domainEntities  ?? {};
   if (m.domainAttributes !== undefined) m.domainAttributes = m.domainAttributes ?? {};
   return m;
@@ -40,10 +42,38 @@ function normalize(m: SemanticModel): SemanticModel {
 
 function cascadeDeleteMessages(model: SemanticModel, lifelineId: string) {
   if (!model.messages) return;
+  const removedMessageIds = new Set<string>();
   Object.keys(model.messages).forEach((mid) => {
     const msg = model.messages![mid];
     if (msg.sourceLifelineId === lifelineId || msg.targetLifelineId === lifelineId) {
+      removedMessageIds.add(mid);
       delete model.messages![mid];
+    }
+  });
+  // Cascade activations bound to those messages OR to the lifeline itself.
+  if (model.activations) {
+    Object.keys(model.activations).forEach((aid) => {
+      const act = model.activations![aid];
+      if (
+        act.lifelineId === lifelineId ||
+        removedMessageIds.has(act.startMessageId) ||
+        (act.endMessageId && removedMessageIds.has(act.endMessageId))
+      ) {
+        delete model.activations![aid];
+      }
+    });
+  }
+}
+
+function cascadeDeleteActivationsForMessage(model: SemanticModel, messageId: string) {
+  if (!model.activations) return;
+  Object.keys(model.activations).forEach((aid) => {
+    const act = model.activations![aid];
+    if (act.startMessageId === messageId) {
+      delete model.activations![aid];
+    } else if (act.endMessageId === messageId) {
+      // Just clear the end so the activation stays open until something else closes it.
+      delete (model.activations![aid] as { endMessageId?: string }).endMessageId;
     }
   });
 }
@@ -98,6 +128,10 @@ interface ModelStoreState {
   updateMessage: (id: string, patch: Partial<IRMessage>) => void;
   deleteMessage: (id: string) => void;
 
+  createActivation: (data: Omit<IRActivation, 'id' | 'kind'>) => string;
+  updateActivation: (id: string, patch: Partial<IRActivation>) => void;
+  deleteActivation: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -140,6 +174,7 @@ export const useModelStore = create<ModelStoreState>()(
           artifacts: {},
           lifelines: {},
           messages: {},
+          activations: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -440,10 +475,36 @@ export const useModelStore = create<ModelStoreState>()(
 
     createMessage: (data) => {
       const id = newId();
+      const activationId = newId();
       withUndo('model', `Create Message: ${data.name || data.messageKind}`, 'global', (draft) => {
         if (!draft.model) return;
         draft.model.messages = draft.model.messages ?? {};
+        draft.model.activations = draft.model.activations ?? {};
         draft.model.messages[id] = { ...data, id, kind: 'MESSAGE' };
+
+        // Auto-create an activation on the target lifeline for SYNC messages.
+        if (data.messageKind === 'SYNC') {
+          draft.model.activations[activationId] = {
+            id: activationId,
+            kind: 'ACTIVATION',
+            name: '',
+            lifelineId: data.targetLifelineId,
+            startMessageId: id,
+          };
+        }
+
+        // For REPLY messages, close the matching open activation on the source side.
+        if (data.messageKind === 'REPLY' && data.inReplyTo) {
+          const acts = draft.model.activations;
+          for (const aid of Object.keys(acts)) {
+            const act = acts[aid];
+            if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
+              act.endMessageId = id;
+              break;
+            }
+          }
+        }
+
         draft.model.updatedAt = Date.now();
       });
       return id;
@@ -469,6 +530,34 @@ export const useModelStore = create<ModelStoreState>()(
             delete draft.model.messages![mid];
           }
         });
+        cascadeDeleteActivationsForMessage(draft.model, id);
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createActivation: (data) => {
+      const id = newId();
+      withUndo('model', 'Create Activation', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.activations = draft.model.activations ?? {};
+        draft.model.activations[id] = { ...data, id, kind: 'ACTIVATION' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateActivation: (id, patch) => {
+      withUndo('model', 'Update Activation', 'global', (draft) => {
+        if (!draft.model?.activations?.[id]) return;
+        draft.model.activations[id] = { ...draft.model.activations[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteActivation: (id) => {
+      withUndo('model', 'Delete Activation', 'global', (draft) => {
+        if (!draft.model?.activations?.[id]) return;
+        delete draft.model.activations[id];
         draft.model.updatedAt = Date.now();
       });
     },

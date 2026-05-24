@@ -5,11 +5,13 @@ import type {
   DiagramView,
   IRLifeline,
   IRMessage,
+  IRActivation,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
   isLifelineViewModel,
   isMessageViewModel,
+  isActivationViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
@@ -156,6 +158,64 @@ describe('buildSequenceDiagramNodes', () => {
     };
     const result = buildSequenceDiagramNodes(makeCtx(model, view));
     expect(result.find((n) => n.type === 'umlMessage')).toBeUndefined();
+  });
+
+  it('emits an Activation view model when the IR contains one', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const msg = makeMessage('m1', 'll1', 'll2', 1);
+    const activation: IRActivation = {
+      id: 'act1',
+      kind: 'ACTIVATION',
+      name: '',
+      lifelineId: 'll2',
+      startMessageId: 'm1',
+    };
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: msg },
+      activations: { act1: activation },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const activationNode = result.find((n) => n.type === 'umlActivation');
+    expect(activationNode).toBeDefined();
+    if (activationNode && isActivationViewModel(activationNode.data)) {
+      expect(activationNode.data.isOpen).toBe(true);
+      expect(activationNode.data.nestingDepth).toBe(0);
+      // Top of activation should align with the message's Y band.
+      const messageNode = result.find((n) => n.type === 'umlMessage');
+      expect(activationNode.position.y).toBeCloseTo(messageNode!.position.y, 0);
+    }
+  });
+
+  it('skips activations whose lifeline is not present in the diagram', () => {
+    const ll1 = makeLifeline('ll1');
+    const orphanAct: IRActivation = {
+      id: 'act1',
+      kind: 'ACTIVATION',
+      name: '',
+      lifelineId: 'll99',
+      startMessageId: 'm1',
+    };
+    const model = makeModel({
+      lifelines: { ll1 },
+      activations: { act1: orphanAct },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    expect(result.find((n) => n.type === 'umlActivation')).toBeUndefined();
   });
 
   it('orders messages by sequenceNumber', () => {

@@ -91,6 +91,15 @@ const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'use_case', 'system_b
 const DOMAIN_MODEL_STEREOTYPES = new Set<stereotype>(['domain_entity']);
 export const SEQUENCE_STEREOTYPES = new Set<stereotype>(['lifeline']);
 
+/**
+ * Node kinds for which a self-loop (src === tgt) is a meaningful UI gesture.
+ * Self-message in sequence diagrams renders as a U-loop on the lifeline.
+ */
+export function nodeAllowsSelfLoop(vm: AnyNodeViewModel | undefined): boolean {
+  if (!vm) return false;
+  return isLifelineViewModel(vm);
+}
+
 export function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isNoteViewModel(vm)) return 'note';
   if (isPackageViewModel(vm)) return 'package';
@@ -266,7 +275,9 @@ export function useConnectionDraw({
         const src = sourceRef.current;
         if (!src) return;
 
-        const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, src.nodeId);
+        const srcVM = nodes.find((n) => n.id === src.nodeId)?.data;
+        const excludeNodeId = nodeAllowsSelfLoop(srcVM) ? undefined : src.nodeId;
+        const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, excludeNodeId);
         const endX = snap ? snap.x : pos.x;
         const endY = snap ? snap.y : pos.y;
 
@@ -290,7 +301,7 @@ export function useConnectionDraw({
         }
       }
     },
-    [stageRef, boundsMapRef],
+    [stageRef, boundsMapRef, nodes],
   );
 
   // ── onMouseDown ────────────────────────────────────────────────────────────
@@ -340,7 +351,9 @@ export function useConnectionDraw({
       if (stage && src) {
         const pos = stage.getRelativePointerPosition();
         if (pos) {
-          const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, src.nodeId);
+          const srcVM = nodes.find((n) => n.id === src.nodeId)?.data;
+          const excludeNodeId = nodeAllowsSelfLoop(srcVM) ? undefined : src.nodeId;
+          const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, excludeNodeId);
           if (snap) {
             // ── Validate via connectionValidator.ts ───────────────────────
             const srcNode = nodes.find((n) => n.id === src.nodeId);

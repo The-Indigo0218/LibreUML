@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SEQUENCE_STEREOTYPES, resolveStereotype } from '../useConnectionDraw';
+import { SEQUENCE_STEREOTYPES, resolveStereotype, nodeAllowsSelfLoop } from '../useConnectionDraw';
 import type {
   AnyNodeViewModel,
   LifelineViewModel,
@@ -78,5 +78,23 @@ describe('SEQUENCE_STEREOTYPES', () => {
     expect(SEQUENCE_STEREOTYPES.has('class')).toBe(false);
     expect(SEQUENCE_STEREOTYPES.has('interface')).toBe(false);
     expect(SEQUENCE_STEREOTYPES.has('actor')).toBe(false);
+  });
+});
+
+describe('nodeAllowsSelfLoop', () => {
+  it('returns true for lifelines (sequence diagram self-message)', () => {
+    expect(nodeAllowsSelfLoop(makeLifelineVM() as AnyNodeViewModel)).toBe(true);
+  });
+
+  it('returns false for actors (no self-loop semantics in use-case)', () => {
+    expect(nodeAllowsSelfLoop(makeActorVM() as AnyNodeViewModel)).toBe(false);
+  });
+
+  it('returns false for class nodes (avoid accidental self-association)', () => {
+    expect(nodeAllowsSelfLoop(makeClassVM() as AnyNodeViewModel)).toBe(false);
+  });
+
+  it('returns false for undefined (defensive guard)', () => {
+    expect(nodeAllowsSelfLoop(undefined)).toBe(false);
   });
 });

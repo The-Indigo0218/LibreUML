@@ -2,6 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { sequenceDiagramValidator } from '../sequence-diagram.validator';
 import type { LifelineNode } from '../../domain/models/nodes/sequence-diagram.types';
 import type { DomainNode } from '../../domain/models/nodes';
+import type {
+  SemanticModel,
+  IRMessage,
+  IRLifeline,
+  IRClass,
+} from '../../domain/vfs/vfs.types';
 
 function makeLifeline(partial: Partial<LifelineNode> = {}): LifelineNode {
   return {
@@ -65,5 +71,137 @@ describe('SequenceDiagramValidator.validateConnection', () => {
   it('rejects unknown edge type', () => {
     const r = sequenceDiagramValidator.validateConnection(ll1, ll2, 'BOGUS');
     expect(r.isValid).toBe(false);
+  });
+});
+
+// ─── validateMessage ──────────────────────────────────────────────────────────
+
+function makeIRLifeline(id: string, represents?: string): IRLifeline {
+  return {
+    id,
+    kind: 'LIFELINE',
+    name: id,
+    participantKind: represents ? 'CLASS' : 'ANONYMOUS',
+    alias: id,
+    ...(represents ? { represents } : {}),
+  };
+}
+
+function makeIRClass(id: string, operationIds: string[]): IRClass {
+  return {
+    id,
+    kind: 'CLASS',
+    name: id,
+    attributeIds: [],
+    operationIds,
+  };
+}
+
+function makeIRMessage(overrides: Partial<IRMessage>): IRMessage {
+  return {
+    id: 'm1',
+    kind: 'MESSAGE',
+    name: 'op',
+    messageKind: 'SYNC',
+    sourceLifelineId: 'll1',
+    targetLifelineId: 'll2',
+    sequenceNumber: 1,
+    ...overrides,
+  };
+}
+
+function makeModelWith(parts: Partial<SemanticModel>): SemanticModel {
+  return {
+    id: 'm', name: 't', version: '1',
+    packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+    attributes: {}, operations: {}, actors: {}, useCases: {},
+    activityNodes: {}, objectInstances: {}, components: {}, nodes: {},
+    artifacts: {}, relations: {},
+    createdAt: 0, updatedAt: 0,
+    ...parts,
+  } as SemanticModel;
+}
+
+describe('SequenceDiagramValidator.validateMessage', () => {
+  it('passes a message without operationId (nothing to check)', () => {
+    const model = makeModelWith({
+      lifelines: { ll1: makeIRLifeline('ll1'), ll2: makeIRLifeline('ll2') },
+    });
+    const r = sequenceDiagramValidator.validateMessage(
+      makeIRMessage({}),
+      model,
+    );
+    expect(r.isValid).toBe(true);
+    expect(r.warnings).toBeUndefined();
+  });
+
+  it('warns when operationId is set but target lifeline has no classifier', () => {
+    const model = makeModelWith({
+      lifelines: { ll1: makeIRLifeline('ll1'), ll2: makeIRLifeline('ll2') }, // ll2 is ANONYMOUS
+    });
+    const r = sequenceDiagramValidator.validateMessage(
+      makeIRMessage({ operationId: 'op-missing' }),
+      model,
+    );
+    expect(r.isValid).toBe(true);
+    expect(r.warnings?.[0]).toMatch(/no resolvable classifier/i);
+  });
+
+  it('warns when operationId is not declared on the target classifier', () => {
+    const cls = makeIRClass('Cls', ['op-known']);
+    const model = makeModelWith({
+      classes: { Cls: cls },
+      lifelines: {
+        ll1: makeIRLifeline('ll1'),
+        ll2: makeIRLifeline('ll2', 'Cls'),
+      },
+    });
+    const r = sequenceDiagramValidator.validateMessage(
+      makeIRMessage({ operationId: 'op-other' }),
+      model,
+    );
+    expect(r.isValid).toBe(true);
+    expect(r.warnings?.[0]).toMatch(/not declared on the target classifier/);
+  });
+
+  it('passes when operationId matches a real operation on the target classifier', () => {
+    const cls = makeIRClass('Cls', ['op-1']);
+    const model = makeModelWith({
+      classes: { Cls: cls },
+      lifelines: {
+        ll1: makeIRLifeline('ll1'),
+        ll2: makeIRLifeline('ll2', 'Cls'),
+      },
+    });
+    const r = sequenceDiagramValidator.validateMessage(
+      makeIRMessage({ operationId: 'op-1' }),
+      model,
+    );
+    expect(r.isValid).toBe(true);
+    expect(r.warnings).toBeUndefined();
+  });
+
+  it('warns about REPLY without inReplyTo', () => {
+    const model = makeModelWith({
+      lifelines: { ll1: makeIRLifeline('ll1'), ll2: makeIRLifeline('ll2') },
+    });
+    const r = sequenceDiagramValidator.validateMessage(
+      makeIRMessage({ messageKind: 'REPLY' }),
+      model,
+    );
+    expect(r.isValid).toBe(true);
+    expect(r.warnings?.[0]).toMatch(/REPLY.*inReplyTo/);
+  });
+
+  it('returns valid (no warnings) when target lifeline is missing — caller handles dangling refs', () => {
+    const model = makeModelWith({
+      lifelines: { ll1: makeIRLifeline('ll1') }, // no ll2
+    });
+    const r = sequenceDiagramValidator.validateMessage(
+      makeIRMessage({ operationId: 'op-x' }),
+      model,
+    );
+    expect(r.isValid).toBe(true);
+    expect(r.warnings).toBeUndefined();
   });
 });

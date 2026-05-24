@@ -114,3 +114,92 @@ describe('Sequence Diagram — fragment store actions', () => {
     expect(useModelStore.getState().model!.interactionFragments![fid].operands[0].messageIds).not.toContain(msgId);
   });
 });
+
+// ─── Fragment operand-editing flows (what FragmentPropertiesModal commits) ───
+
+describe('Sequence Diagram — operand edits via updateFragment', () => {
+  beforeEach(() => {
+    useModelStore.getState().resetModel();
+    useModelStore.getState().initModel('test-model');
+  });
+
+  function setup() {
+    const ll1 = useModelStore.getState().createLifeline({
+      name: 'A', participantKind: 'ANONYMOUS', alias: 'A',
+    });
+    const ll2 = useModelStore.getState().createLifeline({
+      name: 'B', participantKind: 'ANONYMOUS', alias: 'B',
+    });
+    const fid = useModelStore.getState().createFragment({
+      name: 'alt-1',
+      fragmentKind: 'ALT',
+      coveredLifelineIds: [ll1, ll2],
+      operands: [
+        { id: 'op1', guard: 'x>0', messageIds: [], fragmentIds: [] },
+        { id: 'op2', guard: 'else', messageIds: [], fragmentIds: [] },
+      ],
+    });
+    return { ll1, ll2, fid };
+  }
+
+  it('saves an updated guard on an existing operand', () => {
+    const { fid } = setup();
+    const original = useModelStore.getState().model!.interactionFragments![fid].operands;
+    const next = original.map((op) =>
+      op.id === 'op1' ? { ...op, guard: 'x>=0' } : op,
+    );
+    useModelStore.getState().updateFragment(fid, { operands: next });
+
+    const updated = useModelStore.getState().model!.interactionFragments![fid].operands;
+    expect(updated.find((o) => o.id === 'op1')?.guard).toBe('x>=0');
+    expect(updated.find((o) => o.id === 'op2')?.guard).toBe('else');
+  });
+
+  it('appends a new operand (simulating Add Operand)', () => {
+    const { fid } = setup();
+    const original = useModelStore.getState().model!.interactionFragments![fid].operands;
+    const next = [
+      ...original,
+      { id: 'op3', guard: 'third', messageIds: [], fragmentIds: [] },
+    ];
+    useModelStore.getState().updateFragment(fid, { operands: next });
+
+    const updated = useModelStore.getState().model!.interactionFragments![fid].operands;
+    expect(updated).toHaveLength(3);
+    expect(updated[2].guard).toBe('third');
+  });
+
+  it('removes an operand and migrates its messages to the previous operand', () => {
+    const { ll1, ll2, fid } = setup();
+    const msgId = useModelStore.getState().createMessage({
+      name: 'mig',
+      messageKind: 'SYNC',
+      sourceLifelineId: ll1,
+      targetLifelineId: ll2,
+      sequenceNumber: 1,
+    });
+    // Manually put the message into op2.
+    let opsNow = useModelStore.getState().model!.interactionFragments![fid].operands;
+    opsNow = opsNow.map((op) =>
+      op.id === 'op2' ? { ...op, messageIds: [msgId] } : op,
+    );
+    useModelStore.getState().updateFragment(fid, { operands: opsNow });
+
+    // Now simulate the modal: remove op2 and merge its messages into op1.
+    const after = useModelStore.getState().model!.interactionFragments![fid].operands;
+    const removedIdx = after.findIndex((op) => op.id === 'op2');
+    const removed = after[removedIdx];
+    const survivors = after.filter((op) => op.id !== 'op2');
+    const mergeTargetIdx = Math.max(0, removedIdx - 1);
+    survivors[mergeTargetIdx] = {
+      ...survivors[mergeTargetIdx],
+      messageIds: [...survivors[mergeTargetIdx].messageIds, ...removed.messageIds],
+    };
+    useModelStore.getState().updateFragment(fid, { operands: survivors });
+
+    const finalOps = useModelStore.getState().model!.interactionFragments![fid].operands;
+    expect(finalOps).toHaveLength(1);
+    expect(finalOps[0].id).toBe('op1');
+    expect(finalOps[0].messageIds).toContain(msgId);
+  });
+});

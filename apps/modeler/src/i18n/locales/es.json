@@ -1389,5 +1389,18 @@
     "extensionPoint.none": "— ninguno —",
     "extensionPoint.placeholder": "Nombre del punto de extensión",
     "extensionPoint.hint": "Define puntos de extensión en «{{name}}» para seleccionar uno aquí"
+  },
+  "fragment": {
+    "title": "Propiedades del Fragmento Combinado",
+    "kind": "Tipo",
+    "operands": "Operandos",
+    "guard": "Guarda",
+    "guard.placeholder": "ej. x > 0",
+    "addOperand": "Agregar operando",
+    "removeOperand": "Eliminar operando",
+    "messageCount": "{{count}} mensaje",
+    "messageCount_plural": "{{count}} mensajes",
+    "warning.lastOperand": "No se puede eliminar el último operando",
+    "warning.singleOperandOnly": "Solo los fragmentos ALT y PAR admiten múltiples operandos"
   }
 }

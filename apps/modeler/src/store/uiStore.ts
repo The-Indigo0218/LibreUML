@@ -28,6 +28,7 @@ export type ActiveModal =
   | "extend-props"
   | "domain-entity-props"
   | "domain-association-props"
+  | "fragment-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -69,6 +70,7 @@ interface UiStoreState {
   openExtendProps: (edgeId: string) => void;
   openDomainEntityProps: (elementId: string) => void;
   openDomainAssociationProps: (edgeId: string) => void;
+  openFragmentProps: (fragmentId: string) => void;
   closeModals: () => void;
   openGetStarted: () => void;
   closeGetStarted: () => void;
@@ -139,6 +141,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openExtendProps: (edgeId) => set({ activeModal: "extend-props", editingId: edgeId }),
   openDomainEntityProps: (elementId) => set({ activeModal: "domain-entity-props", editingId: elementId }),
   openDomainAssociationProps: (edgeId) => set({ activeModal: "domain-association-props", editingId: edgeId }),
+  openFragmentProps: (fragmentId) => set({ activeModal: "fragment-props", editingId: fragmentId }),
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 

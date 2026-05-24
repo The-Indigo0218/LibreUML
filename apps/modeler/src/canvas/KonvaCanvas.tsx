@@ -42,6 +42,7 @@ import UseCaseHoverPopover from '../features/diagram/components/modals/UseCaseHo
 import UseCaseSpecModal from '../features/diagram/components/modals/UseCaseSpecModal';
 import ActorPropsModal from '../features/diagram/components/modals/ActorPropsModal';
 import ExtendEdgePropsModal from '../features/diagram/components/modals/ExtendEdgePropsModal';
+import FragmentPropertiesModal from '../features/diagram/components/modals/FragmentPropertiesModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -68,6 +69,7 @@ import {
   isUCModuleViewModel,
   isDomainEntityViewModel,
   isLifelineViewModel,
+  isFragmentViewModel,
   type AnyNodeViewModel,
   type NodeViewModel,
   type PackageViewModel,
@@ -1437,6 +1439,8 @@ export default function KonvaCanvas() {
                   ? () => handleUseCaseDblClickModal(shape.id)
                   : isLifelineViewModel(vm)
                   ? () => startUseCaseInlineEdit(shape.id)
+                  : isFragmentViewModel(vm)
+                  ? () => useUiStore.getState().openFragmentProps(vm.domainId)
                   : isNodeViewModel(vm)
                   ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
                   : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
@@ -1697,6 +1701,7 @@ export default function KonvaCanvas() {
       <ExtendEdgePropsModal />
       <DomainEntityPropsModal />
       <DomainAssociationPropsModal />
+      <FragmentPropertiesModal />
     </div>
   );
 }

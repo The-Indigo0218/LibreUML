@@ -29,6 +29,8 @@ import type {
   IROperation,
   IRDomainEntity,
   IRDomainAttribute,
+  IRLifeline,
+  IRMessage,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -39,6 +41,16 @@ function cascadeDeleteRelations(model: SemanticModel, elementId: string) {
     const rel = model.relations[rid];
     if (rel.sourceId === elementId || rel.targetId === elementId) {
       delete model.relations[rid];
+    }
+  }
+}
+
+function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: string) {
+  if (!model.messages) return;
+  for (const mid of Object.keys(model.messages)) {
+    const msg = model.messages[mid];
+    if (msg.sourceLifelineId === lifelineId || msg.targetLifelineId === lifelineId) {
+      delete model.messages[mid];
     }
   }
 }
@@ -330,6 +342,67 @@ export function standaloneModelOps(fileId: string) {
     deleteRelation: (id: string) => {
       update((m) => {
         delete m.relations[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Lifelines (sequence diagrams) ─────────────────────────────────────────
+
+    createLifeline: (data: Omit<IRLifeline, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.lifelines = m.lifelines ?? {};
+        m.lifelines[id] = { ...data, id, kind: 'LIFELINE' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateLifeline: (id: string, patch: Partial<IRLifeline>) => {
+      update((m) => {
+        if (!m.lifelines?.[id]) return;
+        m.lifelines[id] = { ...m.lifelines[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteLifeline: (id: string) => {
+      update((m) => {
+        if (!m.lifelines?.[id]) return;
+        delete m.lifelines[id];
+        cascadeDeleteMessagesByLifeline(m, id);
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Messages (sequence diagrams) ──────────────────────────────────────────
+
+    createMessage: (data: Omit<IRMessage, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.messages = m.messages ?? {};
+        m.messages[id] = { ...data, id, kind: 'MESSAGE' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateMessage: (id: string, patch: Partial<IRMessage>) => {
+      update((m) => {
+        if (!m.messages?.[id]) return;
+        m.messages[id] = { ...m.messages[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteMessage: (id: string) => {
+      update((m) => {
+        if (!m.messages?.[id]) return;
+        delete m.messages[id];
+        // Cascade REPLY messages that reference this one.
+        for (const mid of Object.keys(m.messages)) {
+          if (m.messages[mid].inReplyTo === id) delete m.messages[mid];
+        }
         m.updatedAt = Date.now();
       });
     },

@@ -1,0 +1,33 @@
+import type { BaseDomainNode, Documentable } from './base.types';
+import type { LifelineParticipantKind, MessageKind } from '../../vfs/vfs.types';
+
+export type SequenceDiagramNodeType =
+  | 'LIFELINE'
+  | 'ACTIVATION'
+  | 'FRAGMENT'
+  | 'NOTE';
+
+export interface LifelineNode extends BaseDomainNode, Documentable {
+  type: 'LIFELINE';
+  name: string;
+  participantKind: LifelineParticipantKind;
+  represents?: string;
+  alias?: string;
+}
+
+export interface ActivationNode extends BaseDomainNode {
+  type: 'ACTIVATION';
+  lifelineId: string;
+  startMessageId: string;
+  endMessageId?: string;
+}
+
+export interface FragmentNode extends BaseDomainNode, Documentable {
+  type: 'FRAGMENT';
+  fragmentKind: 'ALT' | 'OPT' | 'LOOP' | 'PAR' | 'SEQ' | 'BREAK' | 'CRITICAL';
+  coveredLifelineIds: string[];
+}
+
+export type SequenceDiagramNode = LifelineNode | ActivationNode | FragmentNode;
+
+export type { MessageKind };

@@ -11,6 +11,8 @@ import {
   isSystemBoundaryViewModel,
   isUCModuleViewModel,
   isDomainEntityViewModel,
+  isLifelineViewModel,
+  isMessageViewModel,
 } from '../adapters/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
@@ -19,6 +21,8 @@ import UseCaseShape, { getUseCaseShapeSize } from './shapes/UseCaseShape';
 import SystemBoundaryShape, { getSystemBoundaryShapeSize } from './shapes/SystemBoundaryShape';
 import UCModuleShape, { getUCModuleShapeSize } from './shapes/UCModuleShape';
 import DomainEntityShape, { getDomainEntityShapeSize } from './shapes/DomainEntityShape';
+import LifelineShape, { getLifelineShapeSize } from './shapes/LifelineShape';
+import MessageShape, { getMessageShapeSize } from './shapes/MessageShape';
 
 export interface NodeShapeRenderProps {
   key: string;
@@ -47,6 +51,8 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
   if (isSystemBoundaryViewModel(vm)) return getSystemBoundaryShapeSize(vm);
   if (isUCModuleViewModel(vm))       return getUCModuleShapeSize(vm);
   if (isDomainEntityViewModel(vm))   return getDomainEntityShapeSize(vm);
+  if (isLifelineViewModel(vm))       return getLifelineShapeSize(vm);
+  if (isMessageViewModel(vm))        return getMessageShapeSize(vm);
   return getClassShapeSize(vm as NodeViewModel);
 }
 
@@ -88,6 +94,12 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
 
   if (isDomainEntityViewModel(vm))
     return <DomainEntityShape key={key} viewModel={vm} {...common} />;
+
+  if (isLifelineViewModel(vm))
+    return <LifelineShape key={key} viewModel={vm} {...common} />;
+
+  if (isMessageViewModel(vm))
+    return <MessageShape key={key} viewModel={vm} {...common} />;
 
   return <ClassShape key={key} viewModel={vm as NodeViewModel} {...common} />;
 }

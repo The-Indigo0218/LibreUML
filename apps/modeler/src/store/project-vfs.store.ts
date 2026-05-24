@@ -436,6 +436,8 @@ export const useVFSStore = create<VFSStoreState>()(
             components: {},
             nodes: {},
             artifacts: {},
+            lifelines: {},
+            messages: {},
             relations: {},
             createdAt: now,
             updatedAt: now,

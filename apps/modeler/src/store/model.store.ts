@@ -15,6 +15,8 @@ import type {
   IROperation,
   IRDomainEntity,
   IRDomainAttribute,
+  IRLifeline,
+  IRMessage,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -29,9 +31,21 @@ function normalize(m: SemanticModel): SemanticModel {
   m.nodes           = m.nodes           ?? {};
   m.artifacts       = m.artifacts       ?? {};
   m.packageNames    = m.packageNames    ?? [];
+  m.lifelines       = m.lifelines       ?? {};
+  m.messages        = m.messages        ?? {};
   if (m.domainEntities  !== undefined) m.domainEntities  = m.domainEntities  ?? {};
   if (m.domainAttributes !== undefined) m.domainAttributes = m.domainAttributes ?? {};
   return m;
+}
+
+function cascadeDeleteMessages(model: SemanticModel, lifelineId: string) {
+  if (!model.messages) return;
+  Object.keys(model.messages).forEach((mid) => {
+    const msg = model.messages![mid];
+    if (msg.sourceLifelineId === lifelineId || msg.targetLifelineId === lifelineId) {
+      delete model.messages![mid];
+    }
+  });
 }
 
 const newId = () => crypto.randomUUID();
@@ -76,6 +90,14 @@ interface ModelStoreState {
 
   setElementMembers: (elementId: string, attributes: IRAttribute[], operations: IROperation[]) => void;
 
+  createLifeline: (data: Omit<IRLifeline, 'id' | 'kind'>) => string;
+  updateLifeline: (id: string, patch: Partial<IRLifeline>) => void;
+  deleteLifeline: (id: string) => void;
+
+  createMessage: (data: Omit<IRMessage, 'id' | 'kind'>) => string;
+  updateMessage: (id: string, patch: Partial<IRMessage>) => void;
+  deleteMessage: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -116,6 +138,8 @@ export const useModelStore = create<ModelStoreState>()(
           components: {},
           nodes: {},
           artifacts: {},
+          lifelines: {},
+          messages: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -380,6 +404,71 @@ export const useModelStore = create<ModelStoreState>()(
           draft.model.interfaces[elementId].attributeIds = attributes.map((a: IRAttribute) => a.id);
           draft.model.interfaces[elementId].operationIds = operations.map((o: IROperation) => o.id);
         }
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createLifeline: (data) => {
+      const id = newId();
+      withUndo('model', `Create Lifeline: ${data.name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.lifelines = draft.model.lifelines ?? {};
+        draft.model.lifelines[id] = { ...data, id, kind: 'LIFELINE' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateLifeline: (id, patch) => {
+      const name = useModelStore.getState().model?.lifelines?.[id]?.name ?? id;
+      withUndo('model', `Update Lifeline: ${name}`, 'global', (draft) => {
+        if (!draft.model?.lifelines?.[id]) return;
+        draft.model.lifelines[id] = { ...draft.model.lifelines[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteLifeline: (id) => {
+      const name = useModelStore.getState().model?.lifelines?.[id]?.name ?? id;
+      withUndo('model', `Delete Lifeline: ${name}`, 'global', (draft) => {
+        if (!draft.model?.lifelines?.[id]) return;
+        delete draft.model.lifelines[id];
+        cascadeDeleteMessages(draft.model, id);
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createMessage: (data) => {
+      const id = newId();
+      withUndo('model', `Create Message: ${data.name || data.messageKind}`, 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.messages = draft.model.messages ?? {};
+        draft.model.messages[id] = { ...data, id, kind: 'MESSAGE' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateMessage: (id, patch) => {
+      const name = useModelStore.getState().model?.messages?.[id]?.name ?? id;
+      withUndo('model', `Update Message: ${name}`, 'global', (draft) => {
+        if (!draft.model?.messages?.[id]) return;
+        draft.model.messages[id] = { ...draft.model.messages[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteMessage: (id) => {
+      const name = useModelStore.getState().model?.messages?.[id]?.name ?? id;
+      withUndo('model', `Delete Message: ${name}`, 'global', (draft) => {
+        if (!draft.model?.messages?.[id]) return;
+        delete draft.model.messages[id];
+        // Cascade: REPLY messages that reference this one.
+        Object.keys(draft.model.messages).forEach((mid) => {
+          if (draft.model.messages![mid].inReplyTo === id) {
+            delete draft.model.messages![mid];
+          }
+        });
         draft.model.updatedAt = Date.now();
       });
     },

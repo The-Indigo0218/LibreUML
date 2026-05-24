@@ -163,3 +163,38 @@ export function resolveDomainEntityColors(): KonvaDomainEntityColors {
     textMuted: getCSSVar('--text-secondary'),
   };
 }
+
+export interface KonvaLifelineColors {
+  headBg: string;
+  border: string;
+  text: string;
+  timeline: string;
+}
+
+/** Indigo palette for Sequence Diagram lifelines. */
+export function resolveLifelineColors(): KonvaLifelineColors {
+  const dark = isDark();
+  return {
+    headBg:   dark ? '#1e1b4b' : '#eef2ff',  // indigo-950 / indigo-50
+    border:   dark ? '#818cf8' : '#4f46e5',  // indigo-400 / indigo-600
+    text:     getCSSVar('--text-primary'),
+    timeline: dark ? '#64748b' : '#94a3b8',  // slate-500 / slate-400
+  };
+}
+
+export interface KonvaMessageColors {
+  stroke: string;
+  text: string;
+  fill: string;
+}
+
+/** Colors for sequence-diagram messages (arrows + label). */
+export function resolveMessageColors(): KonvaMessageColors {
+  const dark = isDark();
+  const stroke = dark ? '#e2e8f0' : '#1e293b'; // slate-200 / slate-800
+  return {
+    stroke,
+    text: stroke,
+    fill: stroke,
+  };
+}

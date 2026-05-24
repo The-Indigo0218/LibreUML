@@ -125,7 +125,8 @@
       "useCase": "Use Case",
       "systemBoundary": "System Boundary",
       "ucModule": "Module",
-      "domainEntity": "Entity"
+      "domainEntity": "Entity",
+      "lifeline": "Lifeline"
     },
     "connections": {
       "title": "Connections",
@@ -137,7 +138,10 @@
       "composition": "Composition",
       "include": "«include»",
       "extend": "«extend»",
-      "generalization": "Generalization"
+      "generalization": "Generalization",
+      "messageSync": "Sync Message",
+      "messageAsync": "Async Message",
+      "messageReply": "Reply"
     }
   },
   "contextMenu": {

@@ -133,7 +133,8 @@
       "useCase": "Caso de Uso",
       "systemBoundary": "Límite de Sistema",
       "ucModule": "Módulo",
-      "domainEntity": "Entidad"
+      "domainEntity": "Entidad",
+      "lifeline": "Línea de Vida"
     },
     "connections": {
       "title": "Conexiones",
@@ -145,7 +146,10 @@
       "composition": "Composición",
       "include": "«include»",
       "extend": "«extend»",
-      "generalization": "Generalización"
+      "generalization": "Generalización",
+      "messageSync": "Mensaje Sincrónico",
+      "messageAsync": "Mensaje Asincrónico",
+      "messageReply": "Respuesta"
     }
   },
   "contextMenu": {

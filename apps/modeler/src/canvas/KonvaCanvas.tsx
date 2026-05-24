@@ -67,6 +67,7 @@ import {
   isSystemBoundaryViewModel,
   isUCModuleViewModel,
   isDomainEntityViewModel,
+  isLifelineViewModel,
   type AnyNodeViewModel,
   type NodeViewModel,
   type PackageViewModel,
@@ -719,6 +720,17 @@ export default function KonvaCanvas() {
           startInlineEditing(shapeId, vm.name, 'name',
             { x: screenPos.x, y: screenPos.y - TAB_H_SCREEN / 2 },
             { width: 90, height: 14 },
+            (text) => vm.onRename!(text));
+        }
+      } else if (isLifelineViewModel(vm)) {
+        // Lifeline name sits centered in the head box.
+        const LIFELINE_NAME_FONT = 13;
+        const nameY = (vm.headHeight - LIFELINE_NAME_FONT) / 2;
+        const screenPos = transform.point({ x: pos.x + 4, y: pos.y + nameY });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.name, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width: vm.headWidth - 8, height: LIFELINE_NAME_FONT + 6 },
             (text) => vm.onRename!(text));
         }
       } else {
@@ -1423,6 +1435,8 @@ export default function KonvaCanvas() {
                   ? (e: KonvaEventObject<MouseEvent>) => handleNoteDblClick(shape.id, e)
                   : isUseCaseViewModel(vm)
                   ? () => handleUseCaseDblClickModal(shape.id)
+                  : isLifelineViewModel(vm)
+                  ? () => startUseCaseInlineEdit(shape.id)
                   : isNodeViewModel(vm)
                   ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
                   : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();

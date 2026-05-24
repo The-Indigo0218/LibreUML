@@ -149,10 +149,51 @@ export interface DomainEntityViewModel {
   onOpenProps?: () => void;
 }
 
+export type LifelineParticipantKindVM = 'CLASS' | 'INTERFACE' | 'ACTOR' | 'OBJECT' | 'ANONYMOUS';
+
+export interface LifelineViewModel {
+  __brand: 'lifeline';
+  id: string;             // view node id
+  domainId: string;       // IRLifeline.id
+  name: string;           // display name
+  participantKind: LifelineParticipantKindVM;
+  isExternal?: boolean;
+  /** Total length of the dashed timeline below the head. */
+  timelineLength: number;
+  headWidth: number;
+  headHeight: number;
+  onRename?: (name: string) => void;
+}
+
+export type MessageKindVM = 'SYNC' | 'ASYNC' | 'REPLY' | 'CREATE' | 'DESTROY';
+
+export interface MessageViewModel {
+  __brand: 'message';
+  id: string;             // synthetic id (== domain message id)
+  domainId: string;       // IRMessage.id
+  name: string;
+  messageKind: MessageKindVM;
+  sequenceNumber: number;
+  /** Signed horizontal length: positive = arrow right, negative = left, 0 = self. */
+  length: number;
+  isSelfMessage: boolean;
+  onRename?: (name: string) => void;
+}
+
 /**
  * Union type for all node view models
  */
-export type AnyNodeViewModel = NodeViewModel | NoteViewModel | PackageViewModel | ActorViewModel | UseCaseViewModel | SystemBoundaryViewModel | UCModuleViewModel | DomainEntityViewModel;
+export type AnyNodeViewModel =
+  | NodeViewModel
+  | NoteViewModel
+  | PackageViewModel
+  | ActorViewModel
+  | UseCaseViewModel
+  | SystemBoundaryViewModel
+  | UCModuleViewModel
+  | DomainEntityViewModel
+  | LifelineViewModel
+  | MessageViewModel;
 
 /**
  * Type guard for NodeViewModel
@@ -190,4 +231,12 @@ export function isUCModuleViewModel(vm: AnyNodeViewModel): vm is UCModuleViewMod
 
 export function isDomainEntityViewModel(vm: AnyNodeViewModel): vm is DomainEntityViewModel {
   return '__brand' in vm && vm.__brand === 'domainEntity';
+}
+
+export function isLifelineViewModel(vm: AnyNodeViewModel): vm is LifelineViewModel {
+  return '__brand' in vm && vm.__brand === 'lifeline';
+}
+
+export function isMessageViewModel(vm: AnyNodeViewModel): vm is MessageViewModel {
+  return '__brand' in vm && vm.__brand === 'message';
 }

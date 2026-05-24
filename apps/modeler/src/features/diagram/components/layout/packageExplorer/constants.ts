@@ -12,6 +12,7 @@ export const CLASS_ICON_CONFIG: Record<stereotype, { bg: string; letter: string;
   system_boundary: { bg: "#607D8B", letter: "S", color: "#FFFFFF" },
   domain_entity: { bg: "#F59E0B", letter: "E", color: "#FFFFFF" },
   uc_module: { bg: "#5C7CFA", letter: "M", color: "#FFFFFF" },
+  lifeline: { bg: "#6366F1", letter: "L", color: "#FFFFFF" },
 };
 
 export const THEME_COLORS = {

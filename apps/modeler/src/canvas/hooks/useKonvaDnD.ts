@@ -39,6 +39,8 @@ interface DropConfig {
   isVisualOnly?: boolean;
   /** Initial ViewNode dimensions — used for resizable containers like SystemBoundary. */
   initialDimensions?: { width: number; height: number };
+  /** Override the drop position (x, y) — used by lifelines that must snap to y=0. */
+  overridePosition?: (pos: { x: number; y: number }) => { x: number; y: number };
 }
 
 const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
@@ -165,6 +167,22 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
       lm.domainEntities[id] = { id, name, kind: 'DOMAIN_ENTITY', attributeIds: [] };
       lm.updatedAt = Date.now();
     },
+  },
+  lifeline: {
+    getNextName: (model) =>
+      getNextVFSName(Object.values(model.lifelines ?? {}).map((l) => l.alias ?? l.name), 'Lifeline'),
+    applyToModelDraft: (m, id, name) => {
+      m.lifelines = m.lifelines ?? {};
+      m.lifelines[id] = { id, name, kind: 'LIFELINE', participantKind: 'ANONYMOUS', alias: name };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.lifelines = lm.lifelines ?? {};
+      lm.lifelines[id] = { id, name, kind: 'LIFELINE', participantKind: 'ANONYMOUS', alias: name };
+      lm.updatedAt = Date.now();
+    },
+    // Sequence diagram constraint: lifelines always sit at y=0 (head at the top).
+    overridePosition: (pos) => ({ x: pos.x, y: 0 }),
   },
   package: {
     getNextName: (model) => getNextVFSName(Object.values(model.packages).map((p) => p.name), 'Package'),
@@ -1116,6 +1134,9 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
       const newElementId = crypto.randomUUID();
       const newViewNodeId = crypto.randomUUID();
+      const effectivePosition = dropConfig.overridePosition
+        ? dropConfig.overridePosition(position)
+        : position;
 
       if (isStandaloneFile) {
         const currentLocalModel = getLocalModel(activeTabId);
@@ -1148,7 +1169,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
                 node.content.nodes.push({
                   id: newViewNodeId,
                   elementId: dropConfig.isVisualOnly ? '' : newElementId,
-                  x: position.x, y: position.y,
+                  x: effectivePosition.x, y: effectivePosition.y,
                   ...(dropConfig.initialDimensions ?? {}),
                 });
               }
@@ -1167,7 +1188,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           withUndo('vfs', 'Add Note', activeTabId, (draft: any) => {
             const node = draft.project?.nodes[activeTabId];
             if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
-            node.content.nodes.push({ id: newViewNodeId, elementId: '', x: position.x, y: position.y });
+            node.content.nodes.push({ id: newViewNodeId, elementId: '', x: effectivePosition.x, y: effectivePosition.y });
           });
         } else {
           undoTransaction({
@@ -1198,7 +1219,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
                   node.content.nodes.push({
                     id: newViewNodeId,
                     elementId: newElementId,
-                    x: position.x, y: position.y,
+                    x: effectivePosition.x, y: effectivePosition.y,
                     ...(dropConfig.initialDimensions ?? {}),
                   });
                 },

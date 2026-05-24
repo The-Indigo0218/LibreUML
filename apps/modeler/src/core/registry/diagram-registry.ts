@@ -38,9 +38,18 @@ import type {
 } from '../domain/models/edges/use-case.types';
 import type { DomainEntityNode } from '../domain/models/nodes/domain-model.types';
 import type { DomainAssociationEdge } from '../domain/models/edges/domain-model.types';
+import type {
+  LifelineNode,
+} from '../domain/models/nodes/sequence-diagram.types';
+import type {
+  SyncMessageEdge,
+  AsyncMessageEdge,
+  ReplyMessageEdge,
+} from '../domain/models/edges/sequence-diagram.types';
 import { classDiagramValidator } from '../validation/class-diagram.validator';
 import { useCaseDiagramValidator } from '../validation/use-case.validator';
 import { domainModelDiagramValidator } from '../validation/domain-model.validator';
+import { sequenceDiagramValidator } from '../validation/sequence-diagram.validator';
 
 
 /**
@@ -694,6 +703,154 @@ const domainModelDiagramRegistry: DiagramTypeRegistry = {
 };
 
 /**
+ * Factory function for creating Sequence Diagram nodes.
+ */
+function createSequenceDiagramNode(
+  type: string,
+  partial?: Partial<DomainNode>
+): DomainNode {
+  const now = Date.now();
+  const baseNode = {
+    id: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+    ...partial,
+  };
+
+  switch (type) {
+    case 'LIFELINE':
+      return {
+        ...baseNode,
+        type: 'LIFELINE',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'Lifeline',
+        participantKind:
+          (partial && 'participantKind' in partial
+            ? (partial as Partial<LifelineNode>).participantKind
+            : undefined) || 'ANONYMOUS',
+      } as LifelineNode;
+
+    case 'NOTE':
+      return {
+        ...baseNode,
+        type: 'NOTE',
+        content: (partial && 'content' in partial ? partial.content : undefined) || 'New note',
+      } as NoteNode;
+
+    default:
+      throw new Error(`Unknown Sequence Diagram node type: ${type}`);
+  }
+}
+
+function createSequenceDiagramEdge(
+  type: string,
+  sourceId: string,
+  targetId: string,
+  partial?: Partial<DomainEdge>
+): DomainEdge {
+  const now = Date.now();
+  const baseEdge = {
+    id: crypto.randomUUID(),
+    sourceNodeId: sourceId,
+    targetNodeId: targetId,
+    createdAt: now,
+    updatedAt: now,
+    ...partial,
+  };
+
+  switch (type) {
+    case 'MESSAGE_SYNC':
+      return { ...baseEdge, type: 'MESSAGE_SYNC' } as SyncMessageEdge;
+    case 'MESSAGE_ASYNC':
+      return { ...baseEdge, type: 'MESSAGE_ASYNC' } as AsyncMessageEdge;
+    case 'MESSAGE_REPLY':
+      return { ...baseEdge, type: 'MESSAGE_REPLY' } as ReplyMessageEdge;
+    default:
+      throw new Error(`Unknown Sequence Diagram edge type: ${type}`);
+  }
+}
+
+/**
+ * Sequence Diagram Registry Entry
+ */
+const sequenceDiagramRegistry: DiagramTypeRegistry = {
+  type: 'SEQUENCE_DIAGRAM',
+  displayName: 'Sequence Diagram',
+  icon: 'arrow-right-left',
+
+  supportedNodeTypes: ['LIFELINE', 'NOTE'],
+  supportedEdgeTypes: ['MESSAGE_SYNC', 'MESSAGE_ASYNC', 'MESSAGE_REPLY'],
+
+  defaultNodeType: 'LIFELINE',
+  defaultEdgeType: 'MESSAGE_SYNC',
+
+  tools: {
+    nodes: [
+      {
+        id: 'lifeline',
+        type: 'NODE',
+        label: 'Lifeline',
+        icon: 'User',
+        color: '#6366F1',
+        translationKey: 'sidebar.nodes.lifeline',
+      },
+      {
+        id: 'note',
+        type: 'NODE',
+        label: 'Note',
+        icon: 'StickyNote',
+        color: 'var(--color-uml-note-border)',
+        translationKey: 'sidebar.nodes.note',
+      },
+    ],
+    edges: [
+      {
+        id: 'message_sync',
+        type: 'EDGE',
+        label: 'Sync Message',
+        icon: 'ArrowRight',
+        translationKey: 'sidebar.connections.messageSync',
+      },
+      {
+        id: 'message_async',
+        type: 'EDGE',
+        label: 'Async Message',
+        icon: 'MoveRight',
+        translationKey: 'sidebar.connections.messageAsync',
+      },
+      {
+        id: 'message_reply',
+        type: 'EDGE',
+        label: 'Reply',
+        icon: 'CornerDownLeft',
+        translationKey: 'sidebar.connections.messageReply',
+      },
+    ],
+  },
+
+  codeGenerationActions: [],
+
+  exportActions: [
+    {
+      id: 'export-image',
+      label: 'Export Image',
+      translationKey: 'menubar.export.image',
+      icon: 'ImageIcon',
+      enabled: true,
+    },
+  ],
+
+  nodeComponents: {},
+  edgeComponents: {},
+
+  validator: sequenceDiagramValidator,
+
+  factories: {
+    createNode: createSequenceDiagramNode,
+    createEdge: createSequenceDiagramEdge,
+  },
+};
+
+/**
  * Global Diagram Registry (Singleton)
  *
  * This is the central registry for all diagram types in the application.
@@ -703,6 +860,7 @@ export const diagramRegistry: DiagramRegistryMap = {
   CLASS_DIAGRAM: classDiagramRegistry,
   USE_CASE_DIAGRAM: useCaseDiagramRegistry,
   DOMAIN_MODEL_DIAGRAM: domainModelDiagramRegistry,
+  SEQUENCE_DIAGRAM: sequenceDiagramRegistry,
 };
 
 /**

@@ -9,6 +9,7 @@ import type {
   IRSystemBoundary,
   IRUCModule,
   IRDomainEntity,
+  IRLifeline,
   ViewNode,
   DiagramView,
 } from '../../../../core/domain/vfs/vfs.types';
@@ -28,6 +29,7 @@ export type SemanticKind =
   | 'SYSTEM_BOUNDARY'
   | 'UC_MODULE'
   | 'DOMAIN_ENTITY'
+  | 'LIFELINE'
   | 'UNKNOWN';
 
 export interface ResolvedElement {
@@ -41,6 +43,7 @@ export interface ResolvedElement {
     | IRSystemBoundary
     | IRUCModule
     | IRDomainEntity
+    | IRLifeline
     | null;
   kind: SemanticKind;
 }
@@ -84,6 +87,9 @@ export function resolveSemanticElement(model: SemanticModel, elementId: string):
 
   const de = model.domainEntities?.[elementId];
   if (de) return { element: de, kind: 'DOMAIN_ENTITY' };
+
+  const ll = model.lifelines?.[elementId];
+  if (ll) return { element: ll, kind: 'LIFELINE' };
 
   return { element: null, kind: 'UNKNOWN' };
 }

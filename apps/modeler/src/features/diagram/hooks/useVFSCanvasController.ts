@@ -27,19 +27,13 @@ import type {
 import { buildClassDiagramNodes } from './controllers/classDiagramNodes';
 import { buildUseCaseDiagramNodes } from './controllers/useCaseDiagramNodes';
 import { buildDomainModelNodes } from './controllers/domainModelNodes';
+import { buildSequenceDiagramNodes } from './controllers/sequenceDiagramNodes';
 import {
   resolveSemanticElement,
   type NodeBuilderContext,
 } from './controllers/sharedNodeBuilders';
 import type {
-  NoteViewModel,
-  PackageViewModel,
-  ActorViewModel,
-  UseCaseViewModel,
-  SystemBoundaryViewModel,
-  UCModuleViewModel,
-  DomainEntityViewModel,
-  NodeViewModel,
+  AnyNodeViewModel,
 } from '../../../adapters/view-models/node.view-model';
 
 // ─── Module-scoped state ──────────────────────────────────────────────────────
@@ -67,7 +61,7 @@ export type VFSCanvasNode = {
   id: string;
   type: string;
   position: { x: number; y: number };
-  data: NodeViewModel | NoteViewModel | PackageViewModel | ActorViewModel | UseCaseViewModel | SystemBoundaryViewModel | UCModuleViewModel | DomainEntityViewModel;
+  data: AnyNodeViewModel;
   domainId?: string;
 };
 
@@ -207,6 +201,8 @@ function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSCanvasNode[] 
       return buildUseCaseDiagramNodes(ctx) as VFSCanvasNode[];
     case 'DOMAIN_MODEL_DIAGRAM':
       return buildDomainModelNodes(ctx) as VFSCanvasNode[];
+    case 'SEQUENCE_DIAGRAM':
+      return buildSequenceDiagramNodes(ctx) as VFSCanvasNode[];
     default:
       return buildClassDiagramNodes(ctx) as VFSCanvasNode[];
   }

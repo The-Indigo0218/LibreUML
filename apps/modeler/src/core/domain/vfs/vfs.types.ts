@@ -297,6 +297,49 @@ export interface IRArtifact extends IRElement {
   fileName?: string;
 }
 
+// ─── Sequence Diagram IR ──────────────────────────────────────────────────────
+
+export type LifelineParticipantKind =
+  | 'CLASS'
+  | 'INTERFACE'
+  | 'ACTOR'
+  | 'OBJECT'
+  | 'ANONYMOUS';
+
+export interface IRLifeline extends IRElement {
+  kind: 'LIFELINE';
+  participantKind: LifelineParticipantKind;
+  /** elementId of the IRClass / IRInterface / IRActor / IRObjectInstance this lifeline represents. */
+  represents?: string;
+  /** Display name when participantKind === 'ANONYMOUS' (or override for named participants). */
+  alias?: string;
+  isExternal?: boolean;
+}
+
+export type MessageKind =
+  | 'SYNC'      // solid line, closed triangle arrowhead
+  | 'ASYNC'     // solid line, open arrowhead (Fase 2)
+  | 'REPLY'     // dashed line, open arrowhead (Fase 2)
+  | 'CREATE'    // (Fase 4) instantiates target lifeline
+  | 'DESTROY';  // (Fase 4) terminates target lifeline
+
+export interface IRMessage extends IRElement {
+  kind: 'MESSAGE';
+  messageKind: MessageKind;
+  sourceLifelineId: string;
+  targetLifelineId: string;
+  /** Chronological order within the parent fragment (or root-level). */
+  sequenceNumber: number;
+  /** Parent combined fragment id, or undefined when at the diagram root. */
+  fragmentId?: string;
+  /** Optional reference to an IROperation owned by the target's classifier. */
+  operationId?: string;
+  /** Free-form argument string (e.g. "id, name") for MVP. */
+  arguments?: string;
+  /** For REPLY messages, references the invoking message. */
+  inReplyTo?: string;
+}
+
 export type RelationKind =
   | 'ASSOCIATION'
   | 'AGGREGATION'
@@ -361,6 +404,8 @@ export interface SemanticModel {
   components: Record<string, IRComponent>;
   nodes: Record<string, IRNode>;
   artifacts: Record<string, IRArtifact>;
+  lifelines?: Record<string, IRLifeline>;
+  messages?: Record<string, IRMessage>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

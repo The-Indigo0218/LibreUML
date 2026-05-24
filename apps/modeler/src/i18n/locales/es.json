@@ -787,7 +787,9 @@
     "cancel": "Cancelar",
     "createFile": "Crear Archivo",
     "saveChanges": "Guardar Cambios",
-    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación"
+    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación",
+    "standaloneLabel": "Archivo Independiente",
+    "standaloneDescription": "Aísla este diagrama del modelo compartido. El Explorador de Modelo global se ocultará mientras este archivo esté activo."
   },
   "createFolderModal": {
     "title": "Crear Nueva Carpeta",

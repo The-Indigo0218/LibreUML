@@ -361,6 +361,9 @@ export function yToMessageSlot(y: number, totalMessages: number): number {
  * Messages inside a fragment get <rootContext>.<positionInOperand> …
  * Sub-fragment messages get <rootContext>.<parentPos>.<positionInOperand> …
  *
+ * Sub-fragments that appear between sibling messages "consume" a slot so
+ * messages following them are not assigned the same number (no collisions).
+ *
  * Returns a Map<messageId, displayString>.
  */
 export function computeHierarchicalNumbers(
@@ -373,46 +376,53 @@ export function computeHierarchicalNumbers(
   const sorted = [...messages].sort((a, b) => a.sequenceNumber - b.sequenceNumber);
   const fragById = new Map(fragments.map((f) => [f.id, f]));
 
-  // Build: messageId → { fragmentId, posInOp (1-based, sorted by sequenceNumber) }
-  const msgInFrag = new Map<string, { fragmentId: string; posInOp: number }>();
+  // messageId → id of the fragment whose operand directly contains it
+  const msgDirectFrag = new Map<string, string>();
   for (const frag of fragments) {
     for (const op of frag.operands) {
-      const opMsgsSorted = op.messageIds
-        .map((id) => sorted.find((m) => m.id === id))
-        .filter((m): m is IRMessage => !!m);
-      opMsgsSorted.forEach((msg, pos) => {
-        // Last writer wins: deeper fragment takes precedence over its parent.
-        msgInFrag.set(msg.id, { fragmentId: frag.id, posInOp: pos + 1 });
-      });
+      for (const msgId of op.messageIds) {
+        msgDirectFrag.set(msgId, frag.id);
+      }
     }
   }
 
-  // Root messages are those not directly inside any fragment operand.
-  const rootMsgs = sorted.filter((m) => !msgInFrag.has(m.id));
+  // Root messages: not in any fragment operand
+  const rootMsgs = sorted.filter((m) => !msgDirectFrag.has(m.id));
   rootMsgs.forEach((m, i) => result.set(m.id, `${i + 1}`));
 
-  // Compute prefix for a fragment, cached to avoid redundant work.
+  // Min sequenceNumber of the direct messages in each fragment
+  const fragMinSeq = new Map<string, number>();
+  for (const frag of fragments) {
+    const seqs = frag.operands
+      .flatMap((op) => op.messageIds)
+      .map((id) => sorted.find((m) => m.id === id)?.sequenceNumber ?? Infinity);
+    fragMinSeq.set(frag.id, seqs.length > 0 ? Math.min(...seqs) : Infinity);
+  }
+
+  // Direct child fragments per parent (null = root level)
+  const childFrags = new Map<string | null, string[]>();
+  for (const frag of fragments) {
+    const parent = frag.parentFragmentId ?? null;
+    if (!childFrags.has(parent)) childFrags.set(parent, []);
+    childFrags.get(parent)!.push(frag.id);
+  }
+
+  // Compute prefix for a fragment, counting sibling sub-fragments as slot occupants
   const prefixCache = new Map<string, string>();
 
   function getFragPrefix(fragId: string, visited = new Set<string>()): string {
     if (prefixCache.has(fragId)) return prefixCache.get(fragId)!;
-    if (visited.has(fragId)) return ''; // cycle guard
+    if (visited.has(fragId)) return '';
     visited.add(fragId);
 
     const frag = fragById.get(fragId);
     if (!frag) return '';
-
-    // Min sequenceNumber of direct messages in this fragment.
-    const directMsgIds = new Set(frag.operands.flatMap((op) => op.messageIds));
-    const directMsgs = sorted.filter((m) => directMsgIds.has(m.id));
-    const minSeq = directMsgs.length > 0
-      ? Math.min(...directMsgs.map((m) => m.sequenceNumber))
-      : 0;
+    const myMinSeq = fragMinSeq.get(fragId) ?? Infinity;
 
     let prefix: string;
     if (!frag.parentFragmentId) {
-      // Root fragment: count root messages that appear before it.
-      const prevRootCount = rootMsgs.filter((m) => m.sequenceNumber < minSeq).length;
+      // Root fragment: anchor = count of root messages that precede it
+      const prevRootCount = rootMsgs.filter((m) => m.sequenceNumber < myMinSeq).length;
       prefix = prevRootCount > 0 ? `${prevRootCount}` : '';
     } else {
       const parentPrefix = getFragPrefix(frag.parentFragmentId, visited);
@@ -420,12 +430,16 @@ export function computeHierarchicalNumbers(
       if (!parentFrag) {
         prefix = parentPrefix;
       } else {
-        // Count direct messages of the parent that precede this fragment's first message.
+        // Position = (parent direct messages before us) + (sibling frags before us) + 1
         const parentDirectIds = new Set(parentFrag.operands.flatMap((op) => op.messageIds));
-        const prevParentCount = sorted.filter(
-          (m) => parentDirectIds.has(m.id) && m.sequenceNumber < minSeq,
+        const prevDirectMsgs = sorted.filter(
+          (m) => parentDirectIds.has(m.id) && m.sequenceNumber < myMinSeq,
         ).length;
-        const pos = prevParentCount + 1;
+        const siblingFragIds = childFrags.get(frag.parentFragmentId) ?? [];
+        const prevSiblingFrags = siblingFragIds.filter(
+          (sid) => sid !== fragId && (fragMinSeq.get(sid) ?? Infinity) < myMinSeq,
+        ).length;
+        const pos = prevDirectMsgs + prevSiblingFrags + 1;
         prefix = parentPrefix ? `${parentPrefix}.${pos}` : `${pos}`;
       }
     }
@@ -434,10 +448,28 @@ export function computeHierarchicalNumbers(
     return prefix;
   }
 
-  // Assign display numbers to fragment-nested messages.
-  for (const [msgId, { fragmentId, posInOp }] of msgInFrag) {
-    const prefix = getFragPrefix(fragmentId);
-    result.set(msgId, prefix ? `${prefix}.${posInOp}` : `${posInOp}`);
+  // Assign numbers to fragment-nested messages.
+  // Position = (preceding direct msgs in same operand) + (child sub-frags before this msg) + 1
+  for (const frag of fragments) {
+    const childFragIds = childFrags.get(frag.id) ?? [];
+    const fragPrefix = getFragPrefix(frag.id);
+
+    for (const op of frag.operands) {
+      const opMsgsSorted = op.messageIds
+        .map((id) => sorted.find((m) => m.id === id))
+        .filter((m): m is IRMessage => !!m)
+        .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+
+      for (const msg of opMsgsSorted) {
+        const msgSeq = msg.sequenceNumber;
+        const prevDirectMsgs = opMsgsSorted.filter((m) => m.sequenceNumber < msgSeq).length;
+        const prevSubFrags = childFragIds.filter(
+          (cid) => (fragMinSeq.get(cid) ?? Infinity) < msgSeq,
+        ).length;
+        const posInContext = prevDirectMsgs + prevSubFrags + 1;
+        result.set(msg.id, fragPrefix ? `${fragPrefix}.${posInContext}` : `${posInContext}`);
+      }
+    }
   }
 
   return result;

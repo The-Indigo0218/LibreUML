@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSequenceDiagramNodes } from '../sequenceDiagramNodes';
+import { buildSequenceDiagramNodes, computeHierarchicalNumbers } from '../sequenceDiagramNodes';
 import type {
   SemanticModel,
   DiagramView,
@@ -315,6 +315,33 @@ describe('buildSequenceDiagramNodes', () => {
     expect(fragIdx).toBeLessThan(lifelineIdx);
   });
 
+  it('populates displayNumber on message view models', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: {
+        m1: makeMessage('m1', 'll1', 'll2', 1),
+        m2: makeMessage('m2', 'll2', 'll1', 2),
+      },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const messages = result.filter((n) => n.type === 'umlMessage');
+    expect(messages).toHaveLength(2);
+    const m1Node = messages.find((n) => n.data.domainId === 'm1');
+    const m2Node = messages.find((n) => n.data.domainId === 'm2');
+    expect(isMessageViewModel(m1Node!.data) && m1Node!.data.displayNumber).toBe('1');
+    expect(isMessageViewModel(m2Node!.data) && m2Node!.data.displayNumber).toBe('2');
+  });
+
   it('orders messages by sequenceNumber', () => {
     const ll1 = makeLifeline('ll1');
     const ll2 = makeLifeline('ll2');
@@ -340,5 +367,152 @@ describe('buildSequenceDiagramNodes', () => {
     const sortedByY = [...messages].sort((a, b) => a.position.y - b.position.y);
     expect(sortedByY[0].data.domainId).toBe('m1');
     expect(sortedByY[1].data.domainId).toBe('m2');
+  });
+});
+
+// ─── computeHierarchicalNumbers ───────────────────────────────────────────────
+
+function makeMsg(id: string, seq: number): IRMessage {
+  return {
+    id,
+    kind: 'MESSAGE',
+    name: id,
+    messageKind: 'SYNC',
+    sourceLifelineId: 'src',
+    targetLifelineId: 'tgt',
+    sequenceNumber: seq,
+  };
+}
+
+function makeFrag(
+  id: string,
+  operandMsgIds: string[][],
+  parentFragmentId?: string,
+): IRInteractionFragment {
+  return {
+    id,
+    kind: 'FRAGMENT',
+    name: id,
+    fragmentKind: 'ALT',
+    coveredLifelineIds: ['src', 'tgt'],
+    parentFragmentId,
+    operands: operandMsgIds.map((msgIds, i) => ({
+      id: `${id}-op${i}`,
+      messageIds: msgIds,
+      fragmentIds: [],
+    })),
+  };
+}
+
+describe('computeHierarchicalNumbers', () => {
+  it('returns empty map for no messages', () => {
+    const result = computeHierarchicalNumbers([], []);
+    expect(result.size).toBe(0);
+  });
+
+  it('numbers root messages sequentially: 1, 2, 3', () => {
+    const messages = [makeMsg('a', 1), makeMsg('b', 2), makeMsg('c', 3)];
+    const result = computeHierarchicalNumbers(messages, []);
+    expect(result.get('a')).toBe('1');
+    expect(result.get('b')).toBe('2');
+    expect(result.get('c')).toBe('3');
+  });
+
+  it('numbers messages inside a root fragment as N.1, N.2', () => {
+    // root: m1(seq=1), m4(seq=4)
+    // frag F1 contains m2(seq=2), m3(seq=3)
+    const messages = [
+      makeMsg('m1', 1),
+      makeMsg('m2', 2),
+      makeMsg('m3', 3),
+      makeMsg('m4', 4),
+    ];
+    const frag = makeFrag('f1', [['m2', 'm3']]);
+    const result = computeHierarchicalNumbers(messages, [frag]);
+    // root messages before f1: 1 (m1) → prefix "1"
+    expect(result.get('m1')).toBe('1');
+    expect(result.get('m2')).toBe('1.1');
+    expect(result.get('m3')).toBe('1.2');
+    expect(result.get('m4')).toBe('2');
+  });
+
+  it('numbers messages in a fragment at the very start as .1, .2 (no preceding root)', () => {
+    const messages = [makeMsg('m1', 1), makeMsg('m2', 2)];
+    const frag = makeFrag('f1', [['m1', 'm2']]);
+    const result = computeHierarchicalNumbers(messages, [frag]);
+    // no root messages before f1 → prefix is empty → display just "1", "2"
+    expect(result.get('m1')).toBe('1');
+    expect(result.get('m2')).toBe('2');
+  });
+
+  it('uses the correct root index when multiple root messages precede the fragment', () => {
+    const messages = [
+      makeMsg('r1', 1),
+      makeMsg('r2', 2),
+      makeMsg('m1', 3),
+      makeMsg('m2', 4),
+      makeMsg('r3', 5),
+    ];
+    const frag = makeFrag('f1', [['m1', 'm2']]);
+    const result = computeHierarchicalNumbers(messages, [frag]);
+    expect(result.get('r1')).toBe('1');
+    expect(result.get('r2')).toBe('2');
+    expect(result.get('m1')).toBe('2.1');
+    expect(result.get('m2')).toBe('2.2');
+    expect(result.get('r3')).toBe('3');
+  });
+
+  it('handles two sibling fragments each with their own messages', () => {
+    const messages = [
+      makeMsg('r1', 1),
+      makeMsg('a1', 2),
+      makeMsg('a2', 3),
+      makeMsg('r2', 4),
+      makeMsg('b1', 5),
+      makeMsg('b2', 6),
+    ];
+    const fragA = makeFrag('fA', [['a1', 'a2']]);
+    const fragB = makeFrag('fB', [['b1', 'b2']]);
+    const result = computeHierarchicalNumbers(messages, [fragA, fragB]);
+    expect(result.get('r1')).toBe('1');
+    expect(result.get('a1')).toBe('1.1');
+    expect(result.get('a2')).toBe('1.2');
+    expect(result.get('r2')).toBe('2');
+    expect(result.get('b1')).toBe('2.1');
+    expect(result.get('b2')).toBe('2.2');
+  });
+
+  it('numbers messages in a nested sub-fragment with three-level notation', () => {
+    // Layout: r1 | [F1: m1 | [F2: n1, n2] | m2] | r2
+    const messages = [
+      makeMsg('r1', 1),
+      makeMsg('m1', 2),
+      makeMsg('n1', 3),
+      makeMsg('n2', 4),
+      makeMsg('m2', 5),
+      makeMsg('r2', 6),
+    ];
+    // F1 directly contains m1, m2 (n1,n2 are in sub-fragment F2)
+    const f1 = makeFrag('f1', [['m1', 'm2']]);
+    // F2 is nested inside F1 and directly contains n1, n2
+    const f2 = makeFrag('f2', [['n1', 'n2']], 'f1');
+    const result = computeHierarchicalNumbers(messages, [f1, f2]);
+    // m1 = 1.1 (first direct in F1)
+    // F2 occupies slot 2 in F1 (after m1), so n1 = 1.2.1, n2 = 1.2.2
+    // m2 = 1.3 (after m1 and the F2 sub-fragment)
+    expect(result.get('r1')).toBe('1');
+    expect(result.get('m1')).toBe('1.1');
+    expect(result.get('n1')).toBe('1.2.1');
+    expect(result.get('n2')).toBe('1.2.2');
+    expect(result.get('m2')).toBe('1.3');
+    expect(result.get('r2')).toBe('2');
+  });
+
+  it('is stable regardless of input order', () => {
+    const messages = [makeMsg('c', 3), makeMsg('a', 1), makeMsg('b', 2)];
+    const result = computeHierarchicalNumbers(messages, []);
+    expect(result.get('a')).toBe('1');
+    expect(result.get('b')).toBe('2');
+    expect(result.get('c')).toBe('3');
   });
 });

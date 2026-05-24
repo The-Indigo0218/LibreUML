@@ -5,7 +5,7 @@ import { useVFSStore } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useToastStore } from '../../store/toast.store';
-import { getLocalModel, standaloneModelOps } from '../../store/standaloneModelOps';
+import { getLocalModel } from '../../store/standaloneModelOps';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/domain/vfs/vfs.types';

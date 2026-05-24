@@ -778,7 +778,9 @@
     "cancel": "Cancel",
     "createFile": "Create File",
     "saveChanges": "Save Changes",
-    "fileNameExists": "A file with this name already exists in this location"
+    "fileNameExists": "A file with this name already exists in this location",
+    "standaloneLabel": "Standalone File",
+    "standaloneDescription": "Isolates this diagram from the shared workspace model. The global Model Explorer will be hidden while this file is active."
   },
   "createFolderModal": {
     "title": "Create New Folder",

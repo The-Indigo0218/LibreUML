@@ -66,7 +66,7 @@ describe('MessageShape', () => {
   });
 
   it('renders a found message with filled circle at source', () => {
-    const vm = baseMsg({ isFound: true, sourceLifelineId: '' });
+    const vm = baseMsg({ isFound: true });
     const { container } = render(<MessageShape viewModel={vm} x={120} y={100} />);
     expect(container.firstChild).toMatchSnapshot();
   });

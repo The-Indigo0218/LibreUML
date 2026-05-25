@@ -12,7 +12,6 @@ import {
   isLifelineViewModel,
   isMessageViewModel,
   isActivationViewModel,
-  isFragmentViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function freshModel() {
@@ -67,7 +66,7 @@ function diagramFile(
   const activations: Record<string, any> = {};
   const interactionFragments: Record<string, any> = {};
 
-  for (const [llId, x] of lifelineEntries) {
+  for (const [llId] of lifelineEntries) {
     lifelines[llId] = { id: llId, kind: 'LIFELINE', name: llId, participantKind: 'CLASS', alias: llId };
   }
   for (const m of msgEntries) {
@@ -226,24 +225,25 @@ describe('Sequence Diagram E2E — store → builder → persist → reload', ()
       }
 
       // ── 5. JSON round-trip ───────────────────────────────────────────────
-      const persisted = jt(useVFSStore.getState().project);
-      const reloadedFile = persisted.nodes[fileId] as VFSFile;
+      const persisted = jt(useVFSStore.getState().project) as LibreUMLProject;
+      const reloadedFile = persisted.nodes[fileId] as VFSFile | undefined;
       expect(reloadedFile).toBeDefined();
 
       if (standalone) {
-        expect(reloadedFile.standalone).toBe(true);
-        expect(reloadedFile.localModel).toBeDefined();
-        expect(Object.keys(reloadedFile.localModel!.lifelines ?? {}).length).toBeGreaterThanOrEqual(2);
+        expect(reloadedFile!.standalone).toBe(true);
+        expect(reloadedFile!.localModel).toBeDefined();
+        expect(Object.keys(reloadedFile!.localModel!.lifelines ?? {}).length).toBeGreaterThanOrEqual(2);
       } else {
-        expect(reloadedFile.content).toBeDefined();
-        const rv = reloadedFile.content as DiagramView;
+        expect(reloadedFile!.content).toBeDefined();
+        const rv = reloadedFile!.content as DiagramView;
         expect(rv.nodes).toHaveLength(view.nodes.length);
       }
 
       // ── 6. Semantic data survives ────────────────────────────────────────
-      const finalModel = standalone ? reloadedFile.localModel! : persisted.semanticModel;
-      expect(Object.keys(finalModel.lifelines ?? {}).length).toBeGreaterThanOrEqual(2);
-      expect(Object.keys(finalModel.messages ?? {}).length).toBeGreaterThanOrEqual(1);
+      const finalModel: SemanticModel | undefined = standalone ? reloadedFile!.localModel! : persisted.semanticModel;
+      expect(finalModel).toBeDefined();
+      expect(Object.keys(finalModel!.lifelines ?? {}).length).toBeGreaterThanOrEqual(2);
+      expect(Object.keys(finalModel!.messages ?? {}).length).toBeGreaterThanOrEqual(1);
     });
   }
 

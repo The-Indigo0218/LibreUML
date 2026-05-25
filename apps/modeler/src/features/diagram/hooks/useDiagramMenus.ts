@@ -314,6 +314,48 @@ export const useDiagramMenus = ({
     [],
   );
 
+  // ── Interaction use (`ref`) insertion (sequence diagrams) ─────────────────
+
+  const addInteractionUse = useCallback(() => {
+    const tabId = useWorkspaceStore.getState().activeTabId;
+    if (!tabId) return;
+
+    const project = useVFSStore.getState().project;
+    if (!project) return;
+    const fileNode = project.nodes[tabId];
+    if (!fileNode || fileNode.type !== 'FILE') return;
+    const content = (fileNode as VFSFile).content;
+    if (!isDiagramView(content)) return;
+
+    const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+    const activeModel = isStandaloneFile
+      ? getLocalModel(tabId)
+      : useModelStore.getState().model;
+    if (!activeModel) return;
+
+    const lifelineIds = (content as DiagramView).nodes
+      .map((vn) => vn.elementId)
+      .filter((id): id is string => !!id && !!activeModel.lifelines?.[id]);
+
+    if (lifelineIds.length === 0) {
+      useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un ref');
+      return;
+    }
+
+    const afterSequenceNumber = Object.keys(activeModel.messages ?? {}).length;
+    const payload = {
+      name: '',
+      coveredLifelineIds: lifelineIds,
+      afterSequenceNumber,
+    };
+
+    const newId = isStandaloneFile
+      ? standaloneModelOps(tabId).createInteractionUse(payload)
+      : useModelStore.getState().createInteractionUse(payload);
+
+    useUiStore.getState().openInteractionUseProps(newId);
+  }, []);
+
   // ── State invariant insertion (sequence diagrams) ─────────────────────────
 
   const addStateInvariant = useCallback(
@@ -385,6 +427,7 @@ export const useDiagramMenus = ({
             { label: t("contextMenu.pane.insertAltFragment"),  onClick: () => addFragmentToDiagram("ALT") },
             { label: t("contextMenu.pane.insertOptFragment"),  onClick: () => addFragmentToDiagram("OPT") },
             { label: t("contextMenu.pane.insertLoopFragment"), onClick: () => addFragmentToDiagram("LOOP") },
+            { label: t("contextMenu.pane.insertInteractionUse"), onClick: () => addInteractionUse() },
             { label: t("contextMenu.pane.addNote"),            onClick: () => addVFSNode("NOTE", pos()) },
             { label: t("contextMenu.pane.cleanCanvas"),        onClick: onClearCanvas, danger: true },
           ];
@@ -605,6 +648,7 @@ export const useDiagramMenus = ({
       getIsNodeExternal,
       getElementId,
       addStateInvariant,
+      addInteractionUse,
       isStandalone,
       t,
     ]

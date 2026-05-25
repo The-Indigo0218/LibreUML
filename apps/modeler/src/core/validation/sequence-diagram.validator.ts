@@ -10,6 +10,7 @@ import type {
   IRInterface,
   IRInteractionFragment,
   IRStateInvariant,
+  IRInteractionUse,
 } from '../domain/vfs/vfs.types';
 
 export class SequenceDiagramValidator implements BaseValidator {
@@ -213,6 +214,35 @@ export class SequenceDiagramValidator implements BaseValidator {
 
     if (!invariant.constraint || invariant.constraint.trim() === '') {
       warnings.push('State invariant has no constraint text');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific interaction-use (`ref`) validation (UML 2.5 §17.6).
+   * Error when it covers no lifeline or references missing ones; warning when no
+   * target interaction is set.
+   */
+  validateInteractionUse(use: IRInteractionUse, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!use.coveredLifelineIds || use.coveredLifelineIds.length === 0) {
+      errors.push('Interaction use must cover at least one lifeline');
+    } else {
+      const orphans = use.coveredLifelineIds.filter((id) => !model.lifelines?.[id]);
+      if (orphans.length > 0) {
+        errors.push(`Interaction use references missing lifelines: ${orphans.join(', ')}`);
+      }
+    }
+
+    if (!use.referencedDiagramId && !use.referencedName) {
+      warnings.push('Interaction use does not reference any interaction');
     }
 
     return {

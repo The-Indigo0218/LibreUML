@@ -381,6 +381,25 @@ export interface IRInteractionFragment extends IRElement {
 }
 
 /**
+ * UML 2.5 §17.6 InteractionUse — a `ref` fragment that references (reuses)
+ * another Interaction (sequence diagram) within this one.
+ */
+export interface IRInteractionUse extends IRElement {
+  kind: 'INTERACTION_USE';
+  /** Lifelines spanned horizontally by the ref rectangle. */
+  coveredLifelineIds: string[];
+  /** VFS file id of the referenced SEQUENCE_DIAGRAM (undefined when external/unset). */
+  referencedDiagramId?: string;
+  /** Display label of the referenced interaction (falls back to `name`). */
+  referencedName?: string;
+  /**
+   * Temporal anchor: the ref sits in the band just below the message slot with
+   * this number. 0 = at the top, before the first message.
+   */
+  afterSequenceNumber: number;
+}
+
+/**
  * UML 2.5 §17.4 StateInvariant — a runtime constraint on the state of the
  * participant a lifeline represents, drawn as a state symbol on the lifeline
  * between two message occurrences.
@@ -468,6 +487,7 @@ export interface SemanticModel {
   activations?: Record<string, IRActivation>;
   interactionFragments?: Record<string, IRInteractionFragment>;
   stateInvariants?: Record<string, IRStateInvariant>;
+  interactionUses?: Record<string, IRInteractionUse>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

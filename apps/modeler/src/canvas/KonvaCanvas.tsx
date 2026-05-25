@@ -45,6 +45,7 @@ import ExtendEdgePropsModal from '../features/diagram/components/modals/ExtendEd
 import FragmentPropertiesModal from '../features/diagram/components/modals/FragmentPropertiesModal';
 import MessagePropertiesModal from '../features/diagram/components/modals/MessagePropertiesModal';
 import StateInvariantPropertiesModal from '../features/diagram/components/modals/StateInvariantPropertiesModal';
+import InteractionUsePropertiesModal from '../features/diagram/components/modals/InteractionUsePropertiesModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -74,6 +75,7 @@ import {
   isFragmentViewModel,
   isMessageViewModel,
   isStateInvariantViewModel,
+  isInteractionUseViewModel,
   type AnyNodeViewModel,
   type NodeViewModel,
   type PackageViewModel,
@@ -1497,6 +1499,8 @@ export default function KonvaCanvas() {
                   ? () => useUiStore.getState().openMessageProps(vm.domainId)
                   : isStateInvariantViewModel(vm)
                   ? () => useUiStore.getState().openStateInvariantProps(vm.domainId)
+                  : isInteractionUseViewModel(vm)
+                  ? () => useUiStore.getState().openInteractionUseProps(vm.domainId)
                   : isNodeViewModel(vm)
                   ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
                   : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
@@ -1767,6 +1771,7 @@ export default function KonvaCanvas() {
       <FragmentPropertiesModal />
       <MessagePropertiesModal />
       <StateInvariantPropertiesModal />
+      <InteractionUsePropertiesModal />
     </div>
   );
 }

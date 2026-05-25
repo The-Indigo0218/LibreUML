@@ -34,6 +34,7 @@ import type {
   IRActivation,
   IRInteractionFragment,
   IRStateInvariant,
+  IRInteractionUse,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -86,6 +87,15 @@ function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: strin
     for (const sid of Object.keys(model.stateInvariants)) {
       if (model.stateInvariants[sid].lifelineId === lifelineId) {
         delete model.stateInvariants[sid];
+      }
+    }
+  }
+  if (model.interactionUses) {
+    for (const uid of Object.keys(model.interactionUses)) {
+      const use = model.interactionUses[uid];
+      use.coveredLifelineIds = use.coveredLifelineIds.filter((id) => id !== lifelineId);
+      if (use.coveredLifelineIds.length === 0) {
+        delete model.interactionUses[uid];
       }
     }
   }
@@ -596,6 +606,34 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.stateInvariants?.[id]) return;
         delete m.stateInvariants[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Interaction Uses (`ref`) ──────────────────────────────────────────────
+
+    createInteractionUse: (data: Omit<IRInteractionUse, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.interactionUses = m.interactionUses ?? {};
+        m.interactionUses[id] = { ...data, id, kind: 'INTERACTION_USE' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateInteractionUse: (id: string, patch: Partial<IRInteractionUse>) => {
+      update((m) => {
+        if (!m.interactionUses?.[id]) return;
+        m.interactionUses[id] = { ...m.interactionUses[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteInteractionUse: (id: string) => {
+      update((m) => {
+        if (!m.interactionUses?.[id]) return;
+        delete m.interactionUses[id];
         m.updatedAt = Date.now();
       });
     },

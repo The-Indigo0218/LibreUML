@@ -31,6 +31,7 @@ export type ActiveModal =
   | "fragment-props"
   | "message-props"
   | "state-invariant-props"
+  | "interaction-use-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -75,6 +76,7 @@ interface UiStoreState {
   openFragmentProps: (fragmentId: string) => void;
   openMessageProps: (messageId: string) => void;
   openStateInvariantProps: (invariantId: string) => void;
+  openInteractionUseProps: (useId: string) => void;
   closeModals: () => void;
   openGetStarted: () => void;
   closeGetStarted: () => void;
@@ -148,6 +150,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openFragmentProps: (fragmentId) => set({ activeModal: "fragment-props", editingId: fragmentId }),
   openMessageProps: (messageId) => set({ activeModal: "message-props", editingId: messageId }),
   openStateInvariantProps: (invariantId) => set({ activeModal: "state-invariant-props", editingId: invariantId }),
+  openInteractionUseProps: (useId) => set({ activeModal: "interaction-use-props", editingId: useId }),
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 

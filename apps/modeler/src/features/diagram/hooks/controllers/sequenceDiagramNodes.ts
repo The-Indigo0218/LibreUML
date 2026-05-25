@@ -6,6 +6,7 @@ import type {
   IRActivation,
   IRInteractionFragment,
   IRStateInvariant,
+  IRInteractionUse,
   ViewNode,
 } from '../../../../core/domain/vfs/vfs.types';
 import type {
@@ -15,6 +16,7 @@ import type {
   FragmentViewModel,
   FragmentOperandVM,
   StateInvariantViewModel,
+  InteractionUseViewModel,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -43,6 +45,7 @@ const STATE_INVARIANT_H = 22;
 const STATE_INVARIANT_MIN_W = 56;
 const STATE_INVARIANT_CHAR_W = 6.2;
 const STATE_INVARIANT_PAD_X = 16;
+const INTERACTION_USE_H = 48;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -338,8 +341,16 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     allMessages.length,
   );
 
+  // 8. Emit Interaction Uses (`ref`). Rendered with fragments at the back.
+  const interactionUseNodes = buildInteractionUseNodes(
+    Object.values(model.interactionUses ?? {}),
+    lifelineCenterX,
+    allMessages.length,
+  );
+
   return [
     ...fragmentNodes,
+    ...interactionUseNodes,
     ...lifelineNodes,
     ...activationNodes,
     ...messageNodes,
@@ -440,6 +451,46 @@ function buildFragmentNodes(
   // Note: totalMessages currently unused in geometry calc but kept in signature
   // for future use (e.g. clamping bottom to within-the-timeline).
   void totalMessages;
+}
+
+// ─── Interaction Use (`ref`) geometry ──────────────────────────────────────────
+
+function buildInteractionUseNodes(
+  uses: IRInteractionUse[],
+  lifelineCenterX: Map<string, number>,
+  totalMessages: number,
+) {
+  return uses
+    .map((use) => {
+      const liveIds = use.coveredLifelineIds.filter((id) => lifelineCenterX.has(id));
+      if (liveIds.length === 0) return null;
+
+      const xs = liveIds.map((id) => lifelineCenterX.get(id)!).sort((a, b) => a - b);
+      const left = xs[0] - FRAGMENT_X_PAD;
+      const right = xs[xs.length - 1] + FRAGMENT_X_PAD;
+      const width = Math.max(FRAGMENT_MIN_W, right - left);
+
+      const slot = Math.max(0, Math.min(totalMessages, use.afterSequenceNumber));
+      const top = stateInvariantSlotY(slot);
+
+      const viewModel: InteractionUseViewModel = {
+        __brand: 'interactionUse',
+        id: use.id,
+        domainId: use.id,
+        label: use.referencedName || use.name || 'ref',
+        width,
+        height: INTERACTION_USE_H,
+      };
+
+      return {
+        id: `iu-${use.id}`,
+        type: 'umlInteractionUse',
+        position: { x: left, y: top },
+        data: viewModel,
+        domainId: use.id,
+      };
+    })
+    .filter(<T>(n: T | null): n is T => n !== null);
 }
 
 /**

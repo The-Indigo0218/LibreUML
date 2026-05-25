@@ -13,6 +13,7 @@ import type {
   IRActivation,
   IRInteractionFragment,
   IRStateInvariant,
+  IRInteractionUse,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
@@ -21,6 +22,7 @@ import {
   isActivationViewModel,
   isFragmentViewModel,
   isStateInvariantViewModel,
+  isInteractionUseViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
@@ -451,6 +453,77 @@ describe('buildSequenceDiagramNodes — state invariants', () => {
     };
     const result = buildSequenceDiagramNodes(makeCtx(model, view));
     expect(result.find((n) => n.type === 'umlStateInvariant')).toBeUndefined();
+  });
+});
+
+// ─── Interaction Use (`ref`) ──────────────────────────────────────────────────
+
+function makeInteractionUse(
+  id: string,
+  coveredLifelineIds: string[],
+  afterSequenceNumber: number,
+  referencedName?: string,
+): IRInteractionUse {
+  return { id, kind: 'INTERACTION_USE', name: referencedName ?? '', coveredLifelineIds, afterSequenceNumber, referencedName };
+}
+
+describe('buildSequenceDiagramNodes — interaction use', () => {
+  it('emits a ref box spanning the covered lifelines', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      interactionUses: { u1: makeInteractionUse('u1', ['ll1', 'll2'], 0, 'Login') },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const useNode = result.find((n) => n.type === 'umlInteractionUse');
+    expect(useNode && isInteractionUseViewModel(useNode.data)).toBe(true);
+    if (useNode && isInteractionUseViewModel(useNode.data)) {
+      expect(useNode.data.label).toBe('Login');
+      const ll1CenterX = 50 + 70;
+      const ll2CenterX = 250 + 70;
+      expect(useNode.data.width).toBeGreaterThanOrEqual(ll2CenterX - ll1CenterX);
+    }
+  });
+
+  it('renders the ref BEHIND lifelines', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      interactionUses: { u1: makeInteractionUse('u1', ['ll1', 'll2'], 0) },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const useIdx = result.findIndex((n) => n.type === 'umlInteractionUse');
+    const lifelineIdx = result.findIndex((n) => n.type === 'umlLifeline');
+    expect(useIdx).toBeGreaterThanOrEqual(0);
+    expect(useIdx).toBeLessThan(lifelineIdx);
+  });
+
+  it('skips a ref whose covered lifelines are all absent', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1') },
+      interactionUses: { u1: makeInteractionUse('u1', ['ll99'], 0) },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    expect(result.find((n) => n.type === 'umlInteractionUse')).toBeUndefined();
   });
 });
 

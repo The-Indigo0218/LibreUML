@@ -240,6 +240,17 @@ export interface StateInvariantViewModel {
   height: number;
 }
 
+export interface InteractionUseViewModel {
+  __brand: 'interactionUse';
+  id: string;             // synthetic id (== domain interaction-use id)
+  domainId: string;       // IRInteractionUse.id
+  /** Referenced interaction name shown centred in the box. */
+  label: string;
+  /** Bounding box spanning the covered lifelines. */
+  width: number;
+  height: number;
+}
+
 /**
  * Union type for all node view models
  */
@@ -256,7 +267,8 @@ export type AnyNodeViewModel =
   | MessageViewModel
   | ActivationViewModel
   | FragmentViewModel
-  | StateInvariantViewModel;
+  | StateInvariantViewModel
+  | InteractionUseViewModel;
 
 /**
  * Type guard for NodeViewModel
@@ -314,4 +326,8 @@ export function isFragmentViewModel(vm: AnyNodeViewModel): vm is FragmentViewMod
 
 export function isStateInvariantViewModel(vm: AnyNodeViewModel): vm is StateInvariantViewModel {
   return '__brand' in vm && vm.__brand === 'stateInvariant';
+}
+
+export function isInteractionUseViewModel(vm: AnyNodeViewModel): vm is InteractionUseViewModel {
+  return '__brand' in vm && vm.__brand === 'interactionUse';
 }

@@ -168,7 +168,8 @@
       "addDomainEntity": "Agregar Entidad",
       "insertAltFragment": "Insertar Fragmento ALT",
       "insertOptFragment": "Insertar Fragmento OPT",
-      "insertLoopFragment": "Insertar Fragmento LOOP"
+      "insertLoopFragment": "Insertar Fragmento LOOP",
+      "insertInteractionUse": "Insertar Referencia (ref)"
     },
     "node": {
       "duplicate": "Duplicar",

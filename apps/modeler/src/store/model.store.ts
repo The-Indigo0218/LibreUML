@@ -20,6 +20,7 @@ import type {
   IRActivation,
   IRInteractionFragment,
   IRStateInvariant,
+  IRInteractionUse,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -39,6 +40,7 @@ function normalize(m: SemanticModel): SemanticModel {
   m.activations         = m.activations         ?? {};
   m.interactionFragments = m.interactionFragments ?? {};
   m.stateInvariants     = m.stateInvariants     ?? {};
+  m.interactionUses     = m.interactionUses     ?? {};
   if (m.domainEntities  !== undefined) m.domainEntities  = m.domainEntities  ?? {};
   if (m.domainAttributes !== undefined) m.domainAttributes = m.domainAttributes ?? {};
   return m;
@@ -86,6 +88,16 @@ function cascadeDeleteMessages(model: SemanticModel, lifelineId: string) {
     Object.keys(model.stateInvariants).forEach((sid) => {
       if (model.stateInvariants![sid].lifelineId === lifelineId) {
         delete model.stateInvariants![sid];
+      }
+    });
+  }
+  // Strip the lifeline from any interaction-use; drop the ref if it covered none else.
+  if (model.interactionUses) {
+    Object.keys(model.interactionUses).forEach((uid) => {
+      const use = model.interactionUses![uid];
+      use.coveredLifelineIds = use.coveredLifelineIds.filter((id) => id !== lifelineId);
+      if (use.coveredLifelineIds.length === 0) {
+        delete model.interactionUses![uid];
       }
     });
   }
@@ -176,6 +188,10 @@ interface ModelStoreState {
   updateStateInvariant: (id: string, patch: Partial<IRStateInvariant>) => void;
   deleteStateInvariant: (id: string) => void;
 
+  createInteractionUse: (data: Omit<IRInteractionUse, 'id' | 'kind'>) => string;
+  updateInteractionUse: (id: string, patch: Partial<IRInteractionUse>) => void;
+  deleteInteractionUse: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -221,6 +237,7 @@ export const useModelStore = create<ModelStoreState>()(
           activations: {},
           interactionFragments: {},
           stateInvariants: {},
+          interactionUses: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -694,6 +711,33 @@ export const useModelStore = create<ModelStoreState>()(
       withUndo('model', 'Delete State Invariant', 'global', (draft) => {
         if (!draft.model?.stateInvariants?.[id]) return;
         delete draft.model.stateInvariants[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createInteractionUse: (data) => {
+      const id = newId();
+      withUndo('model', 'Create Interaction Use', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.interactionUses = draft.model.interactionUses ?? {};
+        draft.model.interactionUses[id] = { ...data, id, kind: 'INTERACTION_USE' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateInteractionUse: (id, patch) => {
+      withUndo('model', 'Update Interaction Use', 'global', (draft) => {
+        if (!draft.model?.interactionUses?.[id]) return;
+        draft.model.interactionUses[id] = { ...draft.model.interactionUses[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteInteractionUse: (id) => {
+      withUndo('model', 'Delete Interaction Use', 'global', (draft) => {
+        if (!draft.model?.interactionUses?.[id]) return;
+        delete draft.model.interactionUses[id];
         draft.model.updatedAt = Date.now();
       });
     },

@@ -233,6 +233,26 @@ export function resolveFragmentColors(): KonvaFragmentColors {
   };
 }
 
+export interface KonvaInteractionUseColors {
+  border: string;
+  fill: string;
+  labelBg: string;
+  labelText: string;
+  refText: string;
+}
+
+/** Interaction-use (`ref`) palette — slate box with a tinted corner tab. */
+export function resolveInteractionUseColors(): KonvaInteractionUseColors {
+  const dark = isDark();
+  return {
+    border:    dark ? '#94a3b8' : '#475569', // slate-400 / slate-600
+    fill:      dark ? 'rgba(148,163,184,0.07)' : 'rgba(71,85,105,0.05)',
+    labelBg:   dark ? '#1e293b' : '#e2e8f0', // slate-800 / slate-200
+    labelText: dark ? '#e2e8f0' : '#1e293b',
+    refText:   getCSSVar('--text-primary'),
+  };
+}
+
 export interface KonvaStateInvariantColors {
   fill: string;
   border: string;

@@ -6,6 +6,7 @@ export type SequenceDiagramNodeType =
   | 'ACTIVATION'
   | 'FRAGMENT'
   | 'STATE_INVARIANT'
+  | 'INTERACTION_USE'
   | 'NOTE';
 
 export interface LifelineNode extends BaseDomainNode, Documentable {
@@ -36,10 +37,19 @@ export interface StateInvariantNode extends BaseDomainNode {
   afterSequenceNumber: number;
 }
 
+export interface InteractionUseNode extends BaseDomainNode {
+  type: 'INTERACTION_USE';
+  coveredLifelineIds: string[];
+  referencedDiagramId?: string;
+  referencedName?: string;
+  afterSequenceNumber: number;
+}
+
 export type SequenceDiagramNode =
   | LifelineNode
   | ActivationNode
   | FragmentNode
-  | StateInvariantNode;
+  | StateInvariantNode
+  | InteractionUseNode;
 
 export type { MessageKind };

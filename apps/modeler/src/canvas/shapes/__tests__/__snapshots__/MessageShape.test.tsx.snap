@@ -1,0 +1,229 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`MessageShape > renders a CREATE message (dashed line, open head) 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":120,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":0,"y":-18,"width":200,"height":28}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[0,0,200,0],"stroke":"#1e293b","strokeWidth":1.5,"dash":[5,4],"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":0,"y":-18,"width":200,"text":"1: new","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b","align":"center"}"
+  />
+</div>
+`;
+
+exports[`MessageShape > renders a REPLY message (dashed line, open head) 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":250,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":-200,"y":-18,"width":200,"height":28}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[0,0,-200,0],"stroke":"#1e293b","strokeWidth":1.5,"dash":[5,4],"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":-200,"y":-18,"width":200,"text":"1: result","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b","align":"center"}"
+  />
+</div>
+`;
+
+exports[`MessageShape > renders a SYNC message (solid line, closed head) 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":120,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":0,"y":-18,"width":200,"height":28}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[0,0,200,0],"stroke":"#1e293b","fill":"#1e293b","strokeWidth":1.5,"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":0,"y":-18,"width":200,"text":"1: doSomething","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b","align":"center"}"
+  />
+</div>
+`;
+
+exports[`MessageShape > renders a found message with filled circle at source 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":120,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":0,"y":-18,"width":200,"height":28}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[0,0,200,0],"stroke":"#1e293b","fill":"#1e293b","strokeWidth":1.5,"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Circle"
+    data-props="{"x":0,"y":0,"radius":5,"fill":"#1e293b"}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":0,"y":-18,"width":200,"text":"1: doSomething","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b","align":"center"}"
+  />
+</div>
+`;
+
+exports[`MessageShape > renders a lost message with filled circle at target 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":120,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":0,"y":-18,"width":200,"height":28}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[0,0,200,0],"stroke":"#1e293b","fill":"#1e293b","strokeWidth":1.5,"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Circle"
+    data-props="{"x":200,"y":0,"radius":5,"fill":"#1e293b"}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":0,"y":-18,"width":200,"text":"1: doSomething","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b","align":"center"}"
+  />
+</div>
+`;
+
+exports[`MessageShape > renders a message with empty name (just sequence number) 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":120,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":0,"y":-18,"width":200,"height":28}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[0,0,200,0],"stroke":"#1e293b","fill":"#1e293b","strokeWidth":1.5,"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":0,"y":-18,"width":200,"text":"1:","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b","align":"center"}"
+  />
+</div>
+`;
+
+exports[`MessageShape > renders a self REPLY message (dashed loop) 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":200,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":0,"y":-18,"width":48,"height":44}"
+  />
+  <div
+    data-konva="Line"
+    data-props="{"points":[0,0,40,0],"stroke":"#1e293b","strokeWidth":1.5,"dash":[5,4]}"
+  />
+  <div
+    data-konva="Line"
+    data-props="{"points":[40,0,40,24],"stroke":"#1e293b","strokeWidth":1.5,"dash":[5,4]}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[40,24,0,24],"stroke":"#1e293b","strokeWidth":1.5,"dash":[5,4],"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":44,"y":6,"text":"1: doSomething","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b"}"
+  />
+</div>
+`;
+
+exports[`MessageShape > renders a self-message loop 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":200,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":0,"y":-18,"width":48,"height":44}"
+  />
+  <div
+    data-konva="Line"
+    data-props="{"points":[0,0,40,0],"stroke":"#1e293b","strokeWidth":1.5}"
+  />
+  <div
+    data-konva="Line"
+    data-props="{"points":[40,0,40,24],"stroke":"#1e293b","strokeWidth":1.5}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[40,24,0,24],"stroke":"#1e293b","fill":"#1e293b","strokeWidth":1.5,"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":44,"y":6,"text":"1: doSomething","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b"}"
+  />
+</div>
+`;
+
+exports[`MessageShape > renders an ASYNC message (solid line, open head) 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":120,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":0,"y":-18,"width":200,"height":28}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[0,0,200,0],"stroke":"#1e293b","strokeWidth":1.5,"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":0,"y":-18,"width":200,"text":"1: notify","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b","align":"center"}"
+  />
+</div>
+`;
+
+exports[`MessageShape > renders selected state with cyan outline 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"m1","x":120,"y":100,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"x":0,"y":-18,"width":200,"height":28}"
+  />
+  <div
+    data-konva="Arrow"
+    data-props="{"points":[0,0,200,0],"stroke":"#1e293b","fill":"#1e293b","strokeWidth":1.5,"pointerLength":10,"pointerWidth":8}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":0,"y":-18,"width":200,"text":"1: doSomething","fontSize":12,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#1e293b","align":"center"}"
+  />
+  <div
+    data-konva="Rect"
+    data-props="{"x":-2,"y":-20,"width":204,"height":25.5,"stroke":"#22d3ee","strokeWidth":2,"dash":[4,3]}"
+  />
+</div>
+`;

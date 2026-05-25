@@ -8,7 +8,12 @@ import { useWorkspaceStore } from "../../../../../store/workspace.store";
 import { useVFSStore } from "../../../../../store/project-vfs.store";
 import { getDiagramRegistry } from "../../../../../core/registry/diagram-registry";
 import { getIconComponent } from "../../../../../core/registry/icon-map";
-import type { VFSFile } from "../../../../../core/domain/vfs/vfs.types";
+import { useModelStore } from "../../../../../store/model.store";
+import { useToastStore } from "../../../../../store/toast.store";
+import { standaloneModelOps, getLocalModel } from "../../../../../store/standaloneModelOps";
+import { isDiagramView } from "../../../hooks/useVFSCanvasController";
+import { deriveOperationStubs, applyOperationStubs } from "../../../../../services/sequenceStubGenerator";
+import type { VFSFile, DiagramView } from "../../../../../core/domain/vfs/vfs.types";
 
 export function CodeMenu() {
   const { t } = useTranslation();
@@ -38,6 +43,26 @@ export function CodeMenu() {
     }
   }, [diagramType]);
 
+  const handleGenerateStubs = () => {
+    if (!activeTabId || !project) return;
+    const node = project.nodes[activeTabId];
+    if (!node || node.type !== 'FILE') return;
+    const file = node as VFSFile;
+    const isStandalone = file.standalone === true;
+    const model = isStandalone ? getLocalModel(activeTabId) : useModelStore.getState().model;
+    if (!model) return;
+    const view = isDiagramView(file.content) ? (file.content as DiagramView) : null;
+
+    const plans = deriveOperationStubs(model, view);
+    if (plans.length === 0) {
+      useToastStore.getState().show('ℹ️ No hay mensajes con nombre que generen stubs');
+      return;
+    }
+    const ops = isStandalone ? standaloneModelOps(activeTabId) : useModelStore.getState();
+    const count = applyOperationStubs(model, plans, ops.setElementMembers);
+    useToastStore.getState().show(`✅ ${count} operación(es) generada(s) en ${plans.length} clasificador(es)`);
+  };
+
   if (codeActions.length === 0) {
     return null;
   }
@@ -47,6 +72,7 @@ export function CodeMenu() {
     'generate-project': openProjectGenerator,
     'import-java': openImportModal,
     'export-config': openCodeExportConfig,
+    'generate-stubs': handleGenerateStubs,
   };
 
   return (

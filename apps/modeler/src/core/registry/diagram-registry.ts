@@ -853,7 +853,15 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
     ],
   },
 
-  codeGenerationActions: [],
+  codeGenerationActions: [
+    {
+      id: 'generate-stubs',
+      label: 'Generate Operation Stubs',
+      translationKey: 'menubar.code.generateStubs',
+      icon: 'FileCode',
+      enabled: true,
+    },
+  ],
 
   exportActions: [
     {

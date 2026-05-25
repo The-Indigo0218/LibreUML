@@ -86,7 +86,8 @@
       "downloadProject": "Descargar Proyecto",
       "importJava": "Importar Código Java...",
       "exportConfig": "Exportar Código Fuente...",
-      "livePreview": "Vista Previa en Vivo"
+      "livePreview": "Vista Previa en Vivo",
+      "generateStubs": "Generar Stubs de Operaciones"
     },
     "edu": {
       "title": "Edu",

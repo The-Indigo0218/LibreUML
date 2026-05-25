@@ -86,7 +86,8 @@
       "downloadProject": "Download Project",
       "importJava": "Import Java Code...",
       "exportConfig": "Export Source Code...",
-      "livePreview": "Live Code Preview"
+      "livePreview": "Live Code Preview",
+      "generateStubs": "Generate Operation Stubs"
     },
     "edu": {
       "title": "Edu",

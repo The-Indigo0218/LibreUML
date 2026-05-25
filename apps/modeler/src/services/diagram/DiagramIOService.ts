@@ -263,9 +263,11 @@ export class DiagramIOService {
     document.body.appendChild(a);
     a.click();
     
-    // Cleanup
+    // Cleanup (guard against the document being gone, e.g. after teardown).
     setTimeout(() => {
-      document.body.removeChild(a);
+      if (typeof document !== 'undefined' && a.parentNode) {
+        document.body.removeChild(a);
+      }
       URL.revokeObjectURL(url);
     }, 100);
   }

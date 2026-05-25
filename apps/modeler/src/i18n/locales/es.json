@@ -181,7 +181,8 @@
       "deleteFromModel": "Eliminar del Modelo",
       "editNote": "Editar Nota",
       "editSpecification": "Editar Especificación",
-      "editActorProperties": "Editar Propiedades"
+      "editActorProperties": "Editar Propiedades",
+      "addStateInvariant": "Añadir Invariante de Estado"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",

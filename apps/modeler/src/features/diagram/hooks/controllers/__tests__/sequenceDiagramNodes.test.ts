@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildSequenceDiagramNodes, computeHierarchicalNumbers } from '../sequenceDiagramNodes';
+import {
+  buildSequenceDiagramNodes,
+  computeHierarchicalNumbers,
+  stateInvariantSlotY,
+  estimateStateInvariantWidth,
+} from '../sequenceDiagramNodes';
 import type {
   SemanticModel,
   DiagramView,
@@ -7,6 +12,7 @@ import type {
   IRMessage,
   IRActivation,
   IRInteractionFragment,
+  IRStateInvariant,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
@@ -14,6 +20,7 @@ import {
   isMessageViewModel,
   isActivationViewModel,
   isFragmentViewModel,
+  isStateInvariantViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
@@ -367,6 +374,83 @@ describe('buildSequenceDiagramNodes', () => {
     const sortedByY = [...messages].sort((a, b) => a.position.y - b.position.y);
     expect(sortedByY[0].data.domainId).toBe('m1');
     expect(sortedByY[1].data.domainId).toBe('m2');
+  });
+});
+
+// ─── State invariants ─────────────────────────────────────────────────────────
+
+function makeStateInvariant(
+  id: string,
+  lifelineId: string,
+  constraint: string,
+  afterSequenceNumber: number,
+): IRStateInvariant {
+  return { id, kind: 'STATE_INVARIANT', name: constraint, lifelineId, constraint, afterSequenceNumber };
+}
+
+describe('buildSequenceDiagramNodes — state invariants', () => {
+  it('emits a state-invariant view model centred on its lifeline', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const si = makeStateInvariant('si1', 'll1', 'x>0', 1);
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+      stateInvariants: { si1: si },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const siNode = result.find((n) => n.type === 'umlStateInvariant');
+    expect(siNode).toBeDefined();
+    expect(siNode && isStateInvariantViewModel(siNode.data)).toBe(true);
+    if (siNode && isStateInvariantViewModel(siNode.data)) {
+      const width = estimateStateInvariantWidth('x>0');
+      const ll1CenterX = 50 + 70; // headWidth/2 = 70
+      // Box is centred on the lifeline at the boundary below message slot 1.
+      expect(siNode.position.x).toBeCloseTo(ll1CenterX - width / 2, 0);
+      expect(siNode.position.y).toBeCloseTo(stateInvariantSlotY(1) - siNode.data.height / 2, 0);
+      expect(siNode.data.width).toBe(width);
+      expect(siNode.data.constraint).toBe('x>0');
+    }
+  });
+
+  it('clamps afterSequenceNumber within [0, messageCount]', () => {
+    const ll1 = makeLifeline('ll1');
+    const si = makeStateInvariant('si1', 'll1', 'init', 99);
+    const model = makeModel({ lifelines: { ll1 }, stateInvariants: { si1: si } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const siNode = result.find((n) => n.type === 'umlStateInvariant');
+    expect(siNode).toBeDefined();
+    expect(siNode && isStateInvariantViewModel(siNode.data)).toBe(true);
+    if (siNode && isStateInvariantViewModel(siNode.data)) {
+      // No messages → clamps to slot 0 (top of timeline).
+      expect(siNode.position.y).toBeCloseTo(stateInvariantSlotY(0) - siNode.data.height / 2, 0);
+    }
+  });
+
+  it('skips state invariants whose lifeline is absent from the diagram', () => {
+    const ll1 = makeLifeline('ll1');
+    const si = makeStateInvariant('si1', 'll99', 'orphan', 0);
+    const model = makeModel({ lifelines: { ll1 }, stateInvariants: { si1: si } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    expect(result.find((n) => n.type === 'umlStateInvariant')).toBeUndefined();
   });
 });
 

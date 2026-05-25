@@ -380,6 +380,25 @@ export interface IRInteractionFragment extends IRElement {
   parentFragmentId?: string;
 }
 
+/**
+ * UML 2.5 §17.4 StateInvariant — a runtime constraint on the state of the
+ * participant a lifeline represents, drawn as a state symbol on the lifeline
+ * between two message occurrences.
+ */
+export interface IRStateInvariant extends IRElement {
+  kind: 'STATE_INVARIANT';
+  /** Lifeline this invariant constrains. */
+  lifelineId: string;
+  /** The runtime constraint text (rendered inside a state symbol / braces). */
+  constraint: string;
+  /**
+   * Temporal anchor: the invariant sits just below the message slot with this
+   * sequenceNumber. 0 = above the first message. Mirrors how messages map
+   * sequenceNumber → Y in the layout builder.
+   */
+  afterSequenceNumber: number;
+}
+
 export type RelationKind =
   | 'ASSOCIATION'
   | 'AGGREGATION'
@@ -448,6 +467,7 @@ export interface SemanticModel {
   messages?: Record<string, IRMessage>;
   activations?: Record<string, IRActivation>;
   interactionFragments?: Record<string, IRInteractionFragment>;
+  stateInvariants?: Record<string, IRStateInvariant>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

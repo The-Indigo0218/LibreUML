@@ -19,6 +19,7 @@ import type {
   IRMessage,
   IRActivation,
   IRInteractionFragment,
+  IRStateInvariant,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -37,6 +38,7 @@ function normalize(m: SemanticModel): SemanticModel {
   m.messages            = m.messages            ?? {};
   m.activations         = m.activations         ?? {};
   m.interactionFragments = m.interactionFragments ?? {};
+  m.stateInvariants     = m.stateInvariants     ?? {};
   if (m.domainEntities  !== undefined) m.domainEntities  = m.domainEntities  ?? {};
   if (m.domainAttributes !== undefined) m.domainAttributes = m.domainAttributes ?? {};
   return m;
@@ -76,6 +78,14 @@ function cascadeDeleteMessages(model: SemanticModel, lifelineId: string) {
       });
       if (frag.coveredLifelineIds.length === 0) {
         delete model.interactionFragments![fid];
+      }
+    });
+  }
+  // State invariants attached to the removed lifeline go with it.
+  if (model.stateInvariants) {
+    Object.keys(model.stateInvariants).forEach((sid) => {
+      if (model.stateInvariants![sid].lifelineId === lifelineId) {
+        delete model.stateInvariants![sid];
       }
     });
   }
@@ -162,6 +172,10 @@ interface ModelStoreState {
   updateFragment: (id: string, patch: Partial<IRInteractionFragment>) => void;
   deleteFragment: (id: string) => void;
 
+  createStateInvariant: (data: Omit<IRStateInvariant, 'id' | 'kind'>) => string;
+  updateStateInvariant: (id: string, patch: Partial<IRStateInvariant>) => void;
+  deleteStateInvariant: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -206,6 +220,7 @@ export const useModelStore = create<ModelStoreState>()(
           messages: {},
           activations: {},
           interactionFragments: {},
+          stateInvariants: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -652,6 +667,33 @@ export const useModelStore = create<ModelStoreState>()(
           }
         }
         delete draft.model.interactionFragments[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createStateInvariant: (data) => {
+      const id = newId();
+      withUndo('model', 'Create State Invariant', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.stateInvariants = draft.model.stateInvariants ?? {};
+        draft.model.stateInvariants[id] = { ...data, id, kind: 'STATE_INVARIANT' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateStateInvariant: (id, patch) => {
+      withUndo('model', 'Update State Invariant', 'global', (draft) => {
+        if (!draft.model?.stateInvariants?.[id]) return;
+        draft.model.stateInvariants[id] = { ...draft.model.stateInvariants[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteStateInvariant: (id) => {
+      withUndo('model', 'Delete State Invariant', 'global', (draft) => {
+        if (!draft.model?.stateInvariants?.[id]) return;
+        delete draft.model.stateInvariants[id];
         draft.model.updatedAt = Date.now();
       });
     },

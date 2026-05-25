@@ -221,6 +221,17 @@ export interface FragmentViewModel {
   nestingDepth: number;
 }
 
+export interface StateInvariantViewModel {
+  __brand: 'stateInvariant';
+  id: string;             // synthetic id (== domain state-invariant id)
+  domainId: string;       // IRStateInvariant.id
+  /** Constraint text rendered inside the state symbol (braces added by the shape). */
+  constraint: string;
+  /** State-symbol bounding box (centred on the lifeline by the builder). */
+  width: number;
+  height: number;
+}
+
 /**
  * Union type for all node view models
  */
@@ -236,7 +247,8 @@ export type AnyNodeViewModel =
   | LifelineViewModel
   | MessageViewModel
   | ActivationViewModel
-  | FragmentViewModel;
+  | FragmentViewModel
+  | StateInvariantViewModel;
 
 /**
  * Type guard for NodeViewModel
@@ -290,4 +302,8 @@ export function isActivationViewModel(vm: AnyNodeViewModel): vm is ActivationVie
 
 export function isFragmentViewModel(vm: AnyNodeViewModel): vm is FragmentViewModel {
   return '__brand' in vm && vm.__brand === 'fragment';
+}
+
+export function isStateInvariantViewModel(vm: AnyNodeViewModel): vm is StateInvariantViewModel {
+  return '__brand' in vm && vm.__brand === 'stateInvariant';
 }

@@ -33,6 +33,7 @@ import type {
   IRMessage,
   IRActivation,
   IRInteractionFragment,
+  IRStateInvariant,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -78,6 +79,13 @@ function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: strin
       });
       if (frag.coveredLifelineIds.length === 0) {
         delete model.interactionFragments[fid];
+      }
+    }
+  }
+  if (model.stateInvariants) {
+    for (const sid of Object.keys(model.stateInvariants)) {
+      if (model.stateInvariants[sid].lifelineId === lifelineId) {
+        delete model.stateInvariants[sid];
       }
     }
   }
@@ -560,6 +568,34 @@ export function standaloneModelOps(fileId: string) {
           }
         }
         delete m.interactionFragments[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── State Invariants (sequence diagrams) ──────────────────────────────────
+
+    createStateInvariant: (data: Omit<IRStateInvariant, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.stateInvariants = m.stateInvariants ?? {};
+        m.stateInvariants[id] = { ...data, id, kind: 'STATE_INVARIANT' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateStateInvariant: (id: string, patch: Partial<IRStateInvariant>) => {
+      update((m) => {
+        if (!m.stateInvariants?.[id]) return;
+        m.stateInvariants[id] = { ...m.stateInvariants[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteStateInvariant: (id: string) => {
+      update((m) => {
+        if (!m.stateInvariants?.[id]) return;
+        delete m.stateInvariants[id];
         m.updatedAt = Date.now();
       });
     },

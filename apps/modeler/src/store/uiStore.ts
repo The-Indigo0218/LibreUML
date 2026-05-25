@@ -30,6 +30,7 @@ export type ActiveModal =
   | "domain-association-props"
   | "fragment-props"
   | "message-props"
+  | "state-invariant-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -73,6 +74,7 @@ interface UiStoreState {
   openDomainAssociationProps: (edgeId: string) => void;
   openFragmentProps: (fragmentId: string) => void;
   openMessageProps: (messageId: string) => void;
+  openStateInvariantProps: (invariantId: string) => void;
   closeModals: () => void;
   openGetStarted: () => void;
   closeGetStarted: () => void;
@@ -145,6 +147,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openDomainAssociationProps: (edgeId) => set({ activeModal: "domain-association-props", editingId: edgeId }),
   openFragmentProps: (fragmentId) => set({ activeModal: "fragment-props", editingId: fragmentId }),
   openMessageProps: (messageId) => set({ activeModal: "message-props", editingId: messageId }),
+  openStateInvariantProps: (invariantId) => set({ activeModal: "state-invariant-props", editingId: invariantId }),
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 

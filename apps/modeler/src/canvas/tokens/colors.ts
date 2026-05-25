@@ -232,3 +232,19 @@ export function resolveFragmentColors(): KonvaFragmentColors {
     guardText: dark ? '#cbd5e1' : '#334155',
   };
 }
+
+export interface KonvaStateInvariantColors {
+  fill: string;
+  border: string;
+  text: string;
+}
+
+/** State-invariant symbol palette — teal-tinted stadium on the lifeline. */
+export function resolveStateInvariantColors(): KonvaStateInvariantColors {
+  const dark = isDark();
+  return {
+    fill:   dark ? '#0f3d38' : '#ccfbf1', // teal-900/40 / teal-100
+    border: dark ? '#2dd4bf' : '#0d9488', // teal-400 / teal-600
+    text:   dark ? '#99f6e4' : '#0f766e', // teal-200 / teal-700
+  };
+}

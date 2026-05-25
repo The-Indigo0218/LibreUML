@@ -5,6 +5,7 @@ export type SequenceDiagramNodeType =
   | 'LIFELINE'
   | 'ACTIVATION'
   | 'FRAGMENT'
+  | 'STATE_INVARIANT'
   | 'NOTE';
 
 export interface LifelineNode extends BaseDomainNode, Documentable {
@@ -28,6 +29,17 @@ export interface FragmentNode extends BaseDomainNode, Documentable {
   coveredLifelineIds: string[];
 }
 
-export type SequenceDiagramNode = LifelineNode | ActivationNode | FragmentNode;
+export interface StateInvariantNode extends BaseDomainNode {
+  type: 'STATE_INVARIANT';
+  lifelineId: string;
+  constraint: string;
+  afterSequenceNumber: number;
+}
+
+export type SequenceDiagramNode =
+  | LifelineNode
+  | ActivationNode
+  | FragmentNode
+  | StateInvariantNode;
 
 export type { MessageKind };

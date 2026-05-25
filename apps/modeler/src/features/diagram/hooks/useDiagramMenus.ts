@@ -314,6 +314,47 @@ export const useDiagramMenus = ({
     [],
   );
 
+  // ── State invariant insertion (sequence diagrams) ─────────────────────────
+
+  const addStateInvariant = useCallback(
+    (lifelineNodeId: string) => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
+
+      const lifelineId = getElementId(lifelineNodeId);
+      if (!lifelineId) return;
+
+      const project = useVFSStore.getState().project;
+      if (!project) return;
+      const fileNode = project.nodes[tabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+
+      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+      const activeModel = isStandaloneFile
+        ? getLocalModel(tabId)
+        : useModelStore.getState().model;
+      if (!activeModel?.lifelines?.[lifelineId]) return;
+
+      // Anchor the invariant below the last message so it lands on the timeline.
+      const afterSequenceNumber = Object.keys(activeModel.messages ?? {}).length;
+
+      const payload = {
+        name: '',
+        lifelineId,
+        constraint: '',
+        afterSequenceNumber,
+      };
+
+      const newId = isStandaloneFile
+        ? standaloneModelOps(tabId).createStateInvariant(payload)
+        : useModelStore.getState().createStateInvariant(payload);
+
+      // Open the editor immediately so the user types the constraint.
+      useUiStore.getState().openStateInvariantProps(newId);
+    },
+    [getElementId],
+  );
+
   // ── getMenuOptions ────────────────────────────────────────────────────────
 
   const getMenuOptions = useCallback(
@@ -427,6 +468,13 @@ export const useDiagramMenus = ({
               onClick: () => useUiStore.getState().openActorProps(elementId),
             });
           }
+        }
+
+        if (effectiveType === "LIFELINE") {
+          baseOptions.push({
+            label: t("contextMenu.node.addStateInvariant"),
+            onClick: () => addStateInvariant(nodeId),
+          });
         }
 
         if (isNoteType) {
@@ -556,6 +604,7 @@ export const useDiagramMenus = ({
       getVFSNodeKind,
       getIsNodeExternal,
       getElementId,
+      addStateInvariant,
       isStandalone,
       t,
     ]

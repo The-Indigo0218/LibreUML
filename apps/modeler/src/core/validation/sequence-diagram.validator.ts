@@ -9,6 +9,7 @@ import type {
   IRClass,
   IRInterface,
   IRInteractionFragment,
+  IRStateInvariant,
 } from '../domain/vfs/vfs.types';
 
 export class SequenceDiagramValidator implements BaseValidator {
@@ -184,6 +185,32 @@ export class SequenceDiagramValidator implements BaseValidator {
           `parentFragmentId "${fragment.parentFragmentId}" does not resolve to a fragment`,
         );
       }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific state-invariant validation (UML 2.5 §17.4).
+   * Error when the constrained lifeline is missing; warning when the constraint
+   * text is empty (renders as an empty `{}` symbol).
+   */
+  validateStateInvariant(invariant: IRStateInvariant, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!model.lifelines?.[invariant.lifelineId]) {
+      errors.push(
+        `State invariant references missing lifeline "${invariant.lifelineId}"`,
+      );
+    }
+
+    if (!invariant.constraint || invariant.constraint.trim() === '') {
+      warnings.push('State invariant has no constraint text');
     }
 
     return {

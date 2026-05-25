@@ -5,6 +5,7 @@ import type {
   IRMessage,
   IRActivation,
   IRInteractionFragment,
+  IRStateInvariant,
   ViewNode,
 } from '../../../../core/domain/vfs/vfs.types';
 import type {
@@ -13,6 +14,7 @@ import type {
   ActivationViewModel,
   FragmentViewModel,
   FragmentOperandVM,
+  StateInvariantViewModel,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -37,6 +39,10 @@ const FRAGMENT_TOP_PAD = 28;
 const FRAGMENT_BOTTOM_PAD = 16;
 const FRAGMENT_MIN_W = 120;
 const FRAGMENT_MIN_H = 60;
+const STATE_INVARIANT_H = 22;
+const STATE_INVARIANT_MIN_W = 56;
+const STATE_INVARIANT_CHAR_W = 6.2;
+const STATE_INVARIANT_PAD_X = 16;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,6 +72,23 @@ function computeTimelineLength(messageCount: number): number {
 function messageYForIndex(index1Based: number): number {
   // index 1 → first band centred at TIMELINE_TOP_PAD + 0.5 * MESSAGE_BAND_H
   return TIMELINE_TOP_PAD + (index1Based - 0.5) * MESSAGE_BAND_H + LIFELINE_HEAD_H;
+}
+
+/**
+ * Y coordinate (centre) at which a state invariant anchored *after* message
+ * slot `slot` sits — exactly on the boundary between slot and slot+1. slot 0
+ * places it at the top of the timeline, before the first message.
+ *
+ * Exported for unit tests and for the StateInvariant layout below.
+ */
+export function stateInvariantSlotY(slot: number): number {
+  return LIFELINE_HEAD_H + TIMELINE_TOP_PAD + slot * MESSAGE_BAND_H;
+}
+
+/** Estimated stadium width for a state-invariant constraint string. */
+export function estimateStateInvariantWidth(constraint: string): number {
+  const textLen = (constraint?.length ?? 0) + 2; // +2 for the surrounding braces
+  return Math.max(STATE_INVARIANT_MIN_W, textLen * STATE_INVARIANT_CHAR_W + STATE_INVARIANT_PAD_X);
 }
 
 // ─── Builder ──────────────────────────────────────────────────────────────────
@@ -231,6 +254,36 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     };
   });
 
+  // 5b. Emit State Invariants (UML 2.5 §17.4) — small state symbols centred on
+  //     the lifeline at a Y derived from their temporal anchor. Pure derivations
+  //     of the IR (no ViewNode), like messages and activations.
+  const stateInvariantNodes = Object.values(model.stateInvariants ?? {})
+    .filter((si) => lifelineCenterX.has(si.lifelineId))
+    .map((si: IRStateInvariant) => {
+      const centerX = lifelineCenterX.get(si.lifelineId)!;
+      const slot = Math.max(0, Math.min(allMessages.length, si.afterSequenceNumber));
+      const cy = stateInvariantSlotY(slot);
+      const width = estimateStateInvariantWidth(si.constraint);
+      const height = STATE_INVARIANT_H;
+
+      const viewModel: StateInvariantViewModel = {
+        __brand: 'stateInvariant',
+        id: si.id,
+        domainId: si.id,
+        constraint: si.constraint,
+        width,
+        height,
+      };
+
+      return {
+        id: `si-${si.id}`,
+        type: 'umlStateInvariant',
+        position: { x: centerX - width / 2, y: cy - height / 2 },
+        data: viewModel,
+        domainId: si.id,
+      };
+    });
+
   // 6. Emit Notes (reuse existing makeNoteNode helper).
   const noteNodes = noteViewNodes.map((vn) =>
     makeNoteNode(vn, handleNoteUpdate, diagramView.nodes),
@@ -246,7 +299,14 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     allMessages.length,
   );
 
-  return [...fragmentNodes, ...lifelineNodes, ...activationNodes, ...messageNodes, ...noteNodes];
+  return [
+    ...fragmentNodes,
+    ...lifelineNodes,
+    ...activationNodes,
+    ...messageNodes,
+    ...stateInvariantNodes,
+    ...noteNodes,
+  ];
 }
 
 // ─── Fragment geometry ────────────────────────────────────────────────────────

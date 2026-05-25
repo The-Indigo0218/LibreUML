@@ -14,6 +14,7 @@ import type {
   IRInteractionFragment,
   IRStateInvariant,
   IRInteractionUse,
+  IRGate,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
@@ -23,6 +24,7 @@ import {
   isFragmentViewModel,
   isStateInvariantViewModel,
   isInteractionUseViewModel,
+  isGateViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
@@ -623,6 +625,86 @@ describe('buildSequenceDiagramNodes — create/destroy events', () => {
       expect(ll1Node.data.isDestroyed).toBe(false);
       expect(ll1Node.data.headTopOffset ?? 0).toBe(0);
     }
+  });
+});
+
+// ─── Gates ────────────────────────────────────────────────────────────────────
+
+function makeAltFrag(id: string, coveredLifelineIds: string[]): IRInteractionFragment {
+  return {
+    id, kind: 'FRAGMENT', name: id, fragmentKind: 'ALT',
+    coveredLifelineIds,
+    operands: [{ id: `${id}-op`, messageIds: [], fragmentIds: [] }],
+  };
+}
+
+function makeGate(id: string, ownerFragmentId: string, side: 'LEFT' | 'RIGHT', name = id): IRGate {
+  return { id, kind: 'GATE', name, ownerFragmentId, side, afterSequenceNumber: 0 };
+}
+
+describe('buildSequenceDiagramNodes — gates', () => {
+  const twoLLView: DiagramView = {
+    diagramId: 'd1',
+    nodes: [
+      { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+      { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+    ],
+    edges: [],
+  };
+
+  it('emits a gate marker on the owner fragment right edge', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      interactionFragments: { f1: makeAltFrag('f1', ['ll1', 'll2']) },
+      gates: { g1: makeGate('g1', 'f1', 'RIGHT', 'out') },
+    });
+    const result = buildSequenceDiagramNodes(makeCtx(model, twoLLView));
+    const gateNode = result.find((n) => n.type === 'umlGate');
+    expect(gateNode && isGateViewModel(gateNode.data)).toBe(true);
+    if (gateNode && isGateViewModel(gateNode.data)) {
+      expect(gateNode.data.name).toBe('out');
+      expect(gateNode.data.side).toBe('RIGHT');
+      // ll centres 120/320 → bounds.right = max(100+120, 340) = 340; minus size/2 (5).
+      expect(gateNode.position.x).toBe(340 - 5);
+    }
+  });
+
+  it('routes a message target end to its gate boundary X', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      interactionFragments: { f1: makeAltFrag('f1', ['ll1', 'll2']) },
+      gates: { g1: makeGate('g1', 'f1', 'RIGHT') },
+      messages: {
+        m1: {
+          id: 'm1', kind: 'MESSAGE', name: 'cross', messageKind: 'ASYNC',
+          sourceLifelineId: 'll1', targetLifelineId: '', sequenceNumber: 1, targetGateId: 'g1',
+        },
+      },
+    });
+    const result = buildSequenceDiagramNodes(makeCtx(model, twoLLView));
+    const msg = result.find((n) => n.type === 'umlMessage');
+    expect(msg && isMessageViewModel(msg.data)).toBe(true);
+    if (msg && isMessageViewModel(msg.data)) {
+      expect(msg.data.isSelfMessage).toBe(false);
+      // source centre 120 → gate edge 340; length 220.
+      expect(msg.position.x).toBe(120);
+      expect(msg.data.length).toBe(220);
+    }
+  });
+
+  it('skips a gate whose owner fragment covers no present lifeline', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1') },
+      interactionFragments: { f1: makeAltFrag('f1', ['ll99']) },
+      gates: { g1: makeGate('g1', 'f1', 'LEFT') },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    expect(result.find((n) => n.type === 'umlGate')).toBeUndefined();
   });
 });
 

@@ -63,6 +63,9 @@ export default function MessagePropertiesModal() {
   const [operationId, setOperationId] = useState<string>('');
   const [availableOps, setAvailableOps] = useState<Array<{ id: string; name: string }>>([]);
   const [inReplyToLabel, setInReplyToLabel] = useState<string | null>(null);
+  const [sourceGateId, setSourceGateId] = useState<string>('');
+  const [targetGateId, setTargetGateId] = useState<string>('');
+  const [gates, setGates] = useState<Array<{ id: string; name: string; side: string }>>([]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -72,6 +75,11 @@ export default function MessagePropertiesModal() {
     setArgs(msg.arguments ?? '');
     setMessageKind(msg.messageKind);
     setOperationId(msg.operationId ?? '');
+    setSourceGateId(msg.sourceGateId ?? '');
+    setTargetGateId(msg.targetGateId ?? '');
+    setGates(
+      Object.values(getModel()?.gates ?? {}).map((g) => ({ id: g.id, name: g.name || g.id.slice(0, 6), side: g.side })),
+    );
 
     const targetLifeline = getLifeline(msg.targetLifelineId);
     setAvailableOps(targetLifeline ? getOperations(targetLifeline) : []);
@@ -95,6 +103,8 @@ export default function MessagePropertiesModal() {
       arguments: args.trim() || undefined,
       messageKind,
       operationId: operationId || undefined,
+      sourceGateId: sourceGateId || undefined,
+      targetGateId: targetGateId || undefined,
     };
     if (isStandalone && activeTabId) {
       standaloneModelOps(activeTabId).updateMessage(editingId, patch);
@@ -196,6 +206,44 @@ export default function MessagePropertiesModal() {
               onChange={(e) => setArgs(e.target.value)}
             />
           </div>
+
+          {/* Gate attachment (UML 2.5 — message crosses a fragment boundary) */}
+          {gates.length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-[#94a3b8] mb-1">Source gate</label>
+                <select
+                  className="w-full bg-[#0f1623] border border-[#2a3358] rounded px-2 py-1.5
+                             text-sm text-[#e2e8f0] focus:outline-none focus:ring-1 focus:ring-[#7C83FF]"
+                  value={sourceGateId}
+                  onChange={(e) => setSourceGateId(e.target.value)}
+                >
+                  <option value="">— lifeline —</option>
+                  {gates.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.side})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#94a3b8] mb-1">Target gate</label>
+                <select
+                  className="w-full bg-[#0f1623] border border-[#2a3358] rounded px-2 py-1.5
+                             text-sm text-[#e2e8f0] focus:outline-none focus:ring-1 focus:ring-[#7C83FF]"
+                  value={targetGateId}
+                  onChange={(e) => setTargetGateId(e.target.value)}
+                >
+                  <option value="">— lifeline —</option>
+                  {gates.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.side})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* inReplyTo (display-only) */}
           {inReplyToLabel && (

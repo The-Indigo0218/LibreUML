@@ -21,6 +21,7 @@ import type {
   IRInteractionFragment,
   IRStateInvariant,
   IRInteractionUse,
+  IRGate,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -41,6 +42,7 @@ function normalize(m: SemanticModel): SemanticModel {
   m.interactionFragments = m.interactionFragments ?? {};
   m.stateInvariants     = m.stateInvariants     ?? {};
   m.interactionUses     = m.interactionUses     ?? {};
+  m.gates               = m.gates               ?? {};
   if (m.domainEntities  !== undefined) m.domainEntities  = m.domainEntities  ?? {};
   if (m.domainAttributes !== undefined) m.domainAttributes = m.domainAttributes ?? {};
   return m;
@@ -79,6 +81,7 @@ function cascadeDeleteMessages(model: SemanticModel, lifelineId: string) {
         op.messageIds = op.messageIds.filter((mid) => !removedMessageIds.has(mid));
       });
       if (frag.coveredLifelineIds.length === 0) {
+        removeGatesForFragment(model, fid);
         delete model.interactionFragments![fid];
       }
     });
@@ -123,6 +126,28 @@ function stripMessageFromFragments(model: SemanticModel, messageId: string) {
       op.messageIds = op.messageIds.filter((mid) => mid !== messageId);
     });
   });
+}
+
+/** Clears gate references on every message for the given (deleted) gate ids. */
+function clearGateRefsOnMessages(model: SemanticModel, gateIds: Set<string>) {
+  if (!model.messages || gateIds.size === 0) return;
+  Object.values(model.messages).forEach((m) => {
+    if (m.sourceGateId && gateIds.has(m.sourceGateId)) delete (m as { sourceGateId?: string }).sourceGateId;
+    if (m.targetGateId && gateIds.has(m.targetGateId)) delete (m as { targetGateId?: string }).targetGateId;
+  });
+}
+
+/** Deletes all gates owned by a fragment and clears their message references. */
+function removeGatesForFragment(model: SemanticModel, fragmentId: string) {
+  if (!model.gates) return;
+  const removed = new Set<string>();
+  Object.keys(model.gates).forEach((gid) => {
+    if (model.gates![gid].ownerFragmentId === fragmentId) {
+      removed.add(gid);
+      delete model.gates![gid];
+    }
+  });
+  clearGateRefsOnMessages(model, removed);
 }
 
 const newId = () => crypto.randomUUID();
@@ -192,6 +217,10 @@ interface ModelStoreState {
   updateInteractionUse: (id: string, patch: Partial<IRInteractionUse>) => void;
   deleteInteractionUse: (id: string) => void;
 
+  createGate: (data: Omit<IRGate, 'id' | 'kind'>) => string;
+  updateGate: (id: string, patch: Partial<IRGate>) => void;
+  deleteGate: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -238,6 +267,7 @@ export const useModelStore = create<ModelStoreState>()(
           interactionFragments: {},
           stateInvariants: {},
           interactionUses: {},
+          gates: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -683,6 +713,8 @@ export const useModelStore = create<ModelStoreState>()(
             if (m.fragmentId === id) delete (m as { fragmentId?: string }).fragmentId;
           }
         }
+        // Gates live on this fragment's boundary — delete them with it.
+        removeGatesForFragment(draft.model, id);
         delete draft.model.interactionFragments[id];
         draft.model.updatedAt = Date.now();
       });
@@ -738,6 +770,34 @@ export const useModelStore = create<ModelStoreState>()(
       withUndo('model', 'Delete Interaction Use', 'global', (draft) => {
         if (!draft.model?.interactionUses?.[id]) return;
         delete draft.model.interactionUses[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createGate: (data) => {
+      const id = newId();
+      withUndo('model', 'Create Gate', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.gates = draft.model.gates ?? {};
+        draft.model.gates[id] = { ...data, id, kind: 'GATE' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateGate: (id, patch) => {
+      withUndo('model', 'Update Gate', 'global', (draft) => {
+        if (!draft.model?.gates?.[id]) return;
+        draft.model.gates[id] = { ...draft.model.gates[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteGate: (id) => {
+      withUndo('model', 'Delete Gate', 'global', (draft) => {
+        if (!draft.model?.gates?.[id]) return;
+        delete draft.model.gates[id];
+        clearGateRefsOnMessages(draft.model, new Set([id]));
         draft.model.updatedAt = Date.now();
       });
     },

@@ -11,6 +11,7 @@ import type {
   IRInteractionFragment,
   IRStateInvariant,
   IRInteractionUse,
+  IRGate,
 } from '../domain/vfs/vfs.types';
 
 export class SequenceDiagramValidator implements BaseValidator {
@@ -243,6 +244,28 @@ export class SequenceDiagramValidator implements BaseValidator {
 
     if (!use.referencedDiagramId && !use.referencedName) {
       warnings.push('Interaction use does not reference any interaction');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific gate validation (UML 2.5 §17.4). Error when the
+   * owner fragment is missing; warning when the gate has no name.
+   */
+  validateGate(gate: IRGate, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!gate.ownerFragmentId || !model.interactionFragments?.[gate.ownerFragmentId]) {
+      errors.push('Gate must belong to an existing combined fragment');
+    }
+    if (!gate.name || gate.name.trim() === '') {
+      warnings.push('Gate has no name');
     }
 
     return {

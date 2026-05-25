@@ -253,6 +253,22 @@ export function resolveInteractionUseColors(): KonvaInteractionUseColors {
   };
 }
 
+export interface KonvaGateColors {
+  fill: string;
+  border: string;
+  text: string;
+}
+
+/** Gate marker palette — small square on a fragment boundary. */
+export function resolveGateColors(): KonvaGateColors {
+  const dark = isDark();
+  return {
+    fill:   dark ? '#0f172a' : '#ffffff', // slate-900 / white
+    border: dark ? '#94a3b8' : '#475569', // slate-400 / slate-600
+    text:   getCSSVar('--text-primary'),
+  };
+}
+
 export interface KonvaStateInvariantColors {
   fill: string;
   border: string;

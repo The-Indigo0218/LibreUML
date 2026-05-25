@@ -1400,6 +1400,11 @@
     "messageCount": "{{count}} message",
     "messageCount_plural": "{{count}} messages",
     "warning.lastOperand": "Cannot remove the last operand",
-    "warning.singleOperandOnly": "Only ALT and PAR fragments support multiple operands"
+    "warning.singleOperandOnly": "Only ALT and PAR fragments support multiple operands",
+    "gates": "Gates",
+    "gateUnnamed": "(unnamed gate)",
+    "removeGate": "Remove gate",
+    "addGateLeft": "Gate left",
+    "addGateRight": "Gate right"
   }
 }

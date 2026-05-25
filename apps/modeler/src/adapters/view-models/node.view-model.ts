@@ -255,6 +255,17 @@ export interface InteractionUseViewModel {
   height: number;
 }
 
+export interface GateViewModel {
+  __brand: 'gate';
+  id: string;             // synthetic id (== domain gate id)
+  domainId: string;       // IRGate.id
+  name: string;
+  /** Edge the gate sits on — drives which side the label renders. */
+  side: 'LEFT' | 'RIGHT';
+  /** Square marker size. */
+  size: number;
+}
+
 /**
  * Union type for all node view models
  */
@@ -272,7 +283,8 @@ export type AnyNodeViewModel =
   | ActivationViewModel
   | FragmentViewModel
   | StateInvariantViewModel
-  | InteractionUseViewModel;
+  | InteractionUseViewModel
+  | GateViewModel;
 
 /**
  * Type guard for NodeViewModel
@@ -334,4 +346,8 @@ export function isStateInvariantViewModel(vm: AnyNodeViewModel): vm is StateInva
 
 export function isInteractionUseViewModel(vm: AnyNodeViewModel): vm is InteractionUseViewModel {
   return '__brand' in vm && vm.__brand === 'interactionUse';
+}
+
+export function isGateViewModel(vm: AnyNodeViewModel): vm is GateViewModel {
+  return '__brand' in vm && vm.__brand === 'gate';
 }

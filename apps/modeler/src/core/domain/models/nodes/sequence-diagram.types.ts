@@ -7,6 +7,7 @@ export type SequenceDiagramNodeType =
   | 'FRAGMENT'
   | 'STATE_INVARIANT'
   | 'INTERACTION_USE'
+  | 'GATE'
   | 'NOTE';
 
 export interface LifelineNode extends BaseDomainNode, Documentable {
@@ -45,11 +46,19 @@ export interface InteractionUseNode extends BaseDomainNode {
   afterSequenceNumber: number;
 }
 
+export interface GateNode extends BaseDomainNode {
+  type: 'GATE';
+  ownerFragmentId: string;
+  side: 'LEFT' | 'RIGHT';
+  afterSequenceNumber: number;
+}
+
 export type SequenceDiagramNode =
   | LifelineNode
   | ActivationNode
   | FragmentNode
   | StateInvariantNode
-  | InteractionUseNode;
+  | InteractionUseNode
+  | GateNode;
 
 export type { MessageKind };

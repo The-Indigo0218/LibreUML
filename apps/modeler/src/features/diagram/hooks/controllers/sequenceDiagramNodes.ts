@@ -7,6 +7,7 @@ import type {
   IRInteractionFragment,
   IRStateInvariant,
   IRInteractionUse,
+  IRGate,
   ViewNode,
 } from '../../../../core/domain/vfs/vfs.types';
 import type {
@@ -17,6 +18,7 @@ import type {
   FragmentOperandVM,
   StateInvariantViewModel,
   InteractionUseViewModel,
+  GateViewModel,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -47,6 +49,7 @@ const STATE_INVARIANT_CHAR_W = 6.2;
 const STATE_INVARIANT_PAD_X = 16;
 const INTERACTION_USE_H = 48;
 const FOUND_LOST_OFFSET = 70; // gap between a lifeline and its found/lost dot
+const GATE_SIZE = 10;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,6 +98,23 @@ export function estimateStateInvariantWidth(constraint: string): number {
   return Math.max(STATE_INVARIANT_MIN_W, textLen * STATE_INVARIANT_CHAR_W + STATE_INVARIANT_PAD_X);
 }
 
+/**
+ * Horizontal bounds (left/right edge X) of a fragment-like box covering the
+ * given lifelines. Returns null when none are present in the diagram. Shared by
+ * combined fragments, interaction uses, and gate placement so edges stay aligned.
+ */
+function fragmentHorizontalBounds(
+  coveredLifelineIds: string[],
+  lifelineCenterX: Map<string, number>,
+): { left: number; right: number } | null {
+  const liveIds = coveredLifelineIds.filter((id) => lifelineCenterX.has(id));
+  if (liveIds.length === 0) return null;
+  const xs = liveIds.map((id) => lifelineCenterX.get(id)!).sort((a, b) => a - b);
+  const left = xs[0] - FRAGMENT_X_PAD;
+  const rawRight = xs[xs.length - 1] + FRAGMENT_X_PAD;
+  return { left, right: Math.max(left + FRAGMENT_MIN_W, rawRight) };
+}
+
 // ─── Builder ──────────────────────────────────────────────────────────────────
 
 export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
@@ -111,24 +131,36 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     else if (kind === 'NOTE' || kind === 'UNKNOWN') noteViewNodes.push(vn);
   }
 
-  // 2. Order messages by sequenceNumber for stable indexing.
-  const allMessages: IRMessage[] = Object.values(model.messages ?? {})
-    .filter((m) => {
-      // Found/lost messages only have ONE real lifeline endpoint.
-      if (m.isFound) return lifelineViewNodes.some((vn) => vn.elementId === m.targetLifelineId);
-      if (m.isLost)  return lifelineViewNodes.some((vn) => vn.elementId === m.sourceLifelineId);
-      // Otherwise both source AND target must be present in this diagram.
-      const srcIn = lifelineViewNodes.some((vn) => vn.elementId === m.sourceLifelineId);
-      const tgtIn = lifelineViewNodes.some((vn) => vn.elementId === m.targetLifelineId);
-      return srcIn && tgtIn;
-    })
-    .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
-
-  // 3. Lifeline-id → center X (computed once for messages to reuse).
+  // 2. Lifeline-id → center X (computed once; reused by messages and gates).
   const lifelineCenterX = new Map<string, number>();
   for (const vn of lifelineViewNodes) {
     lifelineCenterX.set(vn.elementId, vn.x + LIFELINE_HEAD_W / 2);
   }
+
+  // 2b. Gate-id → boundary X (the gate's owner fragment edge). Used to route
+  //     gate-attached message ends and to render the gate markers.
+  const gateEdgeX = new Map<string, number>();
+  for (const gate of Object.values(model.gates ?? {}) as IRGate[]) {
+    const owner = model.interactionFragments?.[gate.ownerFragmentId];
+    if (!owner) continue;
+    const bounds = fragmentHorizontalBounds(owner.coveredLifelineIds, lifelineCenterX);
+    if (!bounds) continue;
+    gateEdgeX.set(gate.id, gate.side === 'LEFT' ? bounds.left : bounds.right);
+  }
+  const llPresent = (id: string) => lifelineCenterX.has(id);
+
+  // 3. Order messages by sequenceNumber for stable indexing.
+  const allMessages: IRMessage[] = Object.values(model.messages ?? {})
+    .filter((m) => {
+      // Found/lost messages only have ONE real lifeline endpoint.
+      if (m.isFound) return llPresent(m.targetLifelineId);
+      if (m.isLost)  return llPresent(m.sourceLifelineId);
+      // A gate-attached end resolves through gateEdgeX instead of a lifeline.
+      const srcOk = m.sourceGateId ? gateEdgeX.has(m.sourceGateId) : llPresent(m.sourceLifelineId);
+      const tgtOk = m.targetGateId ? gateEdgeX.has(m.targetGateId) : llPresent(m.targetLifelineId);
+      return srcOk && tgtOk;
+    })
+    .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
 
   const timelineLength = computeTimelineLength(allMessages.length);
 
@@ -261,10 +293,17 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   const messageNodes = allMessages.map((msg, idx) => {
     const isFound = !!msg.isFound;
     const isLost = !!msg.isLost;
-    const srcX = lifelineCenterX.get(msg.sourceLifelineId) ?? 0;
-    const tgtX = lifelineCenterX.get(msg.targetLifelineId) ?? srcX;
-    // Found/lost always involve a single real lifeline — never a self-loop.
-    const isSelf = !isFound && !isLost && msg.sourceLifelineId === msg.targetLifelineId;
+    const hasGate = !!msg.sourceGateId || !!msg.targetGateId;
+    // A gate-attached end resolves to the gate's boundary X; otherwise the lifeline.
+    const srcX = msg.sourceGateId
+      ? gateEdgeX.get(msg.sourceGateId) ?? 0
+      : lifelineCenterX.get(msg.sourceLifelineId) ?? 0;
+    const tgtX = msg.targetGateId
+      ? gateEdgeX.get(msg.targetGateId) ?? 0
+      : lifelineCenterX.get(msg.targetLifelineId) ?? srcX;
+    // Found/lost/gate messages are never self-loops.
+    const isSelf =
+      !isFound && !isLost && !hasGate && msg.sourceLifelineId === msg.targetLifelineId;
     const y = messageYForIndex(idx + 1);
 
     let posX: number;
@@ -350,6 +389,33 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       };
     });
 
+  // 5c. Emit Gates (UML 2.5 §17.4) — small squares straddling the owner
+  //     fragment's boundary at the gate's temporal slot.
+  const gateNodes = Object.values(model.gates ?? {})
+    .filter((g: IRGate) => gateEdgeX.has(g.id))
+    .map((g: IRGate) => {
+      const edgeX = gateEdgeX.get(g.id)!;
+      const slot = Math.max(0, Math.min(allMessages.length, g.afterSequenceNumber));
+      const cy = stateInvariantSlotY(slot);
+
+      const viewModel: GateViewModel = {
+        __brand: 'gate',
+        id: g.id,
+        domainId: g.id,
+        name: g.name || '',
+        side: g.side,
+        size: GATE_SIZE,
+      };
+
+      return {
+        id: `gate-${g.id}`,
+        type: 'umlGate',
+        position: { x: edgeX - GATE_SIZE / 2, y: cy - GATE_SIZE / 2 },
+        data: viewModel,
+        domainId: g.id,
+      };
+    });
+
   // 6. Emit Notes (reuse existing makeNoteNode helper).
   const noteNodes = noteViewNodes.map((vn) =>
     makeNoteNode(vn, handleNoteUpdate, diagramView.nodes),
@@ -379,6 +445,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     ...activationNodes,
     ...messageNodes,
     ...stateInvariantNodes,
+    ...gateNodes,
     ...noteNodes,
   ];
 }
@@ -409,14 +476,11 @@ function buildFragmentNodes(
 
   return fragments
     .map((frag) => {
-      // Filter to lifelines actually present in the diagram.
-      const liveLifelineIds = frag.coveredLifelineIds.filter((id) => lifelineCenterX.has(id));
-      if (liveLifelineIds.length === 0) return null;
-
-      const xs = liveLifelineIds.map((id) => lifelineCenterX.get(id)!).sort((a, b) => a - b);
-      const left = xs[0] - FRAGMENT_X_PAD;
-      const right = xs[xs.length - 1] + FRAGMENT_X_PAD;
-      const width = Math.max(FRAGMENT_MIN_W, right - left);
+      // Horizontal bounds shared with gate placement (keeps edges aligned).
+      const bounds = fragmentHorizontalBounds(frag.coveredLifelineIds, lifelineCenterX);
+      if (!bounds) return null;
+      const { left, right } = bounds;
+      const width = right - left;
 
       // Y bounds: derived from the messages contained in any operand.
       const allMsgIds = frag.operands.flatMap((op) => op.messageIds);

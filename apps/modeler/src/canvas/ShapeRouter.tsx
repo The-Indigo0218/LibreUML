@@ -17,6 +17,7 @@ import {
   isFragmentViewModel,
   isStateInvariantViewModel,
   isInteractionUseViewModel,
+  isGateViewModel,
 } from '../adapters/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
@@ -31,6 +32,7 @@ import ActivationShape, { getActivationShapeSize } from './shapes/ActivationShap
 import FragmentShape, { getFragmentShapeSize } from './shapes/FragmentShape';
 import StateInvariantShape, { getStateInvariantShapeSize } from './shapes/StateInvariantShape';
 import InteractionUseShape, { getInteractionUseShapeSize } from './shapes/InteractionUseShape';
+import GateShape, { getGateShapeSize } from './shapes/GateShape';
 
 export interface NodeShapeRenderProps {
   key: string;
@@ -66,6 +68,7 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
   if (isFragmentViewModel(vm))       return getFragmentShapeSize(vm);
   if (isStateInvariantViewModel(vm)) return getStateInvariantShapeSize(vm);
   if (isInteractionUseViewModel(vm)) return getInteractionUseShapeSize(vm);
+  if (isGateViewModel(vm))           return getGateShapeSize(vm);
   return getClassShapeSize(vm as NodeViewModel);
 }
 
@@ -125,6 +128,9 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
 
   if (isInteractionUseViewModel(vm))
     return <InteractionUseShape key={key} viewModel={vm} {...common} />;
+
+  if (isGateViewModel(vm))
+    return <GateShape key={key} viewModel={vm} {...common} />;
 
   return <ClassShape key={key} viewModel={vm as NodeViewModel} {...common} />;
 }

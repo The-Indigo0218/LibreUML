@@ -35,6 +35,7 @@ import type {
   IRInteractionFragment,
   IRStateInvariant,
   IRInteractionUse,
+  IRGate,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -79,6 +80,7 @@ function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: strin
         op.messageIds = op.messageIds.filter((mid) => !removed.has(mid));
       });
       if (frag.coveredLifelineIds.length === 0) {
+        removeGatesForFragmentLocal(model, fid);
         delete model.interactionFragments[fid];
       }
     }
@@ -120,6 +122,26 @@ function stripMessageFromFragmentsLocal(model: SemanticModel, messageId: string)
       op.messageIds = op.messageIds.filter((mid) => mid !== messageId);
     });
   }
+}
+
+function clearGateRefsOnMessagesLocal(model: SemanticModel, gateIds: Set<string>) {
+  if (!model.messages || gateIds.size === 0) return;
+  for (const m of Object.values(model.messages)) {
+    if (m.sourceGateId && gateIds.has(m.sourceGateId)) delete (m as { sourceGateId?: string }).sourceGateId;
+    if (m.targetGateId && gateIds.has(m.targetGateId)) delete (m as { targetGateId?: string }).targetGateId;
+  }
+}
+
+function removeGatesForFragmentLocal(model: SemanticModel, fragmentId: string) {
+  if (!model.gates) return;
+  const removed = new Set<string>();
+  for (const gid of Object.keys(model.gates)) {
+    if (model.gates[gid].ownerFragmentId === fragmentId) {
+      removed.add(gid);
+      delete model.gates[gid];
+    }
+  }
+  clearGateRefsOnMessagesLocal(model, removed);
 }
 
 /** Reads the localModel for a file directly from VFSStore (no subscription). */
@@ -577,6 +599,7 @@ export function standaloneModelOps(fileId: string) {
             if (msg.fragmentId === id) delete (msg as { fragmentId?: string }).fragmentId;
           }
         }
+        removeGatesForFragmentLocal(m, id);
         delete m.interactionFragments[id];
         m.updatedAt = Date.now();
       });
@@ -634,6 +657,35 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.interactionUses?.[id]) return;
         delete m.interactionUses[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Gates (`gate`) ────────────────────────────────────────────────────────
+
+    createGate: (data: Omit<IRGate, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.gates = m.gates ?? {};
+        m.gates[id] = { ...data, id, kind: 'GATE' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateGate: (id: string, patch: Partial<IRGate>) => {
+      update((m) => {
+        if (!m.gates?.[id]) return;
+        m.gates[id] = { ...m.gates[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteGate: (id: string) => {
+      update((m) => {
+        if (!m.gates?.[id]) return;
+        delete m.gates[id];
+        clearGateRefsOnMessagesLocal(m, new Set([id]));
         m.updatedAt = Date.now();
       });
     },

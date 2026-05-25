@@ -10,6 +10,7 @@ import { standaloneModelOps, getLocalModel } from '../../../../store/standaloneM
 import type {
   IRInteractionFragment,
   IRInteractionOperand,
+  IRGate,
 } from '../../../../core/domain/vfs/vfs.types';
 
 const ALLOW_MULTI_OPERAND: ReadonlySet<IRInteractionFragment['fragmentKind']> = new Set(['ALT', 'PAR']);
@@ -35,8 +36,17 @@ export default function FragmentPropertiesModal() {
     return useModelStore.getState().model?.interactionFragments?.[editingId] ?? null;
   };
 
+  const getModel = () =>
+    isStandalone && activeTabId
+      ? getLocalModel(activeTabId)
+      : useModelStore.getState().model;
+
+  const ops = () =>
+    isStandalone && activeTabId ? standaloneModelOps(activeTabId) : useModelStore.getState();
+
   const [operands, setOperands] = useState<IRInteractionOperand[]>([]);
   const [fragmentKind, setFragmentKind] = useState<IRInteractionFragment['fragmentKind']>('ALT');
+  const [gates, setGates] = useState<IRGate[]>([]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -52,6 +62,9 @@ export default function FragmentPropertiesModal() {
       })),
     );
     setFragmentKind(frag.fragmentKind);
+    setGates(
+      Object.values(getModel()?.gates ?? {}).filter((g) => g.ownerFragmentId === editingId),
+    );
   }, [isOpen, editingId]);
 
   if (!isOpen) return null;
@@ -92,6 +105,29 @@ export default function FragmentPropertiesModal() {
     setOperands((prev) =>
       prev.map((op) => (op.id === operandId ? { ...op, guard: value } : op)),
     );
+  };
+
+  const commitOperands = () => {
+    if (!editingId) return;
+    ops().updateFragment(editingId, { operands });
+  };
+
+  const handleAddGate = (side: IRGate['side']) => {
+    if (!editingId) return;
+    commitOperands(); // preserve in-progress operand edits before switching modal
+    const afterSequenceNumber = Object.keys(getModel()?.messages ?? {}).length;
+    const newId = ops().createGate({ name: '', ownerFragmentId: editingId, side, afterSequenceNumber });
+    useUiStore.getState().openGateProps(newId);
+  };
+
+  const handleEditGate = (gateId: string) => {
+    commitOperands();
+    useUiStore.getState().openGateProps(gateId);
+  };
+
+  const handleRemoveGate = (gateId: string) => {
+    ops().deleteGate(gateId);
+    setGates((prev) => prev.filter((g) => g.id !== gateId));
   };
 
   const handleSave = () => {
@@ -193,6 +229,62 @@ export default function FragmentPropertiesModal() {
               {t('fragment.warning.singleOperandOnly')}
             </p>
           )}
+
+          {/* Gates (UML 2.5 connection points on the fragment boundary) */}
+          <div className="pt-1 border-t border-[#2a3358]">
+            <label className="block text-xs font-semibold text-[#94a3b8] mb-2 mt-2">
+              {t('fragment.gates')} ({gates.length})
+            </label>
+            {gates.length > 0 && (
+              <div className="space-y-2 mb-2">
+                {gates.map((g) => (
+                  <div
+                    key={g.id}
+                    className="flex items-center gap-2 bg-[#0f1623] border border-[#2a3358] rounded px-2 py-1.5"
+                  >
+                    <span className="text-[9px] font-mono uppercase text-[#475569] w-9 shrink-0">
+                      {g.side}
+                    </span>
+                    <button
+                      onClick={() => handleEditGate(g.id)}
+                      className="flex-1 text-left text-sm text-[#e2e8f0] hover:text-[#7C83FF] truncate"
+                    >
+                      {g.name || <span className="text-[#475569] italic">{t('fragment.gateUnnamed')}</span>}
+                    </button>
+                    <button
+                      onClick={() => handleRemoveGate(g.id)}
+                      title={t('fragment.removeGate')}
+                      className="p-1 rounded text-[#64748b] hover:text-red-400 hover:bg-[#1e2738] transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleAddGate('LEFT')}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded
+                           text-xs font-medium text-[#94a3b8] hover:text-[#e2e8f0]
+                           bg-[#0f1623] hover:bg-[#1e2738] border border-dashed border-[#2a3358]
+                           hover:border-[#7C83FF] transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('fragment.addGateLeft')}
+              </button>
+              <button
+                onClick={() => handleAddGate('RIGHT')}
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded
+                           text-xs font-medium text-[#94a3b8] hover:text-[#e2e8f0]
+                           bg-[#0f1623] hover:bg-[#1e2738] border border-dashed border-[#2a3358]
+                           hover:border-[#7C83FF] transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {t('fragment.addGateRight')}
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}

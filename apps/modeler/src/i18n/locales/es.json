@@ -1409,6 +1409,11 @@
     "messageCount": "{{count}} mensaje",
     "messageCount_plural": "{{count}} mensajes",
     "warning.lastOperand": "No se puede eliminar el último operando",
-    "warning.singleOperandOnly": "Solo los fragmentos ALT y PAR admiten múltiples operandos"
+    "warning.singleOperandOnly": "Solo los fragmentos ALT y PAR admiten múltiples operandos",
+    "gates": "Compuertas",
+    "gateUnnamed": "(compuerta sin nombre)",
+    "removeGate": "Eliminar compuerta",
+    "addGateLeft": "Compuerta izq.",
+    "addGateRight": "Compuerta der."
   }
 }

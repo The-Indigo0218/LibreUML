@@ -348,6 +348,28 @@ export interface IRMessage extends IRElement {
    * interaction. `targetLifelineId` is empty; the source is a real lifeline.
    */
   isLost?: boolean;
+  /**
+   * When set, the source end of this message connects to a Gate on a fragment
+   * boundary instead of a lifeline. Additive — `sourceLifelineId` is retained
+   * so clearing the gate restores the original routing.
+   */
+  sourceGateId?: string;
+  /** When set, the target end connects to a Gate (see `sourceGateId`). */
+  targetGateId?: string;
+}
+
+/**
+ * UML 2.5 §17.4 Gate — a connection point on a combined fragment's boundary
+ * that relates a message inside the fragment to one outside it.
+ */
+export interface IRGate extends IRElement {
+  kind: 'GATE';
+  /** The combined fragment whose boundary this gate sits on. */
+  ownerFragmentId: string;
+  /** Which vertical edge of the owner the gate sits on. */
+  side: 'LEFT' | 'RIGHT';
+  /** Temporal anchor: the gate's Y, in message-slot units (mirrors invariants). */
+  afterSequenceNumber: number;
 }
 
 export interface IRActivation extends IRElement {
@@ -498,6 +520,7 @@ export interface SemanticModel {
   interactionFragments?: Record<string, IRInteractionFragment>;
   stateInvariants?: Record<string, IRStateInvariant>;
   interactionUses?: Record<string, IRInteractionUse>;
+  gates?: Record<string, IRGate>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

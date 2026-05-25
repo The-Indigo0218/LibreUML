@@ -12,9 +12,11 @@ import type {
 } from '../../core/domain/vfs/vfs.types';
 
 export const TOOL_TO_MESSAGE_KIND: Record<string, MessageKind> = {
-  MESSAGE_SYNC:  'SYNC',
-  MESSAGE_ASYNC: 'ASYNC',
-  MESSAGE_REPLY: 'REPLY',
+  MESSAGE_SYNC:    'SYNC',
+  MESSAGE_ASYNC:   'ASYNC',
+  MESSAGE_REPLY:   'REPLY',
+  MESSAGE_CREATE:  'CREATE',
+  MESSAGE_DESTROY: 'DESTROY',
 };
 
 /**

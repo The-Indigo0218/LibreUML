@@ -125,6 +125,28 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
 
   const timelineLength = computeTimelineLength(allMessages.length);
 
+  // 3b. Build a lookup from messageId → 1-based slot (used by activations,
+  //     fragments, state invariants and the create/destroy geometry below).
+  const messageIndex = new Map<string, number>();
+  allMessages.forEach((m, i) => messageIndex.set(m.id, i + 1));
+
+  // 3c. Create/Destroy events (UML 2.5 §17.4): map each target lifeline to the
+  //     slot of the CREATE message that births it / the DESTROY message that
+  //     terminates it. The earliest such message wins.
+  const createSlotByLifeline = new Map<string, number>();
+  const destroySlotByLifeline = new Map<string, number>();
+  for (const m of allMessages) {
+    const slot = messageIndex.get(m.id)!;
+    if (m.messageKind === 'CREATE' && m.sourceLifelineId !== m.targetLifelineId) {
+      const prev = createSlotByLifeline.get(m.targetLifelineId);
+      if (prev === undefined || slot < prev) createSlotByLifeline.set(m.targetLifelineId, slot);
+    } else if (m.messageKind === 'DESTROY') {
+      const prev = destroySlotByLifeline.get(m.targetLifelineId);
+      if (prev === undefined || slot < prev) destroySlotByLifeline.set(m.targetLifelineId, slot);
+    }
+  }
+  const normalBottomY = LIFELINE_HEAD_H + timelineLength;
+
   // 4. Emit Lifelines.
   const lifelineNodes = lifelineViewNodes.map((viewNode) => {
     const ll = model.lifelines?.[viewNode.elementId] as IRLifeline;
@@ -138,6 +160,17 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       }
     };
 
+    // Create/Destroy geometry: a created lifeline's head drops to the create
+    // message's Y; a destroyed lifeline's timeline ends at the destroy Y.
+    const createSlot = createSlotByLifeline.get(viewNode.elementId);
+    const destroySlot = destroySlotByLifeline.get(viewNode.elementId);
+    const headTopOffset = createSlot !== undefined
+      ? Math.max(0, messageYForIndex(createSlot) - LIFELINE_HEAD_H / 2)
+      : 0;
+    const headBottomY = headTopOffset + LIFELINE_HEAD_H;
+    const endY = destroySlot !== undefined ? messageYForIndex(destroySlot) : normalBottomY;
+    const llTimelineLength = Math.max(MESSAGE_BAND_H * 0.5, endY - headBottomY);
+
     const viewModel: LifelineViewModel = {
       __brand: 'lifeline',
       id: viewNode.id,
@@ -145,9 +178,11 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       name: displayName,
       participantKind: participantKindFromIR(ll.participantKind),
       isExternal: ll.isExternal,
-      timelineLength,
+      timelineLength: llTimelineLength,
       headWidth: LIFELINE_HEAD_W,
       headHeight: LIFELINE_HEAD_H,
+      headTopOffset,
+      isDestroyed: destroySlot !== undefined,
       onRename,
     };
 
@@ -159,10 +194,6 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       domainId: viewNode.elementId,
     };
   });
-
-  // 4b. Build a lookup from messageId → 1-based index for activation Y maths.
-  const messageIndex = new Map<string, number>();
-  allMessages.forEach((m, i) => messageIndex.set(m.id, i + 1));
 
   // 4c. Emit Activations BEFORE messages so arrows render on top of bars.
   const allActivations: IRActivation[] = Object.values(model.activations ?? {}).filter((a) => {
@@ -226,6 +257,14 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     const isSelf = msg.sourceLifelineId === msg.targetLifelineId;
     const y = messageYForIndex(idx + 1);
 
+    // CREATE arrows stop at the target head's near edge (the head is centred on
+    // this same Y), so they visually "create" the box rather than crossing it.
+    let length = isSelf ? 0 : tgtX - srcX;
+    if (msg.messageKind === 'CREATE' && !isSelf) {
+      const half = LIFELINE_HEAD_W / 2;
+      length = tgtX > srcX ? (tgtX - half) - srcX : (tgtX + half) - srcX;
+    }
+
     const viewModel: MessageViewModel = {
       __brand: 'message',
       id: msg.id,
@@ -234,7 +273,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       messageKind: msg.messageKind,
       sequenceNumber: msg.sequenceNumber,
       displayNumber: hierarchicalNumbers.get(msg.id) ?? `${msg.sequenceNumber}`,
-      length: isSelf ? 0 : tgtX - srcX,
+      length,
       isSelfMessage: isSelf,
       onRename: (name: string) => {
         if (isStandalone && activeTabId) {

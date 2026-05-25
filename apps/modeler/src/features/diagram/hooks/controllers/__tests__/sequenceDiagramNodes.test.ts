@@ -454,6 +454,105 @@ describe('buildSequenceDiagramNodes — state invariants', () => {
   });
 });
 
+// ─── Create / Destroy events ──────────────────────────────────────────────────
+
+function makeKindMessage(
+  id: string,
+  src: string,
+  tgt: string,
+  seq: number,
+  messageKind: IRMessage['messageKind'],
+): IRMessage {
+  return { id, kind: 'MESSAGE', name: `msg-${id}`, messageKind, sourceLifelineId: src, targetLifelineId: tgt, sequenceNumber: seq };
+}
+
+const twoLifelineView: DiagramView = {
+  diagramId: 'd1',
+  nodes: [
+    { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+    { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+  ],
+  edges: [],
+};
+
+describe('buildSequenceDiagramNodes — create/destroy events', () => {
+  it('drops the head of a lifeline created by a CREATE message', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeKindMessage('m1', 'll1', 'll2', 1, 'CREATE') },
+    });
+    const result = buildSequenceDiagramNodes(makeCtx(model, twoLifelineView));
+
+    const ll2Node = result.find((n) => n.id === 'vn2');
+    const ll1Node = result.find((n) => n.id === 'vn1');
+    const createMsg = result.find((n) => n.type === 'umlMessage');
+    expect(ll2Node && isLifelineViewModel(ll2Node.data)).toBe(true);
+    if (
+      ll2Node && isLifelineViewModel(ll2Node.data) &&
+      ll1Node && isLifelineViewModel(ll1Node.data) && createMsg
+    ) {
+      // The created lifeline head centres on the CREATE message's Y.
+      expect(ll2Node.data.headTopOffset).toBeGreaterThan(0);
+      expect(ll2Node.data.headTopOffset!).toBeCloseTo(
+        createMsg.position.y - ll2Node.data.headHeight / 2,
+        0,
+      );
+      // The caller lifeline is unaffected.
+      expect(ll1Node.data.headTopOffset ?? 0).toBe(0);
+      expect(ll2Node.data.isDestroyed).toBe(false);
+    }
+  });
+
+  it('shortens a CREATE arrow so it lands on the target head edge', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeKindMessage('m1', 'll1', 'll2', 1, 'CREATE') },
+    });
+    const result = buildSequenceDiagramNodes(makeCtx(model, twoLifelineView));
+    const createMsg = result.find((n) => n.type === 'umlMessage');
+    expect(createMsg && isMessageViewModel(createMsg.data)).toBe(true);
+    if (createMsg && isMessageViewModel(createMsg.data)) {
+      // centres: ll1=120, ll2=320, full=200; minus headWidth/2 (70) = 130.
+      expect(createMsg.data.length).toBe(130);
+    }
+  });
+
+  it('terminates a lifeline destroyed by a DESTROY message with an ✕ marker', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: {
+        m1: makeKindMessage('m1', 'll1', 'll2', 1, 'SYNC'),
+        m2: makeKindMessage('m2', 'll1', 'll2', 2, 'DESTROY'),
+      },
+    });
+    const result = buildSequenceDiagramNodes(makeCtx(model, twoLifelineView));
+    const ll2Node = result.find((n) => n.id === 'vn2');
+    const destroyMsg = result.find(
+      (n) => n.type === 'umlMessage' && n.data.domainId === 'm2',
+    );
+    expect(ll2Node && isLifelineViewModel(ll2Node.data)).toBe(true);
+    if (ll2Node && isLifelineViewModel(ll2Node.data) && destroyMsg) {
+      expect(ll2Node.data.isDestroyed).toBe(true);
+      // Timeline ends exactly at the destroy message's Y.
+      const bottom = (ll2Node.data.headTopOffset ?? 0) + ll2Node.data.headHeight + ll2Node.data.timelineLength;
+      expect(bottom).toBeCloseTo(destroyMsg.position.y, 0);
+    }
+  });
+
+  it('leaves a non-targeted lifeline undamaged', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeKindMessage('m1', 'll1', 'll2', 1, 'DESTROY') },
+    });
+    const result = buildSequenceDiagramNodes(makeCtx(model, twoLifelineView));
+    const ll1Node = result.find((n) => n.id === 'vn1');
+    if (ll1Node && isLifelineViewModel(ll1Node.data)) {
+      expect(ll1Node.data.isDestroyed).toBe(false);
+      expect(ll1Node.data.headTopOffset ?? 0).toBe(0);
+    }
+  });
+});
+
 // ─── computeHierarchicalNumbers ───────────────────────────────────────────────
 
 function makeMsg(id: string, seq: number): IRMessage {

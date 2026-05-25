@@ -31,6 +31,8 @@ export class SequenceDiagramValidator implements BaseValidator {
       case 'MESSAGE_SYNC':
       case 'MESSAGE_ASYNC':
       case 'MESSAGE_REPLY':
+      case 'MESSAGE_CREATE':
+      case 'MESSAGE_DESTROY':
         return { isValid: true };
       default:
         return {

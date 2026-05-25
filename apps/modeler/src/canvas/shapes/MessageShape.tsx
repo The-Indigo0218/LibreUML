@@ -51,8 +51,11 @@ export default function MessageShape({
   dragBoundFunc,
 }: MessageShapeProps) {
   const colors = resolveMessageColors();
-  const dashed = vm.messageKind === 'REPLY';
-  const openHead = vm.messageKind === 'ASYNC' || vm.messageKind === 'REPLY';
+  // CREATE messages are drawn dashed with an open head (UML 2.5); DESTROY uses
+  // the solid closed-head style — its target lifeline carries the ✕ marker.
+  const dashed = vm.messageKind === 'REPLY' || vm.messageKind === 'CREATE';
+  const openHead =
+    vm.messageKind === 'ASYNC' || vm.messageKind === 'REPLY' || vm.messageKind === 'CREATE';
   const labelText = vm.name
     ? `${vm.displayNumber}: ${vm.name}`
     : `${vm.displayNumber}:`;

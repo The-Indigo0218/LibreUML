@@ -18,6 +18,9 @@ import {
   Upload,
   Image as ImageIcon,
   FileCode2,
+  CornerDownLeft,
+  PlusCircle,
+  XCircle,
 } from "lucide-react";
 
 /**
@@ -44,6 +47,9 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   Upload,
   ImageIcon,
   FileCode2,
+  CornerDownLeft,
+  PlusCircle,
+  XCircle,
 };
 
 /**

@@ -162,6 +162,14 @@ export interface LifelineViewModel {
   timelineLength: number;
   headWidth: number;
   headHeight: number;
+  /**
+   * Vertical offset (from the group origin) at which the head box is drawn.
+   * 0 for normal lifelines; > 0 when the lifeline is born mid-diagram via a
+   * CREATE message (UML 2.5 create event).
+   */
+  headTopOffset?: number;
+  /** True when a DESTROY message terminates this lifeline (draws an ✕ marker). */
+  isDestroyed?: boolean;
   onRename?: (name: string) => void;
 }
 

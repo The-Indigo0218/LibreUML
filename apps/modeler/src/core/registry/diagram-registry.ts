@@ -45,6 +45,8 @@ import type {
   SyncMessageEdge,
   AsyncMessageEdge,
   ReplyMessageEdge,
+  CreateMessageEdge,
+  DestroyMessageEdge,
 } from '../domain/models/edges/sequence-diagram.types';
 import { classDiagramValidator } from '../validation/class-diagram.validator';
 import { useCaseDiagramValidator } from '../validation/use-case.validator';
@@ -764,6 +766,10 @@ function createSequenceDiagramEdge(
       return { ...baseEdge, type: 'MESSAGE_ASYNC' } as AsyncMessageEdge;
     case 'MESSAGE_REPLY':
       return { ...baseEdge, type: 'MESSAGE_REPLY' } as ReplyMessageEdge;
+    case 'MESSAGE_CREATE':
+      return { ...baseEdge, type: 'MESSAGE_CREATE' } as CreateMessageEdge;
+    case 'MESSAGE_DESTROY':
+      return { ...baseEdge, type: 'MESSAGE_DESTROY' } as DestroyMessageEdge;
     default:
       throw new Error(`Unknown Sequence Diagram edge type: ${type}`);
   }
@@ -778,7 +784,13 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
   icon: 'arrow-right-left',
 
   supportedNodeTypes: ['LIFELINE', 'NOTE'],
-  supportedEdgeTypes: ['MESSAGE_SYNC', 'MESSAGE_ASYNC', 'MESSAGE_REPLY'],
+  supportedEdgeTypes: [
+    'MESSAGE_SYNC',
+    'MESSAGE_ASYNC',
+    'MESSAGE_REPLY',
+    'MESSAGE_CREATE',
+    'MESSAGE_DESTROY',
+  ],
 
   defaultNodeType: 'LIFELINE',
   defaultEdgeType: 'MESSAGE_SYNC',
@@ -823,6 +835,20 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
         label: 'Reply',
         icon: 'CornerDownLeft',
         translationKey: 'sidebar.connections.messageReply',
+      },
+      {
+        id: 'message_create',
+        type: 'EDGE',
+        label: 'Create Message',
+        icon: 'PlusCircle',
+        translationKey: 'sidebar.connections.messageCreate',
+      },
+      {
+        id: 'message_destroy',
+        type: 'EDGE',
+        label: 'Destroy Message',
+        icon: 'XCircle',
+        translationKey: 'sidebar.connections.messageDestroy',
       },
     ],
   },

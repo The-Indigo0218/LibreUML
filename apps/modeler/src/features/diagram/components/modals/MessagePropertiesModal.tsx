@@ -12,11 +12,11 @@ const MESSAGE_KIND_LABELS: Record<MessageKind, string> = {
   SYNC: 'Synchronous (→)',
   ASYNC: 'Asynchronous (→)',
   REPLY: 'Reply (⇢)',
-  CREATE: 'Create',
-  DESTROY: 'Destroy',
+  CREATE: 'Create (⇢ «create»)',
+  DESTROY: 'Destroy (→ ✕)',
 };
 
-const EDITABLE_KINDS: MessageKind[] = ['SYNC', 'ASYNC', 'REPLY'];
+const EDITABLE_KINDS: MessageKind[] = ['SYNC', 'ASYNC', 'REPLY', 'CREATE', 'DESTROY'];
 
 export default function MessagePropertiesModal() {
   const { activeModal, editingId, closeModals } = useUiStore();

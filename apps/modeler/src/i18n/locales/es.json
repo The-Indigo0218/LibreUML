@@ -149,7 +149,9 @@
       "generalization": "Generalización",
       "messageSync": "Mensaje Sincrónico",
       "messageAsync": "Mensaje Asincrónico",
-      "messageReply": "Respuesta"
+      "messageReply": "Respuesta",
+      "messageCreate": "Mensaje de Creación",
+      "messageDestroy": "Mensaje de Destrucción"
     }
   },
   "contextMenu": {

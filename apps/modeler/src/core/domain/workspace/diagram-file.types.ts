@@ -86,7 +86,12 @@ export interface DomainModelDiagramMetadata {
  * Sequence Diagram specific metadata
  */
 export interface SequenceDiagramMetadata {
-  activeConnectionMode?: 'MESSAGE_SYNC' | 'MESSAGE_ASYNC' | 'MESSAGE_REPLY';
+  activeConnectionMode?:
+    | 'MESSAGE_SYNC'
+    | 'MESSAGE_ASYNC'
+    | 'MESSAGE_REPLY'
+    | 'MESSAGE_CREATE'
+    | 'MESSAGE_DESTROY';
   /** Persisted X position per lifelineId (Y is always 0 — lifelines sit at the top). */
   lifelineXMap?: Record<string, number>;
 }

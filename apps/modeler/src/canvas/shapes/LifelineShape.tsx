@@ -19,10 +19,12 @@ function stereotypeFor(kind: LifelineViewModel['participantKind']): string | nul
   }
 }
 
+const DESTROY_X = 9; // half-size of the ✕ termination marker
+
 export function getLifelineShapeSize(vm: LifelineViewModel): { width: number; height: number } {
   return {
     width: vm.headWidth,
-    height: vm.headHeight + vm.timelineLength,
+    height: (vm.headTopOffset ?? 0) + vm.headHeight + vm.timelineLength,
   };
 }
 
@@ -60,9 +62,12 @@ export default function LifelineShape({
   dragBoundFunc,
 }: LifelineShapeProps) {
   const colors = resolveLifelineColors();
-  const { width: W } = getLifelineShapeSize(vm);
+  const W = vm.headWidth;
   const headH = vm.headHeight;
+  const top = vm.headTopOffset ?? 0;
   const lineX = W / 2;
+  const timelineTop = top + headH;
+  const timelineBottom = timelineTop + vm.timelineLength;
   const stereotype = stereotypeFor(vm.participantKind);
 
   return (
@@ -94,6 +99,7 @@ export default function LifelineShape({
     >
       {/* ── Head rectangle (participant box) ──────────────────────────────── */}
       <Rect
+        y={top}
         width={W}
         height={headH}
         stroke={colors.border}
@@ -107,7 +113,7 @@ export default function LifelineShape({
       {stereotype && (
         <Text
           x={0}
-          y={6}
+          y={top + 6}
           width={W}
           text={stereotype}
           fontSize={STEREO_FONT}
@@ -123,7 +129,7 @@ export default function LifelineShape({
       {/* ── Participant name ──────────────────────────────────────────────── */}
       <Text
         x={0}
-        y={stereotype ? 20 : (headH - NAME_FONT) / 2}
+        y={top + (stereotype ? 20 : (headH - NAME_FONT) / 2)}
         width={W}
         text={vm.name}
         fontSize={NAME_FONT}
@@ -137,7 +143,7 @@ export default function LifelineShape({
 
       {/* ── Dashed timeline going down ────────────────────────────────────── */}
       <Line
-        points={[lineX, headH, lineX, headH + vm.timelineLength]}
+        points={[lineX, timelineTop, lineX, timelineBottom]}
         stroke={colors.timeline}
         strokeWidth={1}
         dash={[6, 4]}
@@ -145,11 +151,31 @@ export default function LifelineShape({
         perfectDrawEnabled={false}
       />
 
+      {/* ── Destruction ✕ marker at the timeline end ──────────────────────── */}
+      {vm.isDestroyed && (
+        <>
+          <Line
+            points={[lineX - DESTROY_X, timelineBottom - DESTROY_X, lineX + DESTROY_X, timelineBottom + DESTROY_X]}
+            stroke={colors.border}
+            strokeWidth={2.5}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+          <Line
+            points={[lineX - DESTROY_X, timelineBottom + DESTROY_X, lineX + DESTROY_X, timelineBottom - DESTROY_X]}
+            stroke={colors.border}
+            strokeWidth={2.5}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+        </>
+      )}
+
       {/* ── Selection outline ─────────────────────────────────────────────── */}
       {selected && (
         <Rect
           x={-2}
-          y={-2}
+          y={top - 2}
           width={W + 4}
           height={headH + 4}
           stroke="#22d3ee"

@@ -46,6 +46,7 @@ const STATE_INVARIANT_MIN_W = 56;
 const STATE_INVARIANT_CHAR_W = 6.2;
 const STATE_INVARIANT_PAD_X = 16;
 const INTERACTION_USE_H = 48;
+const FOUND_LOST_OFFSET = 70; // gap between a lifeline and its found/lost dot
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,7 +114,10 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   // 2. Order messages by sequenceNumber for stable indexing.
   const allMessages: IRMessage[] = Object.values(model.messages ?? {})
     .filter((m) => {
-      // Only show messages whose source AND target are present in this diagram.
+      // Found/lost messages only have ONE real lifeline endpoint.
+      if (m.isFound) return lifelineViewNodes.some((vn) => vn.elementId === m.targetLifelineId);
+      if (m.isLost)  return lifelineViewNodes.some((vn) => vn.elementId === m.sourceLifelineId);
+      // Otherwise both source AND target must be present in this diagram.
       const srcIn = lifelineViewNodes.some((vn) => vn.elementId === m.sourceLifelineId);
       const tgtIn = lifelineViewNodes.some((vn) => vn.elementId === m.targetLifelineId);
       return srcIn && tgtIn;
@@ -255,17 +259,35 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   const hierarchicalNumbers = computeHierarchicalNumbers(allMessages, allFragments);
 
   const messageNodes = allMessages.map((msg, idx) => {
+    const isFound = !!msg.isFound;
+    const isLost = !!msg.isLost;
     const srcX = lifelineCenterX.get(msg.sourceLifelineId) ?? 0;
     const tgtX = lifelineCenterX.get(msg.targetLifelineId) ?? srcX;
-    const isSelf = msg.sourceLifelineId === msg.targetLifelineId;
+    // Found/lost always involve a single real lifeline — never a self-loop.
+    const isSelf = !isFound && !isLost && msg.sourceLifelineId === msg.targetLifelineId;
     const y = messageYForIndex(idx + 1);
 
-    // CREATE arrows stop at the target head's near edge (the head is centred on
-    // this same Y), so they visually "create" the box rather than crossing it.
-    let length = isSelf ? 0 : tgtX - srcX;
-    if (msg.messageKind === 'CREATE' && !isSelf) {
-      const half = LIFELINE_HEAD_W / 2;
-      length = tgtX > srcX ? (tgtX - half) - srcX : (tgtX + half) - srcX;
+    let posX: number;
+    let length: number;
+    if (isFound) {
+      // Dot to the LEFT of the target; arrow points right into the lifeline.
+      const realX = lifelineCenterX.get(msg.targetLifelineId) ?? 0;
+      posX = realX - FOUND_LOST_OFFSET;
+      length = FOUND_LOST_OFFSET;
+    } else if (isLost) {
+      // Arrow from the source lifeline to a dot on the RIGHT.
+      const realX = lifelineCenterX.get(msg.sourceLifelineId) ?? 0;
+      posX = realX;
+      length = FOUND_LOST_OFFSET;
+    } else {
+      posX = srcX;
+      length = isSelf ? 0 : tgtX - srcX;
+      // CREATE arrows stop at the target head's near edge (the head is centred
+      // on this same Y), so they visually "create" the box rather than cross it.
+      if (msg.messageKind === 'CREATE') {
+        const half = LIFELINE_HEAD_W / 2;
+        length = tgtX > srcX ? (tgtX - half) - srcX : (tgtX + half) - srcX;
+      }
     }
 
     const viewModel: MessageViewModel = {
@@ -278,6 +300,8 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       displayNumber: hierarchicalNumbers.get(msg.id) ?? `${msg.sequenceNumber}`,
       length,
       isSelfMessage: isSelf,
+      isFound,
+      isLost,
       onRename: (name: string) => {
         if (isStandalone && activeTabId) {
           standaloneModelOps(activeTabId).updateMessage(msg.id, { name });
@@ -290,7 +314,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     return {
       id: `msg-${msg.id}`,
       type: 'umlMessage',
-      position: { x: srcX, y },
+      position: { x: posX, y },
       data: viewModel,
       domainId: msg.id,
     };

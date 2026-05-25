@@ -338,6 +338,16 @@ export interface IRMessage extends IRElement {
   arguments?: string;
   /** For REPLY messages, references the invoking message. */
   inReplyTo?: string;
+  /**
+   * UML 2.5 found message: the source is an unknown participant outside the
+   * interaction. `sourceLifelineId` is empty; the target is a real lifeline.
+   */
+  isFound?: boolean;
+  /**
+   * UML 2.5 lost message: the target is an unknown participant outside the
+   * interaction. `targetLifelineId` is empty; the source is a real lifeline.
+   */
+  isLost?: boolean;
 }
 
 export interface IRActivation extends IRElement {

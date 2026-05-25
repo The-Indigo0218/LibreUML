@@ -626,6 +626,70 @@ describe('buildSequenceDiagramNodes — create/destroy events', () => {
   });
 });
 
+// ─── Found / Lost messages ────────────────────────────────────────────────────
+
+describe('buildSequenceDiagramNodes — found/lost messages', () => {
+  it('places a found message dot to the LEFT of the target and points inward', () => {
+    const found: IRMessage = {
+      id: 'f1', kind: 'MESSAGE', name: 'event', messageKind: 'ASYNC',
+      sourceLifelineId: '', targetLifelineId: 'll1', sequenceNumber: 1, isFound: true,
+    };
+    const model = makeModel({ lifelines: { ll1: makeLifeline('ll1') }, messages: { f1: found } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const msg = result.find((n) => n.type === 'umlMessage');
+    expect(msg && isMessageViewModel(msg.data)).toBe(true);
+    if (msg && isMessageViewModel(msg.data)) {
+      expect(msg.data.isFound).toBe(true);
+      expect(msg.data.isSelfMessage).toBe(false);
+      // target centre = 50 + 70 = 120; dot 70px to the left → 50; arrow length 70.
+      expect(msg.position.x).toBe(50);
+      expect(msg.data.length).toBe(70);
+    }
+  });
+
+  it('places a lost message dot to the RIGHT of the source', () => {
+    const lost: IRMessage = {
+      id: 'l1', kind: 'MESSAGE', name: 'fire', messageKind: 'ASYNC',
+      sourceLifelineId: 'll1', targetLifelineId: '', sequenceNumber: 1, isLost: true,
+    };
+    const model = makeModel({ lifelines: { ll1: makeLifeline('ll1') }, messages: { l1: lost } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const msg = result.find((n) => n.type === 'umlMessage');
+    if (msg && isMessageViewModel(msg.data)) {
+      expect(msg.data.isLost).toBe(true);
+      expect(msg.data.isSelfMessage).toBe(false);
+      // source centre = 120; arrow runs right for 70.
+      expect(msg.position.x).toBe(120);
+      expect(msg.data.length).toBe(70);
+    }
+  });
+
+  it('shows a found message even though its source lifeline is absent', () => {
+    const found: IRMessage = {
+      id: 'f1', kind: 'MESSAGE', name: '', messageKind: 'ASYNC',
+      sourceLifelineId: '', targetLifelineId: 'll1', sequenceNumber: 1, isFound: true,
+    };
+    const model = makeModel({ lifelines: { ll1: makeLifeline('ll1') }, messages: { f1: found } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    expect(result.filter((n) => n.type === 'umlMessage')).toHaveLength(1);
+  });
+});
+
 // ─── computeHierarchicalNumbers ───────────────────────────────────────────────
 
 function makeMsg(id: string, seq: number): IRMessage {

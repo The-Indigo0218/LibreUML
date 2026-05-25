@@ -1,4 +1,4 @@
-import { Group, Line, Text, Arrow, Rect } from 'react-konva';
+import { Group, Line, Text, Arrow, Rect, Circle } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { MessageViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveMessageColors } from '../tokens/colors';
@@ -208,6 +208,14 @@ export default function MessageShape({
         listening={false}
         perfectDrawEnabled={false}
       />
+
+      {/* Filled circle marking the unknown endpoint of a found/lost message. */}
+      {vm.isFound && (
+        <Circle x={0} y={0} radius={5} fill={colors.fill} listening={false} perfectDrawEnabled={false} />
+      )}
+      {vm.isLost && (
+        <Circle x={endX} y={0} radius={5} fill={colors.fill} listening={false} perfectDrawEnabled={false} />
+      )}
 
       <Text
         x={labelX}

@@ -187,6 +187,10 @@ export interface MessageViewModel {
   /** Signed horizontal length: positive = arrow right, negative = left, 0 = self. */
   length: number;
   isSelfMessage: boolean;
+  /** Found message: a filled circle marks the unknown source at the arrow start. */
+  isFound?: boolean;
+  /** Lost message: a filled circle marks the unknown target at the arrow end. */
+  isLost?: boolean;
   onRename?: (name: string) => void;
 }
 

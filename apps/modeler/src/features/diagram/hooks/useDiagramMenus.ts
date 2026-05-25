@@ -397,6 +397,51 @@ export const useDiagramMenus = ({
     [getElementId],
   );
 
+  // ── Found / Lost message insertion (sequence diagrams) ────────────────────
+
+  const addEndpointMessage = useCallback(
+    (lifelineNodeId: string, variant: 'found' | 'lost') => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
+
+      const lifelineId = getElementId(lifelineNodeId);
+      if (!lifelineId) return;
+
+      const project = useVFSStore.getState().project;
+      if (!project) return;
+      const fileNode = project.nodes[tabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+
+      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+      const activeModel = isStandaloneFile
+        ? getLocalModel(tabId)
+        : useModelStore.getState().model;
+      if (!activeModel?.lifelines?.[lifelineId]) return;
+
+      const sequenceNumber =
+        Object.values(activeModel.messages ?? {}).reduce(
+          (acc, m) => (m.sequenceNumber > acc ? m.sequenceNumber : acc),
+          0,
+        ) + 1;
+
+      const payload = {
+        name: '',
+        messageKind: 'ASYNC' as const,
+        sourceLifelineId: variant === 'lost' ? lifelineId : '',
+        targetLifelineId: variant === 'found' ? lifelineId : '',
+        sequenceNumber,
+        ...(variant === 'found' ? { isFound: true } : { isLost: true }),
+      };
+
+      const newId = isStandaloneFile
+        ? standaloneModelOps(tabId).createMessage(payload)
+        : useModelStore.getState().createMessage(payload);
+
+      useUiStore.getState().openMessageProps(newId);
+    },
+    [getElementId],
+  );
+
   // ── getMenuOptions ────────────────────────────────────────────────────────
 
   const getMenuOptions = useCallback(
@@ -517,6 +562,14 @@ export const useDiagramMenus = ({
           baseOptions.push({
             label: t("contextMenu.node.addStateInvariant"),
             onClick: () => addStateInvariant(nodeId),
+          });
+          baseOptions.push({
+            label: t("contextMenu.node.addFoundMessage"),
+            onClick: () => addEndpointMessage(nodeId, 'found'),
+          });
+          baseOptions.push({
+            label: t("contextMenu.node.addLostMessage"),
+            onClick: () => addEndpointMessage(nodeId, 'lost'),
           });
         }
 
@@ -649,6 +702,7 @@ export const useDiagramMenus = ({
       getElementId,
       addStateInvariant,
       addInteractionUse,
+      addEndpointMessage,
       isStandalone,
       t,
     ]

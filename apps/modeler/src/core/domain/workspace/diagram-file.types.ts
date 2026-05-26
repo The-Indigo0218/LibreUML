@@ -1,12 +1,7 @@
-/**
- * Supported diagram types in the workspace
- */
-export type DiagramType =
-  | 'CLASS_DIAGRAM'
-  | 'USE_CASE_DIAGRAM'
-  | 'DOMAIN_MODEL_DIAGRAM'
-  | 'SEQUENCE_DIAGRAM';
-  // Future: 'ACTIVITY_DIAGRAM' | 'STATE_DIAGRAM'
+// DiagramType is defined once in vfs.types.ts (the full 12-type union) and
+// re-exported here so workspace code always uses the same source of truth.
+import type { DiagramType } from '../vfs/vfs.types';
+export type { DiagramType };
 
 /**
  * Viewport state (camera position and zoom)

@@ -191,21 +191,20 @@ function ensureDefaultVFSProject(): void {
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
+type NodeBuilder = (ctx: NodeBuilderContext) => VFSCanvasNode[];
+
+// Extend this record when adding a new diagram type — the switch is gone.
+const NODE_BUILDERS: Partial<Record<string, NodeBuilder>> = {
+  CLASS_DIAGRAM:     (ctx) => buildClassDiagramNodes(ctx) as VFSCanvasNode[],
+  PACKAGE_DIAGRAM:   (ctx) => buildClassDiagramNodes(ctx) as VFSCanvasNode[],
+  OBJECT_DIAGRAM:    (ctx) => buildClassDiagramNodes(ctx) as VFSCanvasNode[],
+  USE_CASE_DIAGRAM:  (ctx) => buildUseCaseDiagramNodes(ctx) as VFSCanvasNode[],
+  DOMAIN_MODEL_DIAGRAM: (ctx) => buildDomainModelNodes(ctx) as VFSCanvasNode[],
+  SEQUENCE_DIAGRAM:  (ctx) => buildSequenceDiagramNodes(ctx) as VFSCanvasNode[],
+};
+
 function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSCanvasNode[] {
-  switch (vfsFile.diagramType) {
-    case 'CLASS_DIAGRAM':
-    case 'PACKAGE_DIAGRAM':
-    case 'OBJECT_DIAGRAM':
-      return buildClassDiagramNodes(ctx) as VFSCanvasNode[];
-    case 'USE_CASE_DIAGRAM':
-      return buildUseCaseDiagramNodes(ctx) as VFSCanvasNode[];
-    case 'DOMAIN_MODEL_DIAGRAM':
-      return buildDomainModelNodes(ctx) as VFSCanvasNode[];
-    case 'SEQUENCE_DIAGRAM':
-      return buildSequenceDiagramNodes(ctx) as VFSCanvasNode[];
-    default:
-      return buildClassDiagramNodes(ctx) as VFSCanvasNode[];
-  }
+  return (NODE_BUILDERS[vfsFile.diagramType] ?? NODE_BUILDERS.CLASS_DIAGRAM!)(ctx);
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────

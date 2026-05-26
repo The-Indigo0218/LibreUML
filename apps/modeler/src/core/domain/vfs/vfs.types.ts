@@ -526,3 +526,44 @@ export interface SemanticModel {
   updatedAt: number;
   packageNames?: string[];
 }
+
+// ─── Semantic resolution types ────────────────────────────────────────────────
+
+/**
+ * Discriminant for any resolvable element in the SemanticModel.
+ * Used by resolveSemanticElement and diagram-registry semanticLookup entries.
+ */
+export type SemanticKind =
+  | 'CLASS'
+  | 'ABSTRACT_CLASS'
+  | 'INTERFACE'
+  | 'ENUM'
+  | 'PACKAGE'
+  | 'NOTE'
+  | 'ACTOR'
+  | 'USECASE'
+  | 'SYSTEM_BOUNDARY'
+  | 'UC_MODULE'
+  | 'DOMAIN_ENTITY'
+  | 'LIFELINE'
+  | 'UNKNOWN';
+
+/**
+ * Result of resolving a ViewNode's elementId against the SemanticModel.
+ * `element` is null for NOTEs and UNKNOWN ids.
+ */
+export interface ResolvedElement {
+  element:
+    | IRClass
+    | IRInterface
+    | IREnum
+    | IRPackage
+    | IRActor
+    | IRUseCase
+    | IRSystemBoundary
+    | IRUCModule
+    | IRDomainEntity
+    | IRLifeline
+    | null;
+  kind: SemanticKind;
+}

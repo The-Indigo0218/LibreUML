@@ -1,6 +1,7 @@
 import type { DiagramType } from '../domain/workspace/diagram-file.types';
 import type { DomainNode } from '../domain/models/nodes';
 import type { DomainEdge } from '../domain/models/edges';
+import type { SemanticModel, ResolvedElement } from '../domain/vfs/vfs.types';
 
 /**
  * Tool type for UI rendering
@@ -89,6 +90,15 @@ export interface DiagramTypeRegistry {
     createNode: (type: string, partial?: Partial<DomainNode>) => DomainNode;
     createEdge: (type: string, sourceId: string, targetId: string, partial?: Partial<DomainEdge>) => DomainEdge;
   };
+
+  /**
+   * Resolves an elementId against the collections this diagram type owns.
+   * Returns null when the element is not in this registry's domain — the
+   * caller (resolveSemanticElement) iterates all registries until a hit.
+   * Registering a new diagram type here is the only change needed to extend
+   * semantic resolution; sharedNodeBuilders.ts stays untouched.
+   */
+  semanticLookup: (model: SemanticModel, id: string) => ResolvedElement | null;
 }
 
 /**

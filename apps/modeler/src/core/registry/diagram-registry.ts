@@ -2,7 +2,7 @@ import type {
   DiagramTypeRegistry,
   DiagramRegistryMap,
 } from './diagram-registry.types';
-import type { DiagramType } from '../domain/vfs/vfs.types';
+import type { DiagramType, SemanticModel, ResolvedElement } from '../domain/vfs/vfs.types';
 import type { DomainNode } from '../domain/models/nodes';
 import type { DomainEdge } from '../domain/models/edges';
 import type {
@@ -464,6 +464,18 @@ const classDiagramRegistry: DiagramTypeRegistry = {
     createNode: createClassDiagramNode,
     createEdge: createClassDiagramEdge,
   },
+
+  semanticLookup: (model: SemanticModel, id: string): ResolvedElement | null => {
+    const cls = model.classes[id];
+    if (cls) return { element: cls, kind: cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS' };
+    const iface = model.interfaces[id];
+    if (iface) return { element: iface, kind: 'INTERFACE' };
+    const enm = model.enums[id];
+    if (enm) return { element: enm, kind: 'ENUM' };
+    const pkg = model.packages[id];
+    if (pkg) return { element: pkg, kind: 'PACKAGE' };
+    return null;
+  },
 };
 
 /**
@@ -574,6 +586,18 @@ const useCaseDiagramRegistry: DiagramTypeRegistry = {
   factories: {
     createNode: createUseCaseDiagramNode,
     createEdge: createUseCaseDiagramEdge,
+  },
+
+  semanticLookup: (model: SemanticModel, id: string): ResolvedElement | null => {
+    const actor = model.actors?.[id];
+    if (actor) return { element: actor, kind: 'ACTOR' };
+    const uc = model.useCases?.[id];
+    if (uc) return { element: uc, kind: 'USECASE' };
+    const sb = model.systemBoundaries?.[id];
+    if (sb) return { element: sb, kind: 'SYSTEM_BOUNDARY' };
+    const ucm = model.ucModules?.[id];
+    if (ucm) return { element: ucm, kind: 'UC_MODULE' };
+    return null;
   },
 };
 
@@ -701,6 +725,12 @@ const domainModelDiagramRegistry: DiagramTypeRegistry = {
   factories: {
     createNode: createDomainModelDiagramNode,
     createEdge: createDomainModelDiagramEdge,
+  },
+
+  semanticLookup: (model: SemanticModel, id: string): ResolvedElement | null => {
+    const de = model.domainEntities?.[id];
+    if (de) return { element: de, kind: 'DOMAIN_ENTITY' };
+    return null;
   },
 };
 
@@ -889,6 +919,12 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
     createNode: createSequenceDiagramNode,
     createEdge: createSequenceDiagramEdge,
   },
+
+  semanticLookup: (model: SemanticModel, id: string): ResolvedElement | null => {
+    const ll = model.lifelines?.[id];
+    if (ll) return { element: ll, kind: 'LIFELINE' };
+    return null;
+  },
 };
 
 /**
@@ -931,3 +967,10 @@ export function isDiagramTypeRegistered(diagramType: string): diagramType is Dia
 export function getRegisteredDiagramTypes(): DiagramType[] {
   return Object.keys(diagramRegistry) as DiagramType[];
 }
+
+/**
+ * The subset of DiagramType values that have a registry entry (i.e. are
+ * implemented). Use this instead of the full DiagramType union wherever the
+ * code must only handle diagram types that are actually available.
+ */
+export type RegisteredDiagramType = keyof typeof diagramRegistry;

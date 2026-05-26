@@ -85,7 +85,7 @@ import {
 import { selectAnchors, anchorPointToHandle, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
-import { yToMessageSlot } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
+import { yToMessageSlot, yToInvariantSlot } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
 import { standaloneModelOps } from '../store/standaloneModelOps';
 
 const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
@@ -508,6 +508,47 @@ export default function KonvaCanvas() {
       }
 
       node.position({ x: draggedEntry.shape.x, y: newY });
+    },
+    [shapes, vfsController.isStandalone, activeTabId],
+  );
+
+  // Drag handler for state invariants, interaction uses, and gates.
+  // Their X is fixed by the builder (lifeline center / fragment edge); only Y
+  // maps to `afterSequenceNumber` via `yToInvariantSlot`.
+  const handleDerivedDragEnd = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      const node = e.target;
+      const newY = node.y();
+      const shapeEntry = shapes.find((s) => s.id === node.id());
+      if (!shapeEntry) return;
+
+      const vm = shapeEntry.data;
+      if (!isStateInvariantViewModel(vm) && !isInteractionUseViewModel(vm) && !isGateViewModel(vm)) return;
+
+      const newSlot = yToInvariantSlot(newY, vm.totalMessages);
+      if (newSlot === vm.afterSequenceNumber) {
+        node.position({ x: shapeEntry.x, y: shapeEntry.y });
+        return;
+      }
+
+      const ops = vfsController.isStandalone && activeTabId ? standaloneModelOps(activeTabId) : null;
+
+      if (isStateInvariantViewModel(vm)) {
+        ops
+          ? ops.updateStateInvariant(vm.domainId, { afterSequenceNumber: newSlot })
+          : useModelStore.getState().updateStateInvariant(vm.domainId, { afterSequenceNumber: newSlot });
+      } else if (isInteractionUseViewModel(vm)) {
+        ops
+          ? ops.updateInteractionUse(vm.domainId, { afterSequenceNumber: newSlot })
+          : useModelStore.getState().updateInteractionUse(vm.domainId, { afterSequenceNumber: newSlot });
+      } else if (isGateViewModel(vm)) {
+        ops
+          ? ops.updateGate(vm.domainId, { afterSequenceNumber: newSlot })
+          : useModelStore.getState().updateGate(vm.domainId, { afterSequenceNumber: newSlot });
+      }
+
+      // Reset visual position — the store update will re-derive the canonical Y.
+      node.position({ x: shapeEntry.x, y: shapeEntry.y });
     },
     [shapes, vfsController.isStandalone, activeTabId],
   );
@@ -1519,6 +1560,7 @@ export default function KonvaCanvas() {
 
                 const isMsg = isMessageViewModel(vm);
                 const isLifeline = isLifelineViewModel(vm);
+                const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm);
                 return renderShape(vm, {
                   key: shape.id,
                   x: pos.x,
@@ -1526,10 +1568,14 @@ export default function KonvaCanvas() {
                   selected: selectedIds.has(shape.id),
                   draggable: true,
                   visible: isVisible && !isDescendantOfCollapsed,
-                  onDragStart: isMsg ? undefined : guardedDragStart,
-                  onDragMove: isMsg ? undefined : handleDragMove,
-                  onDragEnd: isMsg ? handleMessageDragEnd : handleDragEnd,
-                  dragBoundFunc: isMsg
+                  onDragStart: isMsg || isDerived ? undefined : guardedDragStart,
+                  onDragMove: isMsg || isDerived ? undefined : handleDragMove,
+                  onDragEnd: isMsg
+                    ? handleMessageDragEnd
+                    : isDerived
+                    ? handleDerivedDragEnd
+                    : handleDragEnd,
+                  dragBoundFunc: isMsg || isDerived
                     ? (p: { x: number; y: number }) => ({ x: pos.x, y: p.y })
                     : isLifeline
                     ? (p: { x: number; y: number }) => ({ x: p.x, y: pos.y })

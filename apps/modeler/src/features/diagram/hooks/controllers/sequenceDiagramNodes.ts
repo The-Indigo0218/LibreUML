@@ -378,6 +378,8 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
         constraint: si.constraint,
         width,
         height,
+        afterSequenceNumber: slot,
+        totalMessages: allMessages.length,
       };
 
       return {
@@ -405,6 +407,8 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
         name: g.name || '',
         side: g.side,
         size: GATE_SIZE,
+        afterSequenceNumber: slot,
+        totalMessages: allMessages.length,
       };
 
       return {
@@ -568,6 +572,8 @@ function buildInteractionUseNodes(
         label: use.referencedName || use.name || 'ref',
         width,
         height: INTERACTION_USE_H,
+        afterSequenceNumber: slot,
+        totalMessages,
       };
 
       return {
@@ -590,6 +596,17 @@ function buildInteractionUseNodes(
 export function yToMessageSlot(y: number, totalMessages: number): number {
   const raw = (y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD) / MESSAGE_BAND_H + 0.5;
   return Math.max(1, Math.min(totalMessages, Math.round(raw)));
+}
+
+/**
+ * Convert a canvas Y coordinate (from a StateInvariant / Gate / InteractionUse
+ * drag) to a 0-based slot index, clamped within [0, totalMessages].
+ *
+ * Inverse of `stateInvariantSlotY`.
+ */
+export function yToInvariantSlot(y: number, totalMessages: number): number {
+  const raw = (y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD) / MESSAGE_BAND_H;
+  return Math.max(0, Math.min(totalMessages, Math.round(raw)));
 }
 
 /**

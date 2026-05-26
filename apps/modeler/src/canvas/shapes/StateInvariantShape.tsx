@@ -17,9 +17,14 @@ interface StateInvariantShapeProps {
   selected?: boolean;
   opacity?: number;
   visible?: boolean;
+  draggable?: boolean;
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
   onDblClick?: (e: KonvaEventObject<MouseEvent>) => void;
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, nodeId: string) => void;
+  onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
+  onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
+  onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
+  dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
 }
 
 export default function StateInvariantShape({
@@ -29,9 +34,14 @@ export default function StateInvariantShape({
   selected,
   opacity,
   visible = true,
+  draggable = false,
   onNodeClick,
   onDblClick,
   onContextMenu,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  dragBoundFunc,
 }: StateInvariantShapeProps) {
   const colors = resolveStateInvariantColors();
   const W = vm.width;
@@ -45,7 +55,11 @@ export default function StateInvariantShape({
       opacity={opacity}
       visible={visible}
       listening={true}
-      draggable={false}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
+      onDragEnd={onDragEnd}
+      dragBoundFunc={dragBoundFunc}
       onClick={(e) => {
         e.cancelBubble = true;
         onNodeClick?.(vm.id, e.evt.ctrlKey || e.evt.metaKey);

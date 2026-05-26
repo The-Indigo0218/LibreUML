@@ -242,6 +242,10 @@ export interface StateInvariantViewModel {
   /** State-symbol bounding box (centred on the lifeline by the builder). */
   width: number;
   height: number;
+  /** Current temporal anchor (0 = before first message). Used by drag handler. */
+  afterSequenceNumber: number;
+  /** Total message count in the diagram — needed to clamp drag slot. */
+  totalMessages: number;
 }
 
 export interface InteractionUseViewModel {
@@ -253,6 +257,10 @@ export interface InteractionUseViewModel {
   /** Bounding box spanning the covered lifelines. */
   width: number;
   height: number;
+  /** Current temporal anchor. Used by drag handler. */
+  afterSequenceNumber: number;
+  /** Total message count in the diagram — needed to clamp drag slot. */
+  totalMessages: number;
 }
 
 export interface GateViewModel {
@@ -264,6 +272,10 @@ export interface GateViewModel {
   side: 'LEFT' | 'RIGHT';
   /** Square marker size. */
   size: number;
+  /** Current temporal anchor. Used by drag handler. */
+  afterSequenceNumber: number;
+  /** Total message count in the diagram — needed to clamp drag slot. */
+  totalMessages: number;
 }
 
 /**

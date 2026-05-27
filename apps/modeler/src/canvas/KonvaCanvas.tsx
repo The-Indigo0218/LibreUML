@@ -1578,7 +1578,12 @@ export default function KonvaCanvas() {
                   dragBoundFunc: isMsg || isDerived
                     ? (p: { x: number; y: number }) => ({ x: pos.x, y: p.y })
                     : isLifeline
-                    ? (p: { x: number; y: number }) => ({ x: p.x, y: pos.y })
+                    ? (p: { x: number; y: number }) => {
+                        const stage = stageRef.current;
+                        const scale = stage?.scaleX() ?? 1;
+                        const stageOffY = stage?.y() ?? 0;
+                        return { x: p.x, y: pos.y * scale + stageOffY };
+                      }
                     : undefined,
                   onNodeClick,
                   onDblClick,

@@ -54,6 +54,20 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
         { keys: [modKey, 'Z'], descriptionKey: 'keyboardShortcuts.shortcuts.undo' },
         { keys: [modKey, 'Y'], descriptionKey: 'keyboardShortcuts.shortcuts.redo' },
         { keys: [modKey, 'H'], descriptionKey: 'keyboardShortcuts.shortcuts.openWiki' },
+        { keys: ['?'], descriptionKey: 'keyboardShortcuts.shortcuts.showShortcuts' },
+      ],
+    },
+    {
+      titleKey: 'keyboardShortcuts.categories.relations',
+      shortcuts: [
+        { keys: ['A'], descriptionKey: 'keyboardShortcuts.shortcuts.relAssociation' },
+        { keys: ['G'], descriptionKey: 'keyboardShortcuts.shortcuts.relGeneralization' },
+        { keys: ['R'], descriptionKey: 'keyboardShortcuts.shortcuts.relRealization' },
+        { keys: ['D'], descriptionKey: 'keyboardShortcuts.shortcuts.relDependency' },
+        { keys: ['O'], descriptionKey: 'keyboardShortcuts.shortcuts.relAggregation' },
+        { keys: ['C'], descriptionKey: 'keyboardShortcuts.shortcuts.relComposition' },
+        { keys: ['I'], descriptionKey: 'keyboardShortcuts.shortcuts.relInclude' },
+        { keys: ['X'], descriptionKey: 'keyboardShortcuts.shortcuts.relExtend' },
       ],
     },
     {

@@ -11,6 +11,7 @@ import { useKonvaAutoLayout } from "../../../../canvas/hooks/useKonvaAutoLayout"
 import { DRAG_TYPE_NEW } from "../../../../canvas/hooks/useKonvaDnD";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import type { VFSFile } from "../../../../core/domain/vfs/vfs.types";
+import { getRelationShortcutKey } from "../../../../canvas/interactions/relationShortcuts";
 
 export default function ToolPalette() {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
@@ -125,6 +126,7 @@ export default function ToolPalette() {
                   icon={tool.icon}
                   label={tool.translationKey ? t(tool.translationKey) : tool.label}
                   color={color}
+                  shortcutKey={getRelationShortcutKey(tool.id)}
                 />
               );
             })}
@@ -231,6 +233,8 @@ interface ConnectionItemProps {
   icon: string; // Icon name from Lucide
   label: string;
   color: string;
+  /** Single-key shortcut (uppercase) that activates this tool, or null. */
+  shortcutKey?: string | null;
 }
 
 function ConnectionItem({
@@ -240,6 +244,7 @@ function ConnectionItem({
   icon,
   label,
   color,
+  shortcutKey,
 }: ConnectionItemProps) {
   const isActive = activeMode === mode;
   const [isHovered, setIsHovered] = useState(false);
@@ -252,7 +257,7 @@ function ConnectionItem({
 
   return (
     <button
-      title={label}
+      title={shortcutKey ? `${label} (${shortcutKey})` : label}
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -288,6 +293,19 @@ function ConnectionItem({
       >
         {label}
       </span>
+
+      {shortcutKey && (
+        <kbd
+          className="ml-auto px-1.5 py-0.5 text-[10px] font-mono font-semibold rounded border shrink-0"
+          style={{
+            color: isActive ? "#0B0F1A" : "#9CA3AF",
+            borderColor: isActive ? "#0B0F1A33" : "#9CA3AF33",
+            backgroundColor: isActive ? "#0B0F1A14" : "transparent",
+          }}
+        >
+          {shortcutKey}
+        </kbd>
+      )}
     </button>
   );
 }

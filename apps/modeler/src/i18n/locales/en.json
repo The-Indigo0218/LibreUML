@@ -978,10 +978,20 @@
     "footerNote": "Press ESC to close this dialog at any time",
     "categories": {
       "general": "General",
+      "relations": "Relations",
       "canvas": "Canvas",
       "terminal": "Terminal"
     },
     "shortcuts": {
+      "showShortcuts": "Show Keyboard Shortcuts",
+      "relAssociation": "Association",
+      "relGeneralization": "Generalization / Inheritance",
+      "relRealization": "Realization",
+      "relDependency": "Dependency",
+      "relAggregation": "Aggregation",
+      "relComposition": "Composition",
+      "relInclude": "«include»",
+      "relExtend": "«extend»",
       "newDiagram": "New Diagram (Electron)",
       "newDiagramWeb": "New Diagram (Web / Chromium)",
       "openFile": "Open File",

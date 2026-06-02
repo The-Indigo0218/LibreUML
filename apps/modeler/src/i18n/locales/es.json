@@ -987,10 +987,20 @@
     "footerNote": "Presiona ESC para cerrar este diálogo en cualquier momento",
     "categories": {
       "general": "General",
+      "relations": "Relaciones",
       "canvas": "Lienzo",
       "terminal": "Terminal"
     },
     "shortcuts": {
+      "showShortcuts": "Mostrar Atajos de Teclado",
+      "relAssociation": "Asociación",
+      "relGeneralization": "Generalización / Herencia",
+      "relRealization": "Realización",
+      "relDependency": "Dependencia",
+      "relAggregation": "Agregación",
+      "relComposition": "Composición",
+      "relInclude": "«include»",
+      "relExtend": "«extend»",
       "newDiagram": "Nuevo Diagrama (Electron)",
       "newDiagramWeb": "Nuevo Diagrama (Web / Chromium)",
       "openFile": "Abrir Archivo",

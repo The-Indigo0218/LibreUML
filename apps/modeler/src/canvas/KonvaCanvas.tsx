@@ -29,6 +29,7 @@ import { useDragHandler } from './interactions/useDragHandler';
 import type { CanvasNode } from './interactions/useDragHandler';
 import { useConnectionDraw } from './interactions/useConnectionDraw';
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
+import { useRelationShortcuts } from './interactions/useRelationShortcuts';
 import { usePackageDrop } from './interactions/usePackageDrop';
 import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
@@ -648,6 +649,9 @@ export default function KonvaCanvas() {
     onDeleteEdges: handleDeleteEdges,
     onSelectAll: selectAll,
   });
+
+  // R8 — single-key relation/connection tool shortcuts (diagram-aware).
+  useRelationShortcuts();
 
   const { onDragOver: handleDragOver, onDrop: handleDrop, duplicateModal, hierarchyModal } = useKonvaDnD({ stageRef });
 

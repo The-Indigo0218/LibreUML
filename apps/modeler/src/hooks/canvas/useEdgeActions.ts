@@ -30,6 +30,11 @@ export interface UseEdgeActionsResult {
       anchorLocked?: boolean;
     },
   ) => void;
+  /** Replaces an edge's manual waypoints (R3b). One undo transaction per call. */
+  updateEdgeWaypoints: (
+    viewEdgeId: string,
+    waypoints: { x: number; y: number }[],
+  ) => void;
 }
 
 export function useEdgeActions({
@@ -168,6 +173,20 @@ export function useEdgeActions({
     [activeTabId, updateFileContent],
   );
 
+  const updateEdgeWaypoints = useCallback(
+    (viewEdgeId: string, waypoints: { x: number; y: number }[]) => {
+      if (!activeTabId) return;
+      withUndo('vfs', 'Edit Edge Waypoints', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        const idx = node.content.edges.findIndex((ve: any) => ve.id === viewEdgeId);
+        if (idx === -1) return;
+        node.content.edges[idx] = { ...node.content.edges[idx], waypoints };
+      });
+    },
+    [activeTabId],
+  );
+
   const changeEdgeKind = useCallback(
     (viewEdgeId: string, kind: RelationKind) => {
       if (!activeTabId) return;
@@ -201,5 +220,5 @@ export function useEdgeActions({
     [activeTabId, isStandalone],
   );
 
-  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps };
+  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps, updateEdgeWaypoints };
 }

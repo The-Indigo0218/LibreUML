@@ -72,6 +72,8 @@ export interface VFSCanvasEdge {
   type: string;
   sourceHandle?: string;
   targetHandle?: string;
+  /** Manual user waypoints (R3). */
+  waypoints?: { x: number; y: number }[];
   style?: CSSProperties;
   data: {
     domainId: string;
@@ -118,6 +120,7 @@ export interface VFSCanvasResult {
       anchorLocked?: boolean;
     },
   ) => void;
+  updateEdgeWaypoints: (viewEdgeId: string, waypoints: { x: number; y: number }[]) => void;
 }
 
 // ─── Default project bootstrap ────────────────────────────────────────────────
@@ -330,6 +333,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
         type: 'vfsUmlEdge',
         sourceHandle: viewEdge.anchorLocked ? viewEdge.sourceHandle : undefined,
         targetHandle: viewEdge.anchorLocked ? viewEdge.targetHandle : undefined,
+        waypoints: viewEdge.waypoints,
         data: {
           domainId: relation.id,
           kind: relation.kind,
@@ -373,5 +377,6 @@ export function useVFSCanvasController(): VFSCanvasResult {
     reverseEdgeById: edgeActions.reverseEdgeById,
     changeEdgeKind: edgeActions.changeEdgeKind,
     updateVFSEdgeProps: edgeActions.updateVFSEdgeProps,
+    updateEdgeWaypoints: edgeActions.updateEdgeWaypoints,
   };
 }

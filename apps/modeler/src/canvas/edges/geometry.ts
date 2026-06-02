@@ -257,6 +257,22 @@ export function straightRoute(src: Point, tgt: Point): number[] {
   return [src.x, src.y, tgt.x, tgt.y];
 }
 
+/**
+ * Polyline route through explicit user waypoints (R3).
+ * Returns a flat Konva points array: [src, ...waypoints, tgt].
+ *
+ * Used when an edge carries manual waypoints — it overrides automatic routing
+ * (orthogonal / curved) so the user's bends are respected verbatim. Reconciling
+ * manual waypoints with orthogonal auto-routing (keeping 90° on the auto
+ * segments) is a separate concern (R6).
+ */
+export function polylineRoute(src: Point, waypoints: Point[], tgt: Point): number[] {
+  const pts: number[] = [src.x, src.y];
+  for (const w of waypoints) pts.push(w.x, w.y);
+  pts.push(tgt.x, tgt.y);
+  return pts;
+}
+
 /** Outward unit direction for each face (away from the node body). */
 function faceOutward(face: AnchorFace): [number, number] {
   switch (face) {

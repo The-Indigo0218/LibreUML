@@ -41,6 +41,8 @@ export interface EdgeDescriptor {
   // «extend» specific
   condition?: string;
   extensionPoint?: string;
+  /** Manual user waypoints (R3) — when present, the edge routes through them. */
+  waypoints?: { x: number; y: number }[];
 }
 
 // ─── Change types ─────────────────────────────────────────────────────────────

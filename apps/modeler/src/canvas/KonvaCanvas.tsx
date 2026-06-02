@@ -237,11 +237,18 @@ export default function KonvaCanvas() {
 
   const boundsMapRef = useRef<Map<string, NodeBounds>>(new Map());
 
-  const { selectedIds, lassoRect, onNodeClick, selectAll, stageHandlers } = useSelection({
+  const { selectedIds, selectedEdgeId, lassoRect, onNodeClick, onEdgeClick, selectAll, stageHandlers } = useSelection({
     stageRef,
     boundsMapRef,
     isSpacePressed,
   });
+
+  const handleEdgeWaypointsChange = useCallback(
+    (edgeId: string, waypoints: { x: number; y: number }[]) => {
+      vfsController.updateEdgeWaypoints(edgeId, waypoints);
+    },
+    [vfsController],
+  );
 
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [hoveredPackageId, setHoveredPackageId] = useState<string | null>(null);
@@ -1500,10 +1507,12 @@ export default function KonvaCanvas() {
                 anchorLocked={edge.anchorLocked}
                 sourceHandle={edge.sourceHandle ?? undefined}
                 targetHandle={edge.targetHandle ?? undefined}
-                isHighlighted={highlightedEdgeIds.has(edge.id)}
+                waypoints={edge.waypoints}
+                isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
                 renderMode="lines"
+                onSelect={onEdgeClick}
                 onContextMenu={handleEdgeContextMenu}
                 onMouseEnter={handleEdgeMouseEnter}
                 onMouseLeave={handleEdgeMouseLeave}
@@ -1616,16 +1625,19 @@ export default function KonvaCanvas() {
                 anchorLocked={edge.anchorLocked}
                 sourceHandle={edge.sourceHandle ?? undefined}
                 targetHandle={edge.targetHandle ?? undefined}
+                waypoints={edge.waypoints}
                 label={edge.label}
                 sourceMultiplicity={edge.sourceMultiplicity}
                 targetMultiplicity={edge.targetMultiplicity}
                 sourceRole={edge.sourceRole}
                 targetRole={edge.targetRole}
                 condition={edge.condition}
-                isHighlighted={highlightedEdgeIds.has(edge.id)}
+                isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
                 renderMode="labels"
+                selected={selectedEdgeId === edge.id}
+                onWaypointsChange={handleEdgeWaypointsChange}
                 onDblClick={handleEdgeDblClick}
                 visible={isVisible && !shouldHideEdge}
               />

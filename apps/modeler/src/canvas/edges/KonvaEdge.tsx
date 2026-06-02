@@ -33,8 +33,8 @@
  *   'full'   — renders everything (default, backward-compatible).
  */
 
-import { useMemo } from 'react';
-import { Group, Line, Text, Label, Tag } from 'react-konva';
+import { useMemo, useState } from 'react';
+import { Group, Line, Text, Label, Tag, Circle } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 import {
@@ -43,9 +43,11 @@ import {
   retractAnchor,
   curvedRoute,
   straightRoute,
+  polylineRoute,
   selfLoopPath,
   type NodeBounds,
   type LockedHandle,
+  type Point,
 } from './geometry';
 import { avoidObstacles } from './obstacleAvoidance';
 import EdgeMarker from './EdgeMarker';
@@ -311,6 +313,19 @@ export interface KonvaEdgeProps {
   anchorLocked?: boolean;
   sourceHandle?: string;
   targetHandle?: string;
+  /**
+   * Manual user waypoints (R3). When non-empty, the line body is routed as a
+   * polyline through these points instead of the automatic routing, letting the
+   * user bend the edge. Anchors at both ends are still resolved normally.
+   * Ignored for self-loops.
+   */
+  waypoints?: Point[];
+  /** True when this edge is the selected one — shows waypoint editing handles (R3b). */
+  selected?: boolean;
+  /** Click handler used to select the edge (R3b). */
+  onSelect?: (edgeId: string) => void;
+  /** Persists a new waypoints array after a handle drag / insert / delete (R3b). */
+  onWaypointsChange?: (edgeId: string, waypoints: Point[]) => void;
 }
 
 export default function KonvaEdge({
@@ -339,7 +354,19 @@ export default function KonvaEdge({
   anchorLocked = false,
   sourceHandle,
   targetHandle,
+  waypoints,
+  selected = false,
+  onSelect,
+  onWaypointsChange,
 }: KonvaEdgeProps) {
+  // Local draft of waypoints during an in-progress handle drag (R3b). Null =
+  // use the props value. Lets the line follow the handle live without touching
+  // the store until the drag ends.
+  const [draftWaypoints, setDraftWaypoints] = useState<Point[] | null>(null);
+  // Index of the segment-midpoint ("ghost") handle currently being dragged to
+  // insert a new bend, or null. Needed so that ghost is rendered at the live
+  // dragged position (avoids react-konva snapping it back each frame).
+  const [draggingGhost, setDraggingGhost] = useState<number | null>(null);
   // When active (highlighted or hovered): use kind-specific color; else base gray
   const isActive = isHighlighted || isHovered;
   const stroke = isActive ? getEdgeColorByKind(kind) : getEdgeColor();
@@ -351,7 +378,10 @@ export default function KonvaEdge({
   const showLines  = renderMode !== 'labels';
   const showLabels = renderMode !== 'lines';
 
-  const { markerX, markerY, markerFace, points, bezier, labelPositions } = useMemo(() => {
+  // Waypoints actually rendered: the live draft (during a drag) or the persisted props.
+  const effectiveWaypoints = draftWaypoints ?? waypoints;
+
+  const { markerX, markerY, markerFace, points, bezier, labelPositions, srcX, srcY } = useMemo(() => {
     // ── Self-loop ──────────────────────────────────────────────────────────
     if (isSelfLoop) {
       const loop = selfLoopPath(sourceBounds, retract);
@@ -367,6 +397,8 @@ export default function KonvaEdge({
         markerX: loop.markerX,
         markerY: loop.markerY,
         markerFace: loop.markerFace,
+        srcX,
+        srcY,
         labelPositions: {
           sourceMultX: srcX + 6,
           sourceMultY: srcY - 14,
@@ -397,20 +429,26 @@ export default function KonvaEdge({
     let pts: number[];
     let isBezier = false;
 
-    switch (routingMode) {
-      case 'curved':
-        pts = curvedRoute(src, retractedTgt, tgt.face);
-        isBezier = true;
-        break;
+    if (effectiveWaypoints && effectiveWaypoints.length > 0) {
+      // Manual waypoints override automatic routing (R3): route the body as a
+      // polyline src → waypoints → target. Overrides orthogonal/curved/straight.
+      pts = polylineRoute(src, effectiveWaypoints, retractedTgt);
+    } else {
+      switch (routingMode) {
+        case 'curved':
+          pts = curvedRoute(src, retractedTgt, tgt.face);
+          isBezier = true;
+          break;
 
-      case 'straight':
-        pts = straightRoute(src, retractedTgt);
-        break;
+        case 'straight':
+          pts = straightRoute(src, retractedTgt);
+          break;
 
-      case 'orthogonal':
-      default:
-        pts = avoidObstacles(src, retractedTgt, obstacles ?? []);
-        break;
+        case 'orthogonal':
+        default:
+          pts = avoidObstacles(src, retractedTgt, obstacles ?? []);
+          break;
+      }
     }
 
     // Target labels must clear the marker depth (e.g. 24px diamond for COMPOSITION)
@@ -422,9 +460,31 @@ export default function KonvaEdge({
       markerX: tgt.x,
       markerY: tgt.y,
       markerFace: tgt.face,
+      srcX: src.x,
+      srcY: src.y,
       labelPositions: computeLabelPositions(pts, src.x, src.y, tgt.x, tgt.y, targetAlong, isBezier),
     };
-  }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract, anchorLocked, sourceHandle, targetHandle]);
+  }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract, anchorLocked, sourceHandle, targetHandle, effectiveWaypoints]);
+
+  // ── Waypoint editing handles (R3b) ────────────────────────────────────────
+  const showHandles = showLabels && selected && !isSelfLoop && !!onWaypointsChange;
+  const moveWaypoints = effectiveWaypoints ?? [];
+  const persistedWaypoints = waypoints ?? [];
+  // Control polyline from PERSISTED waypoints — stable node identity for ghosts
+  // so the dragged ghost node is not remounted mid-drag.
+  const ghostControl: Point[] = [
+    { x: srcX, y: srcY },
+    ...persistedWaypoints,
+    { x: markerX, y: markerY },
+  ];
+  const HANDLE_FILL = '#6366f1';
+  const HANDLE_STROKE = '#ffffff';
+
+  const commitWaypoints = (next: Point[]) => {
+    onWaypointsChange?.(id, next);
+    setDraftWaypoints(null);
+    setDraggingGhost(null);
+  };
 
   const multStyle      = isHighlighted ? 'bold' : 'normal';
   const roleStyle      = isHighlighted ? 'bold italic' : 'italic';
@@ -451,6 +511,8 @@ export default function KonvaEdge({
             hitStrokeWidth={12}
             listening={true}
             perfectDrawEnabled={false}
+            onClick={(e) => { e.cancelBubble = true; onSelect?.(id); }}
+            onTap={(e) => { e.cancelBubble = true; onSelect?.(id); }}
             onContextMenu={(e) => onContextMenu?.(e, id)}
             onMouseEnter={(e) => onMouseEnter?.(e, id)}
             onMouseLeave={(e) => onMouseLeave?.(e, id)}
@@ -698,6 +760,91 @@ export default function KonvaEdge({
               />
             </Label>
           )}
+        </>
+      )}
+
+      {/* ── Waypoint editing handles (R3b) ──────────────────────────────── */}
+      {showHandles && (
+        <>
+          {/* Ghost handles at each segment midpoint — drag to insert a bend */}
+          {ghostControl.slice(0, -1).map((a, k) => {
+            const b = ghostControl[k + 1];
+            const live = draggingGhost === k && draftWaypoints ? draftWaypoints[k] : null;
+            const hx = live ? live.x : (a.x + b.x) / 2;
+            const hy = live ? live.y : (a.y + b.y) / 2;
+            return (
+              <Circle
+                key={`ghost-${k}`}
+                x={hx}
+                y={hy}
+                radius={4}
+                fill={HANDLE_FILL}
+                opacity={draggingGhost === k ? 1 : 0.4}
+                stroke={HANDLE_STROKE}
+                strokeWidth={1}
+                draggable
+                onMouseDown={(e) => { e.cancelBubble = true; }}
+                onDragStart={(e) => {
+                  e.cancelBubble = true;
+                  const next = persistedWaypoints.slice();
+                  next.splice(k, 0, { x: e.target.x(), y: e.target.y() });
+                  setDraggingGhost(k);
+                  setDraftWaypoints(next);
+                }}
+                onDragMove={(e) => {
+                  const x = e.target.x();
+                  const y = e.target.y();
+                  setDraftWaypoints((prev) => {
+                    const base = prev ? prev.slice() : (() => {
+                      const b2 = persistedWaypoints.slice();
+                      b2.splice(k, 0, { x, y });
+                      return b2;
+                    })();
+                    base[k] = { x, y };
+                    return base;
+                  });
+                }}
+                onDragEnd={(e) => {
+                  const base = (draftWaypoints ?? persistedWaypoints).slice();
+                  base[k] = { x: e.target.x(), y: e.target.y() };
+                  commitWaypoints(base);
+                }}
+              />
+            );
+          })}
+
+          {/* Solid handles at each existing waypoint — drag to move, dbl-click to delete */}
+          {moveWaypoints.map((p, i) => (
+            <Circle
+              key={`wp-${i}`}
+              x={p.x}
+              y={p.y}
+              radius={5}
+              fill={HANDLE_FILL}
+              stroke={HANDLE_STROKE}
+              strokeWidth={1.5}
+              draggable
+              onMouseDown={(e) => { e.cancelBubble = true; }}
+              onDragMove={(e) => {
+                const x = e.target.x();
+                const y = e.target.y();
+                setDraftWaypoints((prev) => {
+                  const base = (prev ?? moveWaypoints).slice();
+                  base[i] = { x, y };
+                  return base;
+                });
+              }}
+              onDragEnd={(e) => {
+                const base = (draftWaypoints ?? moveWaypoints).slice();
+                base[i] = { x: e.target.x(), y: e.target.y() };
+                commitWaypoints(base);
+              }}
+              onDblClick={(e) => {
+                e.cancelBubble = true;
+                commitWaypoints(persistedWaypoints.filter((_, idx) => idx !== i));
+              }}
+            />
+          ))}
         </>
       )}
     </Group>

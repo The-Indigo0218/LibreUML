@@ -87,6 +87,11 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   PACKAGE_ACCESS: 'PACKAGE_ACCESS',
 };
 
+/** Relation types offered for class-diagram connections (R2/R7 picker + validity). */
+const CLASS_RELATION_TYPES: UmlRelationType[] = [
+  'association', 'inheritance', 'implementation', 'dependency', 'aggregation', 'composition',
+];
+
 const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'use_case', 'system_boundary']);
 const DOMAIN_MODEL_STEREOTYPES = new Set<stereotype>(['domain_entity']);
 export const SEQUENCE_STEREOTYPES = new Set<stereotype>(['lifeline']);
@@ -199,6 +204,17 @@ export interface UseConnectionDrawOptions {
   activeTabId: string | null;
   /** Called when a valid connection is completed (sourceNodeId → targetNodeId). */
   onConnect: (sourceNodeId: string, targetNodeId: string) => void;
+  /**
+   * Called (class diagram only) when the active connection mode is NOT valid for
+   * the dropped pair but other relation types are — opens a picker (R2/R7) at the
+   * given world position so the user chooses a valid type instead of being rejected.
+   */
+  onPickRelation?: (
+    sourceNodeId: string,
+    targetNodeId: string,
+    validTypes: UmlRelationType[],
+    worldPos: { x: number; y: number },
+  ) => void;
 }
 
 export interface UseConnectionDrawReturn {
@@ -214,6 +230,12 @@ export interface UseConnectionDrawReturn {
   hoveredNodeAnchors: AnchorDot[];
   /** The anchor being snapped to as connection target. */
   snapTargetDot: AnchorDot | null;
+  /**
+   * Validity of the current snap target for the active relation mode (R7):
+   * true = valid, false = invalid, null = neutral (no snap, or a delegated
+   * diagram type whose validity is decided downstream).
+   */
+  snapValid: boolean | null;
   stageHandlers: {
     onMouseDown: (e: KonvaEventObject<MouseEvent>) => void;
     onMouseMove: (e: KonvaEventObject<MouseEvent>) => void;
@@ -229,12 +251,14 @@ export function useConnectionDraw({
   nodes,
   activeTabId,
   onConnect,
+  onPickRelation,
 }: UseConnectionDrawOptions): UseConnectionDrawReturn {
   // ── React state (triggers re-renders for visual feedback) ──────────────────
   const [isConnecting, setIsConnecting] = useState(false);
   const [tempLine, setTempLine] = useState<TempLine | null>(null);
   const [hoveredNodeAnchors, setHoveredNodeAnchors] = useState<AnchorDot[]>([]);
   const [snapTargetDot, setSnapTargetDot] = useState<AnchorDot | null>(null);
+  const [snapValid, setSnapValid] = useState<boolean | null>(null);
 
   // ── Refs (event-handler safe, no stale closure issues) ────────────────────
   const isConnectingRef = useRef(false);
@@ -255,10 +279,42 @@ export function useConnectionDraw({
     setIsConnecting(false);
     setTempLine(null);
     setSnapTargetDot(null);
+    setSnapValid(null);
     setHoveredNodeAnchors([]);
     const stage = stageRef.current;
     if (stage) stage.draggable(true);
   }, [stageRef]);
+
+  // ── Validity helpers (R7) ──────────────────────────────────────────────────
+
+  /** Active relation type (UmlRelationType) derived from the palette connection mode. */
+  const getActiveUmlType = useCallback((): UmlRelationType => {
+    const rawMode = useWorkspaceStore.getState().connectionModes?.[activeTabId ?? ''] as string | undefined;
+    const kind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
+    return RELATION_TO_UML[kind] ?? 'association';
+  }, [activeTabId]);
+
+  /**
+   * Validity of a (source → target) pair for the active mode.
+   * Returns null (neutral) for note/package/usecase/domain/sequence pairs whose
+   * creation is delegated downstream; a boolean for the class-diagram path.
+   */
+  const computeSnapValidity = useCallback(
+    (srcNodeId: string, tgtNodeId: string): boolean | null => {
+      const srcNode = nodes.find((n) => n.id === srcNodeId);
+      const tgtNode = nodes.find((n) => n.id === tgtNodeId);
+      if (!srcNode || !tgtNode) return null;
+      const s = resolveStereotype(srcNode.data);
+      const t = resolveStereotype(tgtNode.data);
+      if (s === 'note' || t === 'note') return null;
+      if (s === 'package' && t === 'package') return null;
+      if (USE_CASE_STEREOTYPES.has(s) || USE_CASE_STEREOTYPES.has(t)) return null;
+      if (DOMAIN_MODEL_STEREOTYPES.has(s) || DOMAIN_MODEL_STEREOTYPES.has(t)) return null;
+      if (SEQUENCE_STEREOTYPES.has(s) || SEQUENCE_STEREOTYPES.has(t)) return null;
+      return validateConnection(s, t, getActiveUmlType());
+    },
+    [nodes, getActiveUmlType],
+  );
 
   // ── onMouseMove ────────────────────────────────────────────────────────────
 
@@ -283,6 +339,7 @@ export function useConnectionDraw({
 
         setTempLine({ x1: src.x, y1: src.y, x2: endX, y2: endY });
         setSnapTargetDot(snap);
+        setSnapValid(snap ? computeSnapValidity(src.nodeId, snap.nodeId) : null);
       } else {
         // ── Hover mode: update nearAnchorRef + visible anchor dots ────────
         const near = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R);
@@ -301,7 +358,7 @@ export function useConnectionDraw({
         }
       }
     },
-    [stageRef, boundsMapRef, nodes],
+    [stageRef, boundsMapRef, nodes, computeSnapValidity],
   );
 
   // ── onMouseDown ────────────────────────────────────────────────────────────
@@ -379,12 +436,18 @@ export function useConnectionDraw({
                 const kind: RelationKind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
                 const umlType = RELATION_TO_UML[kind] ?? 'association';
 
-                if (!validateConnection(srcStereotype, tgtStereotype, umlType)) {
-                  useToastStore.getState().show(
-                    '⚠️ Relación inválida según estereotipos UML',
-                  );
-                } else {
+                if (validateConnection(srcStereotype, tgtStereotype, umlType)) {
                   onConnect(src.nodeId, snap.nodeId);
+                } else {
+                  // R2/R7: instead of rejecting, offer the valid relation types.
+                  const validTypes = CLASS_RELATION_TYPES.filter((ut) =>
+                    validateConnection(srcStereotype, tgtStereotype, ut),
+                  );
+                  if (validTypes.length > 0 && onPickRelation) {
+                    onPickRelation(src.nodeId, snap.nodeId, validTypes, { x: snap.x, y: snap.y });
+                  } else {
+                    useToastStore.getState().show('⚠️ Relación inválida según estereotipos UML');
+                  }
                 }
               }
             } else {
@@ -397,7 +460,7 @@ export function useConnectionDraw({
 
       resetState();
     },
-    [stageRef, boundsMapRef, nodes, activeTabId, onConnect, resetState],
+    [stageRef, boundsMapRef, nodes, activeTabId, onConnect, onPickRelation, resetState],
   );
 
   // ── Window mouseup fallback ────────────────────────────────────────────────
@@ -427,6 +490,7 @@ export function useConnectionDraw({
     tempLine,
     hoveredNodeAnchors,
     snapTargetDot,
+    snapValid,
     stageHandlers: {
       onMouseDown,
       onMouseMove,

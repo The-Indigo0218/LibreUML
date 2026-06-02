@@ -1023,6 +1023,17 @@
     "reverse": "Reverse direction",
     "properties": "Properties"
   },
+  "relationPicker": {
+    "title": "Relation type"
+  },
+  "relationTypes": {
+    "association": "Association",
+    "inheritance": "Generalization",
+    "implementation": "Realization",
+    "dependency": "Dependency",
+    "aggregation": "Aggregation",
+    "composition": "Composition"
+  },
   "singleClassGenerator": {
     "title": "Generate Class Code",
     "selectClass": "Select Class",

@@ -1032,6 +1032,17 @@
     "reverse": "Invertir dirección",
     "properties": "Propiedades"
   },
+  "relationPicker": {
+    "title": "Tipo de relación"
+  },
+  "relationTypes": {
+    "association": "Asociación",
+    "inheritance": "Generalización",
+    "implementation": "Realización",
+    "dependency": "Dependencia",
+    "aggregation": "Agregación",
+    "composition": "Composición"
+  },
   "singleClassGenerator": {
     "title": "Generar Código de Clase",
     "selectClass": "Seleccionar Clase",

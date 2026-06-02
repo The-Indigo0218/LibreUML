@@ -36,6 +36,8 @@
 import InlineEditor from './overlays/InlineEditor';
 import SelectionToolbar from './overlays/SelectionToolbar';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
+import RelationPickerMenu from './overlays/RelationPickerMenu';
+import type { UmlRelationType } from '../features/diagram/types/diagram.types';
 import ContextMenu from '../features/diagram/components/ui/ContextMenu';
 
 interface CanvasOverlayProps {
@@ -52,6 +54,14 @@ interface CanvasOverlayProps {
   onCloseContextMenu: () => void;
   /** Floating selection toolbar (R1) — null when nothing single-selected. */
   selectionToolbar?: { x: number; y: number; actions: ToolbarAction[] } | null;
+  /** Relation-type picker on connection drop (R2/R7) — null when closed. */
+  relationPicker?: {
+    x: number;
+    y: number;
+    types: UmlRelationType[];
+    onPick: (type: UmlRelationType) => void;
+    onClose: () => void;
+  } | null;
 }
 
 export default function CanvasOverlay({
@@ -59,6 +69,7 @@ export default function CanvasOverlay({
   contextMenuOptions,
   onCloseContextMenu,
   selectionToolbar,
+  relationPicker,
 }: CanvasOverlayProps) {
   return (
     <div
@@ -78,6 +89,17 @@ export default function CanvasOverlay({
           x={selectionToolbar.x}
           y={selectionToolbar.y}
           actions={selectionToolbar.actions}
+        />
+      )}
+
+      {/* Relation-type picker on connection drop (R2/R7) */}
+      {relationPicker && (
+        <RelationPickerMenu
+          x={relationPicker.x}
+          y={relationPicker.y}
+          types={relationPicker.types}
+          onPick={relationPicker.onPick}
+          onClose={relationPicker.onClose}
         />
       )}
 

@@ -36,6 +36,8 @@ import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController'
 import CanvasOverlay from './CanvasOverlay';
 import { worldToScreen } from './engine/projection';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
+import { useWorkspaceStore } from '../store/workspace.store';
+import type { UmlRelationType } from '../features/diagram/types/diagram.types';
 import DuplicateFileModal from '../components/shared/DuplicateFileModal';
 import PackageHierarchyModal from './overlays/PackageHierarchyModal';
 import ConfirmationModal from '../components/shared/ConfirmationModal';
@@ -311,13 +313,52 @@ export default function KonvaCanvas() {
     [onConnect],
   );
 
+  // ── Relation-type picker on connection drop (R2/R7) ─────────────────────────
+  const [relationPicker, setRelationPicker] = useState<{
+    x: number;
+    y: number;
+    source: string;
+    target: string;
+    types: UmlRelationType[];
+  } | null>(null);
+
+  const handlePickRelation = useCallback(
+    (source: string, target: string, types: UmlRelationType[], worldPos: { x: number; y: number }) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const sp = worldToScreen(stage, worldPos);
+      setRelationPicker({ x: sp.x, y: sp.y, source, target, types });
+    },
+    [stageRef],
+  );
+
   const connectionDraw = useConnectionDraw({
     stageRef,
     boundsMapRef,
     nodes: shapes,
     activeTabId,
     onConnect: handleConnectionCreated,
+    onPickRelation: handlePickRelation,
   });
+
+  // Build the overlay props for the relation picker: choosing a type sets it as
+  // the active connection mode (synchronous Zustand) and then creates the edge.
+  const relationPickerOverlay = useMemo(() => {
+    if (!relationPicker) return null;
+    return {
+      x: relationPicker.x,
+      y: relationPicker.y,
+      types: relationPicker.types,
+      onPick: (type: UmlRelationType) => {
+        if (activeTabId) {
+          useWorkspaceStore.getState().setTabConnectionMode(activeTabId, type.toUpperCase());
+        }
+        handleConnectionCreated(relationPicker.source, relationPicker.target);
+        setRelationPicker(null);
+      },
+      onClose: () => setRelationPicker(null),
+    };
+  }, [relationPicker, activeTabId, handleConnectionCreated]);
 
   const boundsMap = useMemo((): Map<string, NodeBounds> => {
     const map = new Map<string, NodeBounds>();
@@ -1756,8 +1797,8 @@ export default function KonvaCanvas() {
                 x={connectionDraw.snapTargetDot.x}
                 y={connectionDraw.snapTargetDot.y}
                 radius={7}
-                fill="#10b981"
-                stroke="#047857"
+                fill={connectionDraw.snapValid === false ? '#ef4444' : '#10b981'}
+                stroke={connectionDraw.snapValid === false ? '#b91c1c' : '#047857'}
                 strokeWidth={2}
                 opacity={0.9}
                 listening={false}
@@ -1772,7 +1813,7 @@ export default function KonvaCanvas() {
                   connectionDraw.tempLine.x2,
                   connectionDraw.tempLine.y2,
                 ]}
-                stroke="#22d3ee"
+                stroke={connectionDraw.snapValid === false ? '#ef4444' : connectionDraw.snapValid === true ? '#10b981' : '#22d3ee'}
                 strokeWidth={2}
                 dash={[8, 5]}
                 lineCap="round"
@@ -1788,6 +1829,7 @@ export default function KonvaCanvas() {
         contextMenuOptions={contextMenuOptions}
         onCloseContextMenu={closeMenu}
         selectionToolbar={selectionToolbar}
+        relationPicker={relationPickerOverlay}
       />
 
       {showMiniMap && (

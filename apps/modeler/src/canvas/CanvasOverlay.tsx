@@ -34,6 +34,8 @@
  */
 
 import InlineEditor from './overlays/InlineEditor';
+import SelectionToolbar from './overlays/SelectionToolbar';
+import type { ToolbarAction } from './overlays/SelectionToolbar';
 import ContextMenu from '../features/diagram/components/ui/ContextMenu';
 
 interface CanvasOverlayProps {
@@ -48,12 +50,15 @@ interface CanvasOverlayProps {
   contextMenuOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[];
   /** Close context menu callback */
   onCloseContextMenu: () => void;
+  /** Floating selection toolbar (R1) — null when nothing single-selected. */
+  selectionToolbar?: { x: number; y: number; actions: ToolbarAction[] } | null;
 }
 
 export default function CanvasOverlay({
   contextMenu,
   contextMenuOptions,
   onCloseContextMenu,
+  selectionToolbar,
 }: CanvasOverlayProps) {
   return (
     <div
@@ -66,6 +71,15 @@ export default function CanvasOverlay({
     >
       {/* Inline text editor (MAG-01.10) */}
       <InlineEditor />
+
+      {/* Floating contextual selection toolbar (R1) */}
+      {selectionToolbar && (
+        <SelectionToolbar
+          x={selectionToolbar.x}
+          y={selectionToolbar.y}
+          actions={selectionToolbar.actions}
+        />
+      )}
 
       {/* Context menu (MAG-01.12) — pointer-events: auto when visible */}
       {contextMenu && (

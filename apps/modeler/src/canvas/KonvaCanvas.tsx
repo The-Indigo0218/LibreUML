@@ -34,6 +34,8 @@ import { usePackageDrop } from './interactions/usePackageDrop';
 import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
+import { worldToScreen } from './engine/projection';
+import type { ToolbarAction } from './overlays/SelectionToolbar';
 import DuplicateFileModal from '../components/shared/DuplicateFileModal';
 import PackageHierarchyModal from './overlays/PackageHierarchyModal';
 import ConfirmationModal from '../components/shared/ConfirmationModal';
@@ -677,20 +679,17 @@ export default function KonvaCanvas() {
     if (!stage) return;
 
     const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
-    const transform = stage.getAbsoluteTransform().copy();
 
     if (isNoteViewModel(shape.data)) {
       const NOTE_H_PAD = 8;
       const NOTE_V_PAD = 8;
       const titleY = NOTE_V_PAD / 2 + 2;
-      const screenPos = transform.point({ x: pos.x + NOTE_H_PAD, y: pos.y + titleY });
-      updateEditorPosition({ x: screenPos.x, y: screenPos.y });
+      updateEditorPosition(worldToScreen(stage, { x: pos.x + NOTE_H_PAD, y: pos.y + titleY }));
     } else {
       const H_PAD = 10;
       const layout = getShapeSize(shape.data);
       const nameY = layout.height * 0.15;
-      const screenPos = transform.point({ x: pos.x + H_PAD, y: pos.y + nameY });
-      updateEditorPosition({ x: screenPos.x, y: screenPos.y });
+      updateEditorPosition(worldToScreen(stage, { x: pos.x + H_PAD, y: pos.y + nameY }));
     }
   }, [viewport, isEditing, activeNodeId, shapes, positionOverrides, stageRef, updateEditorPosition]);
 
@@ -1402,6 +1401,66 @@ export default function KonvaCanvas() {
       .filter((d): d is NonNullable<typeof d> => d !== null);
   }, [shapes, edges, boundsMap, visibleNodeIds]);
 
+  // ── Floating contextual selection toolbar (R1) ─────────────────────────────
+  const toolbarTarget = useMemo<{ type: 'node' | 'edge'; id: string } | null>(() => {
+    if (selectedEdgeId) return { type: 'edge', id: selectedEdgeId };
+    if (selectedIds.size === 1) return { type: 'node', id: [...selectedIds][0] };
+    return null;
+  }, [selectedEdgeId, selectedIds]);
+
+  const [toolbarPos, setToolbarPos] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !toolbarTarget) { setToolbarPos(null); return; }
+
+    const nodeWorld = (id: string) => {
+      const b = boundsMap.get(id);
+      if (!b) return null;
+      const pos = positionOverrides.get(id) ?? { x: b.x, y: b.y };
+      return { cx: pos.x + b.width / 2, cy: pos.y + b.height / 2, top: pos.y };
+    };
+
+    if (toolbarTarget.type === 'node') {
+      const n = nodeWorld(toolbarTarget.id);
+      if (!n) { setToolbarPos(null); return; }
+      setToolbarPos(worldToScreen(stage, { x: n.cx, y: n.top }));
+    } else {
+      const edge = edges.find((e) => e.id === toolbarTarget.id);
+      const s = edge && nodeWorld(edge.sourceId);
+      const tg = edge && nodeWorld(edge.targetId);
+      if (!s || !tg) { setToolbarPos(null); return; }
+      setToolbarPos(worldToScreen(stage, { x: (s.cx + tg.cx) / 2, y: (s.cy + tg.cy) / 2 }));
+    }
+  }, [toolbarTarget, viewport, shapes, edges, boundsMap, positionOverrides, stageRef]);
+
+  const toolbarActions = useMemo<ToolbarAction[]>(() => {
+    if (!toolbarTarget) return [];
+    if (toolbarTarget.type === 'node') {
+      const shape = shapes.find((s) => s.id === toolbarTarget.id);
+      if (!shape) return [];
+      const actions: ToolbarAction[] = [];
+      if (isNodeViewModel(shape.data)) {
+        const elementId = vfsController.diagramView?.nodes.find((vn) => vn.id === toolbarTarget.id)?.elementId;
+        if (elementId) {
+          actions.push({ icon: 'edit', label: t('selectionToolbar.edit'), onClick: () => openSSoTClassEditor(elementId) });
+        }
+        actions.push({ icon: 'duplicate', label: t('selectionToolbar.duplicate'), onClick: () => vfsController.duplicateNode(toolbarTarget.id) });
+      }
+      actions.push({ icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.removeNodeFromDiagram(toolbarTarget.id) });
+      return actions;
+    }
+    return [
+      { icon: 'reverse', label: t('selectionToolbar.reverse'), onClick: () => vfsController.reverseEdgeById(toolbarTarget.id) },
+      { icon: 'properties', label: t('selectionToolbar.properties'), onClick: () => openVfsEdgeAction(toolbarTarget.id, buildAnchorSnapshot(toolbarTarget.id)) },
+      { icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.deleteEdgeById(toolbarTarget.id) },
+    ];
+  }, [toolbarTarget, shapes, vfsController, openSSoTClassEditor, openVfsEdgeAction, buildAnchorSnapshot, t]);
+
+  const selectionToolbar = toolbarPos && toolbarActions.length > 0
+    ? { x: toolbarPos.x, y: toolbarPos.y, actions: toolbarActions }
+    : null;
+
   return (
     <div
       ref={containerRef}
@@ -1728,6 +1787,7 @@ export default function KonvaCanvas() {
         contextMenu={menu}
         contextMenuOptions={contextMenuOptions}
         onCloseContextMenu={closeMenu}
+        selectionToolbar={selectionToolbar}
       />
 
       {showMiniMap && (

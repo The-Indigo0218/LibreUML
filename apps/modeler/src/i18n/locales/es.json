@@ -1025,6 +1025,13 @@
       "close": "¡Entendido!"
     }
   },
+  "selectionToolbar": {
+    "edit": "Editar",
+    "duplicate": "Duplicar",
+    "delete": "Borrar",
+    "reverse": "Invertir dirección",
+    "properties": "Propiedades"
+  },
   "singleClassGenerator": {
     "title": "Generar Código de Clase",
     "selectClass": "Seleccionar Clase",

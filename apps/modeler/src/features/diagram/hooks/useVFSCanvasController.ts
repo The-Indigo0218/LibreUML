@@ -107,6 +107,7 @@ export interface VFSCanvasResult {
   removeNodeFromDiagram: (viewNodeId: string) => void;
   deleteElementFromModel: (viewNodeId: string) => void;
   duplicateNode: (viewNodeId: string) => void;
+  applyNodeStyle: (viewNodeIds: string[], style: { color: string | null }) => void;
   deleteEdgeById: (viewEdgeId: string) => void;
   reverseEdgeById: (viewEdgeId: string) => void;
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;
@@ -373,6 +374,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
     removeNodeFromDiagram: nodeActions.removeNodeFromDiagram,
     deleteElementFromModel: nodeActions.deleteElementFromModel,
     duplicateNode: nodeActions.duplicateNode,
+    applyNodeStyle: nodeActions.applyNodeStyle,
     deleteEdgeById: edgeActions.deleteEdgeById,
     reverseEdgeById: edgeActions.reverseEdgeById,
     changeEdgeKind: edgeActions.changeEdgeKind,

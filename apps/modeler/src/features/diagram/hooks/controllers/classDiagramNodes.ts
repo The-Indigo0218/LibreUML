@@ -173,6 +173,7 @@ function makeClassNode(
     badge: badge || undefined,
     sections,
     style: displayConfig.style,
+    colorOverride: viewNode.color,
     metadata: { onRename },
   };
   return {

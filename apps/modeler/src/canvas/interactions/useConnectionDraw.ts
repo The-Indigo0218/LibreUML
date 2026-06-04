@@ -215,6 +215,12 @@ export interface UseConnectionDrawOptions {
     validTypes: UmlRelationType[],
     worldPos: { x: number; y: number },
   ) => void;
+  /**
+   * Quick Linker (R5): called when the drag is released on empty canvas (no snap
+   * target and no node under the cursor). The handler opens a node-type picker at
+   * `worldPos` to create a new node already linked to `sourceNodeId`.
+   */
+  onDropEmpty?: (sourceNodeId: string, worldPos: { x: number; y: number }) => void;
 }
 
 export interface UseConnectionDrawReturn {
@@ -252,6 +258,7 @@ export function useConnectionDraw({
   activeTabId,
   onConnect,
   onPickRelation,
+  onDropEmpty,
 }: UseConnectionDrawOptions): UseConnectionDrawReturn {
   // ── React state (triggers re-renders for visual feedback) ──────────────────
   const [isConnecting, setIsConnecting] = useState(false);
@@ -454,13 +461,17 @@ export function useConnectionDraw({
               // Fallback: let onConnect handle validation if nodes not found.
               onConnect(src.nodeId, snap.nodeId);
             }
+          } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current)) {
+            // R5 Quick Linker: released on empty canvas (no snap, no node under
+            // the cursor) → offer to create a new node linked to the source.
+            onDropEmpty(src.nodeId, { x: pos.x, y: pos.y });
           }
         }
       }
 
       resetState();
     },
-    [stageRef, boundsMapRef, nodes, activeTabId, onConnect, onPickRelation, resetState],
+    [stageRef, boundsMapRef, nodes, activeTabId, onConnect, onPickRelation, onDropEmpty, resetState],
   );
 
   // ── Window mouseup fallback ────────────────────────────────────────────────

@@ -1030,7 +1030,10 @@
     "duplicate": "Duplicar",
     "delete": "Borrar",
     "reverse": "Invertir dirección",
-    "properties": "Propiedades"
+    "properties": "Propiedades",
+    "color": "Color",
+    "copyStyle": "Copiar estilo",
+    "pasteStyle": "Pegar estilo (Ctrl+Shift+V)"
   },
   "relationPicker": {
     "title": "Tipo de relación"
@@ -1042,6 +1045,20 @@
     "dependency": "Dependencia",
     "aggregation": "Agregación",
     "composition": "Composición"
+  },
+  "nodeTypePicker": {
+    "title": "Crear y conectar"
+  },
+  "nodeTypes": {
+    "class": "Clase",
+    "interface": "Interfaz",
+    "abstract": "Clase abstracta",
+    "enum": "Enumeración",
+    "note": "Nota",
+    "actor": "Actor",
+    "use_case": "Caso de uso",
+    "domain_entity": "Entidad",
+    "package": "Paquete"
   },
   "singleClassGenerator": {
     "title": "Generar Código de Clase",

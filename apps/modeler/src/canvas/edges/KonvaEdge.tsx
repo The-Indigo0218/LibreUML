@@ -41,12 +41,16 @@ import {
   selectAnchors,
   resolveLockedAnchors,
   retractAnchor,
+  edgeIntersection,
+  directionToAngle,
   curvedRoute,
   straightRoute,
   polylineRoute,
   selfLoopPath,
   type NodeBounds,
+  type NodeShape,
   type LockedHandle,
+  type AnchorPoint,
   type Point,
 } from './geometry';
 import { avoidObstacles } from './obstacleAvoidance';
@@ -314,6 +318,17 @@ export interface KonvaEdgeProps {
   sourceHandle?: string;
   targetHandle?: string;
   /**
+   * Floating anchors (R4). When true (and not locked / no waypoints), endpoints
+   * slide along each node's border toward the opposing node instead of snapping
+   * to one of the 8 fixed handles — radial/diagonal entry, recalculated as nodes
+   * move. Default routing for UseCase diagrams. Ignored for self-loops.
+   */
+  floating?: boolean;
+  /** Outline of the source node for floating intersection ('rect' default, 'ellipse' for UseCase ovals). */
+  sourceShape?: NodeShape;
+  /** Outline of the target node for floating intersection. */
+  targetShape?: NodeShape;
+  /**
    * Manual user waypoints (R3). When non-empty, the line body is routed as a
    * polyline through these points instead of the automatic routing, letting the
    * user bend the edge. Anchors at both ends are still resolved normally.
@@ -354,6 +369,9 @@ export default function KonvaEdge({
   anchorLocked = false,
   sourceHandle,
   targetHandle,
+  floating = false,
+  sourceShape = 'rect',
+  targetShape = 'rect',
   waypoints,
   selected = false,
   onSelect,
@@ -381,7 +399,7 @@ export default function KonvaEdge({
   // Waypoints actually rendered: the live draft (during a drag) or the persisted props.
   const effectiveWaypoints = draftWaypoints ?? waypoints;
 
-  const { markerX, markerY, markerFace, points, bezier, labelPositions, srcX, srcY } = useMemo(() => {
+  const { markerX, markerY, markerFace, markerAngle, points, bezier, labelPositions, srcX, srcY } = useMemo(() => {
     // ── Self-loop ──────────────────────────────────────────────────────────
     if (isSelfLoop) {
       const loop = selfLoopPath(sourceBounds, retract);
@@ -397,6 +415,7 @@ export default function KonvaEdge({
         markerX: loop.markerX,
         markerY: loop.markerY,
         markerFace: loop.markerFace,
+        markerAngle: undefined as number | undefined,
         srcX,
         srcY,
         labelPositions: {
@@ -415,24 +434,54 @@ export default function KonvaEdge({
     }
 
     // ── Normal edge ────────────────────────────────────────────────────────
-    const { src, tgt } =
-      anchorLocked && sourceHandle && targetHandle
-        ? resolveLockedAnchors(
-            sourceBounds,
-            targetBounds,
-            sourceHandle as LockedHandle,
-            targetHandle as LockedHandle,
-          )
-        : selectAnchors(sourceBounds, targetBounds);
-    const retractedTgt = retract > 0 ? retractAnchor(tgt, retract) : tgt;
+    const hasWaypoints = !!effectiveWaypoints && effectiveWaypoints.length > 0;
+    // Floating wins over fixed handles unless the edge is explicitly locked.
+    const useFloating = floating && !(anchorLocked && sourceHandle && targetHandle);
+
+    let src: AnchorPoint;
+    let tgt: AnchorPoint;
+    let retractedTgt: Point;
+    let markerAngle: number | undefined;
+
+    if (useFloating) {
+      // Anchors slide along each border toward the opposing node (or the nearest
+      // waypoint when bent). Recalculated on every move → radial entry.
+      const srcCenter = { x: sourceBounds.x + sourceBounds.width / 2, y: sourceBounds.y + sourceBounds.height / 2 };
+      const tgtCenter = { x: targetBounds.x + targetBounds.width / 2, y: targetBounds.y + targetBounds.height / 2 };
+      const srcAim = hasWaypoints ? effectiveWaypoints![0] : tgtCenter;
+      const tgtAim = hasWaypoints ? effectiveWaypoints![effectiveWaypoints!.length - 1] : srcCenter;
+      src = edgeIntersection(sourceBounds, srcCenter, srcAim, sourceShape);
+      tgt = edgeIntersection(targetBounds, tgtCenter, tgtAim, targetShape);
+      // Arrival direction = from the last route point toward the target anchor.
+      let dx = tgt.x - tgtAim.x;
+      let dy = tgt.y - tgtAim.y;
+      const len = Math.hypot(dx, dy) || 1;
+      dx /= len; dy /= len;
+      markerAngle = directionToAngle(dx, dy);
+      retractedTgt = retract > 0 ? { x: tgt.x - dx * retract, y: tgt.y - dy * retract } : tgt;
+    } else {
+      ({ src, tgt } =
+        anchorLocked && sourceHandle && targetHandle
+          ? resolveLockedAnchors(
+              sourceBounds,
+              targetBounds,
+              sourceHandle as LockedHandle,
+              targetHandle as LockedHandle,
+            )
+          : selectAnchors(sourceBounds, targetBounds));
+      retractedTgt = retract > 0 ? retractAnchor(tgt, retract) : tgt;
+    }
 
     let pts: number[];
     let isBezier = false;
 
-    if (effectiveWaypoints && effectiveWaypoints.length > 0) {
+    if (hasWaypoints) {
       // Manual waypoints override automatic routing (R3): route the body as a
       // polyline src → waypoints → target. Overrides orthogonal/curved/straight.
-      pts = polylineRoute(src, effectiveWaypoints, retractedTgt);
+      pts = polylineRoute(src, effectiveWaypoints!, retractedTgt);
+    } else if (useFloating) {
+      // Floating entry is inherently radial → straight segment, never orthogonal.
+      pts = straightRoute(src, retractedTgt);
     } else {
       switch (routingMode) {
         case 'curved':
@@ -460,11 +509,12 @@ export default function KonvaEdge({
       markerX: tgt.x,
       markerY: tgt.y,
       markerFace: tgt.face,
+      markerAngle,
       srcX: src.x,
       srcY: src.y,
       labelPositions: computeLabelPositions(pts, src.x, src.y, tgt.x, tgt.y, targetAlong, isBezier),
     };
-  }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract, anchorLocked, sourceHandle, targetHandle, effectiveWaypoints]);
+  }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract, anchorLocked, sourceHandle, targetHandle, floating, sourceShape, targetShape, effectiveWaypoints]);
 
   // ── Waypoint editing handles (R3b) ────────────────────────────────────────
   const showHandles = showLabels && selected && !isSelfLoop && !!onWaypointsChange;
@@ -524,6 +574,7 @@ export default function KonvaEdge({
             y={markerY}
             face={markerFace}
             stroke={stroke}
+            angleOverride={markerAngle}
           />
         </>
       )}

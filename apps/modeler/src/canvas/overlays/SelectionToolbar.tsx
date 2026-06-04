@@ -13,9 +13,12 @@
  * into pointer-events so its buttons are clickable.
  */
 
-import { Pencil, Copy, Trash2, ArrowLeftRight, Settings2 } from 'lucide-react';
+import { useState } from 'react';
+import { Pencil, Copy, Trash2, ArrowLeftRight, Settings2, Palette, Paintbrush, PaintBucket, Ban } from 'lucide-react';
 
-export type ToolbarIcon = 'edit' | 'duplicate' | 'delete' | 'reverse' | 'properties';
+export type ToolbarIcon =
+  | 'edit' | 'duplicate' | 'delete' | 'reverse' | 'properties'
+  | 'color' | 'copyStyle' | 'pasteStyle';
 
 export interface ToolbarAction {
   icon: ToolbarIcon;
@@ -24,6 +27,12 @@ export interface ToolbarAction {
   onClick: () => void;
   /** Renders in a destructive (red) style. */
   danger?: boolean;
+  /**
+   * When set, clicking the button opens a color-swatch popover instead of firing
+   * onClick (R10 color setter). Picking a swatch calls onPickColor (null = clear).
+   */
+  swatches?: string[];
+  onPickColor?: (color: string | null) => void;
 }
 
 export interface SelectionToolbarProps {
@@ -39,16 +48,23 @@ const ICONS: Record<ToolbarIcon, typeof Pencil> = {
   delete: Trash2,
   reverse: ArrowLeftRight,
   properties: Settings2,
+  color: Palette,
+  copyStyle: Paintbrush,
+  pasteStyle: PaintBucket,
 };
 
 export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProps) {
+  // Index of the action whose color-swatch popover is open, or null.
+  const [openSwatch, setOpenSwatch] = useState<number | null>(null);
+
   if (actions.length === 0) return null;
+
+  const swatchAction = openSwatch !== null ? actions[openSwatch] : null;
 
   return (
     <div
-      className="absolute z-30 pointer-events-auto flex items-center gap-0.5 px-1 py-1
-                 rounded-lg border border-surface-border bg-surface-primary/95
-                 shadow-xl backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150"
+      className="absolute z-30 pointer-events-auto flex flex-col items-center
+                 animate-in fade-in zoom-in-95 duration-150"
       style={{
         left: `${x}px`,
         top: `${y}px`,
@@ -59,23 +75,60 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      {actions.map((action, i) => {
-        const Icon = ICONS[action.icon];
-        return (
+      <div
+        className="flex items-center gap-0.5 px-1 py-1 rounded-lg border border-surface-border
+                   bg-surface-primary/95 shadow-xl backdrop-blur-sm"
+      >
+        {actions.map((action, i) => {
+          const Icon = ICONS[action.icon];
+          const isSwatch = !!action.swatches;
+          return (
+            <button
+              key={i}
+              title={action.label}
+              aria-label={action.label}
+              onClick={() => (isSwatch ? setOpenSwatch((p) => (p === i ? null : i)) : action.onClick())}
+              className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors
+                ${action.danger
+                  ? 'text-red-400 hover:bg-red-500/15 hover:text-red-300'
+                  : openSwatch === i
+                    ? 'bg-surface-hover text-text-primary'
+                    : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'}`}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Color-swatch popover (R10 color setter) */}
+      {swatchAction?.swatches && (
+        <div
+          className="mt-1.5 flex items-center gap-1 px-1.5 py-1.5 rounded-lg border border-surface-border
+                     bg-surface-primary/97 shadow-xl backdrop-blur-sm"
+        >
+          {swatchAction.swatches.map((c) => (
+            <button
+              key={c}
+              title={c}
+              aria-label={c}
+              onClick={() => { swatchAction.onPickColor?.(c); setOpenSwatch(null); }}
+              className="w-5 h-5 rounded-full border border-white/25 hover:scale-110 transition-transform"
+              style={{ backgroundColor: c }}
+            />
+          ))}
+          {/* Clear color */}
           <button
-            key={i}
-            title={action.label}
-            aria-label={action.label}
-            onClick={action.onClick}
-            className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors
-              ${action.danger
-                ? 'text-red-400 hover:bg-red-500/15 hover:text-red-300'
-                : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'}`}
+            title="—"
+            aria-label="clear color"
+            onClick={() => { swatchAction.onPickColor?.(null); setOpenSwatch(null); }}
+            className="w-5 h-5 rounded-full flex items-center justify-center border border-white/25
+                       text-text-muted hover:bg-surface-hover"
           >
-            <Icon className="w-4 h-4" />
+            <Ban className="w-3 h-3" />
           </button>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }

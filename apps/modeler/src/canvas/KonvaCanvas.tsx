@@ -37,7 +37,10 @@ import CanvasOverlay from './CanvasOverlay';
 import { worldToScreen } from './engine/projection';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
 import { useWorkspaceStore } from '../store/workspace.store';
-import type { UmlRelationType } from '../features/diagram/types/diagram.types';
+import type { UmlRelationType, stereotype } from '../features/diagram/types/diagram.types';
+import { useQuickLinker } from '../hooks/canvas/useQuickLinker';
+import { useFormatPainterStore } from '../store/formatPainter.store';
+import type { DiagramType } from '../core/domain/vfs/vfs.types';
 import DuplicateFileModal from '../components/shared/DuplicateFileModal';
 import PackageHierarchyModal from './overlays/PackageHierarchyModal';
 import ConfirmationModal from '../components/shared/ConfirmationModal';
@@ -101,6 +104,21 @@ const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
   AGGREGATION: 'AGGREGATION',
   COMPOSITION: 'COMPOSITION',
 };
+
+/**
+ * Node types offered by the Quick Linker (R5) when a connection is dropped on
+ * empty canvas, keyed by diagram type. Diagrams absent from this map don't open
+ * a picker (e.g. Sequence, whose participants need dedicated placement).
+ */
+const QUICK_LINK_NODE_TYPES: Partial<Record<DiagramType, stereotype[]>> = {
+  CLASS_DIAGRAM:        ['class', 'interface', 'abstract', 'enum', 'note'],
+  USE_CASE_DIAGRAM:     ['use_case', 'actor', 'note'],
+  DOMAIN_MODEL_DIAGRAM: ['domain_entity', 'note'],
+  PACKAGE_DIAGRAM:      ['package', 'note'],
+};
+
+/** Preset swatches offered by the format-painter color setter (R10). */
+const NODE_COLOR_SWATCHES = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
 
 export default function KonvaCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -332,6 +350,28 @@ export default function KonvaCanvas() {
     [stageRef],
   );
 
+  // ── Quick Linker: drop-to-empty creates a new node already linked (R5) ──────
+  const { createNodeAndConnect } = useQuickLinker({ activeTabId });
+  const [nodeTypePicker, setNodeTypePicker] = useState<{
+    x: number;
+    y: number;
+    source: string;
+    worldPos: { x: number; y: number };
+    types: stereotype[];
+  } | null>(null);
+
+  const handleDropEmpty = useCallback(
+    (sourceNodeId: string, worldPos: { x: number; y: number }) => {
+      const types = QUICK_LINK_NODE_TYPES[vfsController.vfsFile?.diagramType ?? 'UNSPECIFIED'];
+      if (!types || types.length === 0) return; // diagram not Quick-Linker-enabled
+      const stage = stageRef.current;
+      if (!stage) return;
+      const sp = worldToScreen(stage, worldPos);
+      setNodeTypePicker({ x: sp.x, y: sp.y, source: sourceNodeId, worldPos, types });
+    },
+    [vfsController.vfsFile?.diagramType, stageRef],
+  );
+
   const connectionDraw = useConnectionDraw({
     stageRef,
     boundsMapRef,
@@ -339,7 +379,22 @@ export default function KonvaCanvas() {
     activeTabId,
     onConnect: handleConnectionCreated,
     onPickRelation: handlePickRelation,
+    onDropEmpty: handleDropEmpty,
   });
+
+  const nodeTypePickerOverlay = useMemo(() => {
+    if (!nodeTypePicker) return null;
+    return {
+      x: nodeTypePicker.x,
+      y: nodeTypePicker.y,
+      types: nodeTypePicker.types,
+      onPick: (type: stereotype) => {
+        createNodeAndConnect(nodeTypePicker.source, type, nodeTypePicker.worldPos);
+        setNodeTypePicker(null);
+      },
+      onClose: () => setNodeTypePicker(null),
+    };
+  }, [nodeTypePicker, createNodeAndConnect]);
 
   // Build the overlay props for the relation picker: choosing a type sets it as
   // the active connection mode (synchronous Zustand) and then creates the edge.
@@ -693,11 +748,20 @@ export default function KonvaCanvas() {
 
   const allNodeIds = useMemo(() => shapes.map((s) => s.id), [shapes]);
 
+  const handlePasteStyle = useCallback(
+    (nodeIds: string[]) => {
+      const copied = useFormatPainterStore.getState().copied;
+      if (copied) vfsController.applyNodeStyle(nodeIds, copied);
+    },
+    [vfsController],
+  );
+
   useCanvasKeyboard({
     allNodeIds,
     onDeleteNodes: handleDeleteNodes,
     onDeleteEdges: handleDeleteEdges,
     onSelectAll: selectAll,
+    onPasteStyle: handlePasteStyle,
   });
 
   // R8 — single-key relation/connection tool shortcuts (diagram-aware).
@@ -1394,6 +1458,15 @@ export default function KonvaCanvas() {
   // Pre-compute edge render data so both the "edges" and "edge-labels" layers
   // can share it without duplicating the bounds/visibility logic.
   const edgeRenderData = useMemo(() => {
+    // Floating anchors (R4): default routing for UseCase diagrams so actor–usecase
+    // associations enter radially instead of snapping to 8 fixed handles.
+    const isUseCaseDiagram = vfsController.vfsFile?.diagramType === 'USE_CASE_DIAGRAM';
+    // UseCase ovals get ellipse intersection; every other shape is a rectangle.
+    const shapeOutlineOf = (nodeId: string): 'rect' | 'ellipse' => {
+      const s = shapes.find((sh) => sh.id === nodeId);
+      return s && isUseCaseViewModel(s.data) ? 'ellipse' : 'rect';
+    };
+
     // Packages and SystemBoundaries are containers — exclude them from obstacle avoidance
     // so edges route freely through their interiors.
     const nonPackageIds = new Set(
@@ -1437,10 +1510,16 @@ export default function KonvaCanvas() {
                   id !== edge.sourceId && id !== edge.targetId && nonPackageIds.has(id),
               )
               .map(([, b]) => b);
-        return { edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles };
+        const floating = isUseCaseDiagram && !isSelfLoop && !edge.anchorLocked;
+        const sourceShape = shapeOutlineOf(edge.sourceId);
+        const targetShape = shapeOutlineOf(edge.targetId);
+        return { edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles, floating, sourceShape, targetShape };
       })
       .filter((d): d is NonNullable<typeof d> => d !== null);
-  }, [shapes, edges, boundsMap, visibleNodeIds]);
+  }, [shapes, edges, boundsMap, visibleNodeIds, vfsController.vfsFile?.diagramType]);
+
+  // Format-painter clipboard (R10) — subscribe so paste action appears live.
+  const copiedStyle = useFormatPainterStore((s) => s.copied);
 
   // ── Floating contextual selection toolbar (R1) ─────────────────────────────
   const toolbarTarget = useMemo<{ type: 'node' | 'edge'; id: string } | null>(() => {
@@ -1488,6 +1567,32 @@ export default function KonvaCanvas() {
         }
         actions.push({ icon: 'duplicate', label: t('selectionToolbar.duplicate'), onClick: () => vfsController.duplicateNode(toolbarTarget.id) });
       }
+      // ── Color / format painter (R10) — for nodes that render a color override ──
+      const styleable = isNodeViewModel(shape.data) || isPackageViewModel(shape.data);
+      if (styleable) {
+        actions.push({
+          icon: 'color',
+          label: t('selectionToolbar.color'),
+          onClick: () => {},
+          swatches: NODE_COLOR_SWATCHES,
+          onPickColor: (color) => vfsController.applyNodeStyle([toolbarTarget.id], { color }),
+        });
+        actions.push({
+          icon: 'copyStyle',
+          label: t('selectionToolbar.copyStyle'),
+          onClick: () => {
+            const vn = vfsController.diagramView?.nodes.find((n) => n.id === toolbarTarget.id);
+            useFormatPainterStore.getState().copyStyle({ color: vn?.color ?? null });
+          },
+        });
+        if (copiedStyle) {
+          actions.push({
+            icon: 'pasteStyle',
+            label: t('selectionToolbar.pasteStyle'),
+            onClick: () => vfsController.applyNodeStyle([toolbarTarget.id], copiedStyle),
+          });
+        }
+      }
       actions.push({ icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.removeNodeFromDiagram(toolbarTarget.id) });
       return actions;
     }
@@ -1496,7 +1601,7 @@ export default function KonvaCanvas() {
       { icon: 'properties', label: t('selectionToolbar.properties'), onClick: () => openVfsEdgeAction(toolbarTarget.id, buildAnchorSnapshot(toolbarTarget.id)) },
       { icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.deleteEdgeById(toolbarTarget.id) },
     ];
-  }, [toolbarTarget, shapes, vfsController, openSSoTClassEditor, openVfsEdgeAction, buildAnchorSnapshot, t]);
+  }, [toolbarTarget, shapes, vfsController, openSSoTClassEditor, openVfsEdgeAction, buildAnchorSnapshot, copiedStyle, t]);
 
   const selectionToolbar = toolbarPos && toolbarActions.length > 0
     ? { x: toolbarPos.x, y: toolbarPos.y, actions: toolbarActions }
@@ -1595,7 +1700,7 @@ export default function KonvaCanvas() {
           </Layer>
 
           <Layer name="edges">
-            {edgeRenderData.map(({ edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles }) => (
+            {edgeRenderData.map(({ edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles, floating, sourceShape, targetShape }) => (
               <KonvaEdge
                 key={edge.id}
                 id={edge.id}
@@ -1607,6 +1712,9 @@ export default function KonvaCanvas() {
                 anchorLocked={edge.anchorLocked}
                 sourceHandle={edge.sourceHandle ?? undefined}
                 targetHandle={edge.targetHandle ?? undefined}
+                floating={floating}
+                sourceShape={sourceShape}
+                targetShape={targetShape}
                 waypoints={edge.waypoints}
                 isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
@@ -1713,7 +1821,7 @@ export default function KonvaCanvas() {
 
           {/* Edge labels rendered above nodes so they're never occluded by node shapes */}
           <Layer name="edge-labels">
-            {edgeRenderData.map(({ edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles }) => (
+            {edgeRenderData.map(({ edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles, floating, sourceShape, targetShape }) => (
               <KonvaEdge
                 key={edge.id + '-lbl'}
                 id={edge.id}
@@ -1725,6 +1833,9 @@ export default function KonvaCanvas() {
                 anchorLocked={edge.anchorLocked}
                 sourceHandle={edge.sourceHandle ?? undefined}
                 targetHandle={edge.targetHandle ?? undefined}
+                floating={floating}
+                sourceShape={sourceShape}
+                targetShape={targetShape}
                 waypoints={edge.waypoints}
                 label={edge.label}
                 sourceMultiplicity={edge.sourceMultiplicity}
@@ -1830,6 +1941,7 @@ export default function KonvaCanvas() {
         onCloseContextMenu={closeMenu}
         selectionToolbar={selectionToolbar}
         relationPicker={relationPickerOverlay}
+        nodeTypePicker={nodeTypePickerOverlay}
       />
 
       {showMiniMap && (

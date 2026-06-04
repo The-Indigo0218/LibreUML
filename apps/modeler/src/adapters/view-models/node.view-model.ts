@@ -66,7 +66,13 @@ export interface NodeViewModel {
   
   // Style configuration
   style: NodeStyleConfig;
-  
+
+  /**
+   * Per-node color override (R10 format painter). When set, tints the header /
+   * border instead of the stereotype-derived palette. Sourced from ViewNode.color.
+   */
+  colorOverride?: string;
+
   // Metadata (extensible)
   metadata?: {
     isMain?: boolean;

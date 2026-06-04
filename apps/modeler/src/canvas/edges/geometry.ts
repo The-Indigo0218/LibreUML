@@ -21,6 +21,9 @@ export interface NodeBounds {
 
 export type AnchorFace = 'Top' | 'Bottom' | 'Left' | 'Right';
 
+/** Geometric outline of a node — rectangles (most shapes) or ellipses (UseCase ovals). */
+export type NodeShape = 'rect' | 'ellipse';
+
 /**
  * 8-position handle label used to persist a locked anchor.
  * Cardinal midpoints (T/B/L/R) + corners (TL/TR/BL/BR).
@@ -194,6 +197,59 @@ export function resolveLockedAnchors(
 }
 
 /**
+ * Floating anchor (R4): intersection of the ray from `from` (the node center)
+ * toward `to` (the opposing endpoint, usually the other node's center) with this
+ * node's border. Unlike selectAnchors — which snaps to one of 8 fixed handles —
+ * the returned point slides freely along the border so the edge enters radially.
+ *
+ * `shape` picks the outline: 'rect' (bounding box) or 'ellipse' (UseCase ovals).
+ * The returned `face` is the dominant cardinal side the point lands on; it drives
+ * marker retraction fallback and label sidedness (the marker itself can rotate to
+ * the true line direction via directionToAngle).
+ *
+ * Degenerate `from === to` falls back to the Right-face midpoint.
+ */
+export function edgeIntersection(
+  b: NodeBounds,
+  from: Point,
+  to: Point,
+  shape: NodeShape = 'rect',
+): AnchorPoint {
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  const hw = b.width / 2;
+  const hh = b.height / 2;
+
+  const dy = to.y - from.y;
+  // Degenerate from === to: aim Right so we still return a border point.
+  const dx = to.x - from.x === 0 && dy === 0 ? 1 : to.x - from.x;
+
+  let s: number;
+  if (shape === 'ellipse') {
+    // Scale the direction so the point lands on the ellipse (x/a)² + (y/b)² = 1.
+    const nx = dx / (hw || 1);
+    const ny = dy / (hh || 1);
+    s = 1 / Math.hypot(nx, ny);
+  } else {
+    // Rectangle: shortest scale that reaches a vertical or horizontal side.
+    const tx = dx !== 0 ? hw / Math.abs(dx) : Infinity;
+    const ty = dy !== 0 ? hh / Math.abs(dy) : Infinity;
+    s = Math.min(tx, ty);
+  }
+
+  const px = cx + dx * s;
+  const py = cy + dy * s;
+
+  // Dominant face: which border (relative to the node's aspect) the ray exits.
+  const face: AnchorFace =
+    Math.abs(dx) / (hw || 1) >= Math.abs(dy) / (hh || 1)
+      ? dx >= 0 ? 'Right' : 'Left'
+      : dy >= 0 ? 'Bottom' : 'Top';
+
+  return { x: px, y: py, face };
+}
+
+/**
  * Retracts the target anchor inward by `retract` px.
  * The line body terminates at the retracted point; the marker tip stays at the
  * original anchor so it visually touches the node face.
@@ -224,6 +280,19 @@ export function faceToMarkerAngle(face: AnchorFace): number {
     case 'Bottom': return -90;
     case 'Right':  return 180;
   }
+}
+
+/**
+ * Marker rotation (degrees, clockwise) for a freely-angled arrival direction
+ * (floating anchors, R4). `(dx, dy)` is the direction of travel into the target
+ * (source → target). Returns the angle so the marker tip points along it.
+ *
+ * Matches faceToMarkerAngle for the four cardinal directions:
+ *   →(1,0)=0 (enters Left face) · ↓(0,1)=90 (Top) · ←(−1,0)=180 (Right) · ↑(0,−1)=−90 (Bottom).
+ */
+export function directionToAngle(dx: number, dy: number): number {
+  if (dx === 0 && dy === 0) return 0;
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
 }
 
 /**

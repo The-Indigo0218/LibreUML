@@ -37,7 +37,8 @@ import InlineEditor from './overlays/InlineEditor';
 import SelectionToolbar from './overlays/SelectionToolbar';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
 import RelationPickerMenu from './overlays/RelationPickerMenu';
-import type { UmlRelationType } from '../features/diagram/types/diagram.types';
+import NodeTypePickerMenu from './overlays/NodeTypePickerMenu';
+import type { UmlRelationType, stereotype } from '../features/diagram/types/diagram.types';
 import ContextMenu from '../features/diagram/components/ui/ContextMenu';
 
 interface CanvasOverlayProps {
@@ -62,6 +63,14 @@ interface CanvasOverlayProps {
     onPick: (type: UmlRelationType) => void;
     onClose: () => void;
   } | null;
+  /** Node-type picker on drop-to-empty (R5 Quick Linker) — null when closed. */
+  nodeTypePicker?: {
+    x: number;
+    y: number;
+    types: stereotype[];
+    onPick: (type: stereotype) => void;
+    onClose: () => void;
+  } | null;
 }
 
 export default function CanvasOverlay({
@@ -70,6 +79,7 @@ export default function CanvasOverlay({
   onCloseContextMenu,
   selectionToolbar,
   relationPicker,
+  nodeTypePicker,
 }: CanvasOverlayProps) {
   return (
     <div
@@ -100,6 +110,17 @@ export default function CanvasOverlay({
           types={relationPicker.types}
           onPick={relationPicker.onPick}
           onClose={relationPicker.onClose}
+        />
+      )}
+
+      {/* Node-type picker on drop-to-empty (R5 Quick Linker) */}
+      {nodeTypePicker && (
+        <NodeTypePickerMenu
+          x={nodeTypePicker.x}
+          y={nodeTypePicker.y}
+          types={nodeTypePicker.types}
+          onPick={nodeTypePicker.onPick}
+          onClose={nodeTypePicker.onClose}
         />
       )}
 

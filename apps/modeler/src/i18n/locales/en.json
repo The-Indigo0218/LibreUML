@@ -1021,7 +1021,10 @@
     "duplicate": "Duplicate",
     "delete": "Delete",
     "reverse": "Reverse direction",
-    "properties": "Properties"
+    "properties": "Properties",
+    "color": "Color",
+    "copyStyle": "Copy style",
+    "pasteStyle": "Paste style (Ctrl+Shift+V)"
   },
   "relationPicker": {
     "title": "Relation type"
@@ -1033,6 +1036,20 @@
     "dependency": "Dependency",
     "aggregation": "Aggregation",
     "composition": "Composition"
+  },
+  "nodeTypePicker": {
+    "title": "Create and connect"
+  },
+  "nodeTypes": {
+    "class": "Class",
+    "interface": "Interface",
+    "abstract": "Abstract class",
+    "enum": "Enumeration",
+    "note": "Note",
+    "actor": "Actor",
+    "use_case": "Use case",
+    "domain_entity": "Entity",
+    "package": "Package"
   },
   "singleClassGenerator": {
     "title": "Generate Class Code",

@@ -209,6 +209,9 @@ export default function ClassShape({
   onDragEnd,
 }: ClassShapeProps) {
   const colors = resolveNodeColors(vm.style.containerClass);
+  // Per-node color override (R10): tints header + outer border when set.
+  const headerFill = vm.colorOverride ?? colors.headerBg;
+  const borderStroke = vm.colorOverride ?? colors.border;
   const layout = useMemo(() => computeLayout(vm), [vm]);
   const { width: W, height: H } = layout;
 
@@ -246,7 +249,7 @@ export default function ClassShape({
         width={W}
         height={H}
         fill={colors.bg}
-        stroke={colors.border}
+        stroke={borderStroke}
         strokeWidth={BORDER_W}
         cornerRadius={RADIUS}
         perfectDrawEnabled={false}
@@ -256,7 +259,7 @@ export default function ClassShape({
       <Rect
         width={W}
         height={layout.headerH}
-        fill={colors.headerBg}
+        fill={headerFill}
         cornerRadius={[RADIUS, RADIUS, 0, 0]}
         perfectDrawEnabled={false}
       />

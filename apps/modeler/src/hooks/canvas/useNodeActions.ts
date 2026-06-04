@@ -41,6 +41,11 @@ export interface UseNodeActionsResult {
   removeNodeFromDiagram: (viewNodeId: string) => void;
   deleteElementFromModel: (viewNodeId: string) => void;
   duplicateNode: (viewNodeId: string) => string | null;
+  /**
+   * Applies a visual style (color override) to one or more view nodes in a single
+   * undo transaction (R10 format painter / color setter). `color: null` clears it.
+   */
+  applyNodeStyle: (viewNodeIds: string[], style: { color: string | null }) => void;
 }
 
 export function useNodeActions({
@@ -414,5 +419,29 @@ export function useNodeActions({
     [activeTabId, updateFileContent, isStandalone],
   );
 
-  return { removeNodeFromDiagram, deleteElementFromModel, duplicateNode };
+  const applyNodeStyle = useCallback(
+    (viewNodeIds: string[], style: { color: string | null }) => {
+      if (!activeTabId || viewNodeIds.length === 0) return;
+      const currentProject = useVFSStore.getState().project;
+      if (!currentProject) return;
+      const fileNode = currentProject.nodes[activeTabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      if (!isDiagramView((fileNode as VFSFile).content)) return;
+
+      const idSet = new Set(viewNodeIds);
+      // View-only change (color lives on the ViewNode) → single vfs transaction.
+      withUndo('vfs', 'Apply Style', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        for (const vn of node.content.nodes as ViewNode[]) {
+          if (!idSet.has(vn.id)) continue;
+          if (style.color === null) delete vn.color;
+          else vn.color = style.color;
+        }
+      });
+    },
+    [activeTabId],
+  );
+
+  return { removeNodeFromDiagram, deleteElementFromModel, duplicateNode, applyNodeStyle };
 }

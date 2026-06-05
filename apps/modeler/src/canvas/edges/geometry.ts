@@ -358,26 +358,55 @@ export function polylineRoute(src: Point, waypoints: Point[], tgt: Point): numbe
 }
 
 /**
+ * True when the axis-aligned segment (x1,y1)-(x2,y2) overlaps any obstacle rect.
+ * Bounding-box overlap with strict edges (matches obstacleAvoidance's hit tests).
+ */
+function axisSegHits(x1: number, y1: number, x2: number, y2: number, obstacles: NodeBounds[]): boolean {
+  const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+  const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+  return obstacles.some(
+    (o) => maxX > o.x && minX < o.x + o.width && maxY > o.y && minY < o.y + o.height,
+  );
+}
+
+/**
  * Orthogonal route through explicit user waypoints (R6).
  *
  * Reconciles auto-orthogonal routing with manual bends: the waypoints stay fixed
  * (the user "pins" them), but each leg between two consecutive control points is
  * connected with a single right-angle elbow instead of a diagonal. The elbow leads
  * with the dominant axis (horizontal-first when |dx| ≥ |dy|, else vertical-first)
- * so the path reads naturally. Legs that are already axis-aligned add no elbow.
+ * so the path reads naturally; when `obstacles` are supplied and the dominant
+ * orientation would clip a node, the other orientation is used if it is clean.
+ * Legs that are already axis-aligned add no elbow.
  *
  * Because the endpoints come from the live node bounds, the elbows recompute on
  * every move while the waypoints remain user-fixed — "the lines settle themselves".
  */
-export function orthogonalPolylineRoute(src: Point, waypoints: Point[], tgt: Point): number[] {
+export function orthogonalPolylineRoute(
+  src: Point,
+  waypoints: Point[],
+  tgt: Point,
+  obstacles: NodeBounds[] = [],
+): number[] {
   const ctrl: Point[] = [src, ...waypoints, tgt];
   const out: number[] = [src.x, src.y];
   for (let i = 0; i < ctrl.length - 1; i++) {
     const a = ctrl[i];
     const b = ctrl[i + 1];
     if (a.x !== b.x && a.y !== b.y) {
-      // Insert a right-angle elbow leading with the dominant axis.
-      if (Math.abs(b.x - a.x) >= Math.abs(b.y - a.y)) {
+      // Two possible elbows. Prefer the dominant-axis one; if it clips an obstacle
+      // and the alternative is clean, take the alternative.
+      let horizontalFirst = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+      if (obstacles.length > 0) {
+        // horizontal-first elbow corner (b.x, a.y); vertical-first corner (a.x, b.y)
+        const hvHits = axisSegHits(a.x, a.y, b.x, a.y, obstacles) || axisSegHits(b.x, a.y, b.x, b.y, obstacles);
+        const vhHits = axisSegHits(a.x, a.y, a.x, b.y, obstacles) || axisSegHits(a.x, b.y, b.x, b.y, obstacles);
+        const preferredHits = horizontalFirst ? hvHits : vhHits;
+        const altHits = horizontalFirst ? vhHits : hvHits;
+        if (preferredHits && !altHits) horizontalFirst = !horizontalFirst;
+      }
+      if (horizontalFirst) {
         out.push(b.x, a.y); // horizontal then vertical
       } else {
         out.push(a.x, b.y); // vertical then horizontal

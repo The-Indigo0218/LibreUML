@@ -91,6 +91,29 @@ describe('orthogonalPolylineRoute (R6)', () => {
   });
 });
 
+describe('orthogonalPolylineRoute — obstacle-aware leg (R6)', () => {
+  const src: Point = { x: 0, y: 0 };
+  const tgt: Point = { x: 100, y: 100 };
+
+  it('keeps the dominant orientation when no obstacle is in the way', () => {
+    // |dx| === |dy| → horizontal-first by default.
+    expect(orthogonalPolylineRoute(src, [], tgt, [])).toEqual([0, 0, 100, 0, 100, 100]);
+  });
+
+  it('flips to the clean orientation when the dominant elbow clips a node', () => {
+    // Default horizontal-first elbow runs along y=0 then x=100. Place an obstacle
+    // straddling y=0 between x=0..100 so the horizontal arm clips it → expect VH.
+    const obstacle = { x: 40, y: -10, width: 20, height: 20 };
+    expect(orthogonalPolylineRoute(src, [], tgt, [obstacle])).toEqual([0, 0, 0, 100, 100, 100]);
+  });
+
+  it('falls back to the dominant orientation when both elbows clip', () => {
+    // Obstacle over the shared corner region so neither orientation is clean.
+    const big = { x: -50, y: -50, width: 200, height: 200 };
+    expect(orthogonalPolylineRoute(src, [], tgt, [big])).toEqual([0, 0, 100, 0, 100, 100]);
+  });
+});
+
 describe('resolveRoutingMode (legacy fallback rule)', () => {
   it('falls back to orthogonal when undefined (pre-existing edges)', () => {
     expect(resolveRoutingMode(undefined)).toBe('orthogonal');

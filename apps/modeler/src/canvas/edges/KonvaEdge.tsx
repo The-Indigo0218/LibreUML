@@ -36,8 +36,8 @@
  *   'full'   — renders everything (default, backward-compatible).
  */
 
-import { useMemo, useState } from 'react';
-import { Group, Line, Text, Label, Tag, Circle } from 'react-konva';
+import { useMemo, useState, useRef } from 'react';
+import { Group, Line, Text, Label, Tag, Circle, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 import {
@@ -391,6 +391,16 @@ export default function KonvaEdge({
   // insert a new bend, or null. Needed so that ghost is rendered at the live
   // dragged position (avoids react-konva snapping it back each frame).
   const [draggingGhost, setDraggingGhost] = useState<number | null>(null);
+  // Orthogonal segment-slide drag (R3/R6). The snapshot (interior route points,
+  // grabbed segment, orientation) is captured at drag start in a ref so dragMove
+  // rebuilds waypoints from a stable base; segLive holds the raw pointer so the
+  // dragged bar renders under the cursor without react-konva snapping it back.
+  const segDragRef = useRef<{ interior: Point[]; a: number; orient: 'h' | 'v' } | null>(null);
+  // Live pointer + which interior segment is active (a) — state so render reflects
+  // the drag without reading the ref during render.
+  const [segLive, setSegLive] = useState<{ x: number; y: number; a: number } | null>(null);
+  // Effective routing once the legacy fallback is applied (undefined → orthogonal).
+  const routing = resolveRoutingMode(routingMode);
   // When active (highlighted or hovered): use kind-specific color; else base gray
   const isActive = isHighlighted || isHovered;
   const stroke = isActive ? getEdgeColorByKind(kind) : getEdgeColor();
@@ -441,8 +451,6 @@ export default function KonvaEdge({
 
     // ── Normal edge ────────────────────────────────────────────────────────
     const hasWaypoints = !!effectiveWaypoints && effectiveWaypoints.length > 0;
-    // Undefined → orthogonal (legacy fallback); new edges carry an explicit mode.
-    const routing = resolveRoutingMode(routingMode);
     // Floating wins over fixed handles unless the edge is explicitly locked.
     const useFloating = floating && !(anchorLocked && sourceHandle && targetHandle);
 
@@ -488,7 +496,7 @@ export default function KonvaEdge({
       // connected by right-angle elbows that recompute as nodes move (R6); in any
       // other mode the body is a straight polyline through the points.
       pts = routing === 'orthogonal' && !useFloating
-        ? orthogonalPolylineRoute(src, effectiveWaypoints!, retractedTgt)
+        ? orthogonalPolylineRoute(src, effectiveWaypoints!, retractedTgt, obstacles ?? [])
         : polylineRoute(src, effectiveWaypoints!, retractedTgt);
     } else if (useFloating) {
       // Floating entry is inherently radial → straight segment, never orthogonal.
@@ -525,7 +533,7 @@ export default function KonvaEdge({
       srcY: src.y,
       labelPositions: computeLabelPositions(pts, src.x, src.y, tgt.x, tgt.y, targetAlong, isBezier),
     };
-  }, [sourceBounds, targetBounds, kind, isSelfLoop, routingMode, obstacles, retract, anchorLocked, sourceHandle, targetHandle, floating, sourceShape, targetShape, effectiveWaypoints]);
+  }, [sourceBounds, targetBounds, kind, isSelfLoop, routing, obstacles, retract, anchorLocked, sourceHandle, targetHandle, floating, sourceShape, targetShape, effectiveWaypoints]);
 
   // ── Waypoint editing handles (R3b) ────────────────────────────────────────
   const showHandles = showLabels && selected && !isSelfLoop && !!onWaypointsChange;
@@ -907,6 +915,74 @@ export default function KonvaEdge({
               }}
             />
           ))}
+
+          {/* Segment-slide bars (R3/R6) — only on orthogonal edges, on interior
+              segments (both endpoints are bends, not the fixed anchors). Drag a bar
+              perpendicular to slide the whole segment while keeping 90°. The drag
+              promotes the rendered route's interior points to explicit waypoints. */}
+          {routing === 'orthogonal' && !bezier && (() => {
+            const rp: Point[] = [];
+            for (let i = 0; i + 1 < points.length; i += 2) rp.push({ x: points[i], y: points[i + 1] });
+            const bars: React.ReactNode[] = [];
+            // Draggable segment k connects rp[k]→rp[k+1]; interior endpoints only.
+            for (let k = 1; k <= rp.length - 3; k++) {
+              const a = rp[k];
+              const b = rp[k + 1];
+              const horizontal = Math.abs(a.y - b.y) < 0.5 && Math.abs(a.x - b.x) >= 0.5;
+              const vertical = Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) >= 0.5;
+              if (!horizontal && !vertical) continue;
+              const orient: 'h' | 'v' = horizontal ? 'h' : 'v';
+              const dragging = segLive?.a === k - 1;
+              const mx = dragging ? segLive!.x : (a.x + b.x) / 2;
+              const my = dragging ? segLive!.y : (a.y + b.y) / 2;
+              bars.push(
+                <Rect
+                  key={`seg-${k}`}
+                  x={mx}
+                  y={my}
+                  width={orient === 'h' ? 18 : 6}
+                  height={orient === 'h' ? 6 : 18}
+                  offsetX={orient === 'h' ? 9 : 3}
+                  offsetY={orient === 'h' ? 3 : 9}
+                  cornerRadius={2}
+                  fill={HANDLE_FILL}
+                  stroke={HANDLE_STROKE}
+                  strokeWidth={1}
+                  draggable
+                  onMouseDown={(e) => { e.cancelBubble = true; }}
+                  onDragStart={(e) => {
+                    e.cancelBubble = true;
+                    segDragRef.current = { interior: rp.slice(1, -1), a: k - 1, orient };
+                    setSegLive({ x: e.target.x(), y: e.target.y(), a: k - 1 });
+                  }}
+                  onDragMove={(e) => {
+                    const snap = segDragRef.current;
+                    if (!snap) return;
+                    const px = e.target.x();
+                    const py = e.target.y();
+                    setSegLive({ x: px, y: py, a: snap.a });
+                    const coord = snap.orient === 'h' ? py : px;
+                    const next = snap.interior.map((p) => ({ ...p }));
+                    if (snap.orient === 'h') { next[snap.a].y = coord; next[snap.a + 1].y = coord; }
+                    else { next[snap.a].x = coord; next[snap.a + 1].x = coord; }
+                    setDraftWaypoints(next);
+                  }}
+                  onDragEnd={(e) => {
+                    const snap = segDragRef.current;
+                    segDragRef.current = null;
+                    setSegLive(null);
+                    if (!snap) return;
+                    const coord = snap.orient === 'h' ? e.target.y() : e.target.x();
+                    const next = snap.interior.map((p) => ({ ...p }));
+                    if (snap.orient === 'h') { next[snap.a].y = coord; next[snap.a + 1].y = coord; }
+                    else { next[snap.a].x = coord; next[snap.a + 1].x = coord; }
+                    commitWaypoints(next);
+                  }}
+                />,
+              );
+            }
+            return <>{bars}</>;
+          })()}
         </>
       )}
     </Group>

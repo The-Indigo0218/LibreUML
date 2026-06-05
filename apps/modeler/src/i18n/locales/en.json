@@ -1044,6 +1044,8 @@
     "operations": "Operations",
     "addAttribute": "Add attribute…",
     "addOperation": "Add operation…",
+    "literals": "Literals",
+    "addLiteral": "Add literal…",
     "remove": "Remove",
     "advanced": "Advanced…"
   },

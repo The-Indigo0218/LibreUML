@@ -1053,6 +1053,8 @@
     "operations": "Operaciones",
     "addAttribute": "Añadir atributo…",
     "addOperation": "Añadir operación…",
+    "literals": "Literales",
+    "addLiteral": "Añadir literal…",
     "remove": "Quitar",
     "advanced": "Avanzado…"
   },

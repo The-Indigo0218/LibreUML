@@ -1581,12 +1581,12 @@ export default function KonvaCanvas() {
       if (isNodeViewModel(shape.data)) {
         const elementId = vfsController.diagramView?.nodes.find((vn) => vn.id === toolbarTarget.id)?.elementId;
         if (elementId) {
-          // Classes open the inline R9 panel; interfaces/enums keep the full modal.
-          const isClass = !!activeModel?.classes[elementId];
+          // Classifiers (class / interface / enum) open the inline R9 panel.
+          const isClassifier = !!(activeModel?.classes[elementId] || activeModel?.interfaces[elementId] || activeModel?.enums[elementId]);
           actions.push({
             icon: 'edit',
             label: t('selectionToolbar.edit'),
-            onClick: () => isClass ? openInlineClassPanel(elementId) : openSSoTClassEditor(elementId),
+            onClick: () => isClassifier ? openInlineClassPanel(elementId) : openSSoTClassEditor(elementId),
           });
         }
         actions.push({ icon: 'duplicate', label: t('selectionToolbar.duplicate'), onClick: () => vfsController.duplicateNode(toolbarTarget.id) });
@@ -1696,7 +1696,8 @@ export default function KonvaCanvas() {
   }, [inlineClassPanelId, selectedIds, vfsController.diagramView, closeInlineClassPanel]);
 
   const inlineClassPanel = useMemo<InlineClassPanelProps | null>(() => {
-    if (!inlineClassPanelId || !activeModel?.classes[inlineClassPanelId]) return null;
+    const exists = !!(activeModel?.classes[inlineClassPanelId ?? ''] || activeModel?.interfaces[inlineClassPanelId ?? ''] || activeModel?.enums[inlineClassPanelId ?? '']);
+    if (!inlineClassPanelId || !exists) return null;
     return {
       elementId: inlineClassPanelId,
       onAdvanced: () => { closeInlineClassPanel(); openSSoTClassEditor(inlineClassPanelId); },

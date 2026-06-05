@@ -91,7 +91,7 @@ import {
   type NodeViewModel,
   type PackageViewModel,
 } from '../adapters/view-models/node.view-model';
-import { selectAnchors, anchorPointToHandle, type NodeBounds, type LockedHandle } from './edges/geometry';
+import { selectAnchors, anchorPointToHandle, resolveRoutingMode, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
 import { yToMessageSlot, yToInvariantSlot } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
@@ -1605,8 +1605,8 @@ export default function KonvaCanvas() {
       return actions;
     }
     const selEdge = edges.find((e) => e.id === toolbarTarget.id);
-    // Undefined renders as orthogonal (legacy fallback) — reflect that in the popover.
-    const currentRouting = selEdge?.routingMode ?? 'orthogonal';
+    // Same fallback the renderer uses, so the popover highlights what's drawn.
+    const currentRouting = resolveRoutingMode(selEdge?.routingMode);
     // Association-family edges open the inline R9 panel for the common multiplicity/role
     // edits; every other kind keeps the full modal (kind change, anchor picker, etc.).
     const inlineEligible = !!selEdge && INLINE_PANEL_KINDS.has(selEdge.kind);

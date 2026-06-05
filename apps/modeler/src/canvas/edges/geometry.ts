@@ -7,9 +7,24 @@
  * Flat `points` arrays follow the Konva convention: [x0, y0, x1, y1, …].
  */
 
+import type { EdgeRoutingMode } from '../../core/domain/vfs/vfs.types';
+
 export interface Point {
   x: number;
   y: number;
+}
+
+/**
+ * Resolves the routing mode actually used to render an edge.
+ *
+ * Undefined falls back to 'orthogonal' so edges saved before per-edge routing
+ * modes existed keep their original look; freshly drawn edges carry an explicit
+ * mode (created as 'straight'). This is the single source of truth for the
+ * backward-compatibility rule — used by both KonvaEdge (render) and the toolbar
+ * (which mode the popover highlights).
+ */
+export function resolveRoutingMode(mode?: EdgeRoutingMode): EdgeRoutingMode {
+  return mode ?? 'orthogonal';
 }
 
 export interface NodeBounds {

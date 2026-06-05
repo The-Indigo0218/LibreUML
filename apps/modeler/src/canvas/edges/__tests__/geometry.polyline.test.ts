@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { polylineRoute, straightRoute, orthogonalPolylineRoute, type Point } from '../geometry';
+import { polylineRoute, straightRoute, orthogonalPolylineRoute, resolveRoutingMode, type Point } from '../geometry';
 
 describe('polylineRoute', () => {
   const src: Point = { x: 0, y: 0 };
@@ -65,5 +65,40 @@ describe('orthogonalPolylineRoute (R6)', () => {
       const sameY = pts[i + 1] === pts[i + 3];
       expect(sameX || sameY).toBe(true);
     }
+  });
+
+  it('keeps every segment axis-aligned through multiple waypoints', () => {
+    const waypoints: Point[] = [
+      { x: 40, y: 30 },
+      { x: 70, y: 10 },
+      { x: 85, y: 75 },
+    ];
+    const pts = orthogonalPolylineRoute(src, waypoints, tgt);
+    expect(pts.slice(0, 2)).toEqual([0, 0]);
+    expect(pts.slice(-2)).toEqual([100, 100]);
+    // Each waypoint must appear verbatim (it is a fixed user bend).
+    for (const w of waypoints) {
+      let found = false;
+      for (let i = 0; i < pts.length; i += 2) {
+        if (pts[i] === w.x && pts[i + 1] === w.y) { found = true; break; }
+      }
+      expect(found).toBe(true);
+    }
+    // Pure 90° path: no diagonal segments.
+    for (let i = 0; i < pts.length - 2; i += 2) {
+      expect(pts[i] === pts[i + 2] || pts[i + 1] === pts[i + 3]).toBe(true);
+    }
+  });
+});
+
+describe('resolveRoutingMode (legacy fallback rule)', () => {
+  it('falls back to orthogonal when undefined (pre-existing edges)', () => {
+    expect(resolveRoutingMode(undefined)).toBe('orthogonal');
+  });
+
+  it('returns an explicit mode unchanged (new / user-set edges)', () => {
+    expect(resolveRoutingMode('straight')).toBe('straight');
+    expect(resolveRoutingMode('orthogonal')).toBe('orthogonal');
+    expect(resolveRoutingMode('curved')).toBe('curved');
   });
 });

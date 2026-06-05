@@ -50,6 +50,7 @@ import {
   straightRoute,
   polylineRoute,
   orthogonalPolylineRoute,
+  resolveRoutingMode,
   selfLoopPath,
   type NodeBounds,
   type NodeShape,
@@ -354,7 +355,7 @@ export default function KonvaEdge({
   sourceBounds,
   targetBounds,
   isSelfLoop = false,
-  routingMode = 'orthogonal',
+  routingMode,
   obstacles,
   sourceMultiplicity,
   targetMultiplicity,
@@ -440,6 +441,8 @@ export default function KonvaEdge({
 
     // ── Normal edge ────────────────────────────────────────────────────────
     const hasWaypoints = !!effectiveWaypoints && effectiveWaypoints.length > 0;
+    // Undefined → orthogonal (legacy fallback); new edges carry an explicit mode.
+    const routing = resolveRoutingMode(routingMode);
     // Floating wins over fixed handles unless the edge is explicitly locked.
     const useFloating = floating && !(anchorLocked && sourceHandle && targetHandle);
 
@@ -484,14 +487,14 @@ export default function KonvaEdge({
       // Manual waypoints (R3). In orthogonal mode they become fixed bend anchors
       // connected by right-angle elbows that recompute as nodes move (R6); in any
       // other mode the body is a straight polyline through the points.
-      pts = routingMode === 'orthogonal' && !useFloating
+      pts = routing === 'orthogonal' && !useFloating
         ? orthogonalPolylineRoute(src, effectiveWaypoints!, retractedTgt)
         : polylineRoute(src, effectiveWaypoints!, retractedTgt);
     } else if (useFloating) {
       // Floating entry is inherently radial → straight segment, never orthogonal.
       pts = straightRoute(src, retractedTgt);
     } else {
-      switch (routingMode) {
+      switch (routing) {
         case 'curved':
           pts = curvedRoute(src, retractedTgt, tgt.face);
           isBezier = true;

@@ -50,6 +50,8 @@ interface UiStoreState {
   isGetStartedOpen: boolean;
   /** Edge id whose inline properties panel (R9) is open, or null. */
   inlineEdgePanelId: string | null;
+  /** Element id of the class whose inline properties panel (R9) is open, or null. */
+  inlineClassPanelId: string | null;
 
   // actions
   openClassEditor: (nodeId: string) => void;
@@ -84,6 +86,8 @@ interface UiStoreState {
   closeModals: () => void;
   openInlineEdgePanel: (edgeId: string) => void;
   closeInlineEdgePanel: () => void;
+  openInlineClassPanel: (elementId: string) => void;
+  closeInlineClassPanel: () => void;
   openGetStarted: () => void;
   closeGetStarted: () => void;
   toggleGetStarted: () => void;
@@ -95,6 +99,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   anchorSnapshot: null,
   isGetStartedOpen: false,
   inlineEdgePanelId: null,
+  inlineClassPanelId: null,
 
   openClassEditor: (nodeId) =>
     set({ activeModal: "class-editor", editingId: nodeId }),
@@ -162,10 +167,13 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 
-  // Opening the inline panel closes any modal; opening a modal elsewhere leaves it.
+  // Opening an inline panel closes any modal and the other inline panel.
   openInlineEdgePanel: (edgeId) =>
-    set({ inlineEdgePanelId: edgeId, activeModal: null, editingId: null }),
+    set({ inlineEdgePanelId: edgeId, inlineClassPanelId: null, activeModal: null, editingId: null }),
   closeInlineEdgePanel: () => set({ inlineEdgePanelId: null }),
+  openInlineClassPanel: (elementId) =>
+    set({ inlineClassPanelId: elementId, inlineEdgePanelId: null, activeModal: null, editingId: null }),
+  closeInlineClassPanel: () => set({ inlineClassPanelId: null }),
 
   openGetStarted: () => set({ isGetStartedOpen: true }),
   closeGetStarted: () => set({ isGetStartedOpen: false }),

@@ -35,6 +35,7 @@ import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
 import type { InlineEdgePanelProps } from './overlays/InlineEdgePanel';
+import type { InlineClassPanelProps } from './overlays/InlineClassPanel';
 import { worldToScreen } from './engine/projection';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
 import { useWorkspaceStore } from '../store/workspace.store';
@@ -895,6 +896,15 @@ export default function KonvaCanvas() {
   const openInlineEdgePanel = useUiStore((s) => s.openInlineEdgePanel);
   const closeInlineEdgePanel = useUiStore((s) => s.closeInlineEdgePanel);
 
+  const inlineClassPanelId = useUiStore((s) => s.inlineClassPanelId);
+  const openInlineClassPanel = useUiStore((s) => s.openInlineClassPanel);
+  const closeInlineClassPanel = useUiStore((s) => s.closeInlineClassPanel);
+
+  // Active model (standalone localModel vs global) — used to tell a class node
+  // (inline panel) from interfaces/enums (full modal) and to resolve the panel.
+  const globalModel = useModelStore((s) => s.model);
+  const activeModel = vfsController.isStandalone ? vfsController.localModel : globalModel;
+
   const startUseCaseInlineEdit = useCallback(
     (shapeId: string) => {
       const shape = shapes.find((s) => s.id === shapeId);
@@ -1571,7 +1581,13 @@ export default function KonvaCanvas() {
       if (isNodeViewModel(shape.data)) {
         const elementId = vfsController.diagramView?.nodes.find((vn) => vn.id === toolbarTarget.id)?.elementId;
         if (elementId) {
-          actions.push({ icon: 'edit', label: t('selectionToolbar.edit'), onClick: () => openSSoTClassEditor(elementId) });
+          // Classes open the inline R9 panel; interfaces/enums keep the full modal.
+          const isClass = !!activeModel?.classes[elementId];
+          actions.push({
+            icon: 'edit',
+            label: t('selectionToolbar.edit'),
+            onClick: () => isClass ? openInlineClassPanel(elementId) : openSSoTClassEditor(elementId),
+          });
         }
         actions.push({ icon: 'duplicate', label: t('selectionToolbar.duplicate'), onClick: () => vfsController.duplicateNode(toolbarTarget.id) });
       }
@@ -1633,7 +1649,7 @@ export default function KonvaCanvas() {
       },
       { icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.deleteEdgeById(toolbarTarget.id) },
     ];
-  }, [toolbarTarget, shapes, edges, vfsController, openSSoTClassEditor, openVfsEdgeAction, openInlineEdgePanel, buildAnchorSnapshot, copiedStyle, t]);
+  }, [toolbarTarget, shapes, edges, activeModel, vfsController, openSSoTClassEditor, openVfsEdgeAction, openInlineEdgePanel, openInlineClassPanel, buildAnchorSnapshot, copiedStyle, t]);
 
   const selectionToolbar = toolbarPos && toolbarActions.length > 0
     ? { x: toolbarPos.x, y: toolbarPos.y, actions: toolbarActions }
@@ -1670,6 +1686,23 @@ export default function KonvaCanvas() {
       onClose: closeInlineEdgePanel,
     };
   }, [inlineEdgePanelId, edges, nodeName, vfsController, closeInlineEdgePanel, openVfsEdgeAction, buildAnchorSnapshot]);
+
+  // ── Inline class properties panel (R9) ─────────────────────────────────────
+  // Auto-close when the panel's class node is no longer selected.
+  useEffect(() => {
+    if (!inlineClassPanelId) return;
+    const vn = vfsController.diagramView?.nodes.find((n) => n.elementId === inlineClassPanelId);
+    if (!vn || !selectedIds.has(vn.id)) closeInlineClassPanel();
+  }, [inlineClassPanelId, selectedIds, vfsController.diagramView, closeInlineClassPanel]);
+
+  const inlineClassPanel = useMemo<InlineClassPanelProps | null>(() => {
+    if (!inlineClassPanelId || !activeModel?.classes[inlineClassPanelId]) return null;
+    return {
+      elementId: inlineClassPanelId,
+      onAdvanced: () => { closeInlineClassPanel(); openSSoTClassEditor(inlineClassPanelId); },
+      onClose: closeInlineClassPanel,
+    };
+  }, [inlineClassPanelId, activeModel, closeInlineClassPanel, openSSoTClassEditor]);
 
   return (
     <div
@@ -2007,6 +2040,7 @@ export default function KonvaCanvas() {
         onCloseContextMenu={closeMenu}
         selectionToolbar={selectionToolbar}
         inlineEdgePanel={inlineEdgePanel}
+        inlineClassPanel={inlineClassPanel}
         relationPicker={relationPickerOverlay}
         nodeTypePicker={nodeTypePickerOverlay}
       />

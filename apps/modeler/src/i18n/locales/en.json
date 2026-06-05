@@ -1037,6 +1037,16 @@
     "reverse": "Reverse",
     "advanced": "Advanced…"
   },
+  "inlineClassPanel": {
+    "name": "Class name",
+    "close": "Close",
+    "attributes": "Attributes",
+    "operations": "Operations",
+    "addAttribute": "Add attribute…",
+    "addOperation": "Add operation…",
+    "remove": "Remove",
+    "advanced": "Advanced…"
+  },
   "relationPicker": {
     "title": "Relation type"
   },

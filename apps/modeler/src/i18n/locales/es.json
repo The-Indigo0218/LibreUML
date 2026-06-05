@@ -1046,6 +1046,16 @@
     "reverse": "Invertir",
     "advanced": "Avanzado…"
   },
+  "inlineClassPanel": {
+    "name": "Nombre de clase",
+    "close": "Cerrar",
+    "attributes": "Atributos",
+    "operations": "Operaciones",
+    "addAttribute": "Añadir atributo…",
+    "addOperation": "Añadir operación…",
+    "remove": "Quitar",
+    "advanced": "Avanzado…"
+  },
   "relationPicker": {
     "title": "Tipo de relación"
   },

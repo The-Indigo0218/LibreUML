@@ -14,11 +14,19 @@
  */
 
 import { useState } from 'react';
-import { Pencil, Copy, Trash2, ArrowLeftRight, Settings2, Palette, Paintbrush, PaintBucket, Ban } from 'lucide-react';
+import { Pencil, Copy, Trash2, ArrowLeftRight, Settings2, Palette, Paintbrush, PaintBucket, Ban, Minus, Spline, Waypoints } from 'lucide-react';
+import type { EdgeRoutingMode } from '../../core/domain/vfs/vfs.types';
 
 export type ToolbarIcon =
   | 'edit' | 'duplicate' | 'delete' | 'reverse' | 'properties'
-  | 'color' | 'copyStyle' | 'pasteStyle';
+  | 'color' | 'copyStyle' | 'pasteStyle' | 'routing';
+
+/** Icon + label for each routing mode, shown in the routing popover. */
+const ROUTING_OPTIONS: { mode: EdgeRoutingMode; Icon: typeof Minus; key: string }[] = [
+  { mode: 'straight',   Icon: Minus,     key: 'straight' },
+  { mode: 'orthogonal', Icon: Waypoints, key: 'orthogonal' },
+  { mode: 'curved',     Icon: Spline,    key: 'curved' },
+];
 
 export interface ToolbarAction {
   icon: ToolbarIcon;
@@ -33,6 +41,14 @@ export interface ToolbarAction {
    */
   swatches?: string[];
   onPickColor?: (color: string | null) => void;
+  /**
+   * When set, the button opens a routing-mode popover (straight/orthogonal/curved).
+   * The trigger icon reflects the current mode; picking an option calls onPickRouting.
+   */
+  routing?: EdgeRoutingMode;
+  onPickRouting?: (mode: EdgeRoutingMode) => void;
+  /** Per-option tooltip labels for the routing popover, keyed by mode. */
+  routingLabels?: Partial<Record<EdgeRoutingMode, string>>;
 }
 
 export interface SelectionToolbarProps {
@@ -51,10 +67,11 @@ const ICONS: Record<ToolbarIcon, typeof Pencil> = {
   color: Palette,
   copyStyle: Paintbrush,
   pasteStyle: PaintBucket,
+  routing: Spline,
 };
 
 export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProps) {
-  // Index of the action whose color-swatch popover is open, or null.
+  // Index of the action whose popover (color swatches or routing modes) is open, or null.
   const [openSwatch, setOpenSwatch] = useState<number | null>(null);
 
   if (actions.length === 0) return null;
@@ -80,14 +97,17 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
                    bg-surface-primary/95 shadow-xl backdrop-blur-sm"
       >
         {actions.map((action, i) => {
-          const Icon = ICONS[action.icon];
-          const isSwatch = !!action.swatches;
+          // Routing buttons show the icon of the current mode; others use the static map.
+          const Icon = action.routing
+            ? (ROUTING_OPTIONS.find((o) => o.mode === action.routing)?.Icon ?? ICONS.routing)
+            : ICONS[action.icon];
+          const isPopover = !!action.swatches || !!action.onPickRouting;
           return (
             <button
               key={i}
               title={action.label}
               aria-label={action.label}
-              onClick={() => (isSwatch ? setOpenSwatch((p) => (p === i ? null : i)) : action.onClick())}
+              onClick={() => (isPopover ? setOpenSwatch((p) => (p === i ? null : i)) : action.onClick())}
               className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors
                 ${action.danger
                   ? 'text-red-400 hover:bg-red-500/15 hover:text-red-300'
@@ -100,6 +120,32 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
           );
         })}
       </div>
+
+      {/* Routing-mode popover (straight / orthogonal / curved) */}
+      {swatchAction?.onPickRouting && (
+        <div
+          className="mt-1.5 flex items-center gap-0.5 px-1 py-1 rounded-lg border border-surface-border
+                     bg-surface-primary/97 shadow-xl backdrop-blur-sm"
+        >
+          {ROUTING_OPTIONS.map(({ mode, Icon, key }) => {
+            const active = swatchAction.routing === mode;
+            return (
+              <button
+                key={key}
+                title={swatchAction.routingLabels?.[mode] ?? mode}
+                aria-label={swatchAction.routingLabels?.[mode] ?? mode}
+                onClick={() => { swatchAction.onPickRouting?.(mode); setOpenSwatch(null); }}
+                className={`flex items-center justify-center w-8 h-8 rounded-md transition-colors
+                  ${active
+                    ? 'bg-surface-hover text-text-primary'
+                    : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'}`}
+              >
+                <Icon className="w-4 h-4" />
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Color-swatch popover (R10 color setter) */}
       {swatchAction?.swatches && (

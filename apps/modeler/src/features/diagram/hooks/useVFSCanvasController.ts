@@ -23,6 +23,7 @@ import type {
   LibreUMLProject,
   SemanticModel,
   RelationKind,
+  EdgeRoutingMode,
 } from '../../../core/domain/vfs/vfs.types';
 import { buildClassDiagramNodes } from './controllers/classDiagramNodes';
 import { buildUseCaseDiagramNodes } from './controllers/useCaseDiagramNodes';
@@ -74,6 +75,8 @@ export interface VFSCanvasEdge {
   targetHandle?: string;
   /** Manual user waypoints (R3). */
   waypoints?: { x: number; y: number }[];
+  /** Line routing style. Undefined = 'straight'. */
+  routingMode?: EdgeRoutingMode;
   style?: CSSProperties;
   data: {
     domainId: string;
@@ -122,6 +125,7 @@ export interface VFSCanvasResult {
     },
   ) => void;
   updateEdgeWaypoints: (viewEdgeId: string, waypoints: { x: number; y: number }[]) => void;
+  updateEdgeRoutingMode: (viewEdgeId: string, routingMode: EdgeRoutingMode) => void;
 }
 
 // ─── Default project bootstrap ────────────────────────────────────────────────
@@ -335,6 +339,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
         sourceHandle: viewEdge.anchorLocked ? viewEdge.sourceHandle : undefined,
         targetHandle: viewEdge.anchorLocked ? viewEdge.targetHandle : undefined,
         waypoints: viewEdge.waypoints,
+        routingMode: viewEdge.routingMode,
         data: {
           domainId: relation.id,
           kind: relation.kind,
@@ -380,5 +385,6 @@ export function useVFSCanvasController(): VFSCanvasResult {
     changeEdgeKind: edgeActions.changeEdgeKind,
     updateVFSEdgeProps: edgeActions.updateVFSEdgeProps,
     updateEdgeWaypoints: edgeActions.updateEdgeWaypoints,
+    updateEdgeRoutingMode: edgeActions.updateEdgeRoutingMode,
   };
 }

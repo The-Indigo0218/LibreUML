@@ -139,6 +139,8 @@ export function useQuickLinker({ activeTabId }: UseQuickLinkerParams): UseQuickL
         id: crypto.randomUUID(),
         relationId: newRelationId,
         waypoints: [],
+        // New edges default to free-form straight (legacy edges keep orthogonal).
+        routingMode: 'straight',
       };
 
       if (isStandalone) {

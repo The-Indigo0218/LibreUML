@@ -1024,7 +1024,18 @@
     "properties": "Properties",
     "color": "Color",
     "copyStyle": "Copy style",
-    "pasteStyle": "Paste style (Ctrl+Shift+V)"
+    "pasteStyle": "Paste style (Ctrl+Shift+V)",
+    "routing": "Line style",
+    "routingStraight": "Straight",
+    "routingOrthogonal": "Orthogonal",
+    "routingCurved": "Curved"
+  },
+  "inlineEdgePanel": {
+    "title": "Relation",
+    "close": "Close",
+    "rolePlaceholder": "Role (e.g. employee)",
+    "reverse": "Reverse",
+    "advanced": "Advanced…"
   },
   "relationPicker": {
     "title": "Relation type"

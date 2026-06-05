@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { polylineRoute, straightRoute, type Point } from '../geometry';
+import { polylineRoute, straightRoute, orthogonalPolylineRoute, type Point } from '../geometry';
 
 describe('polylineRoute', () => {
   const src: Point = { x: 0, y: 0 };
@@ -32,5 +32,38 @@ describe('polylineRoute', () => {
     const pts = polylineRoute(src, [{ x: 5, y: 5 }], tgt);
     expect(pts.slice(0, 2)).toEqual([src.x, src.y]);
     expect(pts.slice(-2)).toEqual([tgt.x, tgt.y]);
+  });
+});
+
+describe('orthogonalPolylineRoute (R6)', () => {
+  const src: Point = { x: 0, y: 0 };
+  const tgt: Point = { x: 100, y: 100 };
+
+  it('inserts a right-angle elbow per diagonal leg (no waypoints)', () => {
+    // |dx| === |dy| → horizontal-first elbow at (100, 0).
+    expect(orthogonalPolylineRoute(src, [], tgt)).toEqual([0, 0, 100, 0, 100, 100]);
+  });
+
+  it('leads with the vertical axis when the leg is taller than wide', () => {
+    const t: Point = { x: 20, y: 100 };
+    expect(orthogonalPolylineRoute(src, [], t)).toEqual([0, 0, 0, 100, 20, 100]);
+  });
+
+  it('adds no elbow for axis-aligned legs', () => {
+    // src→wp is horizontal, wp→tgt is vertical: already orthogonal, no extra points.
+    const pts = orthogonalPolylineRoute(src, [{ x: 100, y: 0 }], tgt);
+    expect(pts).toEqual([0, 0, 100, 0, 100, 100]);
+  });
+
+  it('routes orthogonally through each waypoint as a fixed bend', () => {
+    const pts = orthogonalPolylineRoute(src, [{ x: 40, y: 30 }], tgt);
+    expect(pts.slice(0, 2)).toEqual([0, 0]);
+    expect(pts.slice(-2)).toEqual([100, 100]);
+    // Every consecutive pair shares an axis (pure 90° path).
+    for (let i = 0; i < pts.length - 2; i += 2) {
+      const sameX = pts[i] === pts[i + 2];
+      const sameY = pts[i + 1] === pts[i + 3];
+      expect(sameX || sameY).toBe(true);
+    }
   });
 });

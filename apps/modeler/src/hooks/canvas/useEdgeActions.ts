@@ -7,6 +7,7 @@ import type {
   DiagramView,
   VFSFile,
   RelationKind,
+  EdgeRoutingMode,
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 
@@ -34,6 +35,11 @@ export interface UseEdgeActionsResult {
   updateEdgeWaypoints: (
     viewEdgeId: string,
     waypoints: { x: number; y: number }[],
+  ) => void;
+  /** Sets an edge's line routing style (straight/orthogonal/curved). */
+  updateEdgeRoutingMode: (
+    viewEdgeId: string,
+    routingMode: EdgeRoutingMode,
   ) => void;
 }
 
@@ -187,6 +193,20 @@ export function useEdgeActions({
     [activeTabId],
   );
 
+  const updateEdgeRoutingMode = useCallback(
+    (viewEdgeId: string, routingMode: EdgeRoutingMode) => {
+      if (!activeTabId) return;
+      withUndo('vfs', 'Change Edge Routing', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        const idx = node.content.edges.findIndex((ve: any) => ve.id === viewEdgeId);
+        if (idx === -1) return;
+        node.content.edges[idx] = { ...node.content.edges[idx], routingMode };
+      });
+    },
+    [activeTabId],
+  );
+
   const changeEdgeKind = useCallback(
     (viewEdgeId: string, kind: RelationKind) => {
       if (!activeTabId) return;
@@ -220,5 +240,5 @@ export function useEdgeActions({
     [activeTabId, isStandalone],
   );
 
-  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps, updateEdgeWaypoints };
+  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps, updateEdgeWaypoints, updateEdgeRoutingMode };
 }

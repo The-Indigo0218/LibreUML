@@ -342,6 +342,37 @@ export function polylineRoute(src: Point, waypoints: Point[], tgt: Point): numbe
   return pts;
 }
 
+/**
+ * Orthogonal route through explicit user waypoints (R6).
+ *
+ * Reconciles auto-orthogonal routing with manual bends: the waypoints stay fixed
+ * (the user "pins" them), but each leg between two consecutive control points is
+ * connected with a single right-angle elbow instead of a diagonal. The elbow leads
+ * with the dominant axis (horizontal-first when |dx| ≥ |dy|, else vertical-first)
+ * so the path reads naturally. Legs that are already axis-aligned add no elbow.
+ *
+ * Because the endpoints come from the live node bounds, the elbows recompute on
+ * every move while the waypoints remain user-fixed — "the lines settle themselves".
+ */
+export function orthogonalPolylineRoute(src: Point, waypoints: Point[], tgt: Point): number[] {
+  const ctrl: Point[] = [src, ...waypoints, tgt];
+  const out: number[] = [src.x, src.y];
+  for (let i = 0; i < ctrl.length - 1; i++) {
+    const a = ctrl[i];
+    const b = ctrl[i + 1];
+    if (a.x !== b.x && a.y !== b.y) {
+      // Insert a right-angle elbow leading with the dominant axis.
+      if (Math.abs(b.x - a.x) >= Math.abs(b.y - a.y)) {
+        out.push(b.x, a.y); // horizontal then vertical
+      } else {
+        out.push(a.x, b.y); // vertical then horizontal
+      }
+    }
+    out.push(b.x, b.y);
+  }
+  return out;
+}
+
 /** Outward unit direction for each face (away from the node body). */
 function faceOutward(face: AnchorFace): [number, number] {
   switch (face) {

@@ -3,9 +3,12 @@
  *
  * Routing modes
  * ─────────────
- *   'orthogonal' (default)  Three-segment L-shaped path with obstacle avoidance.
+ *   'orthogonal' (fallback) Three-segment L-shaped path with obstacle avoidance.
+ *                           Applied when routingMode is undefined so pre-existing
+ *                           diagrams keep their original look; new edges are
+ *                           created with an explicit 'straight' mode instead.
+ *   'straight'              Direct two-point line; bends only at user waypoints.
  *   'curved'                Smooth cubic Bezier using outward control points.
- *   'straight'              Direct two-point line; no bends.
  *
  * Self-loops (isSelfLoop = true)
  * ──────────────────────────────
@@ -46,6 +49,7 @@ import {
   curvedRoute,
   straightRoute,
   polylineRoute,
+  orthogonalPolylineRoute,
   selfLoopPath,
   type NodeBounds,
   type NodeShape,
@@ -271,7 +275,8 @@ export interface KonvaEdgeProps {
   /** When true, source and target are the same node — renders a self-loop. */
   isSelfLoop?: boolean;
   /**
-   * How to route the line body. Defaults to 'orthogonal'.
+   * How to route the line body. Falls back to 'orthogonal' when undefined so
+   * legacy edges keep their look; freshly drawn edges pass an explicit 'straight'.
    * Ignored when isSelfLoop is true (always uses bezier for self-loops).
    */
   routingMode?: RoutingMode;
@@ -476,9 +481,12 @@ export default function KonvaEdge({
     let isBezier = false;
 
     if (hasWaypoints) {
-      // Manual waypoints override automatic routing (R3): route the body as a
-      // polyline src → waypoints → target. Overrides orthogonal/curved/straight.
-      pts = polylineRoute(src, effectiveWaypoints!, retractedTgt);
+      // Manual waypoints (R3). In orthogonal mode they become fixed bend anchors
+      // connected by right-angle elbows that recompute as nodes move (R6); in any
+      // other mode the body is a straight polyline through the points.
+      pts = routingMode === 'orthogonal' && !useFloating
+        ? orthogonalPolylineRoute(src, effectiveWaypoints!, retractedTgt)
+        : polylineRoute(src, effectiveWaypoints!, retractedTgt);
     } else if (useFloating) {
       // Floating entry is inherently radial → straight segment, never orthogonal.
       pts = straightRoute(src, retractedTgt);

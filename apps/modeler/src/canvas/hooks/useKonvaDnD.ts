@@ -714,7 +714,9 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       return nodes;
     };
 
-    const viewEdges = relevantRelations.map((rel) => ({ id: crypto.randomUUID(), relationId: rel.id, waypoints: [] }));
+    // Edges drawn onto the canvas now default to free-form straight; legacy
+    // edges (no routingMode) keep orthogonal so existing diagrams are unchanged.
+    const viewEdges = relevantRelations.map((rel) => ({ id: crypto.randomUUID(), relationId: rel.id, waypoints: [], routingMode: 'straight' as const }));
 
     if (isStandaloneFile) {
       undoTransaction({

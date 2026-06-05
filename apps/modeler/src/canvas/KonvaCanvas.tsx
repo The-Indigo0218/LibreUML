@@ -34,6 +34,7 @@ import { usePackageDrop } from './interactions/usePackageDrop';
 import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
+import type { InlineEdgePanelProps } from './overlays/InlineEdgePanel';
 import { worldToScreen } from './engine/projection';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
 import { useWorkspaceStore } from '../store/workspace.store';
@@ -119,6 +120,9 @@ const QUICK_LINK_NODE_TYPES: Partial<Record<DiagramType, stereotype[]>> = {
 
 /** Preset swatches offered by the format-painter color setter (R10). */
 const NODE_COLOR_SWATCHES = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
+
+/** Edge kinds whose "properties" action opens the inline R9 panel (multiplicity/roles). */
+const INLINE_PANEL_KINDS = new Set<RelationKind>(['ASSOCIATION', 'AGGREGATION', 'COMPOSITION']);
 
 export default function KonvaCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -887,6 +891,10 @@ export default function KonvaCanvas() {
     openDomainAssociationProps,
   } = useUiStore();
 
+  const inlineEdgePanelId = useUiStore((s) => s.inlineEdgePanelId);
+  const openInlineEdgePanel = useUiStore((s) => s.openInlineEdgePanel);
+  const closeInlineEdgePanel = useUiStore((s) => s.closeInlineEdgePanel);
+
   const startUseCaseInlineEdit = useCallback(
     (shapeId: string) => {
       const shape = shapes.find((s) => s.id === shapeId);
@@ -1596,16 +1604,72 @@ export default function KonvaCanvas() {
       actions.push({ icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.removeNodeFromDiagram(toolbarTarget.id) });
       return actions;
     }
+    const selEdge = edges.find((e) => e.id === toolbarTarget.id);
+    // Undefined renders as orthogonal (legacy fallback) — reflect that in the popover.
+    const currentRouting = selEdge?.routingMode ?? 'orthogonal';
+    // Association-family edges open the inline R9 panel for the common multiplicity/role
+    // edits; every other kind keeps the full modal (kind change, anchor picker, etc.).
+    const inlineEligible = !!selEdge && INLINE_PANEL_KINDS.has(selEdge.kind);
     return [
       { icon: 'reverse', label: t('selectionToolbar.reverse'), onClick: () => vfsController.reverseEdgeById(toolbarTarget.id) },
-      { icon: 'properties', label: t('selectionToolbar.properties'), onClick: () => openVfsEdgeAction(toolbarTarget.id, buildAnchorSnapshot(toolbarTarget.id)) },
+      {
+        icon: 'routing',
+        label: t('selectionToolbar.routing'),
+        onClick: () => {},
+        routing: currentRouting,
+        onPickRouting: (mode) => vfsController.updateEdgeRoutingMode(toolbarTarget.id, mode),
+        routingLabels: {
+          straight: t('selectionToolbar.routingStraight'),
+          orthogonal: t('selectionToolbar.routingOrthogonal'),
+          curved: t('selectionToolbar.routingCurved'),
+        },
+      },
+      {
+        icon: 'properties',
+        label: t('selectionToolbar.properties'),
+        onClick: () => inlineEligible
+          ? openInlineEdgePanel(toolbarTarget.id)
+          : openVfsEdgeAction(toolbarTarget.id, buildAnchorSnapshot(toolbarTarget.id)),
+      },
       { icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.deleteEdgeById(toolbarTarget.id) },
     ];
-  }, [toolbarTarget, shapes, vfsController, openSSoTClassEditor, openVfsEdgeAction, buildAnchorSnapshot, copiedStyle, t]);
+  }, [toolbarTarget, shapes, edges, vfsController, openSSoTClassEditor, openVfsEdgeAction, openInlineEdgePanel, buildAnchorSnapshot, copiedStyle, t]);
 
   const selectionToolbar = toolbarPos && toolbarActions.length > 0
     ? { x: toolbarPos.x, y: toolbarPos.y, actions: toolbarActions }
     : null;
+
+  // ── Inline edge properties panel (R9) ──────────────────────────────────────
+  // Auto-close when the panel's edge is no longer the selected one.
+  useEffect(() => {
+    if (inlineEdgePanelId && inlineEdgePanelId !== selectedEdgeId) closeInlineEdgePanel();
+  }, [inlineEdgePanelId, selectedEdgeId, closeInlineEdgePanel]);
+
+  const nodeName = useCallback((nodeId: string): string => {
+    const data = shapes.find((s) => s.id === nodeId)?.data as { label?: string; name?: string } | undefined;
+    return data?.label ?? data?.name ?? '';
+  }, [shapes]);
+
+  const inlineEdgePanel = useMemo<InlineEdgePanelProps | null>(() => {
+    if (!inlineEdgePanelId) return null;
+    const edge = edges.find((e) => e.id === inlineEdgePanelId);
+    if (!edge || !INLINE_PANEL_KINDS.has(edge.kind)) return null;
+    return {
+      edgeId: edge.id,
+      values: {
+        sourceRole: edge.sourceRole ?? '',
+        targetRole: edge.targetRole ?? '',
+        sourceMultiplicity: edge.sourceMultiplicity ?? '',
+        targetMultiplicity: edge.targetMultiplicity ?? '',
+      },
+      sourceName: nodeName(edge.sourceId),
+      targetName: nodeName(edge.targetId),
+      onCommit: (props) => vfsController.updateVFSEdgeProps(edge.id, props),
+      onReverse: () => vfsController.reverseEdgeById(edge.id),
+      onAdvanced: () => { closeInlineEdgePanel(); openVfsEdgeAction(edge.id, buildAnchorSnapshot(edge.id)); },
+      onClose: closeInlineEdgePanel,
+    };
+  }, [inlineEdgePanelId, edges, nodeName, vfsController, closeInlineEdgePanel, openVfsEdgeAction, buildAnchorSnapshot]);
 
   return (
     <div
@@ -1716,6 +1780,7 @@ export default function KonvaCanvas() {
                 sourceShape={sourceShape}
                 targetShape={targetShape}
                 waypoints={edge.waypoints}
+                routingMode={edge.routingMode}
                 isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
@@ -1837,6 +1902,7 @@ export default function KonvaCanvas() {
                 sourceShape={sourceShape}
                 targetShape={targetShape}
                 waypoints={edge.waypoints}
+                routingMode={edge.routingMode}
                 label={edge.label}
                 sourceMultiplicity={edge.sourceMultiplicity}
                 targetMultiplicity={edge.targetMultiplicity}
@@ -1940,6 +2006,7 @@ export default function KonvaCanvas() {
         contextMenuOptions={contextMenuOptions}
         onCloseContextMenu={closeMenu}
         selectionToolbar={selectionToolbar}
+        inlineEdgePanel={inlineEdgePanel}
         relationPicker={relationPickerOverlay}
         nodeTypePicker={nodeTypePickerOverlay}
       />

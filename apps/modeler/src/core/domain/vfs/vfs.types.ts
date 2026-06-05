@@ -67,6 +67,15 @@ export interface ViewNode {
   packageName?: string;
 }
 
+/**
+ * How an edge's line body is routed between its two anchors.
+ *   'straight'    Direct line; bends only where the user adds waypoints (default).
+ *   'orthogonal'  L-shaped 90° path with obstacle avoidance.
+ *   'curved'      Smooth cubic Bezier.
+ * Undefined is treated as 'straight' so edges are free-form (StarUML-style) by default.
+ */
+export type EdgeRoutingMode = 'straight' | 'orthogonal' | 'curved';
+
 export interface ViewEdge {
   id: string;
   relationId: string;
@@ -78,6 +87,8 @@ export interface ViewEdge {
   sourceRole?: string;
   targetRole?: string;
   anchorLocked?: boolean;
+  /** Line routing style (R-routingMode). Undefined = 'straight'. */
+  routingMode?: EdgeRoutingMode;
 }
 
 export interface DiagramView {

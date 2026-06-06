@@ -2,6 +2,10 @@ import { createPortal } from 'react-dom';
 import { X, Keyboard, Command } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useEffect } from 'react';
+import { useWorkspaceStore } from '../../../../store/workspace.store';
+import { useVFSStore } from '../../../../store/project-vfs.store';
+import { getDiagramRegistry } from '../../../../core/registry/diagram-registry';
+import { getRelationShortcutKey } from '../../../../canvas/interactions/relationShortcuts';
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
@@ -27,6 +31,8 @@ const modKey = isMac ? '⌘' : 'Ctrl';
 
 export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShortcutsModalProps) {
   const { t } = useTranslation();
+  const activeTabId = useWorkspaceStore((s) => s.activeTabId);
+  const project = useVFSStore((s) => s.project);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -40,6 +46,26 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  // ── Diagram-aware relation shortcuts (R8 #3) ───────────────────────────────
+  // List only the connection tools available in the *active* diagram (e.g. Class
+  // hides include/extend; Sequence shows the message keys 1–5), each paired with
+  // the key that activates it. Reuses the registry + the shortcut source of truth
+  // (relationShortcuts.ts), so this never drifts from the live keybindings.
+  const activeNode = activeTabId ? project?.nodes[activeTabId] : undefined;
+  const diagramType =
+    activeNode?.type === 'FILE' && activeNode.diagramType ? activeNode.diagramType : 'CLASS_DIAGRAM';
+  let edgeTools: ReturnType<typeof getDiagramRegistry>['tools']['edges'] = [];
+  try {
+    edgeTools = getDiagramRegistry(diagramType).tools.edges;
+  } catch {
+    edgeTools = [];
+  }
+  const relationShortcuts: Shortcut[] = edgeTools.flatMap((tool) => {
+    const key = getRelationShortcutKey(tool.id);
+    if (!key) return [];
+    return [{ keys: [key], descriptionKey: tool.translationKey ?? tool.label }];
+  });
 
   const categories: ShortcutCategory[] = [
     {
@@ -57,19 +83,9 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
         { keys: ['?'], descriptionKey: 'keyboardShortcuts.shortcuts.showShortcuts' },
       ],
     },
-    {
-      titleKey: 'keyboardShortcuts.categories.relations',
-      shortcuts: [
-        { keys: ['A'], descriptionKey: 'keyboardShortcuts.shortcuts.relAssociation' },
-        { keys: ['G'], descriptionKey: 'keyboardShortcuts.shortcuts.relGeneralization' },
-        { keys: ['R'], descriptionKey: 'keyboardShortcuts.shortcuts.relRealization' },
-        { keys: ['D'], descriptionKey: 'keyboardShortcuts.shortcuts.relDependency' },
-        { keys: ['O'], descriptionKey: 'keyboardShortcuts.shortcuts.relAggregation' },
-        { keys: ['C'], descriptionKey: 'keyboardShortcuts.shortcuts.relComposition' },
-        { keys: ['I'], descriptionKey: 'keyboardShortcuts.shortcuts.relInclude' },
-        { keys: ['X'], descriptionKey: 'keyboardShortcuts.shortcuts.relExtend' },
-      ],
-    },
+    ...(relationShortcuts.length > 0
+      ? [{ titleKey: 'keyboardShortcuts.categories.relations', shortcuts: relationShortcuts }]
+      : []),
     {
       titleKey: 'keyboardShortcuts.categories.canvas',
       shortcuts: [

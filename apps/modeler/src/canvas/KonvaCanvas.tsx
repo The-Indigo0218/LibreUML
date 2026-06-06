@@ -1591,6 +1591,20 @@ export default function KonvaCanvas() {
           });
         }
         actions.push({ icon: 'duplicate', label: t('selectionToolbar.duplicate'), onClick: () => vfsController.duplicateNode(toolbarTarget.id) });
+      } else if (isUseCaseViewModel(shape.data)) {
+        // R1 #2: contextual edit for non-classifier nodes — open their existing editor.
+        actions.push({
+          icon: 'edit',
+          label: t('selectionToolbar.editSpec'),
+          onClick: () => handleUseCaseDblClickModal(toolbarTarget.id),
+        });
+      } else if (isActorViewModel(shape.data) || isDomainEntityViewModel(shape.data)) {
+        const vm = shape.data;
+        actions.push({
+          icon: 'edit',
+          label: t('selectionToolbar.editProps'),
+          onClick: () => vm.onOpenProps?.(),
+        });
       }
       // ── Color / format painter (R10) — for nodes that render a color override ──
       const styleable =
@@ -1680,7 +1694,7 @@ export default function KonvaCanvas() {
       },
       { icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.deleteEdgeById(toolbarTarget.id) },
     ];
-  }, [toolbarTarget, shapes, edges, activeModel, vfsController, openSSoTClassEditor, openVfsEdgeAction, openInlineEdgePanel, openInlineClassPanel, buildAnchorSnapshot, copiedStyle, t]);
+  }, [toolbarTarget, shapes, edges, activeModel, vfsController, openSSoTClassEditor, openVfsEdgeAction, openInlineEdgePanel, openInlineClassPanel, handleUseCaseDblClickModal, buildAnchorSnapshot, copiedStyle, t]);
 
   const selectionToolbar = toolbarPos && toolbarActions.length > 0
     ? { x: toolbarPos.x, y: toolbarPos.y, actions: toolbarActions }

@@ -1010,6 +1010,8 @@
   },
   "selectionToolbar": {
     "edit": "Edit",
+    "editSpec": "Edit specification",
+    "editProps": "Edit properties",
     "duplicate": "Duplicate",
     "delete": "Delete",
     "reverse": "Reverse direction",

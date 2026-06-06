@@ -1019,6 +1019,8 @@
   },
   "selectionToolbar": {
     "edit": "Editar",
+    "editSpec": "Editar especificación",
+    "editProps": "Editar propiedades",
     "duplicate": "Duplicar",
     "delete": "Borrar",
     "reverse": "Invertir dirección",

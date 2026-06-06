@@ -1038,6 +1038,10 @@
     "addOperation": "Add operation…",
     "literals": "Literals",
     "addLiteral": "Add literal…",
+    "parameters": "Parameters",
+    "addParameter": "Add parameter…",
+    "paramName": "param",
+    "abstract": "Toggle abstract",
     "remove": "Remove",
     "advanced": "Advanced…"
   },

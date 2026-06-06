@@ -1047,6 +1047,10 @@
     "addOperation": "Añadir operación…",
     "literals": "Literales",
     "addLiteral": "Añadir literal…",
+    "parameters": "Parámetros",
+    "addParameter": "Añadir parámetro…",
+    "paramName": "parám",
+    "abstract": "Alternar abstracta",
     "remove": "Quitar",
     "advanced": "Avanzado…"
   },

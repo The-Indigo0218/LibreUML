@@ -19,8 +19,9 @@
  * (undo, modal edit) refreshes the field, while in-progress typing is untouched.
  */
 
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, X, Settings2 } from 'lucide-react';
+import { Plus, X, Settings2, ChevronRight, ChevronDown } from 'lucide-react';
 import { useModelStore } from '../../store/model.store';
 import { useVFSStore } from '../../store/project-vfs.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
@@ -30,6 +31,7 @@ import type {
   VFSFile,
   IRAttribute,
   IROperation,
+  IRParameter,
   IREnumLiteral,
   Visibility,
 } from '../../core/domain/vfs/vfs.types';
@@ -58,6 +60,8 @@ export interface InlineClassPanelProps {
 
 export default function InlineClassPanel({ elementId, onAdvanced, onClose }: InlineClassPanelProps) {
   const { t } = useTranslation();
+  /** Operation whose parameter list is expanded inline (null = all collapsed). */
+  const [expandedOpId, setExpandedOpId] = useState<string | null>(null);
   const globalModel = useModelStore((s) => s.model);
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const isStandalone = useVFSStore((s): boolean => {
@@ -134,6 +138,23 @@ export default function InlineClassPanel({ elementId, onAdvanced, onClose }: Inl
       commitOps([...readMembers().opsList, { id: crypto.randomUUID(), kind: 'OPERATION', name: n, returnType: 'void', visibility: 'public', parameters: [] }]);
     };
 
+    // ── Operation parameters (R9 #1) — read/commit fresh, one undo each ──
+    const readParams = (opId: string): IRParameter[] =>
+      readMembers().opsList.find((o) => o.id === opId)?.parameters ?? [];
+    const patchParam = (opId: string, i: number, patch: Partial<IRParameter>) => {
+      const ps = readParams(opId).slice();
+      if (!ps[i]) return;
+      ps[i] = { ...ps[i], ...patch };
+      patchOp(opId, { parameters: ps });
+    };
+    const deleteParam = (opId: string, i: number) =>
+      patchOp(opId, { parameters: readParams(opId).filter((_, idx) => idx !== i) });
+    const addParam = (opId: string, raw: string) => {
+      const n = raw.trim();
+      if (!n) return;
+      patchOp(opId, { parameters: [...readParams(opId), { name: n, type: 'String' }] });
+    };
+
     const { attrs, opsList } = readMembers();
     return (
       <>
@@ -158,17 +179,47 @@ export default function InlineClassPanel({ elementId, onAdvanced, onClose }: Inl
 
         <section className="space-y-1.5 border-t border-surface-border/50 pt-3">
           <div className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">{t('inlineClassPanel.operations')}</div>
-          {opsList.map((o) => (
-            <div key={`${o.id}:${o.name}:${o.returnType}:${o.visibility}`} className="flex items-center gap-1">
-              <button className={visBtnCls} title={o.visibility ?? 'public'} onClick={() => patchOp(o.id, { visibility: nextVis(o.visibility) })}>
-                {VIS_SYMBOL[o.visibility ?? 'public']}
-              </button>
-              <input defaultValue={o.name} onBlur={(e) => patchOp(o.id, { name: e.target.value })} placeholder="name" className={`${fieldCls} flex-1 min-w-0`} />
-              <span className="text-text-muted text-xs">:</span>
-              <input defaultValue={o.returnType ?? 'void'} onBlur={(e) => patchOp(o.id, { returnType: e.target.value })} placeholder="type" className={`${fieldCls} w-20`} />
-              <button className={delBtnCls} title={t('inlineClassPanel.remove')} onClick={() => deleteOp(o.id)}><X className="w-3.5 h-3.5" /></button>
+          {opsList.map((o) => {
+            const expanded = expandedOpId === o.id;
+            const params = o.parameters ?? [];
+            return (
+            <div key={`${o.id}:${o.name}:${o.returnType}:${o.visibility}`} className="space-y-1">
+              <div className="flex items-center gap-1">
+                <button className={visBtnCls} title={o.visibility ?? 'public'} onClick={() => patchOp(o.id, { visibility: nextVis(o.visibility) })}>
+                  {VIS_SYMBOL[o.visibility ?? 'public']}
+                </button>
+                <input defaultValue={o.name} onBlur={(e) => patchOp(o.id, { name: e.target.value })} placeholder="name" className={`${fieldCls} flex-1 min-w-0`} />
+                <button
+                  className="shrink-0 flex items-center gap-0.5 text-text-muted hover:text-indigo-400 transition-colors text-[10px] font-mono"
+                  title={t('inlineClassPanel.parameters')}
+                  onClick={() => setExpandedOpId(expanded ? null : o.id)}
+                >
+                  {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  ({params.length})
+                </button>
+                <span className="text-text-muted text-xs">:</span>
+                <input defaultValue={o.returnType ?? 'void'} onBlur={(e) => patchOp(o.id, { returnType: e.target.value })} placeholder="type" className={`${fieldCls} w-16`} />
+                <button className={delBtnCls} title={t('inlineClassPanel.remove')} onClick={() => deleteOp(o.id)}><X className="w-3.5 h-3.5" /></button>
+              </div>
+              {expanded && (
+                <div className="ml-6 pl-1.5 border-l border-surface-border/60 space-y-1">
+                  {params.map((p, i) => (
+                    <div key={`${i}:${p.name}:${p.type}`} className="flex items-center gap-1">
+                      <input defaultValue={p.name} onBlur={(e) => patchParam(o.id, i, { name: e.target.value })} placeholder={t('inlineClassPanel.paramName')} className={`${fieldCls} flex-1 min-w-0`} />
+                      <span className="text-text-muted text-xs">:</span>
+                      <input defaultValue={p.type} onBlur={(e) => patchParam(o.id, i, { type: e.target.value })} placeholder="type" className={`${fieldCls} w-16`} />
+                      <button className={delBtnCls} title={t('inlineClassPanel.remove')} onClick={() => deleteParam(o.id, i)}><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-1">
+                    <Plus className="w-3 h-3 text-text-muted shrink-0" />
+                    <input placeholder={t('inlineClassPanel.addParameter')} onKeyDown={onAddKey((v) => addParam(o.id, v))} onBlur={(e) => { addParam(o.id, e.target.value); e.target.value = ''; }} className={`${fieldCls} flex-1`} />
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
           <div className="flex items-center gap-1">
             <Plus className="w-3.5 h-3.5 text-text-muted shrink-0" />
             <input placeholder={t('inlineClassPanel.addOperation')} onKeyDown={onAddKey(addOp)} onBlur={(e) => { addOp(e.target.value); e.target.value = ''; }} className={`${fieldCls} flex-1`} />
@@ -225,6 +276,19 @@ export default function InlineClassPanel({ elementId, onAdvanced, onClose }: Inl
     >
       {/* Header — classifier name */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-surface-border sticky top-0 bg-surface-primary/97 backdrop-blur-sm">
+        {/* Abstract toggle (R9 #1) — class only; flips CLASS ↔ ABSTRACT_CLASS. */}
+        {cls && (
+          <button
+            onClick={() => ops.updateClass(elementId, { isAbstract: !cls.isAbstract })}
+            title={t('inlineClassPanel.abstract')}
+            aria-pressed={!!cls.isAbstract}
+            className={`shrink-0 w-6 h-6 rounded text-sm font-bold italic transition-colors ${
+              cls.isAbstract ? 'bg-indigo-500/20 text-indigo-400' : 'text-text-muted hover:bg-surface-hover'
+            }`}
+          >
+            A
+          </button>
+        )}
         {/* key on the stored name so an external change (undo / modal) refreshes the
             field, while in-progress typing (uncontrolled) is left untouched. */}
         <input

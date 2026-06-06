@@ -118,6 +118,7 @@ export default function NoteShape({
   onDragEnd,
 }: NoteShapeProps) {
   const colors = resolveNoteColors();
+  const border = vm.colorOverride ?? colors.border;
   const contentRef = useRef<Konva.Text>(null);
 
   const [shapeH, setShapeH] = useState(() => estimateNoteHeight(vm.content, vm.title));
@@ -177,7 +178,7 @@ export default function NoteShape({
           ctx.fillStrokeShape(shape);
         }}
         fill={colors.bg}
-        stroke={colors.border}
+        stroke={border}
         strokeWidth={1}
         perfectDrawEnabled={false}
       />
@@ -193,7 +194,7 @@ export default function NoteShape({
           ctx.fillStrokeShape(shape);
         }}
         fill={colors.surfacePrimary}
-        stroke={colors.border}
+        stroke={border}
         strokeWidth={1}
         perfectDrawEnabled={false}
       />
@@ -228,7 +229,7 @@ export default function NoteShape({
           {/* Dashed separator line */}
           <Line
             points={[0, NOTE_TITLE_H, W - NOTE_FOLD, NOTE_TITLE_H]}
-            stroke={colors.border}
+            stroke={border}
             strokeWidth={1}
             dash={[4, 3]}
             listening={false}

@@ -62,6 +62,7 @@ export function makeNoteNode(
     domainId: viewNode.id,
     title: viewNode.noteTitle ?? 'Note',
     content: viewNode.content ?? '',
+    colorOverride: viewNode.color,
     onSave: (update) => onSave(viewNode.id, update),
   };
   return {

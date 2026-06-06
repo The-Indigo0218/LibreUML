@@ -1592,7 +1592,13 @@ export default function KonvaCanvas() {
         actions.push({ icon: 'duplicate', label: t('selectionToolbar.duplicate'), onClick: () => vfsController.duplicateNode(toolbarTarget.id) });
       }
       // ── Color / format painter (R10) — for nodes that render a color override ──
-      const styleable = isNodeViewModel(shape.data) || isPackageViewModel(shape.data);
+      const styleable =
+        isNodeViewModel(shape.data) ||
+        isPackageViewModel(shape.data) ||
+        isActorViewModel(shape.data) ||
+        isUseCaseViewModel(shape.data) ||
+        isDomainEntityViewModel(shape.data) ||
+        isNoteViewModel(shape.data);
       if (styleable) {
         actions.push({
           icon: 'color',

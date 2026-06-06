@@ -89,6 +89,8 @@ export interface NoteViewModel {
   domainId: string;
   title?: string;
   content: string;
+  /** Per-node color override (R10 format painter). Tints the outline. Sourced from ViewNode.color. */
+  colorOverride?: string;
   /** Optional persistence callback for saving note content via VFS. */
   onSave?: (update: { content?: string; title?: string }) => void;
 }
@@ -110,6 +112,8 @@ export interface ActorViewModel {
   name: string;
   isAbstract: boolean;
   actorType?: 'human' | 'system' | 'timer';
+  /** Per-node color override (R10 format painter). Tints the outline. Sourced from ViewNode.color. */
+  colorOverride?: string;
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
 }
@@ -121,6 +125,8 @@ export interface UseCaseViewModel {
   name: string;
   extensionPoints: string[];
   hasSpec: boolean;
+  /** Per-node color override (R10 format painter). Tints the outline. Sourced from ViewNode.color. */
+  colorOverride?: string;
   onRename?: (name: string) => void;
   onOpenSpec?: () => void;
 }
@@ -151,6 +157,8 @@ export interface DomainEntityViewModel {
   domainId: string;
   name: string;
   attributes: Array<{ id: string; name: string }>;
+  /** Per-node color override (R10 format painter). Tints header + border. Sourced from ViewNode.color. */
+  colorOverride?: string;
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
 }

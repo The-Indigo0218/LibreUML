@@ -61,6 +61,7 @@ export default function ActorShape({
   onDragEnd,
 }: ActorShapeProps) {
   const colors = resolveActorColors();
+  const stroke = vm.colorOverride ?? colors.stroke;
   const { width: W, height: H } = getActorShapeSize(vm);
   const cx = W / 2;
 
@@ -98,7 +99,7 @@ export default function ActorShape({
         x={cx}
         y={HEAD_CY}
         radius={HEAD_R}
-        stroke={colors.stroke}
+        stroke={stroke}
         strokeWidth={STROKE_W}
         fill={colors.fill}
         listening={false}
@@ -108,7 +109,7 @@ export default function ActorShape({
       {/* ── Body ────────────────────────────────────────────────────────────── */}
       <Line
         points={[cx, BODY_TOP, cx, BODY_BOT]}
-        stroke={colors.stroke}
+        stroke={stroke}
         strokeWidth={STROKE_W}
         listening={false}
         perfectDrawEnabled={false}
@@ -117,7 +118,7 @@ export default function ActorShape({
       {/* ── Arms ────────────────────────────────────────────────────────────── */}
       <Line
         points={[cx - ARM_HALF, ARM_Y, cx + ARM_HALF, ARM_Y]}
-        stroke={colors.stroke}
+        stroke={stroke}
         strokeWidth={STROKE_W}
         listening={false}
         perfectDrawEnabled={false}
@@ -126,7 +127,7 @@ export default function ActorShape({
       {/* ── Left leg ────────────────────────────────────────────────────────── */}
       <Line
         points={[cx, BODY_BOT, cx - LEG_DX, BODY_BOT + LEG_DY]}
-        stroke={colors.stroke}
+        stroke={stroke}
         strokeWidth={STROKE_W}
         listening={false}
         perfectDrawEnabled={false}
@@ -135,7 +136,7 @@ export default function ActorShape({
       {/* ── Right leg ───────────────────────────────────────────────────────── */}
       <Line
         points={[cx, BODY_BOT, cx + LEG_DX, BODY_BOT + LEG_DY]}
-        stroke={colors.stroke}
+        stroke={stroke}
         strokeWidth={STROKE_W}
         listening={false}
         perfectDrawEnabled={false}

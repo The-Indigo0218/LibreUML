@@ -1060,6 +1060,24 @@
     "remove": "Quitar",
     "advanced": "Avanzado…"
   },
+  "inlineUseCasePanel": {
+    "name": "Nombre del caso de uso",
+    "close": "Cerrar",
+    "brief": "Descripción breve",
+    "briefPlaceholder": "Qué hace este caso de uso…",
+    "extensionPoints": "Puntos de extensión",
+    "addExtensionPoint": "Añadir punto de extensión…",
+    "remove": "Quitar",
+    "advanced": "Avanzado…"
+  },
+  "inlineDomainPanel": {
+    "name": "Nombre de entidad",
+    "close": "Cerrar",
+    "attributes": "Atributos",
+    "addAttribute": "Añadir atributo…",
+    "remove": "Quitar",
+    "advanced": "Avanzado…"
+  },
   "relationPicker": {
     "title": "Tipo de relación"
   },

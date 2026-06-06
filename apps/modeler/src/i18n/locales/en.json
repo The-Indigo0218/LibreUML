@@ -1051,6 +1051,24 @@
     "remove": "Remove",
     "advanced": "Advanced…"
   },
+  "inlineUseCasePanel": {
+    "name": "Use case name",
+    "close": "Close",
+    "brief": "Brief description",
+    "briefPlaceholder": "What this use case does…",
+    "extensionPoints": "Extension points",
+    "addExtensionPoint": "Add extension point…",
+    "remove": "Remove",
+    "advanced": "Advanced…"
+  },
+  "inlineDomainPanel": {
+    "name": "Entity name",
+    "close": "Close",
+    "attributes": "Attributes",
+    "addAttribute": "Add attribute…",
+    "remove": "Remove",
+    "advanced": "Advanced…"
+  },
   "relationPicker": {
     "title": "Relation type"
   },

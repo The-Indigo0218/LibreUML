@@ -36,6 +36,8 @@ import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController'
 import CanvasOverlay from './CanvasOverlay';
 import type { InlineEdgePanelProps } from './overlays/InlineEdgePanel';
 import type { InlineClassPanelProps } from './overlays/InlineClassPanel';
+import type { InlineUseCasePanelProps } from './overlays/InlineUseCasePanel';
+import type { InlineDomainPanelProps } from './overlays/InlineDomainPanel';
 import { worldToScreen } from './engine/projection';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
 import { useWorkspaceStore } from '../store/workspace.store';
@@ -901,6 +903,14 @@ export default function KonvaCanvas() {
   const openInlineClassPanel = useUiStore((s) => s.openInlineClassPanel);
   const closeInlineClassPanel = useUiStore((s) => s.closeInlineClassPanel);
 
+  const inlineUseCasePanelId = useUiStore((s) => s.inlineUseCasePanelId);
+  const openInlineUseCasePanel = useUiStore((s) => s.openInlineUseCasePanel);
+  const closeInlineUseCasePanel = useUiStore((s) => s.closeInlineUseCasePanel);
+
+  const inlineDomainPanelId = useUiStore((s) => s.inlineDomainPanelId);
+  const openInlineDomainPanel = useUiStore((s) => s.openInlineDomainPanel);
+  const closeInlineDomainPanel = useUiStore((s) => s.closeInlineDomainPanel);
+
   // Active model (standalone localModel vs global) — used to tell a class node
   // (inline panel) from interfaces/enums (full modal) and to resolve the panel.
   const globalModel = useModelStore((s) => s.model);
@@ -1592,13 +1602,24 @@ export default function KonvaCanvas() {
         }
         actions.push({ icon: 'duplicate', label: t('selectionToolbar.duplicate'), onClick: () => vfsController.duplicateNode(toolbarTarget.id) });
       } else if (isUseCaseViewModel(shape.data)) {
-        // R1 #2: contextual edit for non-classifier nodes — open their existing editor.
+        // R9 #2: contextual edit opens the inline panel (name + brief + extension
+        // points); the full spec (flows, pre/post) stays in the modal via Advanced.
+        const ucId = shape.data.domainId;
         actions.push({
           icon: 'edit',
           label: t('selectionToolbar.editSpec'),
-          onClick: () => handleUseCaseDblClickModal(toolbarTarget.id),
+          onClick: () => openInlineUseCasePanel(ucId),
         });
-      } else if (isActorViewModel(shape.data) || isDomainEntityViewModel(shape.data)) {
+      } else if (isDomainEntityViewModel(shape.data)) {
+        // R9 #2: contextual edit opens the inline panel (name + attributes).
+        const entId = shape.data.domainId;
+        actions.push({
+          icon: 'edit',
+          label: t('selectionToolbar.editProps'),
+          onClick: () => openInlineDomainPanel(entId),
+        });
+      } else if (isActorViewModel(shape.data)) {
+        // R1 #2: actors keep their props modal (name + type — no inline panel yet).
         const vm = shape.data;
         actions.push({
           icon: 'edit',
@@ -1694,7 +1715,7 @@ export default function KonvaCanvas() {
       },
       { icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.deleteEdgeById(toolbarTarget.id) },
     ];
-  }, [toolbarTarget, shapes, edges, activeModel, vfsController, openSSoTClassEditor, openVfsEdgeAction, openInlineEdgePanel, openInlineClassPanel, handleUseCaseDblClickModal, buildAnchorSnapshot, copiedStyle, t]);
+  }, [toolbarTarget, shapes, edges, activeModel, vfsController, openSSoTClassEditor, openVfsEdgeAction, openInlineEdgePanel, openInlineClassPanel, openInlineUseCasePanel, openInlineDomainPanel, buildAnchorSnapshot, copiedStyle, t]);
 
   const selectionToolbar = toolbarPos && toolbarActions.length > 0
     ? { x: toolbarPos.x, y: toolbarPos.y, actions: toolbarActions }
@@ -1749,6 +1770,38 @@ export default function KonvaCanvas() {
       onClose: closeInlineClassPanel,
     };
   }, [inlineClassPanelId, activeModel, closeInlineClassPanel, openSSoTClassEditor]);
+
+  // ── Inline use-case properties panel (R9 #2) ───────────────────────────────
+  useEffect(() => {
+    if (!inlineUseCasePanelId) return;
+    const vn = vfsController.diagramView?.nodes.find((n) => n.elementId === inlineUseCasePanelId);
+    if (!vn || !selectedIds.has(vn.id)) closeInlineUseCasePanel();
+  }, [inlineUseCasePanelId, selectedIds, vfsController.diagramView, closeInlineUseCasePanel]);
+
+  const inlineUseCasePanel = useMemo<InlineUseCasePanelProps | null>(() => {
+    if (!inlineUseCasePanelId || !activeModel?.useCases[inlineUseCasePanelId]) return null;
+    return {
+      elementId: inlineUseCasePanelId,
+      onAdvanced: () => { closeInlineUseCasePanel(); useUiStore.getState().openUseCaseSpec(inlineUseCasePanelId); },
+      onClose: closeInlineUseCasePanel,
+    };
+  }, [inlineUseCasePanelId, activeModel, closeInlineUseCasePanel]);
+
+  // ── Inline domain-entity properties panel (R9 #2) ──────────────────────────
+  useEffect(() => {
+    if (!inlineDomainPanelId) return;
+    const vn = vfsController.diagramView?.nodes.find((n) => n.elementId === inlineDomainPanelId);
+    if (!vn || !selectedIds.has(vn.id)) closeInlineDomainPanel();
+  }, [inlineDomainPanelId, selectedIds, vfsController.diagramView, closeInlineDomainPanel]);
+
+  const inlineDomainPanel = useMemo<InlineDomainPanelProps | null>(() => {
+    if (!inlineDomainPanelId || !activeModel?.domainEntities?.[inlineDomainPanelId]) return null;
+    return {
+      elementId: inlineDomainPanelId,
+      onAdvanced: () => { closeInlineDomainPanel(); useUiStore.getState().openDomainEntityProps(inlineDomainPanelId); },
+      onClose: closeInlineDomainPanel,
+    };
+  }, [inlineDomainPanelId, activeModel, closeInlineDomainPanel]);
 
   return (
     <div
@@ -2091,6 +2144,8 @@ export default function KonvaCanvas() {
         selectionToolbar={selectionToolbar}
         inlineEdgePanel={inlineEdgePanel}
         inlineClassPanel={inlineClassPanel}
+        inlineUseCasePanel={inlineUseCasePanel}
+        inlineDomainPanel={inlineDomainPanel}
         relationPicker={relationPickerOverlay}
         nodeTypePicker={nodeTypePickerOverlay}
       />

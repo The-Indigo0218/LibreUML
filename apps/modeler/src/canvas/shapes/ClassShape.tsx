@@ -35,6 +35,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { NodeViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveNodeColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
+import { borderDash } from './borderStyle';
 
 // ─── Layout constants (pixel values) ──────────────────────────────────────────
 
@@ -209,6 +210,12 @@ export default function ClassShape({
   onDragEnd,
 }: ClassShapeProps) {
   const colors = resolveNodeColors(vm.style.containerClass);
+  // Per-node color override: tints header + outer border when set.
+  const headerFill = vm.colorOverride ?? colors.headerBg;
+  const borderStroke = vm.colorOverride ?? colors.border;
+  // Per-node border width / line style override.
+  const borderW = vm.borderWidthOverride ?? BORDER_W;
+  const borderDashArr = borderDash(vm.borderStyleOverride, borderW);
   const layout = useMemo(() => computeLayout(vm), [vm]);
   const { width: W, height: H } = layout;
 
@@ -246,8 +253,9 @@ export default function ClassShape({
         width={W}
         height={H}
         fill={colors.bg}
-        stroke={colors.border}
-        strokeWidth={BORDER_W}
+        stroke={borderStroke}
+        strokeWidth={borderW}
+        dash={borderDashArr}
         cornerRadius={RADIUS}
         perfectDrawEnabled={false}
       />
@@ -256,7 +264,7 @@ export default function ClassShape({
       <Rect
         width={W}
         height={layout.headerH}
-        fill={colors.headerBg}
+        fill={headerFill}
         cornerRadius={[RADIUS, RADIUS, 0, 0]}
         perfectDrawEnabled={false}
       />

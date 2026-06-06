@@ -342,6 +342,9 @@ export function useCanvasEventHandlers({
         waypoints: [],
         sourceHandle: connection.sourceHandle ?? undefined,
         targetHandle: connection.targetHandle ?? undefined,
+        // Freshly drawn edges default to free-form straight; legacy edges (no
+        // routingMode) keep orthogonal so existing diagrams look unchanged.
+        routingMode: 'straight',
       };
       const isExternalFile = !!(fileNode as VFSFile).isExternal;
 

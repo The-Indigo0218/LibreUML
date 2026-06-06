@@ -27,6 +27,12 @@ export interface UseCanvasKeyboardOptions {
   onDeleteEdges: (edgeIds: string[]) => void;
   /** Called with all node IDs when Ctrl+A is pressed. */
   onSelectAll: (nodeIds: string[]) => void;
+  /**
+   * Called with the selected node IDs on Ctrl/Cmd+Shift+V (format painter):
+   * paste the copied style onto every selected node. No-op when nothing copied
+   * or nothing selected — the handler decides.
+   */
+  onPasteStyle?: (nodeIds: string[]) => void;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -36,6 +42,7 @@ export function useCanvasKeyboard({
   onDeleteNodes,
   onDeleteEdges,
   onSelectAll,
+  onPasteStyle,
 }: UseCanvasKeyboardOptions): void {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -55,6 +62,16 @@ export function useCanvasKeyboard({
         return;
       }
 
+      // ── Ctrl/Cmd+Shift+V: paste copied style onto selection ───────────
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'v' || e.key === 'V')) {
+        const { selectedNodeIds } = useSelectionStore.getState();
+        if (onPasteStyle && selectedNodeIds.length > 0) {
+          e.preventDefault();
+          onPasteStyle(selectedNodeIds);
+        }
+        return;
+      }
+
       // ── Ctrl+A / Cmd+A: select all nodes ──────────────────────────────
       if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
         e.preventDefault();
@@ -65,5 +82,5 @@ export function useCanvasKeyboard({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [allNodeIds, onDeleteNodes, onDeleteEdges, onSelectAll]);
+  }, [allNodeIds, onDeleteNodes, onDeleteEdges, onSelectAll, onPasteStyle]);
 }

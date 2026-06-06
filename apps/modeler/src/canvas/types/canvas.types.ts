@@ -5,7 +5,7 @@
  */
 
 import type { AnyNodeViewModel } from '../../adapters/view-models/node.view-model';
-import type { RelationKind } from '../../core/domain/vfs/vfs.types';
+import type { RelationKind, EdgeRoutingMode, NodeBorderStyle } from '../../core/domain/vfs/vfs.types';
 
 // ─── Shape / Edge descriptors ─────────────────────────────────────────────────
 
@@ -41,6 +41,14 @@ export interface EdgeDescriptor {
   // «extend» specific
   condition?: string;
   extensionPoint?: string;
+  /** Manual user waypoints — when present, the edge routes through them. */
+  waypoints?: { x: number; y: number }[];
+  /** Line routing style. Undefined = 'straight' (free-form). */
+  routingMode?: EdgeRoutingMode;
+  /** Per-edge style overrides: color / line width / line style. */
+  color?: string;
+  lineWidth?: number;
+  lineStyle?: NodeBorderStyle;
 }
 
 // ─── Change types ─────────────────────────────────────────────────────────────

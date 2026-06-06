@@ -16,6 +16,8 @@ import {
   useNodeActions,
   useEdgeActions,
 } from '../../../hooks/canvas';
+import type { NodeStylePatch } from '../../../hooks/canvas/useNodeActions';
+import type { EdgeStylePatch } from '../../../hooks/canvas/useEdgeActions';
 import type {
   DiagramView,
   VFSFile,
@@ -23,6 +25,8 @@ import type {
   LibreUMLProject,
   SemanticModel,
   RelationKind,
+  EdgeRoutingMode,
+  NodeBorderStyle,
 } from '../../../core/domain/vfs/vfs.types';
 import { buildClassDiagramNodes } from './controllers/classDiagramNodes';
 import { buildUseCaseDiagramNodes } from './controllers/useCaseDiagramNodes';
@@ -72,6 +76,14 @@ export interface VFSCanvasEdge {
   type: string;
   sourceHandle?: string;
   targetHandle?: string;
+  /** Manual user waypoints. */
+  waypoints?: { x: number; y: number }[];
+  /** Line routing style. Undefined = 'straight'. */
+  routingMode?: EdgeRoutingMode;
+  /** Per-edge style overrides: color / line width / line style. */
+  color?: string;
+  lineWidth?: number;
+  lineStyle?: NodeBorderStyle;
   style?: CSSProperties;
   data: {
     domainId: string;
@@ -105,6 +117,7 @@ export interface VFSCanvasResult {
   removeNodeFromDiagram: (viewNodeId: string) => void;
   deleteElementFromModel: (viewNodeId: string) => void;
   duplicateNode: (viewNodeId: string) => void;
+  applyNodeStyle: (viewNodeIds: string[], style: NodeStylePatch) => void;
   deleteEdgeById: (viewEdgeId: string) => void;
   reverseEdgeById: (viewEdgeId: string) => void;
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;
@@ -118,6 +131,9 @@ export interface VFSCanvasResult {
       anchorLocked?: boolean;
     },
   ) => void;
+  updateEdgeWaypoints: (viewEdgeId: string, waypoints: { x: number; y: number }[]) => void;
+  updateEdgeRoutingMode: (viewEdgeId: string, routingMode: EdgeRoutingMode) => void;
+  updateEdgeStyle: (viewEdgeId: string, style: EdgeStylePatch) => void;
 }
 
 // ─── Default project bootstrap ────────────────────────────────────────────────
@@ -330,6 +346,11 @@ export function useVFSCanvasController(): VFSCanvasResult {
         type: 'vfsUmlEdge',
         sourceHandle: viewEdge.anchorLocked ? viewEdge.sourceHandle : undefined,
         targetHandle: viewEdge.anchorLocked ? viewEdge.targetHandle : undefined,
+        waypoints: viewEdge.waypoints,
+        routingMode: viewEdge.routingMode,
+        color: viewEdge.color,
+        lineWidth: viewEdge.lineWidth,
+        lineStyle: viewEdge.lineStyle,
         data: {
           domainId: relation.id,
           kind: relation.kind,
@@ -369,9 +390,13 @@ export function useVFSCanvasController(): VFSCanvasResult {
     removeNodeFromDiagram: nodeActions.removeNodeFromDiagram,
     deleteElementFromModel: nodeActions.deleteElementFromModel,
     duplicateNode: nodeActions.duplicateNode,
+    applyNodeStyle: nodeActions.applyNodeStyle,
     deleteEdgeById: edgeActions.deleteEdgeById,
     reverseEdgeById: edgeActions.reverseEdgeById,
     changeEdgeKind: edgeActions.changeEdgeKind,
     updateVFSEdgeProps: edgeActions.updateVFSEdgeProps,
+    updateEdgeWaypoints: edgeActions.updateEdgeWaypoints,
+    updateEdgeRoutingMode: edgeActions.updateEdgeRoutingMode,
+    updateEdgeStyle: edgeActions.updateEdgeStyle,
   };
 }

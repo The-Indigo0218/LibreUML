@@ -978,10 +978,12 @@
     "footerNote": "Press ESC to close this dialog at any time",
     "categories": {
       "general": "General",
+      "relations": "Relations",
       "canvas": "Canvas",
       "terminal": "Terminal"
     },
     "shortcuts": {
+      "showShortcuts": "Show Keyboard Shortcuts",
       "newDiagram": "New Diagram (Electron)",
       "newDiagramWeb": "New Diagram (Web / Chromium)",
       "openFile": "Open File",
@@ -1005,6 +1007,93 @@
     "actions": {
       "close": "Got it!"
     }
+  },
+  "selectionToolbar": {
+    "edit": "Edit",
+    "editSpec": "Edit specification",
+    "editProps": "Edit properties",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "reverse": "Reverse direction",
+    "properties": "Properties",
+    "color": "Color",
+    "border": "Border",
+    "stroke": "Stroke",
+    "borderSolid": "Solid",
+    "borderDashed": "Dashed",
+    "borderDotted": "Dotted",
+    "copyStyle": "Copy style",
+    "pasteStyle": "Paste style (Ctrl+Shift+V)",
+    "routing": "Line style",
+    "routingStraight": "Straight",
+    "routingOrthogonal": "Orthogonal",
+    "routingCurved": "Curved"
+  },
+  "inlineEdgePanel": {
+    "title": "Relation",
+    "close": "Close",
+    "rolePlaceholder": "Role (e.g. employee)",
+    "reverse": "Reverse",
+    "advanced": "Advanced…"
+  },
+  "inlineClassPanel": {
+    "name": "Class name",
+    "close": "Close",
+    "attributes": "Attributes",
+    "operations": "Operations",
+    "addAttribute": "Add attribute…",
+    "addOperation": "Add operation…",
+    "literals": "Literals",
+    "addLiteral": "Add literal…",
+    "parameters": "Parameters",
+    "addParameter": "Add parameter…",
+    "paramName": "param",
+    "abstract": "Toggle abstract",
+    "remove": "Remove",
+    "advanced": "Advanced…"
+  },
+  "inlineUseCasePanel": {
+    "name": "Use case name",
+    "close": "Close",
+    "brief": "Brief description",
+    "briefPlaceholder": "What this use case does…",
+    "extensionPoints": "Extension points",
+    "addExtensionPoint": "Add extension point…",
+    "remove": "Remove",
+    "advanced": "Advanced…"
+  },
+  "inlineDomainPanel": {
+    "name": "Entity name",
+    "close": "Close",
+    "attributes": "Attributes",
+    "addAttribute": "Add attribute…",
+    "remove": "Remove",
+    "advanced": "Advanced…"
+  },
+  "relationPicker": {
+    "title": "Relation type"
+  },
+  "relationTypes": {
+    "association": "Association",
+    "inheritance": "Generalization",
+    "implementation": "Realization",
+    "dependency": "Dependency",
+    "aggregation": "Aggregation",
+    "composition": "Composition"
+  },
+  "nodeTypePicker": {
+    "title": "Create and connect"
+  },
+  "nodeTypes": {
+    "class": "Class",
+    "interface": "Interface",
+    "abstract": "Abstract class",
+    "enum": "Enumeration",
+    "note": "Note",
+    "actor": "Actor",
+    "use_case": "Use case",
+    "domain_entity": "Entity",
+    "package": "Package"
   },
   "singleClassGenerator": {
     "title": "Generate Class Code",

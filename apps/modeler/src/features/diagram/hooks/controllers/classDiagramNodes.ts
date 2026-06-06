@@ -173,6 +173,9 @@ function makeClassNode(
     badge: badge || undefined,
     sections,
     style: displayConfig.style,
+    colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
     metadata: { onRename },
   };
   return {
@@ -209,6 +212,8 @@ function makePackageNode(
     name: computePackageDisplayName(viewNode, pkg),
     collapsed: viewNode.collapsed ?? false,
     color: viewNode.color,
+    borderWidth: viewNode.borderWidth,
+    borderStyle: viewNode.borderStyle,
     childCount,
     depth,
   };

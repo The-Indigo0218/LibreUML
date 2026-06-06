@@ -70,6 +70,7 @@ export default function UseCaseShape({
   onDragEnd,
 }: UseCaseShapeProps) {
   const colors = resolveUseCaseColors();
+  const stroke = vm.colorOverride ?? colors.stroke;
   const { width: W, height: H } = getUseCaseShapeSize(vm);
   const cx = W / 2;
   const cy = H / 2;
@@ -113,7 +114,7 @@ export default function UseCaseShape({
         radiusX={rx}
         radiusY={ry}
         fill={colors.fill}
-        stroke={colors.stroke}
+        stroke={stroke}
         strokeWidth={STROKE_W}
         perfectDrawEnabled={false}
         listening={false}
@@ -138,7 +139,7 @@ export default function UseCaseShape({
         <>
           <Line
             points={[cx - rx + 4, sepY, cx + rx - 4, sepY]}
-            stroke={colors.stroke}
+            stroke={stroke}
             strokeWidth={1}
             dash={[3, 2]}
             listening={false}

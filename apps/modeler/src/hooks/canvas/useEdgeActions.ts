@@ -7,8 +7,20 @@ import type {
   DiagramView,
   VFSFile,
   RelationKind,
+  EdgeRoutingMode,
+  NodeBorderStyle,
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+
+/**
+ * Partial visual-style patch for an edge. Only keys present are touched;
+ * a `null` value clears that property (falls back to the kind/base default).
+ */
+export interface EdgeStylePatch {
+  color?: string | null;
+  lineWidth?: number | null;
+  lineStyle?: NodeBorderStyle | null;
+}
 
 export interface UseEdgeActionsParams {
   activeTabId: string | null;
@@ -30,6 +42,18 @@ export interface UseEdgeActionsResult {
       anchorLocked?: boolean;
     },
   ) => void;
+  /** Replaces an edge's manual waypoints. One undo transaction per call. */
+  updateEdgeWaypoints: (
+    viewEdgeId: string,
+    waypoints: { x: number; y: number }[],
+  ) => void;
+  /** Sets an edge's line routing style (straight/orthogonal/curved). */
+  updateEdgeRoutingMode: (
+    viewEdgeId: string,
+    routingMode: EdgeRoutingMode,
+  ) => void;
+  /** Applies a visual style patch (color / line width / line style) to an edge. */
+  updateEdgeStyle: (viewEdgeId: string, style: EdgeStylePatch) => void;
 }
 
 export function useEdgeActions({
@@ -168,6 +192,34 @@ export function useEdgeActions({
     [activeTabId, updateFileContent],
   );
 
+  const updateEdgeWaypoints = useCallback(
+    (viewEdgeId: string, waypoints: { x: number; y: number }[]) => {
+      if (!activeTabId) return;
+      withUndo('vfs', 'Edit Edge Waypoints', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        const idx = node.content.edges.findIndex((ve: any) => ve.id === viewEdgeId);
+        if (idx === -1) return;
+        node.content.edges[idx] = { ...node.content.edges[idx], waypoints };
+      });
+    },
+    [activeTabId],
+  );
+
+  const updateEdgeRoutingMode = useCallback(
+    (viewEdgeId: string, routingMode: EdgeRoutingMode) => {
+      if (!activeTabId) return;
+      withUndo('vfs', 'Change Edge Routing', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        const idx = node.content.edges.findIndex((ve: any) => ve.id === viewEdgeId);
+        if (idx === -1) return;
+        node.content.edges[idx] = { ...node.content.edges[idx], routingMode };
+      });
+    },
+    [activeTabId],
+  );
+
   const changeEdgeKind = useCallback(
     (viewEdgeId: string, kind: RelationKind) => {
       if (!activeTabId) return;
@@ -201,5 +253,32 @@ export function useEdgeActions({
     [activeTabId, isStandalone],
   );
 
-  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps };
+  const updateEdgeStyle = useCallback(
+    (viewEdgeId: string, style: EdgeStylePatch) => {
+      if (!activeTabId) return;
+      // View-only change (style lives on the ViewEdge) → single vfs transaction.
+      // Only keys present in the patch are touched; null clears the property.
+      withUndo('vfs', 'Edit Edge Style', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        const ve = node.content.edges.find((e: any) => e.id === viewEdgeId);
+        if (!ve) return;
+        if ('color' in style) {
+          if (style.color == null) delete ve.color;
+          else ve.color = style.color;
+        }
+        if ('lineWidth' in style) {
+          if (style.lineWidth == null) delete ve.lineWidth;
+          else ve.lineWidth = style.lineWidth;
+        }
+        if ('lineStyle' in style) {
+          if (style.lineStyle == null) delete ve.lineStyle;
+          else ve.lineStyle = style.lineStyle;
+        }
+      });
+    },
+    [activeTabId],
+  );
+
+  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps, updateEdgeWaypoints, updateEdgeRoutingMode, updateEdgeStyle };
 }

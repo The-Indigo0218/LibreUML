@@ -110,6 +110,8 @@ export default function DomainEntityShape({
   onDragEnd,
 }: DomainEntityShapeProps) {
   const colors = resolveDomainEntityColors();
+  const headerBg = vm.colorOverride ?? colors.headerBg;
+  const border = vm.colorOverride ?? colors.border;
   const layout = useMemo(() => computeLayout(vm), [vm]);
   const { width: W, height: H } = layout;
 
@@ -144,7 +146,7 @@ export default function DomainEntityShape({
         width={W}
         height={H}
         fill={colors.bg}
-        stroke={colors.border}
+        stroke={border}
         strokeWidth={BORDER_W}
         cornerRadius={RADIUS}
         perfectDrawEnabled={false}
@@ -154,7 +156,7 @@ export default function DomainEntityShape({
       <Rect
         width={W}
         height={layout.headerH}
-        fill={colors.headerBg}
+        fill={headerBg}
         cornerRadius={[RADIUS, RADIUS, 0, 0]}
         perfectDrawEnabled={false}
       />
@@ -177,7 +179,7 @@ export default function DomainEntityShape({
       {/* ── Header / attributes separator ───────────────────────────────────── */}
       <Line
         points={[0, layout.separatorY, W, layout.separatorY]}
-        stroke={colors.border}
+        stroke={border}
         strokeWidth={BORDER_W}
         listening={false}
       />

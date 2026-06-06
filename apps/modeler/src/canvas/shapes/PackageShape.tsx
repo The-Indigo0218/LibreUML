@@ -6,6 +6,7 @@ import type { Shape as KonvaShape } from 'konva/lib/Shape';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { PackageViewModel } from '../../adapters/view-models/node.view-model';
 import { measureTextWidth } from './measureText';
+import { borderDash } from './borderStyle';
 
 const TAB_W = 80;
 const TAB_H = 24;
@@ -109,6 +110,9 @@ export default function PackageShape({
   onResizeEnd,
 }: PackageShapeProps) {
   const colors = resolvePackageColors(vm.color);
+  // Per-node border width / line style override.
+  const borderW = vm.borderWidth ?? BORDER_W;
+  const borderDashArr = borderDash(vm.borderStyle, borderW);
 
   const { width: W, height: H } = useMemo(() => {
     if (providedWidth !== undefined && providedHeight !== undefined) {
@@ -181,7 +185,8 @@ export default function PackageShape({
         height={TAB_H}
         fill={colors.tabBg}
         stroke={colors.border}
-        strokeWidth={BORDER_W}
+        strokeWidth={borderW}
+        dash={borderDashArr}
         cornerRadius={[2, 2, 0, 0]}
         perfectDrawEnabled={false}
       />
@@ -240,7 +245,8 @@ export default function PackageShape({
           height={H - TAB_H}
           fill={colors.bg}
           stroke={colors.border}
-          strokeWidth={BORDER_W}
+          strokeWidth={borderW}
+          dash={borderDashArr}
           perfectDrawEnabled={false}
         />
       )}

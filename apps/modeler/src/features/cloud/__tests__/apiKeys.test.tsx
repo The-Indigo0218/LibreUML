@@ -1,6 +1,6 @@
 // src/features/cloud/__tests__/apiKeys.test.ts
 //
-// Integration tests for the API Keys feature (Phase 2 / Task 3).
+// Integration tests for the API Keys feature.
 //
 // Coverage:
 //   • useApiKeys hook — fetchKeys, createKey, revokeApiKey, clearCreatedKey

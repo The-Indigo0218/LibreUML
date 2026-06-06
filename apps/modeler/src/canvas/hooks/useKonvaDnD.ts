@@ -33,7 +33,7 @@ export function getNextVFSName(existingNames: string[], prefix: string): string 
   return `${prefix} ${max + 1}`;
 }
 
-interface DropConfig {
+export interface DropConfig {
   getNextName: (model: SemanticModel) => string;
   applyToModelDraft: (modelDraft: any, id: string, name: string, isExternal?: boolean) => void;
   applyToLocalModelDraft: (lm: any, id: string, name: string) => void;
@@ -44,7 +44,12 @@ interface DropConfig {
   overridePosition?: (pos: { x: number; y: number }) => { x: number; y: number };
 }
 
-const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
+/**
+ * Per-stereotype recipe for creating a node: how to name it and how to write the
+ * semantic element into the shared or local model. Shared with the Quick Linker,
+ * which creates a node + relation in one transaction reusing these builders.
+ */
+export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
   class: {
     getNextName: (model) =>
       getNextVFSName(Object.values(model.classes).filter((c) => !c.isAbstract).map((c) => c.name), 'Class'),
@@ -709,7 +714,9 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       return nodes;
     };
 
-    const viewEdges = relevantRelations.map((rel) => ({ id: crypto.randomUUID(), relationId: rel.id, waypoints: [] }));
+    // Edges drawn onto the canvas now default to free-form straight; legacy
+    // edges (no routingMode) keep orthogonal so existing diagrams are unchanged.
+    const viewEdges = relevantRelations.map((rel) => ({ id: crypto.randomUUID(), relationId: rel.id, waypoints: [], routingMode: 'straight' as const }));
 
     if (isStandaloneFile) {
       undoTransaction({

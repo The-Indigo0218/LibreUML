@@ -34,7 +34,7 @@
  *   onConnect (useCanvasEventHandlers) also runs its own checks (self-loop, bidir agg).
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { RefObject } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -87,6 +87,11 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   PACKAGE_ACCESS: 'PACKAGE_ACCESS',
 };
 
+/** Relation types offered for class-diagram connections (picker + validity). */
+const CLASS_RELATION_TYPES: UmlRelationType[] = [
+  'association', 'inheritance', 'implementation', 'dependency', 'aggregation', 'composition',
+];
+
 const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'use_case', 'system_boundary']);
 const DOMAIN_MODEL_STEREOTYPES = new Set<stereotype>(['domain_entity']);
 export const SEQUENCE_STEREOTYPES = new Set<stereotype>(['lifeline']);
@@ -106,7 +111,7 @@ export function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isActorViewModel(vm)) return 'actor';
   if (isUseCaseViewModel(vm)) return 'use_case';
   if (isSystemBoundaryViewModel(vm)) return 'system_boundary';
-  // TODO(post-v1 Fase 2): mover a ShapeRouter
+  // TODO: route through a ShapeRouter
   if (isDomainEntityViewModel(vm)) return 'domain_entity';
   if (isLifelineViewModel(vm)) return 'lifeline';
   const nvm = vm as NodeViewModel;
@@ -199,6 +204,23 @@ export interface UseConnectionDrawOptions {
   activeTabId: string | null;
   /** Called when a valid connection is completed (sourceNodeId → targetNodeId). */
   onConnect: (sourceNodeId: string, targetNodeId: string) => void;
+  /**
+   * Called (class diagram only) when the active connection mode is NOT valid for
+   * the dropped pair but other relation types are — opens a picker at the given
+   * world position so the user chooses a valid type instead of being rejected.
+   */
+  onPickRelation?: (
+    sourceNodeId: string,
+    targetNodeId: string,
+    validTypes: UmlRelationType[],
+    worldPos: { x: number; y: number },
+  ) => void;
+  /**
+   * Quick Linker: called when the drag is released on empty canvas (no snap
+   * target and no node under the cursor). The handler opens a node-type picker at
+   * `worldPos` to create a new node already linked to `sourceNodeId`.
+   */
+  onDropEmpty?: (sourceNodeId: string, worldPos: { x: number; y: number }) => void;
 }
 
 export interface UseConnectionDrawReturn {
@@ -214,6 +236,18 @@ export interface UseConnectionDrawReturn {
   hoveredNodeAnchors: AnchorDot[];
   /** The anchor being snapped to as connection target. */
   snapTargetDot: AnchorDot | null;
+  /**
+   * Validity of the current snap target for the active relation mode:
+   * true = valid, false = invalid, null = neutral (no snap, or a delegated
+   * diagram type whose validity is decided downstream).
+   */
+  snapValid: boolean | null;
+  /**
+   * Strong highlight: while connecting, validity of every candidate target
+   * (nodeId → true/false/null) vs the source + active mode. Null when not
+   * connecting. Consumers dim the `false` entries to make legal targets stand out.
+   */
+  candidateValidity: Map<string, boolean | null> | null;
   stageHandlers: {
     onMouseDown: (e: KonvaEventObject<MouseEvent>) => void;
     onMouseMove: (e: KonvaEventObject<MouseEvent>) => void;
@@ -229,12 +263,17 @@ export function useConnectionDraw({
   nodes,
   activeTabId,
   onConnect,
+  onPickRelation,
+  onDropEmpty,
 }: UseConnectionDrawOptions): UseConnectionDrawReturn {
   // ── React state (triggers re-renders for visual feedback) ──────────────────
   const [isConnecting, setIsConnecting] = useState(false);
   const [tempLine, setTempLine] = useState<TempLine | null>(null);
   const [hoveredNodeAnchors, setHoveredNodeAnchors] = useState<AnchorDot[]>([]);
   const [snapTargetDot, setSnapTargetDot] = useState<AnchorDot | null>(null);
+  const [snapValid, setSnapValid] = useState<boolean | null>(null);
+  /** Source node id while connecting — drives the candidate-validity highlight. */
+  const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null);
 
   // ── Refs (event-handler safe, no stale closure issues) ────────────────────
   const isConnectingRef = useRef(false);
@@ -255,10 +294,60 @@ export function useConnectionDraw({
     setIsConnecting(false);
     setTempLine(null);
     setSnapTargetDot(null);
+    setSnapValid(null);
+    setConnectingSourceId(null);
     setHoveredNodeAnchors([]);
     const stage = stageRef.current;
     if (stage) stage.draggable(true);
   }, [stageRef]);
+
+  // ── Validity helpers ───────────────────────────────────────────────────────
+
+  /** Active relation type (UmlRelationType) derived from the palette connection mode. */
+  const getActiveUmlType = useCallback((): UmlRelationType => {
+    const rawMode = useWorkspaceStore.getState().connectionModes?.[activeTabId ?? ''] as string | undefined;
+    const kind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
+    return RELATION_TO_UML[kind] ?? 'association';
+  }, [activeTabId]);
+
+  /**
+   * Validity of a (source → target) pair for the active mode.
+   * Returns null (neutral) for note/package/usecase/domain/sequence pairs whose
+   * creation is delegated downstream; a boolean for the class-diagram path.
+   */
+  const computeSnapValidity = useCallback(
+    (srcNodeId: string, tgtNodeId: string): boolean | null => {
+      const srcNode = nodes.find((n) => n.id === srcNodeId);
+      const tgtNode = nodes.find((n) => n.id === tgtNodeId);
+      if (!srcNode || !tgtNode) return null;
+      const s = resolveStereotype(srcNode.data);
+      const t = resolveStereotype(tgtNode.data);
+      if (s === 'note' || t === 'note') return null;
+      if (s === 'package' && t === 'package') return null;
+      if (USE_CASE_STEREOTYPES.has(s) || USE_CASE_STEREOTYPES.has(t)) return null;
+      if (DOMAIN_MODEL_STEREOTYPES.has(s) || DOMAIN_MODEL_STEREOTYPES.has(t)) return null;
+      if (SEQUENCE_STEREOTYPES.has(s) || SEQUENCE_STEREOTYPES.has(t)) return null;
+      return validateConnection(s, t, getActiveUmlType());
+    },
+    [nodes, getActiveUmlType],
+  );
+
+  /**
+   * Per-node validity of every potential target against the connection source +
+   * active relation mode (strong highlight). Null while not connecting. A node
+   * maps to: true = legal target, false = illegal (dimmed), null = neutral
+   * (delegated diagram type with no validation rules — left untouched). The source
+   * node is omitted. Computed once per drag (keyed on the source), not per move.
+   */
+  const candidateValidity = useMemo<Map<string, boolean | null> | null>(() => {
+    if (!connectingSourceId) return null;
+    const map = new Map<string, boolean | null>();
+    for (const n of nodes) {
+      if (n.id === connectingSourceId) continue;
+      map.set(n.id, computeSnapValidity(connectingSourceId, n.id));
+    }
+    return map;
+  }, [connectingSourceId, nodes, computeSnapValidity]);
 
   // ── onMouseMove ────────────────────────────────────────────────────────────
 
@@ -283,6 +372,7 @@ export function useConnectionDraw({
 
         setTempLine({ x1: src.x, y1: src.y, x2: endX, y2: endY });
         setSnapTargetDot(snap);
+        setSnapValid(snap ? computeSnapValidity(src.nodeId, snap.nodeId) : null);
       } else {
         // ── Hover mode: update nearAnchorRef + visible anchor dots ────────
         const near = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R);
@@ -301,7 +391,7 @@ export function useConnectionDraw({
         }
       }
     },
-    [stageRef, boundsMapRef, nodes],
+    [stageRef, boundsMapRef, nodes, computeSnapValidity],
   );
 
   // ── onMouseDown ────────────────────────────────────────────────────────────
@@ -327,6 +417,7 @@ export function useConnectionDraw({
       sourceRef.current = nearest;
       isConnectingRef.current = true;
       setIsConnecting(true);
+      setConnectingSourceId(nearest.nodeId);
       setTempLine({ x1: nearest.x, y1: nearest.y, x2: nearest.x, y2: nearest.y });
       setHoveredNodeAnchors([]);
       setSnapTargetDot(null);
@@ -379,25 +470,35 @@ export function useConnectionDraw({
                 const kind: RelationKind = TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION';
                 const umlType = RELATION_TO_UML[kind] ?? 'association';
 
-                if (!validateConnection(srcStereotype, tgtStereotype, umlType)) {
-                  useToastStore.getState().show(
-                    '⚠️ Relación inválida según estereotipos UML',
-                  );
-                } else {
+                if (validateConnection(srcStereotype, tgtStereotype, umlType)) {
                   onConnect(src.nodeId, snap.nodeId);
+                } else {
+                  // Instead of rejecting, offer the valid relation types.
+                  const validTypes = CLASS_RELATION_TYPES.filter((ut) =>
+                    validateConnection(srcStereotype, tgtStereotype, ut),
+                  );
+                  if (validTypes.length > 0 && onPickRelation) {
+                    onPickRelation(src.nodeId, snap.nodeId, validTypes, { x: snap.x, y: snap.y });
+                  } else {
+                    useToastStore.getState().show('⚠️ Relación inválida según estereotipos UML');
+                  }
                 }
               }
             } else {
               // Fallback: let onConnect handle validation if nodes not found.
               onConnect(src.nodeId, snap.nodeId);
             }
+          } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current)) {
+            // Quick Linker: released on empty canvas (no snap, no node under
+            // the cursor) → offer to create a new node linked to the source.
+            onDropEmpty(src.nodeId, { x: pos.x, y: pos.y });
           }
         }
       }
 
       resetState();
     },
-    [stageRef, boundsMapRef, nodes, activeTabId, onConnect, resetState],
+    [stageRef, boundsMapRef, nodes, activeTabId, onConnect, onPickRelation, onDropEmpty, resetState],
   );
 
   // ── Window mouseup fallback ────────────────────────────────────────────────
@@ -427,6 +528,8 @@ export function useConnectionDraw({
     tempLine,
     hoveredNodeAnchors,
     snapTargetDot,
+    snapValid,
+    candidateValidity,
     stageHandlers: {
       onMouseDown,
       onMouseMove,

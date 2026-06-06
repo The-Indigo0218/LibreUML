@@ -110,7 +110,7 @@ describe('Sequence diagram — .luml file round-trip', () => {
     expect(msgs.mLost.isLost).toBe(true);
   });
 
-  it('preserves Fase 4 elements (gates, state invariants, interaction uses)', async () => {
+  it('preserves all sequence elements (gates, state invariants, interaction uses)', async () => {
     const payload = makePayload('3');
     const model = payload.model as any;
     model.gates = {

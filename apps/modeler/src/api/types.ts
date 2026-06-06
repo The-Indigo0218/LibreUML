@@ -65,7 +65,7 @@ export interface DiagramDetailResponse {
   title: string;
   type: DiagramType;
   visibility: DiagramVisibility;
-  // JSONB payload — shape validated by CloudProjectMapper in Phase 2
+  // JSONB payload — shape validated by CloudProjectMapper
   content: unknown;
   version: number;
   createdAt: string;

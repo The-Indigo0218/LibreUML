@@ -31,6 +31,7 @@ function makeDomainEntityNode(
     domainId: viewNode.elementId,
     name: entity.name,
     attributes,
+    colorOverride: viewNode.color,
     onRename,
     onOpenProps,
   };

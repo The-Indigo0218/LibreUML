@@ -35,6 +35,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { NodeViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveNodeColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
+import { borderDash } from './borderStyle';
 
 // ─── Layout constants (pixel values) ──────────────────────────────────────────
 
@@ -212,6 +213,9 @@ export default function ClassShape({
   // Per-node color override (R10): tints header + outer border when set.
   const headerFill = vm.colorOverride ?? colors.headerBg;
   const borderStroke = vm.colorOverride ?? colors.border;
+  // Per-node border width / line style override (R10 style setter).
+  const borderW = vm.borderWidthOverride ?? BORDER_W;
+  const borderDashArr = borderDash(vm.borderStyleOverride, borderW);
   const layout = useMemo(() => computeLayout(vm), [vm]);
   const { width: W, height: H } = layout;
 
@@ -250,7 +254,8 @@ export default function ClassShape({
         height={H}
         fill={colors.bg}
         stroke={borderStroke}
-        strokeWidth={BORDER_W}
+        strokeWidth={borderW}
+        dash={borderDashArr}
         cornerRadius={RADIUS}
         perfectDrawEnabled={false}
       />

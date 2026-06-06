@@ -72,6 +72,11 @@ export interface NodeViewModel {
    * border instead of the stereotype-derived palette. Sourced from ViewNode.color.
    */
   colorOverride?: string;
+  /** Per-node border width override (R10 style). Sourced from ViewNode.borderWidth. */
+  borderWidthOverride?: number;
+  /** Per-node border line style override (R10 style). Sourced from ViewNode.borderStyle.
+   *  Inlined (not imported) to keep this presentation DTO free of domain types. */
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
 
   // Metadata (extensible)
   metadata?: {
@@ -101,6 +106,10 @@ export interface PackageViewModel {
   name: string;
   collapsed: boolean;
   color?: string;
+  /** Per-node border width override (R10 style). Sourced from ViewNode.borderWidth. */
+  borderWidth?: number;
+  /** Per-node border line style override (R10 style). Sourced from ViewNode.borderStyle. */
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
   childCount: number;
   depth: number;
 }

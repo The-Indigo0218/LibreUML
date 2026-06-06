@@ -121,6 +121,7 @@ const QUICK_LINK_NODE_TYPES: Partial<Record<DiagramType, stereotype[]>> = {
 
 /** Preset swatches offered by the format-painter color setter (R10). */
 const NODE_COLOR_SWATCHES = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
+const NODE_BORDER_WIDTHS = [1, 2, 3];
 
 /** Edge kinds whose "properties" action opens the inline R9 panel (multiplicity/roles). */
 const INLINE_PANEL_KINDS = new Set<RelationKind>(['ASSOCIATION', 'AGGREGATION', 'COMPOSITION']);
@@ -1607,12 +1608,36 @@ export default function KonvaCanvas() {
           swatches: NODE_COLOR_SWATCHES,
           onPickColor: (color) => vfsController.applyNodeStyle([toolbarTarget.id], { color }),
         });
+        // Border width / line style — box shapes (class / package) only, where it reads cleanly.
+        const boxStyleable = isNodeViewModel(shape.data) || isPackageViewModel(shape.data);
+        if (boxStyleable) {
+          const vn = vfsController.diagramView?.nodes.find((n) => n.id === toolbarTarget.id);
+          actions.push({
+            icon: 'border',
+            label: t('selectionToolbar.border'),
+            onClick: () => {},
+            border: { width: vn?.borderWidth ?? 2, style: vn?.borderStyle ?? 'solid' },
+            borderWidths: NODE_BORDER_WIDTHS,
+            onPickBorderWidth: (width) => vfsController.applyNodeStyle([toolbarTarget.id], { borderWidth: width }),
+            onPickBorderStyle: (style) => vfsController.applyNodeStyle([toolbarTarget.id], { borderStyle: style }),
+            onClearBorder: () => vfsController.applyNodeStyle([toolbarTarget.id], { borderWidth: null, borderStyle: null }),
+            borderStyleLabels: {
+              solid: t('selectionToolbar.borderSolid'),
+              dashed: t('selectionToolbar.borderDashed'),
+              dotted: t('selectionToolbar.borderDotted'),
+            },
+          });
+        }
         actions.push({
           icon: 'copyStyle',
           label: t('selectionToolbar.copyStyle'),
           onClick: () => {
             const vn = vfsController.diagramView?.nodes.find((n) => n.id === toolbarTarget.id);
-            useFormatPainterStore.getState().copyStyle({ color: vn?.color ?? null });
+            useFormatPainterStore.getState().copyStyle({
+              color: vn?.color ?? null,
+              borderWidth: vn?.borderWidth ?? null,
+              borderStyle: vn?.borderStyle ?? null,
+            });
           },
         });
         if (copiedStyle) {

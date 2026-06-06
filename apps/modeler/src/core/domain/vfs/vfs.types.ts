@@ -57,6 +57,10 @@ export interface ViewNode {
   height?: number;
   zIndex?: number;
   color?: string;
+  /** Per-node border width override (R10 style setter). Undefined = shape default. */
+  borderWidth?: number;
+  /** Per-node border line style override (R10 style setter). Undefined = solid. */
+  borderStyle?: NodeBorderStyle;
   /** Persisted text content for Note nodes (no IR backing element). */
   content?: string;
   /** Persisted title for Note nodes. */
@@ -75,6 +79,9 @@ export interface ViewNode {
  * Undefined is treated as 'straight' so edges are free-form (StarUML-style) by default.
  */
 export type EdgeRoutingMode = 'straight' | 'orthogonal' | 'curved';
+
+/** Per-node border line style (R10 format painter / style setter). */
+export type NodeBorderStyle = 'solid' | 'dashed' | 'dotted';
 
 export interface ViewEdge {
   id: string;

@@ -14,12 +14,15 @@
  */
 
 import { useState } from 'react';
-import { Pencil, Copy, Trash2, ArrowLeftRight, Settings2, Palette, Paintbrush, PaintBucket, Ban, Minus, Spline, Waypoints } from 'lucide-react';
-import type { EdgeRoutingMode } from '../../core/domain/vfs/vfs.types';
+import { Pencil, Copy, Trash2, ArrowLeftRight, Settings2, Palette, Paintbrush, PaintBucket, Ban, Minus, Spline, Waypoints, SquareDashed } from 'lucide-react';
+import type { EdgeRoutingMode, NodeBorderStyle } from '../../core/domain/vfs/vfs.types';
 
 export type ToolbarIcon =
   | 'edit' | 'duplicate' | 'delete' | 'reverse' | 'properties'
-  | 'color' | 'copyStyle' | 'pasteStyle' | 'routing';
+  | 'color' | 'copyStyle' | 'pasteStyle' | 'routing' | 'border';
+
+/** Border line styles offered in the border popover. */
+const BORDER_STYLE_OPTIONS: NodeBorderStyle[] = ['solid', 'dashed', 'dotted'];
 
 /** Icon + label for each routing mode, shown in the routing popover. */
 const ROUTING_OPTIONS: { mode: EdgeRoutingMode; Icon: typeof Minus; key: string }[] = [
@@ -49,6 +52,17 @@ export interface ToolbarAction {
   onPickRouting?: (mode: EdgeRoutingMode) => void;
   /** Per-option tooltip labels for the routing popover, keyed by mode. */
   routingLabels?: Partial<Record<EdgeRoutingMode, string>>;
+  /**
+   * When set, the button opens a border popover: a row of widths + a row of line
+   * styles (R10 style setter). `border` holds the node's current values to
+   * highlight the active option.
+   */
+  border?: { width: number; style: NodeBorderStyle };
+  borderWidths?: number[];
+  onPickBorderWidth?: (w: number) => void;
+  onPickBorderStyle?: (s: NodeBorderStyle) => void;
+  onClearBorder?: () => void;
+  borderStyleLabels?: Partial<Record<NodeBorderStyle, string>>;
 }
 
 export interface SelectionToolbarProps {
@@ -68,6 +82,7 @@ const ICONS: Record<ToolbarIcon, typeof Pencil> = {
   copyStyle: Paintbrush,
   pasteStyle: PaintBucket,
   routing: Spline,
+  border: SquareDashed,
 };
 
 export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProps) {
@@ -101,7 +116,7 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
           const Icon = action.routing
             ? (ROUTING_OPTIONS.find((o) => o.mode === action.routing)?.Icon ?? ICONS.routing)
             : ICONS[action.icon];
-          const isPopover = !!action.swatches || !!action.onPickRouting;
+          const isPopover = !!action.swatches || !!action.onPickRouting || !!action.onPickBorderWidth;
           return (
             <button
               key={i}
@@ -173,6 +188,58 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
           >
             <Ban className="w-3 h-3" />
           </button>
+        </div>
+      )}
+
+      {/* Border popover (R10 style setter): width row + line-style row */}
+      {swatchAction?.onPickBorderWidth && (
+        <div
+          className="mt-1.5 flex flex-col gap-1.5 px-1.5 py-1.5 rounded-lg border border-surface-border
+                     bg-surface-primary/97 shadow-xl backdrop-blur-sm text-text-secondary"
+        >
+          <div className="flex items-center gap-1">
+            {(swatchAction.borderWidths ?? [1, 2, 3]).map((w) => {
+              const active = swatchAction.border?.width === w;
+              return (
+                <button
+                  key={w}
+                  title={`${w}px`}
+                  aria-label={`${w}px`}
+                  onClick={() => { swatchAction.onPickBorderWidth?.(w); }}
+                  className={`flex items-center justify-center w-8 h-7 rounded-md transition-colors
+                    ${active ? 'bg-surface-hover text-text-primary' : 'hover:bg-surface-hover hover:text-text-primary'}`}
+                >
+                  <span style={{ display: 'block', width: 16, borderTop: `${w}px solid currentColor` }} />
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1 border-t border-surface-border/60 pt-1.5">
+            {BORDER_STYLE_OPTIONS.map((s) => {
+              const active = (swatchAction.border?.style ?? 'solid') === s;
+              return (
+                <button
+                  key={s}
+                  title={swatchAction.borderStyleLabels?.[s] ?? s}
+                  aria-label={swatchAction.borderStyleLabels?.[s] ?? s}
+                  onClick={() => { swatchAction.onPickBorderStyle?.(s); }}
+                  className={`flex items-center justify-center w-8 h-7 rounded-md transition-colors
+                    ${active ? 'bg-surface-hover text-text-primary' : 'hover:bg-surface-hover hover:text-text-primary'}`}
+                >
+                  <span style={{ display: 'block', width: 16, borderTop: `2px ${s} currentColor` }} />
+                </button>
+              );
+            })}
+            {/* Reset border to shape default */}
+            <button
+              title="—"
+              aria-label="clear border"
+              onClick={() => { swatchAction.onClearBorder?.(); setOpenSwatch(null); }}
+              className="flex items-center justify-center w-8 h-7 rounded-md text-text-muted hover:bg-surface-hover"
+            >
+              <Ban className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
     </div>

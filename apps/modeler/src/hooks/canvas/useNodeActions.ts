@@ -12,8 +12,21 @@ import type {
   IRAttribute,
   IROperation,
   SemanticModel,
+  NodeBorderStyle,
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+
+/**
+ * Partial visual-style patch applied to view nodes (R10). Only the keys present
+ * are touched; a `null` value clears that property, an omitted key leaves it
+ * untouched. Lets the toolbar set just one property without disturbing others,
+ * while the format painter passes the whole set.
+ */
+export interface NodeStylePatch {
+  color?: string | null;
+  borderWidth?: number | null;
+  borderStyle?: NodeBorderStyle | null;
+}
 
 function cascadeDeleteRelations(model: SemanticModel, elementId: string) {
   for (const rid of Object.keys(model.relations)) {
@@ -42,10 +55,11 @@ export interface UseNodeActionsResult {
   deleteElementFromModel: (viewNodeId: string) => void;
   duplicateNode: (viewNodeId: string) => string | null;
   /**
-   * Applies a visual style (color override) to one or more view nodes in a single
-   * undo transaction (R10 format painter / color setter). `color: null` clears it.
+   * Applies a visual style patch (color / border width / border line style) to one
+   * or more view nodes in a single undo transaction (R10 format painter / style
+   * setter). Only keys present in `style` are touched; `null` clears that property.
    */
-  applyNodeStyle: (viewNodeIds: string[], style: { color: string | null }) => void;
+  applyNodeStyle: (viewNodeIds: string[], style: NodeStylePatch) => void;
 }
 
 export function useNodeActions({
@@ -420,7 +434,7 @@ export function useNodeActions({
   );
 
   const applyNodeStyle = useCallback(
-    (viewNodeIds: string[], style: { color: string | null }) => {
+    (viewNodeIds: string[], style: NodeStylePatch) => {
       if (!activeTabId || viewNodeIds.length === 0) return;
       const currentProject = useVFSStore.getState().project;
       if (!currentProject) return;
@@ -429,14 +443,25 @@ export function useNodeActions({
       if (!isDiagramView((fileNode as VFSFile).content)) return;
 
       const idSet = new Set(viewNodeIds);
-      // View-only change (color lives on the ViewNode) → single vfs transaction.
+      // View-only change (style lives on the ViewNode) → single vfs transaction.
+      // Only keys present in the patch are touched; null clears the property.
       withUndo('vfs', 'Apply Style', activeTabId, (draft: any) => {
         const node = draft.project?.nodes[activeTabId];
         if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
         for (const vn of node.content.nodes as ViewNode[]) {
           if (!idSet.has(vn.id)) continue;
-          if (style.color === null) delete vn.color;
-          else vn.color = style.color;
+          if ('color' in style) {
+            if (style.color == null) delete vn.color;
+            else vn.color = style.color;
+          }
+          if ('borderWidth' in style) {
+            if (style.borderWidth == null) delete vn.borderWidth;
+            else vn.borderWidth = style.borderWidth;
+          }
+          if ('borderStyle' in style) {
+            if (style.borderStyle == null) delete vn.borderStyle;
+            else vn.borderStyle = style.borderStyle;
+          }
         }
       });
     },

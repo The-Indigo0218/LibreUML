@@ -16,6 +16,7 @@ import {
   useNodeActions,
   useEdgeActions,
 } from '../../../hooks/canvas';
+import type { NodeStylePatch } from '../../../hooks/canvas/useNodeActions';
 import type {
   DiagramView,
   VFSFile,
@@ -110,7 +111,7 @@ export interface VFSCanvasResult {
   removeNodeFromDiagram: (viewNodeId: string) => void;
   deleteElementFromModel: (viewNodeId: string) => void;
   duplicateNode: (viewNodeId: string) => void;
-  applyNodeStyle: (viewNodeIds: string[], style: { color: string | null }) => void;
+  applyNodeStyle: (viewNodeIds: string[], style: NodeStylePatch) => void;
   deleteEdgeById: (viewEdgeId: string) => void;
   reverseEdgeById: (viewEdgeId: string) => void;
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;

@@ -34,7 +34,7 @@
  *   onConnect (useCanvasEventHandlers) also runs its own checks (self-loop, bidir agg).
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { RefObject } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -242,6 +242,12 @@ export interface UseConnectionDrawReturn {
    * diagram type whose validity is decided downstream).
    */
   snapValid: boolean | null;
+  /**
+   * R7 strong highlight: while connecting, validity of every candidate target
+   * (nodeId → true/false/null) vs the source + active mode. Null when not
+   * connecting. Consumers dim the `false` entries to make legal targets stand out.
+   */
+  candidateValidity: Map<string, boolean | null> | null;
   stageHandlers: {
     onMouseDown: (e: KonvaEventObject<MouseEvent>) => void;
     onMouseMove: (e: KonvaEventObject<MouseEvent>) => void;
@@ -266,6 +272,8 @@ export function useConnectionDraw({
   const [hoveredNodeAnchors, setHoveredNodeAnchors] = useState<AnchorDot[]>([]);
   const [snapTargetDot, setSnapTargetDot] = useState<AnchorDot | null>(null);
   const [snapValid, setSnapValid] = useState<boolean | null>(null);
+  /** Source node id while connecting — drives the candidate-validity highlight (R7). */
+  const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null);
 
   // ── Refs (event-handler safe, no stale closure issues) ────────────────────
   const isConnectingRef = useRef(false);
@@ -287,6 +295,7 @@ export function useConnectionDraw({
     setTempLine(null);
     setSnapTargetDot(null);
     setSnapValid(null);
+    setConnectingSourceId(null);
     setHoveredNodeAnchors([]);
     const stage = stageRef.current;
     if (stage) stage.draggable(true);
@@ -322,6 +331,23 @@ export function useConnectionDraw({
     },
     [nodes, getActiveUmlType],
   );
+
+  /**
+   * Per-node validity of every potential target against the connection source +
+   * active relation mode (R7 strong highlight). Null while not connecting. A node
+   * maps to: true = legal target, false = illegal (dimmed), null = neutral
+   * (delegated diagram type with no validation rules — left untouched). The source
+   * node is omitted. Computed once per drag (keyed on the source), not per move.
+   */
+  const candidateValidity = useMemo<Map<string, boolean | null> | null>(() => {
+    if (!connectingSourceId) return null;
+    const map = new Map<string, boolean | null>();
+    for (const n of nodes) {
+      if (n.id === connectingSourceId) continue;
+      map.set(n.id, computeSnapValidity(connectingSourceId, n.id));
+    }
+    return map;
+  }, [connectingSourceId, nodes, computeSnapValidity]);
 
   // ── onMouseMove ────────────────────────────────────────────────────────────
 
@@ -391,6 +417,7 @@ export function useConnectionDraw({
       sourceRef.current = nearest;
       isConnectingRef.current = true;
       setIsConnecting(true);
+      setConnectingSourceId(nearest.nodeId);
       setTempLine({ x1: nearest.x, y1: nearest.y, x2: nearest.x, y2: nearest.y });
       setHoveredNodeAnchors([]);
       setSnapTargetDot(null);
@@ -502,6 +529,7 @@ export function useConnectionDraw({
     hoveredNodeAnchors,
     snapTargetDot,
     snapValid,
+    candidateValidity,
     stageHandlers: {
       onMouseDown,
       onMouseMove,

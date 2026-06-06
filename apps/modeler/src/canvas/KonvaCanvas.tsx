@@ -1887,11 +1887,15 @@ export default function KonvaCanvas() {
                 const isMsg = isMessageViewModel(vm);
                 const isLifeline = isLifelineViewModel(vm);
                 const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm);
+                // R7 strong highlight: while connecting, dim nodes that are illegal
+                // targets for the active relation so legal ones stand out.
+                const connectDimmed = connectionDraw.candidateValidity?.get(shape.id) === false;
                 return renderShape(vm, {
                   key: shape.id,
                   x: pos.x,
                   y: pos.y,
                   selected: selectedIds.has(shape.id),
+                  opacity: connectDimmed ? 0.3 : undefined,
                   draggable: true,
                   visible: isVisible && !isDescendantOfCollapsed,
                   onDragStart: isMsg || isDerived ? undefined : guardedDragStart,

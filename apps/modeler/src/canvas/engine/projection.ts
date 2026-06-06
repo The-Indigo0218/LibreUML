@@ -1,11 +1,11 @@
 /**
- * projection.ts — world ↔ screen coordinate helpers for HTML overlays (R1).
+ * projection.ts — world ↔ screen coordinate helpers for HTML overlays.
  *
  * Konva renders shapes in world-space (the same coordinates as node positions),
  * while HTML overlays positioned over the <Stage> need screen-space (container)
  * pixels. These helpers centralise the stage-transform projection that was
  * previously inlined in KonvaCanvas for the inline editor, so the selection
- * toolbar (R1), quick-linker menu (R5) and inline property panel (R9) can reuse it.
+ * toolbar, quick-linker menu and inline property panel can reuse it.
  *
  * "Screen" here means pixels relative to the canvas container (the same origin
  * the overlay <div> uses), not the browser viewport.

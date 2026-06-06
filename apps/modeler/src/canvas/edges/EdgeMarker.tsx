@@ -33,7 +33,7 @@ interface EdgeMarkerProps {
   stroke: string;
   /**
    * Explicit rotation (degrees) overriding the cardinal faceToMarkerAngle(face).
-   * Used by floating anchors (R4) so the marker points along the true diagonal
+   * Used by floating anchors so the marker points along the true diagonal
    * arrival direction instead of snapping to one of the four cardinal angles.
    */
   angleOverride?: number;

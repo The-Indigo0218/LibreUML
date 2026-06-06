@@ -76,11 +76,11 @@ export interface VFSCanvasEdge {
   type: string;
   sourceHandle?: string;
   targetHandle?: string;
-  /** Manual user waypoints (R3). */
+  /** Manual user waypoints. */
   waypoints?: { x: number; y: number }[];
   /** Line routing style. Undefined = 'straight'. */
   routingMode?: EdgeRoutingMode;
-  /** Per-edge style overrides (R10): color / line width / line style. */
+  /** Per-edge style overrides: color / line width / line style. */
   color?: string;
   lineWidth?: number;
   lineStyle?: NodeBorderStyle;

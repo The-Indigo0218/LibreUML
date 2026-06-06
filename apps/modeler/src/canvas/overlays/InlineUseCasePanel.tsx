@@ -1,6 +1,6 @@
 /**
- * InlineUseCasePanel — docked contextual properties panel for a USECASE node
- * (R9 #2): the use-case counterpart of InlineClassPanel.
+ * InlineUseCasePanel — docked contextual properties panel for a USECASE node:
+ * the use-case counterpart of InlineClassPanel.
  *
  * Edits live, one undo per commit (blur / Enter):
  *   · name

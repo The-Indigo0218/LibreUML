@@ -1,5 +1,5 @@
 /**
- * SelectionToolbar — floating contextual action bar for the selected element (R1).
+ * SelectionToolbar — floating contextual action bar for the selected element.
  *
  * A small HTML bar anchored to the selection's bounding box (a node's top-center
  * or an edge's midpoint), floating over the Konva <Stage>. It shows only the
@@ -40,7 +40,7 @@ export interface ToolbarAction {
   danger?: boolean;
   /**
    * When set, clicking the button opens a color-swatch popover instead of firing
-   * onClick (R10 color setter). Picking a swatch calls onPickColor (null = clear).
+   * onClick. Picking a swatch calls onPickColor (null = clear).
    */
   swatches?: string[];
   onPickColor?: (color: string | null) => void;
@@ -54,8 +54,8 @@ export interface ToolbarAction {
   routingLabels?: Partial<Record<EdgeRoutingMode, string>>;
   /**
    * When set, the button opens a border popover: a row of widths + a row of line
-   * styles (R10 style setter). `border` holds the node's current values to
-   * highlight the active option.
+   * styles. `border` holds the node's current values to highlight the active
+   * option.
    */
   border?: { width: number; style: NodeBorderStyle };
   borderWidths?: number[];
@@ -162,7 +162,7 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
         </div>
       )}
 
-      {/* Color-swatch popover (R10 color setter) */}
+      {/* Color-swatch popover */}
       {swatchAction?.swatches && (
         <div
           className="mt-1.5 flex items-center gap-1 px-1.5 py-1.5 rounded-lg border border-surface-border
@@ -191,7 +191,7 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
         </div>
       )}
 
-      {/* Border popover (R10 style setter): width row + line-style row */}
+      {/* Border popover: width row + line-style row */}
       {swatchAction?.onPickBorderWidth && (
         <div
           className="mt-1.5 flex flex-col gap-1.5 px-1.5 py-1.5 rounded-lg border border-surface-border

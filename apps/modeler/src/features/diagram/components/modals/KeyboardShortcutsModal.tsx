@@ -47,7 +47,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
 
   if (!isOpen) return null;
 
-  // ── Diagram-aware relation shortcuts (R8 #3) ───────────────────────────────
+  // ── Diagram-aware relation shortcuts ───────────────────────────────────────
   // List only the connection tools available in the *active* diagram (e.g. Class
   // hides include/extend; Sequence shows the message keys 1–5), each paired with
   // the key that activates it. Reuses the registry + the shortcut source of truth

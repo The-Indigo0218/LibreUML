@@ -54,7 +54,7 @@ export interface UseSelectionOptions {
 
 export interface UseSelectionReturn {
   selectedIds: Set<string>;
-  /** Currently selected edge (single-select), or null. Used for waypoint editing (R3b). */
+  /** Currently selected edge (single-select), or null. Used for waypoint editing. */
   selectedEdgeId: string | null;
   lassoRect: LassoRect | null;
   onNodeClick: (id: string, ctrl: boolean) => void;

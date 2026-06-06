@@ -1,23 +1,4 @@
-/**
- * InlineClassPanel — docked contextual properties panel for the selected
- * classifier (R9): a CLASS, INTERFACE or ENUM node.
- *
- * The classifier-level counterpart of InlineEdgePanel: instead of opening the full
- * SSoTClassEditorModal for the frequent edits, this panel docks to the right of
- * the canvas and edits live —
- *   · CLASS / INTERFACE → name + attributes + operations
- *   · ENUM              → name + literals
- * Each change is one undo entry (committed on blur / Enter / visibility toggle).
- *
- * Parameters, type-derived relations and stereotypes stay in the modal, reachable
- * via the "Advanced…" button.
- *
- * Self-contained — resolves the active model (standalone localModel vs global) and
- * applies through the same ops the modal uses, so it needs only an element id.
- *
- * Uncontrolled inputs are keyed on the member signature so an external change
- * (undo, modal edit) refreshes the field, while in-progress typing is untouched.
- */
+
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -138,7 +119,7 @@ export default function InlineClassPanel({ elementId, onAdvanced, onClose }: Inl
       commitOps([...readMembers().opsList, { id: crypto.randomUUID(), kind: 'OPERATION', name: n, returnType: 'void', visibility: 'public', parameters: [] }]);
     };
 
-    // ── Operation parameters (R9 #1) — read/commit fresh, one undo each ──
+    // ── Operation parameters — read/commit fresh, one undo each ──
     const readParams = (opId: string): IRParameter[] =>
       readMembers().opsList.find((o) => o.id === opId)?.parameters ?? [];
     const patchParam = (opId: string, i: number, patch: Partial<IRParameter>) => {
@@ -276,7 +257,7 @@ export default function InlineClassPanel({ elementId, onAdvanced, onClose }: Inl
     >
       {/* Header — classifier name */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-surface-border sticky top-0 bg-surface-primary/97 backdrop-blur-sm">
-        {/* Abstract toggle (R9 #1) — class only; flips CLASS ↔ ABSTRACT_CLASS. */}
+        {/* Abstract toggle — class only; flips CLASS ↔ ABSTRACT_CLASS. */}
         {cls && (
           <button
             onClick={() => ops.updateClass(elementId, { isAbstract: !cls.isAbstract })}

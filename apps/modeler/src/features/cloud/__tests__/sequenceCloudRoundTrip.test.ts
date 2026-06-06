@@ -23,7 +23,7 @@ function baseModel(): SemanticModel {
   } as SemanticModel;
 }
 
-/** A model exercising every Fase 4/5 sequence element. */
+/** A model exercising every sequence element. */
 function seqModel(): SemanticModel {
   const m = baseModel();
   m.lifelines = {
@@ -137,7 +137,7 @@ describe('Sequence diagram — cloud sync round-trip', () => {
     expect(Object.keys(lm.gates ?? {})).toEqual(['g1']);
     expect(Object.keys(lm.stateInvariants ?? {})).toEqual(['si1']);
     expect(Object.keys(lm.interactionUses ?? {})).toEqual(['u1']);
-    // Message-level Fase 4 fields survive.
+    // Message-level fields survive.
     expect(lm.messages!.mFound.isFound).toBe(true);
     expect(lm.messages!.mGate.targetGateId).toBe('g1');
     expect(lm.interactionUses!.u1.referencedDiagramId).toBe('other-diag');

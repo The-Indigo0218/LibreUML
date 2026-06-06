@@ -210,10 +210,10 @@ export default function ClassShape({
   onDragEnd,
 }: ClassShapeProps) {
   const colors = resolveNodeColors(vm.style.containerClass);
-  // Per-node color override (R10): tints header + outer border when set.
+  // Per-node color override: tints header + outer border when set.
   const headerFill = vm.colorOverride ?? colors.headerBg;
   const borderStroke = vm.colorOverride ?? colors.border;
-  // Per-node border width / line style override (R10 style setter).
+  // Per-node border width / line style override.
   const borderW = vm.borderWidthOverride ?? BORDER_W;
   const borderDashArr = borderDash(vm.borderStyleOverride, borderW);
   const layout = useMemo(() => computeLayout(vm), [vm]);

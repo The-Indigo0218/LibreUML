@@ -1,6 +1,6 @@
 /**
- * InlineDomainPanel — docked contextual properties panel for a DOMAIN_ENTITY node
- * (R9 #2): the domain-model counterpart of InlineClassPanel.
+ * InlineDomainPanel — docked contextual properties panel for a DOMAIN_ENTITY node:
+ * the domain-model counterpart of InlineClassPanel.
  *
  * Edits live, one undo per commit (blur / Enter):
  *   · name

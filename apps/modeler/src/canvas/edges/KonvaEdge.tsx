@@ -282,11 +282,11 @@ export interface KonvaEdgeProps {
    * Ignored when isSelfLoop is true (always uses bezier for self-loops).
    */
   routingMode?: RoutingMode;
-  /** Per-edge color override (R10). Wins over the kind/base color when set. */
+  /** Per-edge color override. Wins over the kind/base color when set. */
   colorOverride?: string;
-  /** Per-edge line width override (R10). Undefined = default (2px). */
+  /** Per-edge line width override. Undefined = default (2px). */
   lineWidthOverride?: number;
-  /** Per-edge line style override (R10). Undefined = kind default (solid/dashed). */
+  /** Per-edge line style override. Undefined = kind default (solid/dashed). */
   lineStyleOverride?: NodeBorderStyle;
   /**
    * Bounding boxes of nodes that the edge should route around.
@@ -331,7 +331,7 @@ export interface KonvaEdgeProps {
   sourceHandle?: string;
   targetHandle?: string;
   /**
-   * Floating anchors (R4). When true (and not locked / no waypoints), endpoints
+   * Floating anchors. When true (and not locked / no waypoints), endpoints
    * slide along each node's border toward the opposing node instead of snapping
    * to one of the 8 fixed handles — radial/diagonal entry, recalculated as nodes
    * move. Default routing for UseCase diagrams. Ignored for self-loops.
@@ -342,17 +342,17 @@ export interface KonvaEdgeProps {
   /** Outline of the target node for floating intersection. */
   targetShape?: NodeShape;
   /**
-   * Manual user waypoints (R3). When non-empty, the line body is routed as a
+   * Manual user waypoints. When non-empty, the line body is routed as a
    * polyline through these points instead of the automatic routing, letting the
    * user bend the edge. Anchors at both ends are still resolved normally.
    * Ignored for self-loops.
    */
   waypoints?: Point[];
-  /** True when this edge is the selected one — shows waypoint editing handles (R3b). */
+  /** True when this edge is the selected one — shows waypoint editing handles. */
   selected?: boolean;
-  /** Click handler used to select the edge (R3b). */
+  /** Click handler used to select the edge. */
   onSelect?: (edgeId: string) => void;
-  /** Persists a new waypoints array after a handle drag / insert / delete (R3b). */
+  /** Persists a new waypoints array after a handle drag / insert / delete. */
   onWaypointsChange?: (edgeId: string, waypoints: Point[]) => void;
 }
 
@@ -393,7 +393,7 @@ export default function KonvaEdge({
   onSelect,
   onWaypointsChange,
 }: KonvaEdgeProps) {
-  // Local draft of waypoints during an in-progress handle drag (R3b). Null =
+  // Local draft of waypoints during an in-progress handle drag. Null =
   // use the props value. Lets the line follow the handle live without touching
   // the store until the drag ends.
   const [draftWaypoints, setDraftWaypoints] = useState<Point[] | null>(null);
@@ -401,7 +401,7 @@ export default function KonvaEdge({
   // insert a new bend, or null. Needed so that ghost is rendered at the live
   // dragged position (avoids react-konva snapping it back each frame).
   const [draggingGhost, setDraggingGhost] = useState<number | null>(null);
-  // Orthogonal segment-slide drag (R3/R6). The snapshot (interior route points,
+  // Orthogonal segment-slide drag. The snapshot (interior route points,
   // grabbed segment, orientation) is captured at drag start in a ref so dragMove
   // rebuilds waypoints from a stable base; segLive holds the raw pointer so the
   // dragged bar renders under the cursor without react-konva snapping it back.
@@ -412,7 +412,7 @@ export default function KonvaEdge({
   // Effective routing once the legacy fallback is applied (undefined → orthogonal).
   const routing = resolveRoutingMode(routingMode);
   // When active (highlighted or hovered): use kind-specific color; else base gray.
-  // Per-edge style overrides (R10) win over both when present.
+  // Per-edge style overrides win over both when present.
   const isActive = isHighlighted || isHovered;
   const stroke = colorOverride ?? (isActive ? getEdgeColorByKind(kind) : getEdgeColor());
   const strokeWidth = lineWidthOverride ?? (isActive ? 3 : 2);
@@ -507,8 +507,8 @@ export default function KonvaEdge({
     let isBezier = false;
 
     if (hasWaypoints) {
-      // Manual waypoints (R3). In orthogonal mode they become fixed bend anchors
-      // connected by right-angle elbows that recompute as nodes move (R6); in any
+      // Manual waypoints. In orthogonal mode they become fixed bend anchors
+      // connected by right-angle elbows that recompute as nodes move; in any
       // other mode the body is a straight polyline through the points.
       pts = routing === 'orthogonal' && !useFloating
         ? orthogonalPolylineRoute(src, effectiveWaypoints!, retractedTgt, obstacles ?? [])
@@ -550,7 +550,7 @@ export default function KonvaEdge({
     };
   }, [sourceBounds, targetBounds, kind, isSelfLoop, routing, obstacles, retract, anchorLocked, sourceHandle, targetHandle, floating, sourceShape, targetShape, effectiveWaypoints]);
 
-  // ── Waypoint editing handles (R3b) ────────────────────────────────────────
+  // ── Waypoint editing handles ───────────────────────────────────────────────
   const showHandles = showLabels && selected && !isSelfLoop && !!onWaypointsChange;
   const moveWaypoints = effectiveWaypoints ?? [];
   const persistedWaypoints = waypoints ?? [];
@@ -848,7 +848,7 @@ export default function KonvaEdge({
         </>
       )}
 
-      {/* ── Waypoint editing handles (R3b) ──────────────────────────────── */}
+      {/* ── Waypoint editing handles ──────────────────────────────────── */}
       {showHandles && (
         <>
           {/* Ghost handles at each segment midpoint — drag to insert a bend */}
@@ -931,7 +931,7 @@ export default function KonvaEdge({
             />
           ))}
 
-          {/* Segment-slide bars (R3/R6) — only on orthogonal edges, on interior
+          {/* Segment-slide bars — only on orthogonal edges, on interior
               segments (both endpoints are bends, not the fixed anchors). Drag a bar
               perpendicular to slide the whole segment while keeping 90°. The drag
               promotes the rendered route's interior points to explicit waypoints. */}

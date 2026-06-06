@@ -1,10 +1,11 @@
 /**
- * InlineEdgePanel — docked contextual properties panel for the selected edge (R9).
+ * InlineEdgePanel — docked contextual properties panel for the selected edge.
  *
- * The "big version" of the R1 selection toolbar: instead of opening a modal for
- * the most frequent association edits (multiplicities + roles), this panel docks
- * to the top-right of the canvas and edits them live. Field commits happen on
- * blur / Enter (one undo per commit) so typing doesn't spam the undo stack.
+ * The "big version" of the floating selection toolbar: instead of opening a
+ * modal for the most frequent association edits (multiplicities + roles), this
+ * panel docks to the top-right of the canvas and edits them live. Field commits
+ * happen on blur / Enter (one undo per commit) so typing doesn't spam the undo
+ * stack.
  *
  * Reserved for the multiplicity relation kinds (Association / Aggregation /
  * Composition); the full modal — relation-kind change, direction, anchor picker —

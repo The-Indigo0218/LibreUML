@@ -1,5 +1,5 @@
 /**
- * RelationPickerMenu — quick chooser of valid relation types on connection drop (R2/R7).
+ * RelationPickerMenu — quick chooser of valid relation types on connection drop.
  *
  * Shown when the user drags a connection onto a target for which the active
  * palette mode is not valid, but other relation types are. Lists only the valid

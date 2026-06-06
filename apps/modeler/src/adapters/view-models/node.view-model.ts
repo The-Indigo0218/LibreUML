@@ -1,84 +1,49 @@
-/**
- * Generic Node View Model for UI Rendering
- * 
- * This is a presentation DTO that decouples UI components from domain logic.
- * It contains ONLY what the UI needs to render, with no domain-specific types.
- * 
- * CRITICAL: UI components should NEVER import domain types.
- * All domain data must be transformed into this generic structure.
- */
-
-/**
- * Generic section item (attribute, method, literal, etc.)
- */
 export interface NodeSectionItem {
   id: string;
-  text: string; // Pre-formatted display text (e.g., "+ name: String")
-  icon?: string; // Optional icon identifier
+  text: string; 
+  icon?: string; 
   isStatic?: boolean;
   isAbstract?: boolean;
-  metadata?: Record<string, unknown>; // Extensible for future needs
+  metadata?: Record<string, unknown>; 
 }
 
-/**
- * Generic section (attributes, methods, literals, etc.)
- */
+
 export interface NodeSection {
   id: string;
-  title?: string; // Optional section title
+  title?: string; 
   items: NodeSectionItem[];
   collapsible?: boolean;
   collapsed?: boolean;
 }
 
-/**
- * Style configuration for node rendering
- */
+
 export interface NodeStyleConfig {
   containerClass: string;
   headerClass: string;
   badgeColor: string;
-  labelFormat: string; // CSS classes for label formatting (e.g., "italic font-bold")
+  labelFormat: string; 
   showStereotype: boolean;
 }
 
-/**
- * Generic Node View Model
- * 
- * This is what UI components receive. It contains:
- * - Display data (label, stereotype, sections)
- * - Style configuration
- * - NO domain-specific types or logic
- */
+
 export interface NodeViewModel {
-  // Identity
   id: string;
-  domainId: string; // Reference to domain entity for updates
+  domainId: string; 
   
-  // Display data
-  label: string; // Primary label (e.g., class name)
-  sublabel?: string; // Secondary label (e.g., generics like "<T>")
-  stereotype?: string; // Visual stereotype badge (e.g., "interface", "abstract")
-  badge?: string; // Additional badge text (e.g., "main", package name)
+  label: string;
+  sublabel?: string;
+  stereotype?: string; 
+  badge?: string; 
   
-  // Content sections (generic structure)
   sections: NodeSection[];
   
-  // Style configuration
   style: NodeStyleConfig;
 
-  /**
-   * Per-node color override (R10 format painter). When set, tints the header /
-   * border instead of the stereotype-derived palette. Sourced from ViewNode.color.
-   */
+
   colorOverride?: string;
-  /** Per-node border width override (R10 style). Sourced from ViewNode.borderWidth. */
   borderWidthOverride?: number;
-  /** Per-node border line style override (R10 style). Sourced from ViewNode.borderStyle.
-   *  Inlined (not imported) to keep this presentation DTO free of domain types. */
   borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
 
-  // Metadata (extensible)
   metadata?: {
     isMain?: boolean;
     package?: string;
@@ -86,17 +51,13 @@ export interface NodeViewModel {
   };
 }
 
-/**
- * Note-specific view model (simplified)
- */
+
 export interface NoteViewModel {
   id: string;
   domainId: string;
   title?: string;
   content: string;
-  /** Per-node color override (R10 format painter). Tints the outline. Sourced from ViewNode.color. */
   colorOverride?: string;
-  /** Optional persistence callback for saving note content via VFS. */
   onSave?: (update: { content?: string; title?: string }) => void;
 }
 
@@ -106,9 +67,7 @@ export interface PackageViewModel {
   name: string;
   collapsed: boolean;
   color?: string;
-  /** Per-node border width override (R10 style). Sourced from ViewNode.borderWidth. */
   borderWidth?: number;
-  /** Per-node border line style override (R10 style). Sourced from ViewNode.borderStyle. */
   borderStyle?: 'solid' | 'dashed' | 'dotted';
   childCount: number;
   depth: number;
@@ -121,7 +80,6 @@ export interface ActorViewModel {
   name: string;
   isAbstract: boolean;
   actorType?: 'human' | 'system' | 'timer';
-  /** Per-node color override (R10 format painter). Tints the outline. Sourced from ViewNode.color. */
   colorOverride?: string;
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
@@ -134,7 +92,6 @@ export interface UseCaseViewModel {
   name: string;
   extensionPoints: string[];
   hasSpec: boolean;
-  /** Per-node color override (R10 format painter). Tints the outline. Sourced from ViewNode.color. */
   colorOverride?: string;
   onRename?: (name: string) => void;
   onOpenSpec?: () => void;
@@ -166,7 +123,6 @@ export interface DomainEntityViewModel {
   domainId: string;
   name: string;
   attributes: Array<{ id: string; name: string }>;
-  /** Per-node color override (R10 format painter). Tints header + border. Sourced from ViewNode.color. */
   colorOverride?: string;
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
@@ -176,22 +132,16 @@ export type LifelineParticipantKindVM = 'CLASS' | 'INTERFACE' | 'ACTOR' | 'OBJEC
 
 export interface LifelineViewModel {
   __brand: 'lifeline';
-  id: string;             // view node id
-  domainId: string;       // IRLifeline.id
-  name: string;           // display name
+  id: string;            
+  domainId: string;       
+  name: string;          
   participantKind: LifelineParticipantKindVM;
   isExternal?: boolean;
-  /** Total length of the dashed timeline below the head. */
   timelineLength: number;
   headWidth: number;
   headHeight: number;
-  /**
-   * Vertical offset (from the group origin) at which the head box is drawn.
-   * 0 for normal lifelines; > 0 when the lifeline is born mid-diagram via a
-   * CREATE message (UML 2.5 create event).
-   */
+
   headTopOffset?: number;
-  /** True when a DESTROY message terminates this lifeline (draws an ✕ marker). */
   isDestroyed?: boolean;
   onRename?: (name: string) => void;
 }
@@ -200,34 +150,26 @@ export type MessageKindVM = 'SYNC' | 'ASYNC' | 'REPLY' | 'CREATE' | 'DESTROY';
 
 export interface MessageViewModel {
   __brand: 'message';
-  id: string;             // synthetic id (== domain message id)
-  domainId: string;       // IRMessage.id
+  id: string;             
+  domainId: string;       
   name: string;
   messageKind: MessageKindVM;
   sequenceNumber: number;
-  /** Hierarchical display label: "1", "2", "1.1", "2.3.2", etc. */
   displayNumber: string;
-  /** Signed horizontal length: positive = arrow right, negative = left, 0 = self. */
   length: number;
   isSelfMessage: boolean;
-  /** Found message: a filled circle marks the unknown source at the arrow start. */
   isFound?: boolean;
-  /** Lost message: a filled circle marks the unknown target at the arrow end. */
   isLost?: boolean;
   onRename?: (name: string) => void;
 }
 
 export interface ActivationViewModel {
   __brand: 'activation';
-  id: string;             // synthetic id (== domain activation id)
-  domainId: string;       // IRActivation.id
-  /** Width of the bar (typically 10px). */
+  id: string;             
+  domainId: string;      
   width: number;
-  /** Length of the bar (top to bottom). */
   height: number;
-  /** True while the activation has no endMessageId (rendered with dashed bottom). */
   isOpen: boolean;
-  /** Visual offset for nested activations (re-entrancy). */
   nestingDepth: number;
 }
 
@@ -237,7 +179,6 @@ export type FragmentKindVM =
 export interface FragmentOperandVM {
   id: string;
   guard?: string;
-  /** Y offset within the fragment where this operand begins (used for separator lines). */
   yOffset: number;
 }
 
@@ -246,64 +187,46 @@ export interface FragmentViewModel {
   id: string;
   domainId: string;
   fragmentKind: FragmentKindVM;
-  /** Bounding box width (covers all coveredLifelineIds). */
   width: number;
-  /** Bounding box height (top to bottom across all operands). */
   height: number;
-  /** Operands in order; the first one has yOffset=0 (no separator above it). */
   operands: FragmentOperandVM[];
-  /** Visual offset depth for nested fragments. */
   nestingDepth: number;
 }
 
 export interface StateInvariantViewModel {
   __brand: 'stateInvariant';
-  id: string;             // synthetic id (== domain state-invariant id)
-  domainId: string;       // IRStateInvariant.id
-  /** Constraint text rendered inside the state symbol (braces added by the shape). */
+  id: string;             
+  domainId: string;      
   constraint: string;
-  /** State-symbol bounding box (centred on the lifeline by the builder). */
   width: number;
   height: number;
-  /** Current temporal anchor (0 = before first message). Used by drag handler. */
   afterSequenceNumber: number;
-  /** Total message count in the diagram — needed to clamp drag slot. */
   totalMessages: number;
 }
 
 export interface InteractionUseViewModel {
   __brand: 'interactionUse';
-  id: string;             // synthetic id (== domain interaction-use id)
-  domainId: string;       // IRInteractionUse.id
-  /** Referenced interaction name shown centred in the box. */
+  id: string;            
+  domainId: string;    
   label: string;
-  /** Bounding box spanning the covered lifelines. */
   width: number;
   height: number;
-  /** Current temporal anchor. Used by drag handler. */
   afterSequenceNumber: number;
-  /** Total message count in the diagram — needed to clamp drag slot. */
   totalMessages: number;
 }
 
 export interface GateViewModel {
   __brand: 'gate';
-  id: string;             // synthetic id (== domain gate id)
-  domainId: string;       // IRGate.id
+  id: string;           
+  domainId: string;       
   name: string;
-  /** Edge the gate sits on — drives which side the label renders. */
   side: 'LEFT' | 'RIGHT';
-  /** Square marker size. */
   size: number;
-  /** Current temporal anchor. Used by drag handler. */
   afterSequenceNumber: number;
-  /** Total message count in the diagram — needed to clamp drag slot. */
   totalMessages: number;
 }
 
-/**
- * Union type for all node view models
- */
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -321,9 +244,7 @@ export type AnyNodeViewModel =
   | InteractionUseViewModel
   | GateViewModel;
 
-/**
- * Type guard for NodeViewModel
- */
+
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
   return 'sections' in vm;
 }

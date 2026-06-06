@@ -46,8 +46,8 @@ export interface DropConfig {
 
 /**
  * Per-stereotype recipe for creating a node: how to name it and how to write the
- * semantic element into the shared or local model. Shared with the Quick Linker
- * (R5), which creates a node + relation in one transaction reusing these builders.
+ * semantic element into the shared or local model. Shared with the Quick Linker,
+ * which creates a node + relation in one transaction reusing these builders.
  */
 export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
   class: {

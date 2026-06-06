@@ -212,7 +212,7 @@ export function resolveLockedAnchors(
 }
 
 /**
- * Floating anchor (R4): intersection of the ray from `from` (the node center)
+ * Floating anchor: intersection of the ray from `from` (the node center)
  * toward `to` (the opposing endpoint, usually the other node's center) with this
  * node's border. Unlike selectAnchors — which snaps to one of 8 fixed handles —
  * the returned point slides freely along the border so the edge enters radially.
@@ -299,7 +299,7 @@ export function faceToMarkerAngle(face: AnchorFace): number {
 
 /**
  * Marker rotation (degrees, clockwise) for a freely-angled arrival direction
- * (floating anchors, R4). `(dx, dy)` is the direction of travel into the target
+ * (floating anchors). `(dx, dy)` is the direction of travel into the target
  * (source → target). Returns the angle so the marker tip points along it.
  *
  * Matches faceToMarkerAngle for the four cardinal directions:
@@ -342,13 +342,13 @@ export function straightRoute(src: Point, tgt: Point): number[] {
 }
 
 /**
- * Polyline route through explicit user waypoints (R3).
+ * Polyline route through explicit user waypoints.
  * Returns a flat Konva points array: [src, ...waypoints, tgt].
  *
  * Used when an edge carries manual waypoints — it overrides automatic routing
  * (orthogonal / curved) so the user's bends are respected verbatim. Reconciling
  * manual waypoints with orthogonal auto-routing (keeping 90° on the auto
- * segments) is a separate concern (R6).
+ * segments) is a separate concern.
  */
 export function polylineRoute(src: Point, waypoints: Point[], tgt: Point): number[] {
   const pts: number[] = [src.x, src.y];
@@ -370,7 +370,7 @@ function axisSegHits(x1: number, y1: number, x2: number, y2: number, obstacles: 
 }
 
 /**
- * Orthogonal route through explicit user waypoints (R6).
+ * Orthogonal route through explicit user waypoints.
  *
  * Reconciles auto-orthogonal routing with manual bends: the waypoints stay fixed
  * (the user "pins" them), but each leg between two consecutive control points is

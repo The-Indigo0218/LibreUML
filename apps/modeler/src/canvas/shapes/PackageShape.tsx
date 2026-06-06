@@ -110,7 +110,7 @@ export default function PackageShape({
   onResizeEnd,
 }: PackageShapeProps) {
   const colors = resolvePackageColors(vm.color);
-  // Per-node border width / line style override (R10 style setter).
+  // Per-node border width / line style override.
   const borderW = vm.borderWidth ?? BORDER_W;
   const borderDashArr = borderDash(vm.borderStyle, borderW);
 

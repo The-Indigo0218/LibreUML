@@ -1,5 +1,5 @@
 /**
- * useRelationShortcuts — single-key activation of relation/connection tools (R8).
+ * useRelationShortcuts — single-key activation of relation/connection tools.
  *
  * Mirrors what clicking a connection item in ToolPalette does: it sets the
  * active connection mode for the current tab. The mode is stored UPPERCASE

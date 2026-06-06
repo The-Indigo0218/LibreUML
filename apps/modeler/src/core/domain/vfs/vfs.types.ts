@@ -57,9 +57,9 @@ export interface ViewNode {
   height?: number;
   zIndex?: number;
   color?: string;
-  /** Per-node border width override (R10 style setter). Undefined = shape default. */
+  /** Per-node border width override. Undefined = shape default. */
   borderWidth?: number;
-  /** Per-node border line style override (R10 style setter). Undefined = solid. */
+  /** Per-node border line style override. Undefined = solid. */
   borderStyle?: NodeBorderStyle;
   /** Persisted text content for Note nodes (no IR backing element). */
   content?: string;
@@ -80,7 +80,7 @@ export interface ViewNode {
  */
 export type EdgeRoutingMode = 'straight' | 'orthogonal' | 'curved';
 
-/** Per-node border line style (R10 format painter / style setter). */
+/** Per-node border line style. */
 export type NodeBorderStyle = 'solid' | 'dashed' | 'dotted';
 
 export interface ViewEdge {
@@ -94,13 +94,13 @@ export interface ViewEdge {
   sourceRole?: string;
   targetRole?: string;
   anchorLocked?: boolean;
-  /** Line routing style (R-routingMode). Undefined = 'straight'. */
+  /** Line routing style. Undefined = 'straight'. */
   routingMode?: EdgeRoutingMode;
-  /** Per-edge color override (R10 style). Undefined = kind/base color. */
+  /** Per-edge color override. Undefined = kind/base color. */
   color?: string;
-  /** Per-edge line width override (R10 style). Undefined = default (2px). */
+  /** Per-edge line width override. Undefined = default (2px). */
   lineWidth?: number;
-  /** Per-edge line style override (R10 style). Undefined = kind default. */
+  /** Per-edge line style override. Undefined = kind default. */
   lineStyle?: NodeBorderStyle;
 }
 
@@ -342,10 +342,10 @@ export interface IRLifeline extends IRElement {
 
 export type MessageKind =
   | 'SYNC'      // solid line, closed triangle arrowhead
-  | 'ASYNC'     // solid line, open arrowhead (Fase 2)
-  | 'REPLY'     // dashed line, open arrowhead (Fase 2)
-  | 'CREATE'    // (Fase 4) instantiates target lifeline
-  | 'DESTROY';  // (Fase 4) terminates target lifeline
+  | 'ASYNC'     // solid line, open arrowhead
+  | 'REPLY'     // dashed line, open arrowhead
+  | 'CREATE'    // instantiates target lifeline
+  | 'DESTROY';  // terminates target lifeline
 
 export interface IRMessage extends IRElement {
   kind: 'MESSAGE';
@@ -412,10 +412,10 @@ export type FragmentKind =
   | 'ALT'      // alternative (if/else) with multiple guarded operands
   | 'OPT'      // optional (single guarded operand)
   | 'LOOP'     // iteration with guard
-  | 'PAR'      // parallel (Fase 4)
-  | 'SEQ'      // weak sequencing (Fase 4)
-  | 'BREAK'    // break (Fase 4)
-  | 'CRITICAL'; // critical region (Fase 4)
+  | 'PAR'      // parallel
+  | 'SEQ'      // weak sequencing
+  | 'BREAK'    // break
+  | 'CRITICAL'; // critical region
 
 export interface IRInteractionOperand {
   id: string;

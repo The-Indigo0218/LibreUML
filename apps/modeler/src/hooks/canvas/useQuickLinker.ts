@@ -1,5 +1,5 @@
 /**
- * useQuickLinker — "create node from a connection drag" (R5, Quick Linker).
+ * useQuickLinker — "create node from a connection drag" (Quick Linker).
  *
  * When the user drags a connection out of a node's anchor and releases on empty
  * canvas, KonvaCanvas opens a node-type picker; choosing a type calls

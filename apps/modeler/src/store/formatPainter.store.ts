@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { NodeBorderStyle } from '../core/domain/vfs/vfs.types';
 
 /**
- * Visual style subset that the format painter (R10) copies between nodes.
+ * Visual style subset that the format painter copies between nodes.
  * Each field is captured from the source node; `null` means "explicitly none"
  * so pasting clears it on the target. Extend here as more style props become
  * persistable (font, …).

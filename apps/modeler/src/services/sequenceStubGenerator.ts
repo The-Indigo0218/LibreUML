@@ -1,5 +1,5 @@
 /**
- * Sequence-diagram code stub generation (Fase 5).
+ * Sequence-diagram code stub generation.
  *
  * Derives operation stubs on the classifiers that lifelines represent from the
  * SYNC/ASYNC messages targeting them: a call `target.foo(args)` implies the

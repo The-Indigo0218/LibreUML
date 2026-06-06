@@ -48,13 +48,13 @@ interface UiStoreState {
   editingId: string | null;
   anchorSnapshot: AnchorSnapshot | null;
   isGetStartedOpen: boolean;
-  /** Edge id whose inline properties panel (R9) is open, or null. */
+  /** Edge id whose inline properties panel is open, or null. */
   inlineEdgePanelId: string | null;
-  /** Element id of the class whose inline properties panel (R9) is open, or null. */
+  /** Element id of the class whose inline properties panel is open, or null. */
   inlineClassPanelId: string | null;
-  /** Element id of the use case whose inline properties panel (R9 #2) is open, or null. */
+  /** Element id of the use case whose inline properties panel is open, or null. */
   inlineUseCasePanelId: string | null;
-  /** Element id of the domain entity whose inline properties panel (R9 #2) is open, or null. */
+  /** Element id of the domain entity whose inline properties panel is open, or null. */
   inlineDomainPanelId: string | null;
 
   // actions

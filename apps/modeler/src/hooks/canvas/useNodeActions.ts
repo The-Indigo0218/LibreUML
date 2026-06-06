@@ -17,7 +17,7 @@ import type {
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 
 /**
- * Partial visual-style patch applied to view nodes (R10). Only the keys present
+ * Partial visual-style patch applied to view nodes. Only the keys present
  * are touched; a `null` value clears that property, an omitted key leaves it
  * untouched. Lets the toolbar set just one property without disturbing others,
  * while the format painter passes the whole set.
@@ -56,8 +56,8 @@ export interface UseNodeActionsResult {
   duplicateNode: (viewNodeId: string) => string | null;
   /**
    * Applies a visual style patch (color / border width / border line style) to one
-   * or more view nodes in a single undo transaction (R10 format painter / style
-   * setter). Only keys present in `style` are touched; `null` clears that property.
+   * or more view nodes in a single undo transaction. Only keys present in
+   * `style` are touched; `null` clears that property.
    */
   applyNodeStyle: (viewNodeIds: string[], style: NodeStylePatch) => void;
 }

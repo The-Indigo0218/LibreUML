@@ -35,7 +35,7 @@ describe('polylineRoute', () => {
   });
 });
 
-describe('orthogonalPolylineRoute (R6)', () => {
+describe('orthogonalPolylineRoute', () => {
   const src: Point = { x: 0, y: 0 };
   const tgt: Point = { x: 100, y: 100 };
 
@@ -91,7 +91,7 @@ describe('orthogonalPolylineRoute (R6)', () => {
   });
 });
 
-describe('orthogonalPolylineRoute — obstacle-aware leg (R6)', () => {
+describe('orthogonalPolylineRoute — obstacle-aware leg', () => {
   const src: Point = { x: 0, y: 0 };
   const tgt: Point = { x: 100, y: 100 };
 

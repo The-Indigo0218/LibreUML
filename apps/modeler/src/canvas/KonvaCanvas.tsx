@@ -110,7 +110,7 @@ const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
 };
 
 /**
- * Node types offered by the Quick Linker (R5) when a connection is dropped on
+ * Node types offered by the Quick Linker when a connection is dropped on
  * empty canvas, keyed by diagram type. Diagrams absent from this map don't open
  * a picker (e.g. Sequence, whose participants need dedicated placement).
  */
@@ -121,11 +121,11 @@ const QUICK_LINK_NODE_TYPES: Partial<Record<DiagramType, stereotype[]>> = {
   PACKAGE_DIAGRAM:      ['package', 'note'],
 };
 
-/** Preset swatches offered by the format-painter color setter (R10). */
+/** Preset swatches offered by the format-painter color setter. */
 const NODE_COLOR_SWATCHES = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
 const NODE_BORDER_WIDTHS = [1, 2, 3];
 
-/** Edge kinds whose "properties" action opens the inline R9 panel (multiplicity/roles). */
+/** Edge kinds whose "properties" action opens the inline panel (multiplicity/roles). */
 const INLINE_PANEL_KINDS = new Set<RelationKind>(['ASSOCIATION', 'AGGREGATION', 'COMPOSITION']);
 
 export default function KonvaCanvas() {
@@ -339,7 +339,7 @@ export default function KonvaCanvas() {
     [onConnect],
   );
 
-  // ── Relation-type picker on connection drop (R2/R7) ─────────────────────────
+  // ── Relation-type picker on connection drop ────────────────────────────────
   const [relationPicker, setRelationPicker] = useState<{
     x: number;
     y: number;
@@ -358,7 +358,7 @@ export default function KonvaCanvas() {
     [stageRef],
   );
 
-  // ── Quick Linker: drop-to-empty creates a new node already linked (R5) ──────
+  // ── Quick Linker: drop-to-empty creates a new node already linked ───────────
   const { createNodeAndConnect } = useQuickLinker({ activeTabId });
   const [nodeTypePicker, setNodeTypePicker] = useState<{
     x: number;
@@ -772,7 +772,7 @@ export default function KonvaCanvas() {
     onPasteStyle: handlePasteStyle,
   });
 
-  // R8 — single-key relation/connection tool shortcuts (diagram-aware).
+  // Single-key relation/connection tool shortcuts (diagram-aware).
   useRelationShortcuts();
 
   const { onDragOver: handleDragOver, onDrop: handleDrop, duplicateModal, hierarchyModal } = useKonvaDnD({ stageRef });
@@ -1403,7 +1403,7 @@ export default function KonvaCanvas() {
       const edge = edges.find((e) => e.id === edgeId);
       if (!edge) return;
       if (edge.kind === 'EXTEND') { openExtendProps(edgeId); return; }
-      // TODO(post-v1 Fase 2): mover a ShapeRouter
+      // TODO: route through a ShapeRouter
       if (vfsController.vfsFile?.diagramType === 'DOMAIN_MODEL_DIAGRAM') {
         const relationId = vfsController.edges.find((e) => e.id === edgeId)?.data.domainId;
         if (relationId) openDomainAssociationProps(relationId);
@@ -1487,7 +1487,7 @@ export default function KonvaCanvas() {
   // Pre-compute edge render data so both the "edges" and "edge-labels" layers
   // can share it without duplicating the bounds/visibility logic.
   const edgeRenderData = useMemo(() => {
-    // Floating anchors (R4): default routing for UseCase diagrams so actor–usecase
+    // Floating anchors: default routing for UseCase diagrams so actor–usecase
     // associations enter radially instead of snapping to 8 fixed handles.
     const isUseCaseDiagram = vfsController.vfsFile?.diagramType === 'USE_CASE_DIAGRAM';
     // UseCase ovals get ellipse intersection; every other shape is a rectangle.
@@ -1547,10 +1547,10 @@ export default function KonvaCanvas() {
       .filter((d): d is NonNullable<typeof d> => d !== null);
   }, [shapes, edges, boundsMap, visibleNodeIds, vfsController.vfsFile?.diagramType]);
 
-  // Format-painter clipboard (R10) — subscribe so paste action appears live.
+  // Format-painter clipboard — subscribe so paste action appears live.
   const copiedStyle = useFormatPainterStore((s) => s.copied);
 
-  // ── Floating contextual selection toolbar (R1) ─────────────────────────────
+  // ── Floating contextual selection toolbar ──────────────────────────────────
   const toolbarTarget = useMemo<{ type: 'node' | 'edge'; id: string } | null>(() => {
     if (selectedEdgeId) return { type: 'edge', id: selectedEdgeId };
     if (selectedIds.size === 1) return { type: 'node', id: [...selectedIds][0] };
@@ -1592,7 +1592,7 @@ export default function KonvaCanvas() {
       if (isNodeViewModel(shape.data)) {
         const elementId = vfsController.diagramView?.nodes.find((vn) => vn.id === toolbarTarget.id)?.elementId;
         if (elementId) {
-          // Classifiers (class / interface / enum) open the inline R9 panel.
+          // Classifiers (class / interface / enum) open the inline panel.
           const isClassifier = !!(activeModel?.classes[elementId] || activeModel?.interfaces[elementId] || activeModel?.enums[elementId]);
           actions.push({
             icon: 'edit',
@@ -1602,7 +1602,7 @@ export default function KonvaCanvas() {
         }
         actions.push({ icon: 'duplicate', label: t('selectionToolbar.duplicate'), onClick: () => vfsController.duplicateNode(toolbarTarget.id) });
       } else if (isUseCaseViewModel(shape.data)) {
-        // R9 #2: contextual edit opens the inline panel (name + brief + extension
+        // Contextual edit opens the inline panel (name + brief + extension
         // points); the full spec (flows, pre/post) stays in the modal via Advanced.
         const ucId = shape.data.domainId;
         actions.push({
@@ -1611,7 +1611,7 @@ export default function KonvaCanvas() {
           onClick: () => openInlineUseCasePanel(ucId),
         });
       } else if (isDomainEntityViewModel(shape.data)) {
-        // R9 #2: contextual edit opens the inline panel (name + attributes).
+        // Contextual edit opens the inline panel (name + attributes).
         const entId = shape.data.domainId;
         actions.push({
           icon: 'edit',
@@ -1619,7 +1619,7 @@ export default function KonvaCanvas() {
           onClick: () => openInlineDomainPanel(entId),
         });
       } else if (isActorViewModel(shape.data)) {
-        // R1 #2: actors keep their props modal (name + type — no inline panel yet).
+        // Actors keep their props modal (name + type — no inline panel yet).
         const vm = shape.data;
         actions.push({
           icon: 'edit',
@@ -1627,7 +1627,7 @@ export default function KonvaCanvas() {
           onClick: () => vm.onOpenProps?.(),
         });
       }
-      // ── Color / format painter (R10) — for nodes that render a color override ──
+      // ── Color / format painter — for nodes that render a color override ───────
       const styleable =
         isNodeViewModel(shape.data) ||
         isPackageViewModel(shape.data) ||
@@ -1689,7 +1689,7 @@ export default function KonvaCanvas() {
     const selEdge = edges.find((e) => e.id === toolbarTarget.id);
     // Same fallback the renderer uses, so the popover highlights what's drawn.
     const currentRouting = resolveRoutingMode(selEdge?.routingMode);
-    // Association-family edges open the inline R9 panel for the common multiplicity/role
+    // Association-family edges open the inline panel for the common multiplicity/role
     // edits; every other kind keeps the full modal (kind change, anchor picker, etc.).
     const inlineEligible = !!selEdge && INLINE_PANEL_KINDS.has(selEdge.kind);
     return [
@@ -1706,7 +1706,7 @@ export default function KonvaCanvas() {
           curved: t('selectionToolbar.routingCurved'),
         },
       },
-      // R10: per-edge color + line width/style overrides.
+      // Per-edge color + line width/style overrides.
       {
         icon: 'color',
         label: t('selectionToolbar.color'),
@@ -1744,7 +1744,7 @@ export default function KonvaCanvas() {
     ? { x: toolbarPos.x, y: toolbarPos.y, actions: toolbarActions }
     : null;
 
-  // ── Inline edge properties panel (R9) ──────────────────────────────────────
+  // ── Inline edge properties panel ───────────────────────────────────────────
   // Auto-close when the panel's edge is no longer the selected one.
   useEffect(() => {
     if (inlineEdgePanelId && inlineEdgePanelId !== selectedEdgeId) closeInlineEdgePanel();
@@ -1776,7 +1776,7 @@ export default function KonvaCanvas() {
     };
   }, [inlineEdgePanelId, edges, nodeName, vfsController, closeInlineEdgePanel, openVfsEdgeAction, buildAnchorSnapshot]);
 
-  // ── Inline class properties panel (R9) ─────────────────────────────────────
+  // ── Inline class properties panel ──────────────────────────────────────────
   // Auto-close when the panel's class node is no longer selected.
   useEffect(() => {
     if (!inlineClassPanelId) return;
@@ -1794,7 +1794,7 @@ export default function KonvaCanvas() {
     };
   }, [inlineClassPanelId, activeModel, closeInlineClassPanel, openSSoTClassEditor]);
 
-  // ── Inline use-case properties panel (R9 #2) ───────────────────────────────
+  // ── Inline use-case properties panel ──────────────────────────────────────
   useEffect(() => {
     if (!inlineUseCasePanelId) return;
     const vn = vfsController.diagramView?.nodes.find((n) => n.elementId === inlineUseCasePanelId);
@@ -1810,7 +1810,7 @@ export default function KonvaCanvas() {
     };
   }, [inlineUseCasePanelId, activeModel, closeInlineUseCasePanel]);
 
-  // ── Inline domain-entity properties panel (R9 #2) ──────────────────────────
+  // ── Inline domain-entity properties panel ─────────────────────────────────
   useEffect(() => {
     if (!inlineDomainPanelId) return;
     const vn = vfsController.diagramView?.nodes.find((n) => n.elementId === inlineDomainPanelId);
@@ -2005,7 +2005,7 @@ export default function KonvaCanvas() {
                 const isMsg = isMessageViewModel(vm);
                 const isLifeline = isLifelineViewModel(vm);
                 const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm);
-                // R7 strong highlight: while connecting, dim nodes that are illegal
+                // Strong highlight: while connecting, dim nodes that are illegal
                 // targets for the active relation so legal ones stand out.
                 const connectDimmed = connectionDraw.candidateValidity?.get(shape.id) === false;
                 return renderShape(vm, {

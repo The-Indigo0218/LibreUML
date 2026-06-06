@@ -13,7 +13,7 @@ import type {
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 
 /**
- * Partial visual-style patch for an edge (R10). Only keys present are touched;
+ * Partial visual-style patch for an edge. Only keys present are touched;
  * a `null` value clears that property (falls back to the kind/base default).
  */
 export interface EdgeStylePatch {
@@ -42,7 +42,7 @@ export interface UseEdgeActionsResult {
       anchorLocked?: boolean;
     },
   ) => void;
-  /** Replaces an edge's manual waypoints (R3b). One undo transaction per call. */
+  /** Replaces an edge's manual waypoints. One undo transaction per call. */
   updateEdgeWaypoints: (
     viewEdgeId: string,
     waypoints: { x: number; y: number }[],

@@ -87,7 +87,7 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   PACKAGE_ACCESS: 'PACKAGE_ACCESS',
 };
 
-/** Relation types offered for class-diagram connections (R2/R7 picker + validity). */
+/** Relation types offered for class-diagram connections (picker + validity). */
 const CLASS_RELATION_TYPES: UmlRelationType[] = [
   'association', 'inheritance', 'implementation', 'dependency', 'aggregation', 'composition',
 ];
@@ -111,7 +111,7 @@ export function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isActorViewModel(vm)) return 'actor';
   if (isUseCaseViewModel(vm)) return 'use_case';
   if (isSystemBoundaryViewModel(vm)) return 'system_boundary';
-  // TODO(post-v1 Fase 2): mover a ShapeRouter
+  // TODO: route through a ShapeRouter
   if (isDomainEntityViewModel(vm)) return 'domain_entity';
   if (isLifelineViewModel(vm)) return 'lifeline';
   const nvm = vm as NodeViewModel;
@@ -206,8 +206,8 @@ export interface UseConnectionDrawOptions {
   onConnect: (sourceNodeId: string, targetNodeId: string) => void;
   /**
    * Called (class diagram only) when the active connection mode is NOT valid for
-   * the dropped pair but other relation types are — opens a picker (R2/R7) at the
-   * given world position so the user chooses a valid type instead of being rejected.
+   * the dropped pair but other relation types are — opens a picker at the given
+   * world position so the user chooses a valid type instead of being rejected.
    */
   onPickRelation?: (
     sourceNodeId: string,
@@ -216,7 +216,7 @@ export interface UseConnectionDrawOptions {
     worldPos: { x: number; y: number },
   ) => void;
   /**
-   * Quick Linker (R5): called when the drag is released on empty canvas (no snap
+   * Quick Linker: called when the drag is released on empty canvas (no snap
    * target and no node under the cursor). The handler opens a node-type picker at
    * `worldPos` to create a new node already linked to `sourceNodeId`.
    */
@@ -237,13 +237,13 @@ export interface UseConnectionDrawReturn {
   /** The anchor being snapped to as connection target. */
   snapTargetDot: AnchorDot | null;
   /**
-   * Validity of the current snap target for the active relation mode (R7):
+   * Validity of the current snap target for the active relation mode:
    * true = valid, false = invalid, null = neutral (no snap, or a delegated
    * diagram type whose validity is decided downstream).
    */
   snapValid: boolean | null;
   /**
-   * R7 strong highlight: while connecting, validity of every candidate target
+   * Strong highlight: while connecting, validity of every candidate target
    * (nodeId → true/false/null) vs the source + active mode. Null when not
    * connecting. Consumers dim the `false` entries to make legal targets stand out.
    */
@@ -272,7 +272,7 @@ export function useConnectionDraw({
   const [hoveredNodeAnchors, setHoveredNodeAnchors] = useState<AnchorDot[]>([]);
   const [snapTargetDot, setSnapTargetDot] = useState<AnchorDot | null>(null);
   const [snapValid, setSnapValid] = useState<boolean | null>(null);
-  /** Source node id while connecting — drives the candidate-validity highlight (R7). */
+  /** Source node id while connecting — drives the candidate-validity highlight. */
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null);
 
   // ── Refs (event-handler safe, no stale closure issues) ────────────────────
@@ -301,7 +301,7 @@ export function useConnectionDraw({
     if (stage) stage.draggable(true);
   }, [stageRef]);
 
-  // ── Validity helpers (R7) ──────────────────────────────────────────────────
+  // ── Validity helpers ───────────────────────────────────────────────────────
 
   /** Active relation type (UmlRelationType) derived from the palette connection mode. */
   const getActiveUmlType = useCallback((): UmlRelationType => {
@@ -334,7 +334,7 @@ export function useConnectionDraw({
 
   /**
    * Per-node validity of every potential target against the connection source +
-   * active relation mode (R7 strong highlight). Null while not connecting. A node
+   * active relation mode (strong highlight). Null while not connecting. A node
    * maps to: true = legal target, false = illegal (dimmed), null = neutral
    * (delegated diagram type with no validation rules — left untouched). The source
    * node is omitted. Computed once per drag (keyed on the source), not per move.
@@ -473,7 +473,7 @@ export function useConnectionDraw({
                 if (validateConnection(srcStereotype, tgtStereotype, umlType)) {
                   onConnect(src.nodeId, snap.nodeId);
                 } else {
-                  // R2/R7: instead of rejecting, offer the valid relation types.
+                  // Instead of rejecting, offer the valid relation types.
                   const validTypes = CLASS_RELATION_TYPES.filter((ut) =>
                     validateConnection(srcStereotype, tgtStereotype, ut),
                   );
@@ -489,7 +489,7 @@ export function useConnectionDraw({
               onConnect(src.nodeId, snap.nodeId);
             }
           } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current)) {
-            // R5 Quick Linker: released on empty canvas (no snap, no node under
+            // Quick Linker: released on empty canvas (no snap, no node under
             // the cursor) → offer to create a new node linked to the source.
             onDropEmpty(src.nodeId, { x: pos.x, y: pos.y });
           }

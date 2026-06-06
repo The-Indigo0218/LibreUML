@@ -1,6 +1,6 @@
 /**
  * relationShortcuts — single-key keyboard shortcuts for activating relation /
- * connection tools (R8 of the UX overhaul).
+ * connection tools.
  *
  * Single source of truth shared by:
  *   - useRelationShortcuts (canvas keydown listener)

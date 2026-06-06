@@ -1,13 +1,13 @@
 /**
- * NodeTypePickerMenu — node-type chooser for the Quick Linker (R5).
+ * NodeTypePickerMenu — node-type chooser for the Quick Linker.
  *
  * Shown when the user drags a connection out of a node and drops on empty canvas.
  * Lists the node types valid for the active diagram; choosing one creates that
  * node at the drop point already linked to the source. Closes on outside click
  * or Escape (cancel = no node created).
  *
- * Same overlay pattern as RelationPickerMenu (R2): positioned in container px
- * inside CanvasOverlay, opts into pointer-events over the pass-through overlay.
+ * Same overlay pattern as RelationPickerMenu: positioned in container px inside
+ * CanvasOverlay, opts into pointer-events over the pass-through overlay.
  */
 
 import { useEffect, useRef } from 'react';

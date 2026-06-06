@@ -28,7 +28,7 @@ export interface UseCanvasKeyboardOptions {
   /** Called with all node IDs when Ctrl+A is pressed. */
   onSelectAll: (nodeIds: string[]) => void;
   /**
-   * Called with the selected node IDs on Ctrl/Cmd+Shift+V (R10 format painter):
+   * Called with the selected node IDs on Ctrl/Cmd+Shift+V (format painter):
    * paste the copied style onto every selected node. No-op when nothing copied
    * or nothing selected — the handler decides.
    */
@@ -62,7 +62,7 @@ export function useCanvasKeyboard({
         return;
       }
 
-      // ── Ctrl/Cmd+Shift+V: paste copied style onto selection (R10) ──────
+      // ── Ctrl/Cmd+Shift+V: paste copied style onto selection ───────────
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'v' || e.key === 'V')) {
         const { selectedNodeIds } = useSelectionStore.getState();
         if (onPasteStyle && selectedNodeIds.length > 0) {

@@ -1,9 +1,9 @@
 import type { NodeBorderStyle } from '../../core/domain/vfs/vfs.types';
 
 /**
- * Konva `dash` array for a per-node border line style (R10), scaled by the
- * stroke width so the pattern reads at any thickness. Solid (or undefined)
- * returns undefined → a continuous line.
+ * Konva `dash` array for a per-node border line style, scaled by the stroke
+ * width so the pattern reads at any thickness. Solid (or undefined) returns
+ * undefined → a continuous line.
  */
 export function borderDash(
   style: NodeBorderStyle | undefined,

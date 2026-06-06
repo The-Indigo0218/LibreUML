@@ -41,11 +41,11 @@ export interface EdgeDescriptor {
   // «extend» specific
   condition?: string;
   extensionPoint?: string;
-  /** Manual user waypoints (R3) — when present, the edge routes through them. */
+  /** Manual user waypoints — when present, the edge routes through them. */
   waypoints?: { x: number; y: number }[];
   /** Line routing style. Undefined = 'straight' (free-form). */
   routingMode?: EdgeRoutingMode;
-  /** Per-edge style overrides (R10): color / line width / line style. */
+  /** Per-edge style overrides: color / line width / line style. */
   color?: string;
   lineWidth?: number;
   lineStyle?: NodeBorderStyle;

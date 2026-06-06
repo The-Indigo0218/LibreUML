@@ -1018,6 +1018,7 @@
     "properties": "Properties",
     "color": "Color",
     "border": "Border",
+    "stroke": "Stroke",
     "borderSolid": "Solid",
     "borderDashed": "Dashed",
     "borderDotted": "Dotted",

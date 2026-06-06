@@ -1706,6 +1706,29 @@ export default function KonvaCanvas() {
           curved: t('selectionToolbar.routingCurved'),
         },
       },
+      // R10: per-edge color + line width/style overrides.
+      {
+        icon: 'color',
+        label: t('selectionToolbar.color'),
+        onClick: () => {},
+        swatches: NODE_COLOR_SWATCHES,
+        onPickColor: (color) => vfsController.updateEdgeStyle(toolbarTarget.id, { color }),
+      },
+      {
+        icon: 'border',
+        label: t('selectionToolbar.stroke'),
+        onClick: () => {},
+        border: { width: selEdge?.lineWidth ?? 2, style: selEdge?.lineStyle ?? 'solid' },
+        borderWidths: NODE_BORDER_WIDTHS,
+        onPickBorderWidth: (width) => vfsController.updateEdgeStyle(toolbarTarget.id, { lineWidth: width }),
+        onPickBorderStyle: (style) => vfsController.updateEdgeStyle(toolbarTarget.id, { lineStyle: style }),
+        onClearBorder: () => vfsController.updateEdgeStyle(toolbarTarget.id, { color: null, lineWidth: null, lineStyle: null }),
+        borderStyleLabels: {
+          solid: t('selectionToolbar.borderSolid'),
+          dashed: t('selectionToolbar.borderDashed'),
+          dotted: t('selectionToolbar.borderDotted'),
+        },
+      },
       {
         icon: 'properties',
         label: t('selectionToolbar.properties'),
@@ -1913,6 +1936,9 @@ export default function KonvaCanvas() {
                 targetShape={targetShape}
                 waypoints={edge.waypoints}
                 routingMode={edge.routingMode}
+                colorOverride={edge.color}
+                lineWidthOverride={edge.lineWidth}
+                lineStyleOverride={edge.lineStyle}
                 isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
@@ -2039,6 +2065,9 @@ export default function KonvaCanvas() {
                 targetShape={targetShape}
                 waypoints={edge.waypoints}
                 routingMode={edge.routingMode}
+                colorOverride={edge.color}
+                lineWidthOverride={edge.lineWidth}
+                lineStyleOverride={edge.lineStyle}
                 label={edge.label}
                 sourceMultiplicity={edge.sourceMultiplicity}
                 targetMultiplicity={edge.targetMultiplicity}

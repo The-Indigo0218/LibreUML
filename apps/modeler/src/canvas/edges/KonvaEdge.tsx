@@ -39,7 +39,8 @@
 import { useMemo, useState, useRef } from 'react';
 import { Group, Line, Text, Label, Tag, Circle, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import type { RelationKind } from '../../core/domain/vfs/vfs.types';
+import type { RelationKind, NodeBorderStyle } from '../../core/domain/vfs/vfs.types';
+import { borderDash } from '../shapes/borderStyle';
 import {
   selectAnchors,
   resolveLockedAnchors,
@@ -281,6 +282,12 @@ export interface KonvaEdgeProps {
    * Ignored when isSelfLoop is true (always uses bezier for self-loops).
    */
   routingMode?: RoutingMode;
+  /** Per-edge color override (R10). Wins over the kind/base color when set. */
+  colorOverride?: string;
+  /** Per-edge line width override (R10). Undefined = default (2px). */
+  lineWidthOverride?: number;
+  /** Per-edge line style override (R10). Undefined = kind default (solid/dashed). */
+  lineStyleOverride?: NodeBorderStyle;
   /**
    * Bounding boxes of nodes that the edge should route around.
    * Must exclude the source and target nodes themselves.
@@ -356,6 +363,9 @@ export default function KonvaEdge({
   targetBounds,
   isSelfLoop = false,
   routingMode,
+  colorOverride,
+  lineWidthOverride,
+  lineStyleOverride,
   obstacles,
   sourceMultiplicity,
   targetMultiplicity,
@@ -401,11 +411,16 @@ export default function KonvaEdge({
   const [segLive, setSegLive] = useState<{ x: number; y: number; a: number } | null>(null);
   // Effective routing once the legacy fallback is applied (undefined → orthogonal).
   const routing = resolveRoutingMode(routingMode);
-  // When active (highlighted or hovered): use kind-specific color; else base gray
+  // When active (highlighted or hovered): use kind-specific color; else base gray.
+  // Per-edge style overrides (R10) win over both when present.
   const isActive = isHighlighted || isHovered;
-  const stroke = isActive ? getEdgeColorByKind(kind) : getEdgeColor();
-  const strokeWidth = isActive ? 3 : 2;
+  const stroke = colorOverride ?? (isActive ? getEdgeColorByKind(kind) : getEdgeColor());
+  const strokeWidth = lineWidthOverride ?? (isActive ? 3 : 2);
   const dashed = DASHED_KINDS.has(kind);
+  // Effective dash: an explicit line-style override wins; else the kind default.
+  const dashArray = lineStyleOverride
+    ? borderDash(lineStyleOverride, strokeWidth)
+    : (dashed ? [6, 4] : undefined);
   const retract = MARKER_RETRACT[kind] ?? 0;
   const stereotypeLabel = getStereotypeLabel(kind);
 
@@ -574,7 +589,7 @@ export default function KonvaEdge({
             bezier={bezier}
             stroke={stroke}
             strokeWidth={strokeWidth}
-            dash={dashed ? [6, 4] : undefined}
+            dash={dashArray}
             lineCap="round"
             lineJoin="round"
             hitStrokeWidth={12}

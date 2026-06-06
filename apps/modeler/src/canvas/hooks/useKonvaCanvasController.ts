@@ -118,6 +118,9 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
       extensionPoint: e.data.extensionPoint,
       waypoints: e.waypoints,
       routingMode: e.routingMode,
+      color: e.color,
+      lineWidth: e.lineWidth,
+      lineStyle: e.lineStyle,
     })),
     [edges],
   );

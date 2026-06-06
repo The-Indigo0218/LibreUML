@@ -96,6 +96,12 @@ export interface ViewEdge {
   anchorLocked?: boolean;
   /** Line routing style (R-routingMode). Undefined = 'straight'. */
   routingMode?: EdgeRoutingMode;
+  /** Per-edge color override (R10 style). Undefined = kind/base color. */
+  color?: string;
+  /** Per-edge line width override (R10 style). Undefined = default (2px). */
+  lineWidth?: number;
+  /** Per-edge line style override (R10 style). Undefined = kind default. */
+  lineStyle?: NodeBorderStyle;
 }
 
 export interface DiagramView {

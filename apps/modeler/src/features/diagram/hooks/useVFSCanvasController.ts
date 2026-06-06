@@ -17,6 +17,7 @@ import {
   useEdgeActions,
 } from '../../../hooks/canvas';
 import type { NodeStylePatch } from '../../../hooks/canvas/useNodeActions';
+import type { EdgeStylePatch } from '../../../hooks/canvas/useEdgeActions';
 import type {
   DiagramView,
   VFSFile,
@@ -25,6 +26,7 @@ import type {
   SemanticModel,
   RelationKind,
   EdgeRoutingMode,
+  NodeBorderStyle,
 } from '../../../core/domain/vfs/vfs.types';
 import { buildClassDiagramNodes } from './controllers/classDiagramNodes';
 import { buildUseCaseDiagramNodes } from './controllers/useCaseDiagramNodes';
@@ -78,6 +80,10 @@ export interface VFSCanvasEdge {
   waypoints?: { x: number; y: number }[];
   /** Line routing style. Undefined = 'straight'. */
   routingMode?: EdgeRoutingMode;
+  /** Per-edge style overrides (R10): color / line width / line style. */
+  color?: string;
+  lineWidth?: number;
+  lineStyle?: NodeBorderStyle;
   style?: CSSProperties;
   data: {
     domainId: string;
@@ -127,6 +133,7 @@ export interface VFSCanvasResult {
   ) => void;
   updateEdgeWaypoints: (viewEdgeId: string, waypoints: { x: number; y: number }[]) => void;
   updateEdgeRoutingMode: (viewEdgeId: string, routingMode: EdgeRoutingMode) => void;
+  updateEdgeStyle: (viewEdgeId: string, style: EdgeStylePatch) => void;
 }
 
 // ─── Default project bootstrap ────────────────────────────────────────────────
@@ -341,6 +348,9 @@ export function useVFSCanvasController(): VFSCanvasResult {
         targetHandle: viewEdge.anchorLocked ? viewEdge.targetHandle : undefined,
         waypoints: viewEdge.waypoints,
         routingMode: viewEdge.routingMode,
+        color: viewEdge.color,
+        lineWidth: viewEdge.lineWidth,
+        lineStyle: viewEdge.lineStyle,
         data: {
           domainId: relation.id,
           kind: relation.kind,
@@ -387,5 +397,6 @@ export function useVFSCanvasController(): VFSCanvasResult {
     updateVFSEdgeProps: edgeActions.updateVFSEdgeProps,
     updateEdgeWaypoints: edgeActions.updateEdgeWaypoints,
     updateEdgeRoutingMode: edgeActions.updateEdgeRoutingMode,
+    updateEdgeStyle: edgeActions.updateEdgeStyle,
   };
 }

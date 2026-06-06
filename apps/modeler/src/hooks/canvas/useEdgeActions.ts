@@ -8,8 +8,19 @@ import type {
   VFSFile,
   RelationKind,
   EdgeRoutingMode,
+  NodeBorderStyle,
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+
+/**
+ * Partial visual-style patch for an edge (R10). Only keys present are touched;
+ * a `null` value clears that property (falls back to the kind/base default).
+ */
+export interface EdgeStylePatch {
+  color?: string | null;
+  lineWidth?: number | null;
+  lineStyle?: NodeBorderStyle | null;
+}
 
 export interface UseEdgeActionsParams {
   activeTabId: string | null;
@@ -41,6 +52,8 @@ export interface UseEdgeActionsResult {
     viewEdgeId: string,
     routingMode: EdgeRoutingMode,
   ) => void;
+  /** Applies a visual style patch (color / line width / line style) to an edge. */
+  updateEdgeStyle: (viewEdgeId: string, style: EdgeStylePatch) => void;
 }
 
 export function useEdgeActions({
@@ -240,5 +253,32 @@ export function useEdgeActions({
     [activeTabId, isStandalone],
   );
 
-  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps, updateEdgeWaypoints, updateEdgeRoutingMode };
+  const updateEdgeStyle = useCallback(
+    (viewEdgeId: string, style: EdgeStylePatch) => {
+      if (!activeTabId) return;
+      // View-only change (style lives on the ViewEdge) → single vfs transaction.
+      // Only keys present in the patch are touched; null clears the property.
+      withUndo('vfs', 'Edit Edge Style', activeTabId, (draft: any) => {
+        const node = draft.project?.nodes[activeTabId];
+        if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+        const ve = node.content.edges.find((e: any) => e.id === viewEdgeId);
+        if (!ve) return;
+        if ('color' in style) {
+          if (style.color == null) delete ve.color;
+          else ve.color = style.color;
+        }
+        if ('lineWidth' in style) {
+          if (style.lineWidth == null) delete ve.lineWidth;
+          else ve.lineWidth = style.lineWidth;
+        }
+        if ('lineStyle' in style) {
+          if (style.lineStyle == null) delete ve.lineStyle;
+          else ve.lineStyle = style.lineStyle;
+        }
+      });
+    },
+    [activeTabId],
+  );
+
+  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps, updateEdgeWaypoints, updateEdgeRoutingMode, updateEdgeStyle };
 }

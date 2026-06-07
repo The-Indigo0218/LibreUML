@@ -1070,6 +1070,16 @@
     "remove": "Remove",
     "advanced": "Advanced…"
   },
+  "inlineActorPanel": {
+    "name": "Actor name",
+    "close": "Close",
+    "type": "Type",
+    "type_human": "Human",
+    "type_system": "System",
+    "type_timer": "Timer",
+    "abstract": "Abstract",
+    "advanced": "Advanced…"
+  },
   "relationPicker": {
     "title": "Relation type"
   },

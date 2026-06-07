@@ -3,8 +3,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { ActorViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveActorColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
-
-// ─── Layout constants ──────────────────────────────────────────────────────────
+import { borderDash } from './borderStyle';
 
 const HEAD_R = 12;
 const HEAD_CY = HEAD_R + 2;
@@ -62,6 +61,8 @@ export default function ActorShape({
 }: ActorShapeProps) {
   const colors = resolveActorColors();
   const stroke = vm.colorOverride ?? colors.stroke;
+  const strokeW = vm.borderWidthOverride ?? STROKE_W;
+  const dash = borderDash(vm.borderStyleOverride, strokeW);
   const { width: W, height: H } = getActorShapeSize(vm);
   const cx = W / 2;
 
@@ -91,58 +92,56 @@ export default function ActorShape({
         onContextMenu?.(e, vm.id);
       }}
     >
-      {/* ── Transparent hit-target covering the whole bounding box ────────── */}
       <Rect width={W} height={H} listening={true} />
 
-      {/* ── Head ────────────────────────────────────────────────────────────── */}
       <Circle
         x={cx}
         y={HEAD_CY}
         radius={HEAD_R}
         stroke={stroke}
-        strokeWidth={STROKE_W}
+        strokeWidth={strokeW}
+        dash={dash}
         fill={colors.fill}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Body ────────────────────────────────────────────────────────────── */}
       <Line
         points={[cx, BODY_TOP, cx, BODY_BOT]}
         stroke={stroke}
-        strokeWidth={STROKE_W}
+        strokeWidth={strokeW}
+        dash={dash}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Arms ────────────────────────────────────────────────────────────── */}
       <Line
         points={[cx - ARM_HALF, ARM_Y, cx + ARM_HALF, ARM_Y]}
         stroke={stroke}
-        strokeWidth={STROKE_W}
+        strokeWidth={strokeW}
+        dash={dash}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Left leg ────────────────────────────────────────────────────────── */}
       <Line
         points={[cx, BODY_BOT, cx - LEG_DX, BODY_BOT + LEG_DY]}
         stroke={stroke}
-        strokeWidth={STROKE_W}
+        strokeWidth={strokeW}
+        dash={dash}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Right leg ───────────────────────────────────────────────────────── */}
       <Line
         points={[cx, BODY_BOT, cx + LEG_DX, BODY_BOT + LEG_DY]}
         stroke={stroke}
-        strokeWidth={STROKE_W}
+        strokeWidth={strokeW}
+        dash={dash}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Stereotype label «system»/«timer» ────────────────────────────── */}
       {vm.actorType && vm.actorType !== 'human' && (
         <Text
           x={0}
@@ -159,7 +158,6 @@ export default function ActorShape({
         />
       )}
 
-      {/* ── Name ────────────────────────────────────────────────────────────── */}
       <Text
         x={0}
         y={BODY_BOT + LEG_DY + NAME_GAP}
@@ -174,7 +172,6 @@ export default function ActorShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Selection outline ───────────────────────────────────────────────── */}
       {selected && (
         <Rect
           x={-2}

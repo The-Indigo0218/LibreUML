@@ -58,6 +58,8 @@ export interface NoteViewModel {
   title?: string;
   content: string;
   colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
   onSave?: (update: { content?: string; title?: string }) => void;
 }
 
@@ -81,6 +83,8 @@ export interface ActorViewModel {
   isAbstract: boolean;
   actorType?: 'human' | 'system' | 'timer';
   colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
 }
@@ -93,6 +97,8 @@ export interface UseCaseViewModel {
   extensionPoints: string[];
   hasSpec: boolean;
   colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
   onRename?: (name: string) => void;
   onOpenSpec?: () => void;
 }
@@ -124,6 +130,8 @@ export interface DomainEntityViewModel {
   name: string;
   attributes: Array<{ id: string; name: string }>;
   colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
 }
@@ -249,9 +257,6 @@ export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
   return 'sections' in vm;
 }
 
-/**
- * Type guard for NoteViewModel
- */
 export function isNoteViewModel(vm: AnyNodeViewModel): vm is NoteViewModel {
   return 'content' in vm && !('sections' in vm);
 }

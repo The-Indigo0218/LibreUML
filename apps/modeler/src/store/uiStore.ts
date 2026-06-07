@@ -56,6 +56,8 @@ interface UiStoreState {
   inlineUseCasePanelId: string | null;
   /** Element id of the domain entity whose inline properties panel is open, or null. */
   inlineDomainPanelId: string | null;
+  /** Element id of the actor whose inline properties panel is open, or null. */
+  inlineActorPanelId: string | null;
 
   // actions
   openClassEditor: (nodeId: string) => void;
@@ -96,6 +98,8 @@ interface UiStoreState {
   closeInlineUseCasePanel: () => void;
   openInlineDomainPanel: (elementId: string) => void;
   closeInlineDomainPanel: () => void;
+  openInlineActorPanel: (elementId: string) => void;
+  closeInlineActorPanel: () => void;
   openGetStarted: () => void;
   closeGetStarted: () => void;
   toggleGetStarted: () => void;
@@ -110,6 +114,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   inlineClassPanelId: null,
   inlineUseCasePanelId: null,
   inlineDomainPanelId: null,
+  inlineActorPanelId: null,
 
   openClassEditor: (nodeId) =>
     set({ activeModal: "class-editor", editingId: nodeId }),
@@ -177,19 +182,21 @@ export const useUiStore = create<UiStoreState>((set) => ({
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 
-  // Opening an inline panel closes any modal and every other inline panel.
   openInlineEdgePanel: (edgeId) =>
-    set({ inlineEdgePanelId: edgeId, inlineClassPanelId: null, inlineUseCasePanelId: null, inlineDomainPanelId: null, activeModal: null, editingId: null }),
+    set({ inlineEdgePanelId: edgeId, inlineClassPanelId: null, inlineUseCasePanelId: null, inlineDomainPanelId: null, inlineActorPanelId: null, activeModal: null, editingId: null }),
   closeInlineEdgePanel: () => set({ inlineEdgePanelId: null }),
   openInlineClassPanel: (elementId) =>
-    set({ inlineClassPanelId: elementId, inlineEdgePanelId: null, inlineUseCasePanelId: null, inlineDomainPanelId: null, activeModal: null, editingId: null }),
+    set({ inlineClassPanelId: elementId, inlineEdgePanelId: null, inlineUseCasePanelId: null, inlineDomainPanelId: null, inlineActorPanelId: null, activeModal: null, editingId: null }),
   closeInlineClassPanel: () => set({ inlineClassPanelId: null }),
   openInlineUseCasePanel: (elementId) =>
-    set({ inlineUseCasePanelId: elementId, inlineEdgePanelId: null, inlineClassPanelId: null, inlineDomainPanelId: null, activeModal: null, editingId: null }),
+    set({ inlineUseCasePanelId: elementId, inlineEdgePanelId: null, inlineClassPanelId: null, inlineDomainPanelId: null, inlineActorPanelId: null, activeModal: null, editingId: null }),
   closeInlineUseCasePanel: () => set({ inlineUseCasePanelId: null }),
   openInlineDomainPanel: (elementId) =>
-    set({ inlineDomainPanelId: elementId, inlineEdgePanelId: null, inlineClassPanelId: null, inlineUseCasePanelId: null, activeModal: null, editingId: null }),
+    set({ inlineDomainPanelId: elementId, inlineEdgePanelId: null, inlineClassPanelId: null, inlineUseCasePanelId: null, inlineActorPanelId: null, activeModal: null, editingId: null }),
   closeInlineDomainPanel: () => set({ inlineDomainPanelId: null }),
+  openInlineActorPanel: (elementId) =>
+    set({ inlineActorPanelId: elementId, inlineEdgePanelId: null, inlineClassPanelId: null, inlineUseCasePanelId: null, inlineDomainPanelId: null, activeModal: null, editingId: null }),
+  closeInlineActorPanel: () => set({ inlineActorPanelId: null }),
 
   openGetStarted: () => set({ isGetStartedOpen: true }),
   closeGetStarted: () => set({ isGetStartedOpen: false }),

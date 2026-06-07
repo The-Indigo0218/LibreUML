@@ -3,8 +3,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { UseCaseViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveUseCaseColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
-
-// ─── Layout constants ──────────────────────────────────────────────────────────
+import { borderDash } from './borderStyle';
 
 const MIN_W = 140;
 const MAX_W = 280;
@@ -17,7 +16,7 @@ const STROKE_W = 1.5;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const FONT_MONO = '"Fira Code", monospace';
 const H_PAD = 16;
-const SPEC_DOT_R = 4;   // radius of the "has spec" indicator dot
+const SPEC_DOT_R = 4;
 
 export function getUseCaseShapeSize(vm: UseCaseViewModel): { width: number; height: number } {
   const nameW = measureTextWidth(vm.name, `${NAME_FONT}px ${FONT_SANS}`) + H_PAD * 2;
@@ -71,6 +70,8 @@ export default function UseCaseShape({
 }: UseCaseShapeProps) {
   const colors = resolveUseCaseColors();
   const stroke = vm.colorOverride ?? colors.stroke;
+  const strokeW = vm.borderWidthOverride ?? STROKE_W;
+  const dash = borderDash(vm.borderStyleOverride, strokeW);
   const { width: W, height: H } = getUseCaseShapeSize(vm);
   const cx = W / 2;
   const cy = H / 2;
@@ -107,7 +108,6 @@ export default function UseCaseShape({
       onMouseEnter={(e) => onMouseEnter?.(e, vm.id)}
       onMouseLeave={(e) => onMouseLeave?.(e, vm.id)}
     >
-      {/* ── Ellipse body ────────────────────────────────────────────────────── */}
       <Ellipse
         x={cx}
         y={cy}
@@ -115,12 +115,12 @@ export default function UseCaseShape({
         radiusY={ry}
         fill={colors.fill}
         stroke={stroke}
-        strokeWidth={STROKE_W}
+        strokeWidth={strokeW}
+        dash={dash}
         perfectDrawEnabled={false}
         listening={false}
       />
 
-      {/* ── Use case name ───────────────────────────────────────────────────── */}
       <Text
         x={H_PAD}
         y={BASE_H / 2 - NAME_FONT / 2 - (hasEP ? 4 : 0)}
@@ -134,7 +134,6 @@ export default function UseCaseShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Extension points ─────────────────────────────────────────────────── */}
       {hasEP && (
         <>
           <Line
@@ -162,7 +161,6 @@ export default function UseCaseShape({
         </>
       )}
 
-      {/* ── "Has spec" indicator dot (top-right of ellipse) ──────────────────── */}
       {vm.hasSpec && (
         <Circle
           x={cx + rx - SPEC_DOT_R - 1}
@@ -176,10 +174,8 @@ export default function UseCaseShape({
         />
       )}
 
-      {/* ── Transparent hit-target ──────────────────────────────────────────── */}
       <Rect width={W} height={H} listening={true} />
 
-      {/* ── Selection outline ───────────────────────────────────────────────── */}
       {selected && (
         <Ellipse
           x={cx}

@@ -1079,6 +1079,16 @@
     "remove": "Quitar",
     "advanced": "Avanzado…"
   },
+  "inlineActorPanel": {
+    "name": "Nombre del actor",
+    "close": "Cerrar",
+    "type": "Tipo",
+    "type_human": "Humano",
+    "type_system": "Sistema",
+    "type_timer": "Temporizador",
+    "abstract": "Abstracto",
+    "advanced": "Avanzado…"
+  },
   "relationPicker": {
     "title": "Tipo de relación"
   },

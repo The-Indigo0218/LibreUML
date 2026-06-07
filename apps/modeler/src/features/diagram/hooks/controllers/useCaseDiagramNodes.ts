@@ -40,6 +40,8 @@ function makeActorNode(
     isAbstract: actor.isAbstract ?? false,
     actorType: actor.actorType,
     colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
     onRename,
     onOpenProps,
   };
@@ -74,6 +76,8 @@ function makeUseCaseNode(
     extensionPoints: uc.extensionPoints ?? [],
     hasSpec,
     colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
     onRename,
     onOpenSpec,
   };

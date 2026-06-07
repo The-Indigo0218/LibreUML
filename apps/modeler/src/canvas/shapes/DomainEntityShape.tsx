@@ -1,26 +1,10 @@
-/**
- * DomainEntityShape — Konva shape for Domain Model entity nodes.
- *
- * Layout:
- *   ┌─────────────────────────┐  ← amber border (3 px), rounded corners
- *   │  EntityName             │  ← header: name bold 14px, amber bg
- *   ├─────────────────────────┤
- *   │  attributeName          │  ← one row per attribute, name-only (no type)
- *   │  otherAttribute         │
- *   └─────────────────────────┘
- *
- * Intentionally simpler than ClassShape: no stereotype, no badge, no visibility
- * markers — emphasising the conceptual (OOAD analysis) level of abstraction.
- */
-
 import { useMemo } from 'react';
 import { Group, Rect, Text, Line } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { DomainEntityViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveDomainEntityColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
-
-// ─── Layout constants ──────────────────────────────────────────────────────────
+import { borderDash } from './borderStyle';
 
 const BORDER_W = 3;
 const RADIUS = 4;
@@ -70,13 +54,10 @@ function computeLayout(vm: DomainEntityViewModel): DomainEntityLayout {
   return { width, height: y, headerH, nameY, separatorY, attrItemsY };
 }
 
-/** Returns pixel size that DomainEntityShape will occupy for a given view model. */
 export function getDomainEntityShapeSize(vm: DomainEntityViewModel): { width: number; height: number } {
   const { width, height } = computeLayout(vm);
   return { width, height };
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 interface DomainEntityShapeProps {
   viewModel: DomainEntityViewModel;
@@ -112,6 +93,8 @@ export default function DomainEntityShape({
   const colors = resolveDomainEntityColors();
   const headerBg = vm.colorOverride ?? colors.headerBg;
   const border = vm.colorOverride ?? colors.border;
+  const borderW = vm.borderWidthOverride ?? BORDER_W;
+  const borderDashArr = borderDash(vm.borderStyleOverride, borderW);
   const layout = useMemo(() => computeLayout(vm), [vm]);
   const { width: W, height: H } = layout;
 
@@ -141,18 +124,17 @@ export default function DomainEntityShape({
         onContextMenu?.(e, vm.id);
       }}
     >
-      {/* ── Outer rect ──────────────────────────────────────────────────────── */}
       <Rect
         width={W}
         height={H}
         fill={colors.bg}
         stroke={border}
-        strokeWidth={BORDER_W}
+        strokeWidth={borderW}
+        dash={borderDashArr}
         cornerRadius={RADIUS}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Header background ────────────────────────────────────────────────── */}
       <Rect
         width={W}
         height={layout.headerH}
@@ -161,7 +143,6 @@ export default function DomainEntityShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Entity name ──────────────────────────────────────────────────────── */}
       <Text
         x={H_PAD}
         y={layout.nameY + 3}
@@ -176,7 +157,6 @@ export default function DomainEntityShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Header / attributes separator ───────────────────────────────────── */}
       <Line
         points={[0, layout.separatorY, W, layout.separatorY]}
         stroke={border}
@@ -184,7 +164,6 @@ export default function DomainEntityShape({
         listening={false}
       />
 
-      {/* ── Attribute rows ───────────────────────────────────────────────────── */}
       {vm.attributes.map((attr, i) => (
         <Text
           key={attr.id}
@@ -200,7 +179,6 @@ export default function DomainEntityShape({
         />
       ))}
 
-      {/* ── Selection outline ────────────────────────────────────────────────── */}
       {selected && (
         <Rect
           x={-1}

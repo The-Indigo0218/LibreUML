@@ -38,6 +38,7 @@ import type { InlineEdgePanelProps } from './overlays/InlineEdgePanel';
 import type { InlineClassPanelProps } from './overlays/InlineClassPanel';
 import type { InlineUseCasePanelProps } from './overlays/InlineUseCasePanel';
 import type { InlineDomainPanelProps } from './overlays/InlineDomainPanel';
+import type { InlineActorPanelProps } from './overlays/InlineActorPanel';
 import { worldToScreen } from './engine/projection';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
 import { useWorkspaceStore } from '../store/workspace.store';
@@ -911,6 +912,10 @@ export default function KonvaCanvas() {
   const openInlineDomainPanel = useUiStore((s) => s.openInlineDomainPanel);
   const closeInlineDomainPanel = useUiStore((s) => s.closeInlineDomainPanel);
 
+  const inlineActorPanelId = useUiStore((s) => s.inlineActorPanelId);
+  const openInlineActorPanel = useUiStore((s) => s.openInlineActorPanel);
+  const closeInlineActorPanel = useUiStore((s) => s.closeInlineActorPanel);
+
   // Active model (standalone localModel vs global) — used to tell a class node
   // (inline panel) from interfaces/enums (full modal) and to resolve the panel.
   const globalModel = useModelStore((s) => s.model);
@@ -1619,12 +1624,11 @@ export default function KonvaCanvas() {
           onClick: () => openInlineDomainPanel(entId),
         });
       } else if (isActorViewModel(shape.data)) {
-        // Actors keep their props modal (name + type — no inline panel yet).
-        const vm = shape.data;
+        const actorId = shape.data.domainId;
         actions.push({
           icon: 'edit',
           label: t('selectionToolbar.editProps'),
-          onClick: () => vm.onOpenProps?.(),
+          onClick: () => openInlineActorPanel(actorId),
         });
       }
       // ── Color / format painter — for nodes that render a color override ───────
@@ -1643,26 +1647,22 @@ export default function KonvaCanvas() {
           swatches: NODE_COLOR_SWATCHES,
           onPickColor: (color) => vfsController.applyNodeStyle([toolbarTarget.id], { color }),
         });
-        // Border width / line style — box shapes (class / package) only, where it reads cleanly.
-        const boxStyleable = isNodeViewModel(shape.data) || isPackageViewModel(shape.data);
-        if (boxStyleable) {
-          const vn = vfsController.diagramView?.nodes.find((n) => n.id === toolbarTarget.id);
-          actions.push({
-            icon: 'border',
-            label: t('selectionToolbar.border'),
-            onClick: () => {},
-            border: { width: vn?.borderWidth ?? 2, style: vn?.borderStyle ?? 'solid' },
-            borderWidths: NODE_BORDER_WIDTHS,
-            onPickBorderWidth: (width) => vfsController.applyNodeStyle([toolbarTarget.id], { borderWidth: width }),
-            onPickBorderStyle: (style) => vfsController.applyNodeStyle([toolbarTarget.id], { borderStyle: style }),
-            onClearBorder: () => vfsController.applyNodeStyle([toolbarTarget.id], { borderWidth: null, borderStyle: null }),
-            borderStyleLabels: {
-              solid: t('selectionToolbar.borderSolid'),
-              dashed: t('selectionToolbar.borderDashed'),
-              dotted: t('selectionToolbar.borderDotted'),
-            },
-          });
-        }
+        const vnBorder = vfsController.diagramView?.nodes.find((n) => n.id === toolbarTarget.id);
+        actions.push({
+          icon: 'border',
+          label: t('selectionToolbar.border'),
+          onClick: () => {},
+          border: { width: vnBorder?.borderWidth ?? 2, style: vnBorder?.borderStyle ?? 'solid' },
+          borderWidths: NODE_BORDER_WIDTHS,
+          onPickBorderWidth: (width) => vfsController.applyNodeStyle([toolbarTarget.id], { borderWidth: width }),
+          onPickBorderStyle: (style) => vfsController.applyNodeStyle([toolbarTarget.id], { borderStyle: style }),
+          onClearBorder: () => vfsController.applyNodeStyle([toolbarTarget.id], { borderWidth: null, borderStyle: null }),
+          borderStyleLabels: {
+            solid: t('selectionToolbar.borderSolid'),
+            dashed: t('selectionToolbar.borderDashed'),
+            dotted: t('selectionToolbar.borderDotted'),
+          },
+        });
         actions.push({
           icon: 'copyStyle',
           label: t('selectionToolbar.copyStyle'),
@@ -1738,7 +1738,7 @@ export default function KonvaCanvas() {
       },
       { icon: 'delete', label: t('selectionToolbar.delete'), danger: true, onClick: () => vfsController.deleteEdgeById(toolbarTarget.id) },
     ];
-  }, [toolbarTarget, shapes, edges, activeModel, vfsController, openSSoTClassEditor, openVfsEdgeAction, openInlineEdgePanel, openInlineClassPanel, openInlineUseCasePanel, openInlineDomainPanel, buildAnchorSnapshot, copiedStyle, t]);
+  }, [toolbarTarget, shapes, edges, activeModel, vfsController, openSSoTClassEditor, openVfsEdgeAction, openInlineEdgePanel, openInlineClassPanel, openInlineUseCasePanel, openInlineDomainPanel, openInlineActorPanel, buildAnchorSnapshot, copiedStyle, t]);
 
   const selectionToolbar = toolbarPos && toolbarActions.length > 0
     ? { x: toolbarPos.x, y: toolbarPos.y, actions: toolbarActions }
@@ -1825,6 +1825,21 @@ export default function KonvaCanvas() {
       onClose: closeInlineDomainPanel,
     };
   }, [inlineDomainPanelId, activeModel, closeInlineDomainPanel]);
+
+  useEffect(() => {
+    if (!inlineActorPanelId) return;
+    const vn = vfsController.diagramView?.nodes.find((n) => n.elementId === inlineActorPanelId);
+    if (!vn || !selectedIds.has(vn.id)) closeInlineActorPanel();
+  }, [inlineActorPanelId, selectedIds, vfsController.diagramView, closeInlineActorPanel]);
+
+  const inlineActorPanel = useMemo<InlineActorPanelProps | null>(() => {
+    if (!inlineActorPanelId || !activeModel?.actors[inlineActorPanelId]) return null;
+    return {
+      elementId: inlineActorPanelId,
+      onAdvanced: () => { closeInlineActorPanel(); useUiStore.getState().openActorProps(inlineActorPanelId); },
+      onClose: closeInlineActorPanel,
+    };
+  }, [inlineActorPanelId, activeModel, closeInlineActorPanel]);
 
   return (
     <div
@@ -2175,6 +2190,7 @@ export default function KonvaCanvas() {
         inlineClassPanel={inlineClassPanel}
         inlineUseCasePanel={inlineUseCasePanel}
         inlineDomainPanel={inlineDomainPanel}
+        inlineActorPanel={inlineActorPanel}
         relationPicker={relationPickerOverlay}
         nodeTypePicker={nodeTypePickerOverlay}
       />

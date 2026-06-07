@@ -1706,7 +1706,6 @@ export default function KonvaCanvas() {
           curved: t('selectionToolbar.routingCurved'),
         },
       },
-      // Per-edge color + line width/style overrides.
       {
         icon: 'color',
         label: t('selectionToolbar.color'),
@@ -1729,6 +1728,26 @@ export default function KonvaCanvas() {
           dotted: t('selectionToolbar.borderDotted'),
         },
       },
+      {
+        icon: 'copyStyle',
+        label: t('selectionToolbar.copyStyle'),
+        onClick: () => useFormatPainterStore.getState().copyStyle({
+          color: selEdge?.color ?? null,
+          borderWidth: selEdge?.lineWidth ?? null,
+          borderStyle: selEdge?.lineStyle ?? null,
+        }),
+      },
+      ...(copiedStyle
+        ? [{
+            icon: 'pasteStyle' as const,
+            label: t('selectionToolbar.pasteStyle'),
+            onClick: () => vfsController.updateEdgeStyle(toolbarTarget.id, {
+              color: copiedStyle.color,
+              lineWidth: copiedStyle.borderWidth,
+              lineStyle: copiedStyle.borderStyle,
+            }),
+          }]
+        : []),
       {
         icon: 'properties',
         label: t('selectionToolbar.properties'),

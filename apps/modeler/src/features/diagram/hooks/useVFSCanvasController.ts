@@ -80,10 +80,12 @@ export interface VFSCanvasEdge {
   waypoints?: { x: number; y: number }[];
   /** Line routing style. Undefined = 'straight'. */
   routingMode?: EdgeRoutingMode;
-  /** Per-edge style overrides: color / line width / line style. */
+  /** Per-edge style overrides: color / line width / line style / font. */
   color?: string;
   lineWidth?: number;
   lineStyle?: NodeBorderStyle;
+  fontFamily?: string;
+  fontSize?: number;
   style?: CSSProperties;
   data: {
     domainId: string;
@@ -373,7 +375,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
   // ── Delegate to extracted hooks ───────────────────────────────────────────
 
-  const eventHandlers = useCanvasEventHandlers({ activeTabId, isStandalone, updateFileContent });
+  const eventHandlers = useCanvasEventHandlers({ activeTabId, isStandalone });
   const nodeActions = useNodeActions({ activeTabId, isStandalone, updateFileContent });
   const edgeActions = useEdgeActions({ activeTabId, isStandalone, updateFileContent });
 

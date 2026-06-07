@@ -219,6 +219,8 @@ export interface IRClass extends IRElement {
   isFinal?: boolean;
   isActive?: boolean;
   isExternal?: boolean;
+  /** Generic type parameters, stored with angle brackets (e.g. "<T>"). */
+  generics?: string;
 }
 
 export interface IRInterface extends IRElement {
@@ -229,6 +231,8 @@ export interface IRInterface extends IRElement {
   attributeIds?: string[];
   operationIds: string[];
   isExternal?: boolean;
+  /** Generic type parameters, stored with angle brackets (e.g. "<T>"). */
+  generics?: string;
 }
 
 export interface IREnumLiteral {

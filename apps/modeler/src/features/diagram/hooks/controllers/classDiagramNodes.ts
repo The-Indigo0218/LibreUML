@@ -261,7 +261,7 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
           case 'ABSTRACT_CLASS':
             ops.updateClass(viewNode.elementId, {
               name,
-              ...(generics !== undefined ? { stereotypes: [generics] } : {}),
+              ...(generics !== undefined ? { generics } : {}),
             });
             break;
           case 'INTERFACE':
@@ -279,7 +279,7 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
           case 'ABSTRACT_CLASS':
             ms.updateClass(viewNode.elementId, {
               name,
-              ...(generics !== undefined ? { stereotypes: [generics] } : {}),
+              ...(generics !== undefined ? { generics } : {}),
             });
             break;
           case 'INTERFACE':

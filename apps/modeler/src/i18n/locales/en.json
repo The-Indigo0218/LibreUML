@@ -1046,6 +1046,8 @@
     "addOperation": "Add operation…",
     "literals": "Literals",
     "addLiteral": "Add literal…",
+    "stereotypes": "Stereotypes",
+    "addStereotype": "Add stereotype…",
     "parameters": "Parameters",
     "addParameter": "Add parameter…",
     "paramName": "param",

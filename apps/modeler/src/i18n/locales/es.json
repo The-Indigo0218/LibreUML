@@ -1055,6 +1055,8 @@
     "addOperation": "Añadir operación…",
     "literals": "Literales",
     "addLiteral": "Añadir literal…",
+    "stereotypes": "Estereotipos",
+    "addStereotype": "Añadir estereotipo…",
     "parameters": "Parámetros",
     "addParameter": "Añadir parámetro…",
     "paramName": "parám",

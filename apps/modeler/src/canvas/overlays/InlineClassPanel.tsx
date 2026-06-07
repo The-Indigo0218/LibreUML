@@ -16,6 +16,7 @@ import type {
   IREnumLiteral,
   Visibility,
 } from '../../core/domain/vfs/vfs.types';
+import { realStereotypes, isGenericToken } from '../../util/classifierGenerics';
 
 const VIS_SYMBOL: Record<Visibility, string> = {
   public: '+',
@@ -247,6 +248,56 @@ export default function InlineClassPanel({ elementId, onAdvanced, onClose }: Inl
     );
   };
 
+  const renderStereotypes = () => {
+    const readStereos = (): string[] => {
+      const m = freshModel();
+      const c = m?.classes[elementId] ?? m?.interfaces[elementId] ?? m?.enums[elementId];
+      return c ? realStereotypes(c) : [];
+    };
+    const commit = (list: string[]) => {
+      const m = freshModel();
+      const c = m?.classes[elementId] ?? m?.interfaces[elementId] ?? m?.enums[elementId];
+      if (cls || iface) {
+        const patch: { stereotypes: string[]; generics?: string } = { stereotypes: list };
+        if (!(c && 'generics' in c && c.generics)) {
+          const legacy = (c?.stereotypes ?? []).find(isGenericToken);
+          if (legacy) patch.generics = legacy;
+        }
+        if (cls) ops.updateClass(elementId, patch);
+        else ops.updateInterface(elementId, patch);
+      } else {
+        ops.updateEnum(elementId, { stereotypes: list });
+      }
+    };
+    const add = (raw: string) => {
+      const n = raw.trim().replace(/^«+|»+$/g, '').trim();
+      if (!n || readStereos().includes(n)) return;
+      commit([...readStereos(), n]);
+    };
+    const del = (s: string) => commit(readStereos().filter((x) => x !== s));
+
+    const list = readStereos();
+    return (
+      <section className="space-y-1.5 border-t border-surface-border/50 pt-3">
+        <div className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">{t('inlineClassPanel.stereotypes')}</div>
+        {list.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1">
+            {list.map((s) => (
+              <span key={s} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-secondary border border-surface-border text-xs text-text-secondary font-mono">
+                «{s}»
+                <button className={delBtnCls} title={t('inlineClassPanel.remove')} onClick={() => del(s)}><X className="w-3 h-3" /></button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-1">
+          <Plus className="w-3.5 h-3.5 text-text-muted shrink-0" />
+          <input placeholder={t('inlineClassPanel.addStereotype')} onKeyDown={onAddKey(add)} onBlur={(e) => { add(e.target.value); e.target.value = ''; }} className={`${fieldCls} flex-1`} />
+        </div>
+      </section>
+    );
+  };
+
   return (
     <div
       className="absolute right-4 top-16 z-30 pointer-events-auto w-80 max-h-[80vh] overflow-y-auto custom-scrollbar
@@ -287,6 +338,7 @@ export default function InlineClassPanel({ elementId, onAdvanced, onClose }: Inl
 
       <div className="p-3 space-y-3">
         {enm ? renderLiterals() : renderMembers()}
+        {renderStereotypes()}
 
         {/* Footer */}
         <div className="border-t border-surface-border/50 pt-3">

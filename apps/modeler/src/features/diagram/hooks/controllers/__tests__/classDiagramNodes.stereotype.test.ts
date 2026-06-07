@@ -64,3 +64,29 @@ describe('buildClassDiagramNodes — user stereotypes on the node', () => {
     expect(vm.style.showStereotype).toBe(false);
   });
 });
+
+describe('buildClassDiagramNodes — generics on the node', () => {
+  it('exposes the generic from the dedicated field as a sublabel', () => {
+    const vm = buildOne(
+      { id: 'el-1', name: 'Box', kind: 'CLASS', isAbstract: false, attributeIds: [], operationIds: [], generics: '<T>' },
+      'classes',
+    );
+    expect(vm.sublabel).toBe('<T>');
+  });
+
+  it('falls back to a legacy generic token in stereotypes (backward-compat)', () => {
+    const vm = buildOne(
+      { id: 'el-1', name: 'Pair', kind: 'CLASS', isAbstract: false, attributeIds: [], operationIds: [], stereotypes: ['<K, V>'] },
+      'classes',
+    );
+    expect(vm.sublabel).toBe('<K, V>');
+  });
+
+  it('does not assign a sublabel to enums', () => {
+    const vm = buildOne(
+      { id: 'el-1', name: 'Status', kind: 'ENUM', literals: [], generics: '<T>' },
+      'enums',
+    );
+    expect(vm.sublabel).toBeUndefined();
+  });
+});

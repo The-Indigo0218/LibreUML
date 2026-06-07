@@ -49,6 +49,9 @@ export interface EdgeDescriptor {
   color?: string;
   lineWidth?: number;
   lineStyle?: NodeBorderStyle;
+  /** Per-edge label font overrides. */
+  fontFamily?: string;
+  fontSize?: number;
 }
 
 // ─── Change types ─────────────────────────────────────────────────────────────

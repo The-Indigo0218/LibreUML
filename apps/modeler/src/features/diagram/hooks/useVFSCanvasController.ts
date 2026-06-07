@@ -351,6 +351,8 @@ export function useVFSCanvasController(): VFSCanvasResult {
         color: viewEdge.color,
         lineWidth: viewEdge.lineWidth,
         lineStyle: viewEdge.lineStyle,
+        fontFamily: viewEdge.fontFamily,
+        fontSize: viewEdge.fontSize,
         data: {
           domainId: relation.id,
           kind: relation.kind,

@@ -106,6 +106,10 @@ export interface ViewEdge {
   lineWidth?: number;
   /** Per-edge line style override. Undefined = kind default. */
   lineStyle?: NodeBorderStyle;
+  /** Per-edge label font family override. Undefined = default. */
+  fontFamily?: string;
+  /** Per-edge label font size override (px). Undefined = default (11px). */
+  fontSize?: number;
 }
 
 export interface DiagramView {

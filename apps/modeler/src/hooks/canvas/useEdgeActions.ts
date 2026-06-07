@@ -20,6 +20,8 @@ export interface EdgeStylePatch {
   color?: string | null;
   lineWidth?: number | null;
   lineStyle?: NodeBorderStyle | null;
+  fontFamily?: string | null;
+  fontSize?: number | null;
 }
 
 export interface UseEdgeActionsParams {
@@ -274,6 +276,14 @@ export function useEdgeActions({
         if ('lineStyle' in style) {
           if (style.lineStyle == null) delete ve.lineStyle;
           else ve.lineStyle = style.lineStyle;
+        }
+        if ('fontFamily' in style) {
+          if (style.fontFamily == null) delete ve.fontFamily;
+          else ve.fontFamily = style.fontFamily;
+        }
+        if ('fontSize' in style) {
+          if (style.fontSize == null) delete ve.fontSize;
+          else ve.fontSize = style.fontSize;
         }
       });
     },

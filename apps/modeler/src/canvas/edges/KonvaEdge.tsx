@@ -288,6 +288,10 @@ export interface KonvaEdgeProps {
   lineWidthOverride?: number;
   /** Per-edge line style override. Undefined = kind default (solid/dashed). */
   lineStyleOverride?: NodeBorderStyle;
+  /** Per-edge label font family override. Undefined = Konva default. */
+  fontFamilyOverride?: string;
+  /** Per-edge label font size override (px). Undefined = default (11px). */
+  fontSizeOverride?: number;
   /**
    * Bounding boxes of nodes that the edge should route around.
    * Must exclude the source and target nodes themselves.
@@ -366,6 +370,8 @@ export default function KonvaEdge({
   colorOverride,
   lineWidthOverride,
   lineStyleOverride,
+  fontFamilyOverride,
+  fontSizeOverride,
   obstacles,
   sourceMultiplicity,
   targetMultiplicity,
@@ -572,7 +578,11 @@ export default function KonvaEdge({
 
   const multStyle      = isHighlighted ? 'bold' : 'normal';
   const roleStyle      = isHighlighted ? 'bold italic' : 'italic';
-  const labelSize      = 11;
+  // Per-edge label font override: size scales the base 11px (offsets follow);
+  // family is undefined → Konva default unless the user picks one.
+  const labelScale     = (fontSizeOverride ?? 11) / 11;
+  const labelSize      = 11 * labelScale;
+  const labelFamily    = fontFamilyOverride;
   const kindLabel      = formatKindLabel(kind);
   const labelTextColor = getLabelTextColor();
   const labelBgFill    = getLabelBg();
@@ -674,7 +684,7 @@ export default function KonvaEdge({
             <Label
               x={labelPositions.sourceMultX}
               y={labelPositions.sourceMultY}
-              offsetX={Math.round(sourceMultiplicity.length * 3.2 + labelPad)}
+              offsetX={Math.round(sourceMultiplicity.length * 3.2 * labelScale + labelPad)}
               offsetY={Math.round((labelSize + labelPad * 2) / 2)}
             >
               <Tag
@@ -686,6 +696,7 @@ export default function KonvaEdge({
               <Text
                 text={sourceMultiplicity}
                 fontSize={labelSize}
+                fontFamily={labelFamily}
                 fontStyle={multStyle}
                 fill={labelTextColor}
                 padding={labelPad}
@@ -699,7 +710,7 @@ export default function KonvaEdge({
             <Label
               x={labelPositions.sourceRoleX}
               y={labelPositions.sourceRoleY}
-              offsetX={Math.round(sourceRole.length * 3.2 + labelPad)}
+              offsetX={Math.round(sourceRole.length * 3.2 * labelScale + labelPad)}
               offsetY={Math.round((labelSize + labelPad * 2) / 2)}
             >
               <Tag
@@ -711,6 +722,7 @@ export default function KonvaEdge({
               <Text
                 text={sourceRole}
                 fontSize={labelSize}
+                fontFamily={labelFamily}
                 fontStyle={roleStyle}
                 fill={labelTextColor}
                 padding={labelPad}
@@ -724,7 +736,7 @@ export default function KonvaEdge({
             <Label
               x={labelPositions.targetMultX}
               y={labelPositions.targetMultY}
-              offsetX={Math.round(targetMultiplicity.length * 3.2 + labelPad)}
+              offsetX={Math.round(targetMultiplicity.length * 3.2 * labelScale + labelPad)}
               offsetY={Math.round((labelSize + labelPad * 2) / 2)}
             >
               <Tag
@@ -736,6 +748,7 @@ export default function KonvaEdge({
               <Text
                 text={targetMultiplicity}
                 fontSize={labelSize}
+                fontFamily={labelFamily}
                 fontStyle={multStyle}
                 fill={labelTextColor}
                 padding={labelPad}
@@ -749,7 +762,7 @@ export default function KonvaEdge({
             <Label
               x={labelPositions.targetRoleX}
               y={labelPositions.targetRoleY}
-              offsetX={Math.round(targetRole.length * 3.2 + labelPad)}
+              offsetX={Math.round(targetRole.length * 3.2 * labelScale + labelPad)}
               offsetY={Math.round((labelSize + labelPad * 2) / 2)}
             >
               <Tag
@@ -761,6 +774,7 @@ export default function KonvaEdge({
               <Text
                 text={targetRole}
                 fontSize={labelSize}
+                fontFamily={labelFamily}
                 fontStyle={roleStyle}
                 fill={labelTextColor}
                 padding={labelPad}
@@ -800,7 +814,7 @@ export default function KonvaEdge({
             <Label
               x={labelPositions.centerX}
               y={labelPositions.centerY}
-              offsetX={Math.round(label.length * 3.3 + labelPad)}
+              offsetX={Math.round(label.length * 3.3 * labelScale + labelPad)}
               offsetY={Math.round((labelSize + labelPad * 2) / 2)}
               onDblClick={() => onDblClick?.(id)}
             >
@@ -813,6 +827,7 @@ export default function KonvaEdge({
               <Text
                 text={label}
                 fontSize={labelSize}
+                fontFamily={labelFamily}
                 fontStyle="italic"
                 fill={labelTextColor}
                 padding={labelPad}

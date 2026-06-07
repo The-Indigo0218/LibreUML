@@ -1774,14 +1774,25 @@ export default function KonvaCanvas() {
         },
       },
       {
+        icon: 'font',
+        label: t('selectionToolbar.font'),
+        onClick: () => {},
+        font: { family: selEdge?.fontFamily ?? NODE_FONT_FAMILIES[0].value, size: selEdge?.fontSize ?? 0 },
+        fontFamilies: NODE_FONT_FAMILIES,
+        fontSizes: NODE_FONT_SIZES,
+        onPickFontFamily: (family) => vfsController.updateEdgeStyle(toolbarTarget.id, { fontFamily: family }),
+        onPickFontSize: (size) => vfsController.updateEdgeStyle(toolbarTarget.id, { fontSize: size }),
+        onClearFont: () => vfsController.updateEdgeStyle(toolbarTarget.id, { fontFamily: null, fontSize: null }),
+      },
+      {
         icon: 'copyStyle',
         label: t('selectionToolbar.copyStyle'),
         onClick: () => useFormatPainterStore.getState().copyStyle({
           color: selEdge?.color ?? null,
           borderWidth: selEdge?.lineWidth ?? null,
           borderStyle: selEdge?.lineStyle ?? null,
-          fontFamily: null,
-          fontSize: null,
+          fontFamily: selEdge?.fontFamily ?? null,
+          fontSize: selEdge?.fontSize ?? null,
         }),
       },
       ...(copiedStyle
@@ -1792,6 +1803,8 @@ export default function KonvaCanvas() {
               color: copiedStyle.color,
               lineWidth: copiedStyle.borderWidth,
               lineStyle: copiedStyle.borderStyle,
+              fontFamily: copiedStyle.fontFamily,
+              fontSize: copiedStyle.fontSize,
             }),
           }]
         : []),
@@ -2098,6 +2111,8 @@ export default function KonvaCanvas() {
                 colorOverride={edge.color}
                 lineWidthOverride={edge.lineWidth}
                 lineStyleOverride={edge.lineStyle}
+                fontFamilyOverride={edge.fontFamily}
+                fontSizeOverride={edge.fontSize}
                 isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
@@ -2227,6 +2242,8 @@ export default function KonvaCanvas() {
                 colorOverride={edge.color}
                 lineWidthOverride={edge.lineWidth}
                 lineStyleOverride={edge.lineStyle}
+                fontFamilyOverride={edge.fontFamily}
+                fontSizeOverride={edge.fontSize}
                 label={edge.label}
                 sourceMultiplicity={edge.sourceMultiplicity}
                 targetMultiplicity={edge.targetMultiplicity}

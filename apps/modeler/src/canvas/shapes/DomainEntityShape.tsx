@@ -71,6 +71,10 @@ export function getDomainEntityShapeSize(vm: DomainEntityViewModel): { width: nu
   return { width, height };
 }
 
+export function computeDomainEntityLayout(vm: DomainEntityViewModel): DomainEntityLayout {
+  return computeLayout(vm);
+}
+
 interface DomainEntityShapeProps {
   viewModel: DomainEntityViewModel;
   x: number;

@@ -20,8 +20,12 @@ const NOTE_LINE_H = 1.5;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const FONT_MONO = '"Fira Code", monospace';
 
-function noteScale(vm: NoteViewModel): number {
+export function noteScale(vm: NoteViewModel): number {
   return (vm.fontSizeOverride ?? NOTE_TITLE_FONT) / NOTE_TITLE_FONT;
+}
+
+export function noteFontFamily(vm: NoteViewModel): string {
+  return vm.fontFamilyOverride ?? FONT_SANS;
 }
 
 function estimateNoteHeight(content: string, title: string | undefined, secFont: number, titleBarH: number): number {

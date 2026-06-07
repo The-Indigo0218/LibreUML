@@ -20,7 +20,7 @@ const STROKE_W = 1.5;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const H_PAD = 8;
 
-function actorFont(vm: ActorViewModel): { fontSans: string; nameFont: number; nameH: number } {
+export function actorFont(vm: ActorViewModel): { fontSans: string; nameFont: number; nameH: number } {
   const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
   const scale = (vm.fontSizeOverride ?? NAME_FONT) / NAME_FONT;
   return { fontSans, nameFont: NAME_FONT * scale, nameH: NAME_H * scale };

@@ -18,7 +18,7 @@ const FONT_MONO = '"Fira Code", monospace';
 const H_PAD = 16;
 const SPEC_DOT_R = 4;
 
-function ucMetrics(vm: UseCaseViewModel) {
+export function ucMetrics(vm: UseCaseViewModel) {
   const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
   const scale = (vm.fontSizeOverride ?? NAME_FONT) / NAME_FONT;
   return {

@@ -26,6 +26,8 @@ export interface NodeStylePatch {
   color?: string | null;
   borderWidth?: number | null;
   borderStyle?: NodeBorderStyle | null;
+  fontFamily?: string | null;
+  fontSize?: number | null;
 }
 
 function cascadeDeleteRelations(model: SemanticModel, elementId: string) {
@@ -461,6 +463,14 @@ export function useNodeActions({
           if ('borderStyle' in style) {
             if (style.borderStyle == null) delete vn.borderStyle;
             else vn.borderStyle = style.borderStyle;
+          }
+          if ('fontFamily' in style) {
+            if (style.fontFamily == null) delete vn.fontFamily;
+            else vn.fontFamily = style.fontFamily;
+          }
+          if ('fontSize' in style) {
+            if (style.fontSize == null) delete vn.fontSize;
+            else vn.fontSize = style.fontSize;
           }
         }
       });

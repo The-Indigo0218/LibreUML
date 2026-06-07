@@ -1,30 +1,13 @@
-/**
- * SelectionToolbar — floating contextual action bar for the selected element.
- *
- * A small HTML bar anchored to the selection's bounding box (a node's top-center
- * or an edge's midpoint), floating over the Konva <Stage>. It shows only the
- * actions relevant to the selected element type and applies them live.
- *
- * Positioning is computed by the parent (KonvaCanvas) via worldToScreen and
- * passed as screen-space (container) pixels. The bar anchors to the bounding box
- * — it does NOT follow the cursor (deliberate: avoids jitter, per the UX brief).
- *
- * Mounted inside CanvasOverlay (pointer-events: none container) and opts back
- * into pointer-events so its buttons are clickable.
- */
-
 import { useState } from 'react';
-import { Pencil, Copy, Trash2, ArrowLeftRight, Settings2, Palette, Paintbrush, PaintBucket, Ban, Minus, Spline, Waypoints, SquareDashed } from 'lucide-react';
+import { Pencil, Copy, Trash2, ArrowLeftRight, Settings2, Palette, Paintbrush, PaintBucket, Ban, Minus, Spline, Waypoints, SquareDashed, Type } from 'lucide-react';
 import type { EdgeRoutingMode, NodeBorderStyle } from '../../core/domain/vfs/vfs.types';
 
 export type ToolbarIcon =
   | 'edit' | 'duplicate' | 'delete' | 'reverse' | 'properties'
-  | 'color' | 'copyStyle' | 'pasteStyle' | 'routing' | 'border';
+  | 'color' | 'copyStyle' | 'pasteStyle' | 'routing' | 'border' | 'font';
 
-/** Border line styles offered in the border popover. */
 const BORDER_STYLE_OPTIONS: NodeBorderStyle[] = ['solid', 'dashed', 'dotted'];
 
-/** Icon + label for each routing mode, shown in the routing popover. */
 const ROUTING_OPTIONS: { mode: EdgeRoutingMode; Icon: typeof Minus; key: string }[] = [
   { mode: 'straight',   Icon: Minus,     key: 'straight' },
   { mode: 'orthogonal', Icon: Waypoints, key: 'orthogonal' },
@@ -33,40 +16,29 @@ const ROUTING_OPTIONS: { mode: EdgeRoutingMode; Icon: typeof Minus; key: string 
 
 export interface ToolbarAction {
   icon: ToolbarIcon;
-  /** Accessible label / tooltip. */
   label: string;
   onClick: () => void;
-  /** Renders in a destructive (red) style. */
   danger?: boolean;
-  /**
-   * When set, clicking the button opens a color-swatch popover instead of firing
-   * onClick. Picking a swatch calls onPickColor (null = clear).
-   */
   swatches?: string[];
   onPickColor?: (color: string | null) => void;
-  /**
-   * When set, the button opens a routing-mode popover (straight/orthogonal/curved).
-   * The trigger icon reflects the current mode; picking an option calls onPickRouting.
-   */
   routing?: EdgeRoutingMode;
   onPickRouting?: (mode: EdgeRoutingMode) => void;
-  /** Per-option tooltip labels for the routing popover, keyed by mode. */
   routingLabels?: Partial<Record<EdgeRoutingMode, string>>;
-  /**
-   * When set, the button opens a border popover: a row of widths + a row of line
-   * styles. `border` holds the node's current values to highlight the active
-   * option.
-   */
   border?: { width: number; style: NodeBorderStyle };
   borderWidths?: number[];
   onPickBorderWidth?: (w: number) => void;
   onPickBorderStyle?: (s: NodeBorderStyle) => void;
   onClearBorder?: () => void;
   borderStyleLabels?: Partial<Record<NodeBorderStyle, string>>;
+  font?: { family: string; size: number };
+  fontFamilies?: { label: string; value: string }[];
+  fontSizes?: number[];
+  onPickFontFamily?: (family: string) => void;
+  onPickFontSize?: (size: number) => void;
+  onClearFont?: () => void;
 }
 
 export interface SelectionToolbarProps {
-  /** Screen-space (container px) anchor — typically the top-center of the selection. */
   x: number;
   y: number;
   actions: ToolbarAction[];
@@ -83,10 +55,10 @@ const ICONS: Record<ToolbarIcon, typeof Pencil> = {
   pasteStyle: PaintBucket,
   routing: Spline,
   border: SquareDashed,
+  font: Type,
 };
 
 export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProps) {
-  // Index of the action whose popover (color swatches or routing modes) is open, or null.
   const [openSwatch, setOpenSwatch] = useState<number | null>(null);
 
   if (actions.length === 0) return null;
@@ -100,10 +72,8 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
       style={{
         left: `${x}px`,
         top: `${y}px`,
-        // Center horizontally on the anchor and sit just above it.
         transform: 'translate(-50%, calc(-100% - 10px))',
       }}
-      // Don't let clicks on the bar bubble to the stage (would clear selection).
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
@@ -112,11 +82,10 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
                    bg-surface-primary/95 shadow-xl backdrop-blur-sm"
       >
         {actions.map((action, i) => {
-          // Routing buttons show the icon of the current mode; others use the static map.
           const Icon = action.routing
             ? (ROUTING_OPTIONS.find((o) => o.mode === action.routing)?.Icon ?? ICONS.routing)
             : ICONS[action.icon];
-          const isPopover = !!action.swatches || !!action.onPickRouting || !!action.onPickBorderWidth;
+          const isPopover = !!action.swatches || !!action.onPickRouting || !!action.onPickBorderWidth || !!action.onPickFontFamily;
           return (
             <button
               key={i}
@@ -136,7 +105,6 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
         })}
       </div>
 
-      {/* Routing-mode popover (straight / orthogonal / curved) */}
       {swatchAction?.onPickRouting && (
         <div
           className="mt-1.5 flex items-center gap-0.5 px-1 py-1 rounded-lg border border-surface-border
@@ -162,7 +130,6 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
         </div>
       )}
 
-      {/* Color-swatch popover */}
       {swatchAction?.swatches && (
         <div
           className="mt-1.5 flex items-center gap-1 px-1.5 py-1.5 rounded-lg border border-surface-border
@@ -178,7 +145,6 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
               style={{ backgroundColor: c }}
             />
           ))}
-          {/* Clear color */}
           <button
             title="—"
             aria-label="clear color"
@@ -191,7 +157,6 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
         </div>
       )}
 
-      {/* Border popover: width row + line-style row */}
       {swatchAction?.onPickBorderWidth && (
         <div
           className="mt-1.5 flex flex-col gap-1.5 px-1.5 py-1.5 rounded-lg border border-surface-border
@@ -230,11 +195,61 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
                 </button>
               );
             })}
-            {/* Reset border to shape default */}
             <button
               title="—"
               aria-label="clear border"
               onClick={() => { swatchAction.onClearBorder?.(); setOpenSwatch(null); }}
+              className="flex items-center justify-center w-8 h-7 rounded-md text-text-muted hover:bg-surface-hover"
+            >
+              <Ban className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {swatchAction?.onPickFontFamily && (
+        <div
+          className="mt-1.5 flex flex-col gap-1.5 px-1.5 py-1.5 rounded-lg border border-surface-border
+                     bg-surface-primary/97 shadow-xl backdrop-blur-sm text-text-secondary w-44"
+        >
+          <div className="flex flex-col gap-0.5">
+            {(swatchAction.fontFamilies ?? []).map((f) => {
+              const active = swatchAction.font?.family === f.value;
+              return (
+                <button
+                  key={f.value}
+                  title={f.label}
+                  aria-label={f.label}
+                  onClick={() => { swatchAction.onPickFontFamily?.(f.value); }}
+                  style={{ fontFamily: f.value }}
+                  className={`flex items-center px-2 h-7 rounded-md text-xs text-left transition-colors
+                    ${active ? 'bg-surface-hover text-text-primary' : 'hover:bg-surface-hover hover:text-text-primary'}`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1 border-t border-surface-border/60 pt-1.5">
+            {(swatchAction.fontSizes ?? [12, 14, 16, 18]).map((s) => {
+              const active = swatchAction.font?.size === s;
+              return (
+                <button
+                  key={s}
+                  title={`${s}px`}
+                  aria-label={`${s}px`}
+                  onClick={() => { swatchAction.onPickFontSize?.(s); }}
+                  className={`flex items-center justify-center flex-1 h-7 rounded-md text-xs transition-colors
+                    ${active ? 'bg-surface-hover text-text-primary' : 'hover:bg-surface-hover hover:text-text-primary'}`}
+                >
+                  {s}
+                </button>
+              );
+            })}
+            <button
+              title="—"
+              aria-label="clear font"
+              onClick={() => { swatchAction.onClearFont?.(); setOpenSwatch(null); }}
               className="flex items-center justify-center w-8 h-7 rounded-md text-text-muted hover:bg-surface-hover"
             >
               <Ban className="w-3.5 h-3.5" />

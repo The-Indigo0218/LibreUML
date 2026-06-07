@@ -176,6 +176,8 @@ function makeClassNode(
     colorOverride: viewNode.color,
     borderWidthOverride: viewNode.borderWidth,
     borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
     metadata: { onRename },
   };
   return {

@@ -43,6 +43,8 @@ export interface NodeViewModel {
   colorOverride?: string;
   borderWidthOverride?: number;
   borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
 
   metadata?: {
     isMain?: boolean;

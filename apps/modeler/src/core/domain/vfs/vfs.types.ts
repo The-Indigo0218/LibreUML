@@ -61,6 +61,10 @@ export interface ViewNode {
   borderWidth?: number;
   /** Per-node border line style override. Undefined = solid. */
   borderStyle?: NodeBorderStyle;
+  /** Per-node font family override for sans text. Undefined = shape default. */
+  fontFamily?: string;
+  /** Per-node base font size (px) for the node's title; other text scales with it. */
+  fontSize?: number;
   /** Persisted text content for Note nodes (no IR backing element). */
   content?: string;
   /** Persisted title for Note nodes. */

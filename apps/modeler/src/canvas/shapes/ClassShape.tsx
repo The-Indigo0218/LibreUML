@@ -1,34 +1,3 @@
-/**
- * ClassShape — react-konva component for UML class / interface / abstract / enum nodes.
- *
- * Layout (top-to-bottom):
- *   ┌─────────────────────────┐
- *   │  <<stereotype>>         │  ← STEREO_H row (if showStereotype && stereotype)
- *   │  badge text             │  ← BADGE_H row   (if badge)
- *   │  ClassName              │  ← NAME_H  row   (always)
- *   ├─────────────────────────┤
- *   │  + attr1: Type          │  ← ROW_H per item (font-mono)
- *   │  + attr2: Type[]        │
- *   ├─────────────────────────┤
- *   │  + method1(): void      │
- *   └─────────────────────────┘
- *
- * Text measurement:
- *   Width is computed from the longest text string across all rows
- *   (via measureTextWidth, a singleton off-screen canvas) clamped to
- *   [MIN_W, MAX_W].  Height is deterministic arithmetic — each row has a
- *   fixed pixel height, so no second-pass rendering is needed.
- *
- * Interactivity:
- *   `listening={true}` on the Group — click events bubble up to the Group's
- *   onClick which calls the `onNodeClick` callback (wired in KonvaCanvas).
- *   Drag is wired in MAG-01.5.
- *
- * Selection:
- *   When `selected={true}` a cyan (#22d3ee) outline Rect is rendered on top
- *   of all other children, visually highlighting the selected node.
- */
-
 import { useMemo } from 'react';
 import { Group, Rect, Text, Line } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -37,45 +6,48 @@ import { resolveNodeColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
 import { borderDash } from './borderStyle';
 
-// ─── Layout constants (pixel values) ──────────────────────────────────────────
-
 const BORDER_W = 2;
 const RADIUS = 2;
-const H_PAD = 10;       // horizontal text inset on each side
-const HEADER_V_PAD = 8; // header top + bottom padding (matches CSS p-2)
-const SEC_V_PAD = 8;    // section top + bottom padding  (matches CSS p-2)
-const STEREO_FONT = 10; // matches text-[10px] in UmlClassNode
+const H_PAD = 10;
+const HEADER_V_PAD = 8;
+const SEC_V_PAD = 8;
+const STEREO_FONT = 10;
 const BADGE_FONT = 10;
-const NAME_FONT = 14;   // matches text-sm (14px at default root)
-const SEC_FONT = 12;    // matches text-xs (12px)
-const STEREO_H = 14;    // row height for stereotype / badge line
+const NAME_FONT = 14;
+const SEC_FONT = 12;
+const STEREO_H = 14;
 const BADGE_H = 14;
-const NAME_H = 22;      // text-sm at ~1.5× line-height ≈ 21 px, rounded up
-const ROW_H = 20;       // section item: text-xs 12px × 1.625 leading ≈ 20 px
-const MIN_SEC_H = 24;   // min-h-6 = 24px for empty sections
-const MIN_W = 256;      // min-w-[16rem] in UmlClassNode
-const MAX_W = 512;      // max-w-lg = 32rem
+const NAME_H = 22;
+const ROW_H = 20;
+const MIN_SEC_H = 24;
+const MIN_W = 256;
+const MAX_W = 512;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const FONT_MONO = '"Fira Code", monospace';
 
 export interface SectionLayout {
   top: number;
   height: number;
-  itemsY: number; // y of the first item's text baseline area
-  itemOffsets: number[];    // cumulative Y from itemsY for each item
-  itemLineHeights: number[]; // pixel height allocated per item (lineCount * ROW_H)
+  itemsY: number;
+  itemOffsets: number[];
+  itemLineHeights: number[];
 }
 
 export interface ClassLayout {
   width: number;
   height: number;
   headerH: number;
-  stereotypeY: number; // -1 when not shown
-  badgeY: number;      // -1 when not shown
+  stereotypeY: number;
+  badgeY: number;
   nameY: number;
   fontStyle: string;
   separators: number[];
   sections: SectionLayout[];
+  fontSans: string;
+  stereoFont: number;
+  badgeFont: number;
+  nameFont: number;
+  secFont: number;
 }
 
 function parseFontStyle(labelFormat: string): string {
@@ -89,41 +61,50 @@ function parseFontStyle(labelFormat: string): string {
 
 function computeLayout(vm: NodeViewModel): ClassLayout {
   const fontStyle = parseFontStyle(vm.style.labelFormat);
+  const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
+  const scale = (vm.fontSizeOverride ?? NAME_FONT) / NAME_FONT;
+  const stereoFont = STEREO_FONT * scale;
+  const badgeFont = BADGE_FONT * scale;
+  const nameFont = NAME_FONT * scale;
+  const secFont = SEC_FONT * scale;
+  const stereoH = STEREO_H * scale;
+  const badgeH = BADGE_H * scale;
+  const nameH = NAME_H * scale;
+  const rowH = ROW_H * scale;
+  const minSecH = MIN_SEC_H * scale;
+
   const hasStereotype = vm.style.showStereotype && !!vm.stereotype;
   const stereoText = hasStereotype ? `<<${vm.stereotype}>>` : '';
   const nameText = vm.sublabel ? `${vm.label}${vm.sublabel}` : vm.label;
 
-  // ── Width: widest text + padding, clamped ────────────────────────────────
   const candidates: number[] = [
     stereoText
-      ? measureTextWidth(stereoText, `${STEREO_FONT}px ${FONT_MONO}`) + 2 * H_PAD
+      ? measureTextWidth(stereoText, `${stereoFont}px ${FONT_MONO}`) + 2 * H_PAD
       : 0,
     vm.badge
-      ? measureTextWidth(vm.badge, `${BADGE_FONT}px ${FONT_SANS}`) + 2 * H_PAD
+      ? measureTextWidth(vm.badge, `${badgeFont}px ${fontSans}`) + 2 * H_PAD
       : 0,
-    // +20 safety margin for bold-font underestimation and padding
-    measureTextWidth(nameText, `${fontStyle} ${NAME_FONT}px ${FONT_SANS}`) + 2 * H_PAD + 20,
+    measureTextWidth(nameText, `${fontStyle} ${nameFont}px ${fontSans}`) + 2 * H_PAD + 20,
     ...vm.sections.flatMap((s) =>
       s.items.map(
-        (item) => measureTextWidth(item.text, `${SEC_FONT}px ${FONT_MONO}`) + 2 * H_PAD,
+        (item) => measureTextWidth(item.text, `${secFont}px ${FONT_MONO}`) + 2 * H_PAD,
       ),
     ),
   ];
   const width = Math.min(MAX_W, Math.max(MIN_W, Math.max(...candidates, 0)));
   const availW = width - 2 * H_PAD;
 
-  // ── Height: accumulate y ─────────────────────────────────────────────────
   let y = 0;
   y += HEADER_V_PAD;
 
   const stereotypeY = hasStereotype ? y : -1;
-  if (hasStereotype) y += STEREO_H;
+  if (hasStereotype) y += stereoH;
 
   const badgeY = vm.badge ? y : -1;
-  if (vm.badge) y += BADGE_H;
+  if (vm.badge) y += badgeH;
 
   const nameY = y;
-  y += NAME_H;
+  y += nameH;
   y += HEADER_V_PAD;
 
   const headerH = y;
@@ -140,50 +121,43 @@ function computeLayout(vm: NodeViewModel): ClassLayout {
 
     for (const item of section.items) {
       itemOffsets.push(itemOffset);
-      const textW = measureTextWidth(item.text, `${SEC_FONT}px ${FONT_MONO}`);
+      const textW = measureTextWidth(item.text, `${secFont}px ${FONT_MONO}`);
       const lineCount = Math.max(1, Math.ceil(textW / availW));
-      const itemH = lineCount * ROW_H;
+      const itemH = lineCount * rowH;
       itemLineHeights.push(itemH);
       itemOffset += itemH;
     }
 
-    const totalItemsH = section.items.length > 0 ? itemOffset : MIN_SEC_H;
+    const totalItemsH = section.items.length > 0 ? itemOffset : minSecH;
     y += totalItemsH;
     y += SEC_V_PAD;
     if (i < vm.sections.length - 1) separators.push(y);
     return { top, height: y - top, itemsY, itemOffsets, itemLineHeights };
   });
 
-  // When there are no sections, guarantee a minimum body strip below the header.
-  if (vm.sections.length === 0) y += MIN_SEC_H;
+  if (vm.sections.length === 0) y += minSecH;
 
-  return { width, height: y, headerH, stereotypeY, badgeY, nameY, fontStyle, separators, sections };
+  return {
+    width, height: y, headerH, stereotypeY, badgeY, nameY, fontStyle, separators, sections,
+    fontSans, stereoFont, badgeFont, nameFont, secFont,
+  };
 }
 
-/** Returns the pixel size that ClassShape will occupy for a given view model. */
 export function getClassShapeSize(vm: NodeViewModel): { width: number; height: number } {
   const { width, height } = computeLayout(vm);
   return { width, height };
 }
 
-/**
- * Returns the full layout descriptor for a NodeViewModel.
- * Used by diagramToSvg for vector SVG export (MAG-01.15).
- */
 export function computeClassLayout(vm: NodeViewModel): ClassLayout {
   return computeLayout(vm);
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 interface ClassShapeProps {
   viewModel: NodeViewModel;
   x: number;
   y: number;
   selected?: boolean;
-  /** Render opacity — pass 0.3 for ghost shapes during drag. */
   opacity?: number;
-  /** Viewport culling — set false to hide off-screen shapes (MAG-01.16). */
   visible?: boolean;
   onNodeClick?: (id: string, ctrlKey: boolean) => void;
   onDblClick?: (e: KonvaEventObject<MouseEvent>) => void;
@@ -210,14 +184,12 @@ export default function ClassShape({
   onDragEnd,
 }: ClassShapeProps) {
   const colors = resolveNodeColors(vm.style.containerClass);
-  // Per-node color override: tints header + outer border when set.
   const headerFill = vm.colorOverride ?? colors.headerBg;
   const borderStroke = vm.colorOverride ?? colors.border;
-  // Per-node border width / line style override.
   const borderW = vm.borderWidthOverride ?? BORDER_W;
   const borderDashArr = borderDash(vm.borderStyleOverride, borderW);
   const layout = useMemo(() => computeLayout(vm), [vm]);
-  const { width: W, height: H } = layout;
+  const { width: W, height: H, fontSans, stereoFont, badgeFont, nameFont, secFont } = layout;
 
   const stereoText = vm.style.showStereotype && vm.stereotype ? `<<${vm.stereotype}>>` : null;
   const stereoIsItalic = vm.style.labelFormat.includes('italic');
@@ -248,7 +220,6 @@ export default function ClassShape({
         onContextMenu?.(e, vm.id);
       }}
     >
-      {/* ── Outer rect (fills bg + draws border) ───────────────────────── */}
       <Rect
         width={W}
         height={H}
@@ -260,7 +231,6 @@ export default function ClassShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Header background (rounded top corners only) ────────────────── */}
       <Rect
         width={W}
         height={layout.headerH}
@@ -269,14 +239,13 @@ export default function ClassShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Stereotype ──────────────────────────────────────────────────── */}
       {stereoText !== null && layout.stereotypeY >= 0 && (
         <Text
           x={H_PAD}
           y={layout.stereotypeY + 2}
           width={W - 2 * H_PAD}
           text={stereoText}
-          fontSize={STEREO_FONT}
+          fontSize={stereoFont}
           fontFamily={FONT_MONO}
           fontStyle={stereoIsItalic ? 'italic' : 'normal'}
           fill={colors.border}
@@ -286,15 +255,14 @@ export default function ClassShape({
         />
       )}
 
-      {/* ── Badge ───────────────────────────────────────────────────────── */}
       {vm.badge !== undefined && layout.badgeY >= 0 && (
         <Text
           x={H_PAD}
           y={layout.badgeY + 2}
           width={W - 2 * H_PAD}
           text={vm.badge}
-          fontSize={BADGE_FONT}
-          fontFamily={FONT_SANS}
+          fontSize={badgeFont}
+          fontFamily={fontSans}
           fill={colors.textMuted}
           align="center"
           listening={false}
@@ -302,14 +270,13 @@ export default function ClassShape({
         />
       )}
 
-      {/* ── Name (+ sublabel concatenated — yellow tint is a TODO) ──────── */}
       <Text
         x={H_PAD}
         y={layout.nameY + 3}
         width={W - 2 * H_PAD}
         text={vm.sublabel ? `${vm.label}${vm.sublabel}` : vm.label}
-        fontSize={NAME_FONT}
-        fontFamily={FONT_SANS}
+        fontSize={nameFont}
+        fontFamily={fontSans}
         fontStyle={layout.fontStyle}
         fill={colors.text}
         align="center"
@@ -317,7 +284,6 @@ export default function ClassShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Separator lines ─────────────────────────────────────────────── */}
       {layout.separators.map((sepY) => (
         <Line
           key={sepY}
@@ -328,12 +294,11 @@ export default function ClassShape({
         />
       ))}
 
-      {/* ── Section items ───────────────────────────────────────────────── */}
       {vm.sections.flatMap((section, sIdx) =>
         section.items.map((item, iIdx) => {
           const secLayout = layout.sections[sIdx];
-          const itemOffset = secLayout?.itemOffsets?.[iIdx] ?? iIdx * ROW_H;
-          const itemH = secLayout?.itemLineHeights?.[iIdx] ?? ROW_H;
+          const itemOffset = secLayout?.itemOffsets?.[iIdx] ?? iIdx * secFont;
+          const itemH = secLayout?.itemLineHeights?.[iIdx] ?? secFont;
           return (
             <Text
               key={item.id}
@@ -342,7 +307,7 @@ export default function ClassShape({
               width={W - 2 * H_PAD}
               height={itemH}
               text={item.text}
-              fontSize={SEC_FONT}
+              fontSize={secFont}
               fontFamily={FONT_MONO}
               fontStyle={item.isAbstract ? 'bold italic' : 'normal'}
               textDecoration={item.isStatic ? 'underline' : ''}
@@ -355,7 +320,6 @@ export default function ClassShape({
         }),
       )}
 
-      {/* ── Selection outline (rendered last → on top) ──────────────────── */}
       {selected && (
         <Rect
           x={-1}

@@ -125,6 +125,12 @@ const QUICK_LINK_NODE_TYPES: Partial<Record<DiagramType, stereotype[]>> = {
 /** Preset swatches offered by the format-painter color setter. */
 const NODE_COLOR_SWATCHES = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b'];
 const NODE_BORDER_WIDTHS = [1, 2, 3];
+const NODE_FONT_FAMILIES = [
+  { label: 'Sans', value: 'Inter, ui-sans-serif, system-ui, sans-serif' },
+  { label: 'Serif', value: 'Georgia, ui-serif, serif' },
+  { label: 'Mono', value: '"Fira Code", monospace' },
+];
+const NODE_FONT_SIZES = [12, 14, 16, 18];
 
 /** Edge kinds whose "properties" action opens the inline panel (multiplicity/roles). */
 const INLINE_PANEL_KINDS = new Set<RelationKind>(['ASSOCIATION', 'AGGREGATION', 'COMPOSITION']);
@@ -1663,6 +1669,20 @@ export default function KonvaCanvas() {
             dotted: t('selectionToolbar.borderDotted'),
           },
         });
+        if (isNodeViewModel(shape.data)) {
+          const vnFont = vfsController.diagramView?.nodes.find((n) => n.id === toolbarTarget.id);
+          actions.push({
+            icon: 'font',
+            label: t('selectionToolbar.font'),
+            onClick: () => {},
+            font: { family: vnFont?.fontFamily ?? NODE_FONT_FAMILIES[0].value, size: vnFont?.fontSize ?? 14 },
+            fontFamilies: NODE_FONT_FAMILIES,
+            fontSizes: NODE_FONT_SIZES,
+            onPickFontFamily: (family) => vfsController.applyNodeStyle([toolbarTarget.id], { fontFamily: family }),
+            onPickFontSize: (size) => vfsController.applyNodeStyle([toolbarTarget.id], { fontSize: size }),
+            onClearFont: () => vfsController.applyNodeStyle([toolbarTarget.id], { fontFamily: null, fontSize: null }),
+          });
+        }
         actions.push({
           icon: 'copyStyle',
           label: t('selectionToolbar.copyStyle'),
@@ -1672,6 +1692,8 @@ export default function KonvaCanvas() {
               color: vn?.color ?? null,
               borderWidth: vn?.borderWidth ?? null,
               borderStyle: vn?.borderStyle ?? null,
+              fontFamily: vn?.fontFamily ?? null,
+              fontSize: vn?.fontSize ?? null,
             });
           },
         });
@@ -1735,6 +1757,8 @@ export default function KonvaCanvas() {
           color: selEdge?.color ?? null,
           borderWidth: selEdge?.lineWidth ?? null,
           borderStyle: selEdge?.lineStyle ?? null,
+          fontFamily: null,
+          fontSize: null,
         }),
       },
       ...(copiedStyle

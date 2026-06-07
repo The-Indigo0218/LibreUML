@@ -21,6 +21,7 @@ import {
   type SemanticKind,
   type NodeBuilderContext,
 } from './sharedNodeBuilders';
+import { realStereotypes } from '../../../../util/classifierGenerics';
 
 // ─── Style registry ───────────────────────────────────────────────────────────
 
@@ -160,19 +161,24 @@ function makeClassNode(
   viewNode: ViewNode,
   label: string,
   displayConfig: ElementDisplayConfig,
+  stereotype: string | undefined,
   sections: NodeSection[],
   onRename: (name: string, generics?: string) => void,
   allViewNodes: ViewNode[],
   badge?: string,
 ) {
+  const style =
+    stereotype && !displayConfig.style.showStereotype
+      ? { ...displayConfig.style, showStereotype: true }
+      : displayConfig.style;
   const viewModel: NodeViewModel = {
     id: viewNode.id,
     domainId: viewNode.elementId,
     label,
-    stereotype: displayConfig.stereotype,
+    stereotype,
     badge: badge || undefined,
     sections,
-    style: displayConfig.style,
+    style,
     colorOverride: viewNode.color,
     borderWidthOverride: viewNode.borderWidth,
     borderStyleOverride: viewNode.borderStyle,
@@ -246,6 +252,9 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
 
     const label = element?.name ?? 'NewClass';
     const displayConfig = VFS_DISPLAY[kind] ?? VFS_DISPLAY.CLASS;
+    const userStereotypes = element ? realStereotypes(element as IRClass | IRInterface | IREnum) : [];
+    const stereotype =
+      [displayConfig.stereotype, ...userStereotypes].filter(Boolean).join(', ') || undefined;
     const sections = element
       ? buildSections(model, element as IRClass | IRInterface | IREnum, kind)
       : [];
@@ -292,6 +301,6 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
       }
     };
 
-    return makeClassNode(viewNode, label, displayConfig, sections, onRename, diagramView.nodes, badge);
+    return makeClassNode(viewNode, label, displayConfig, stereotype, sections, onRename, diagramView.nodes, badge);
   });
 }

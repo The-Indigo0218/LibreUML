@@ -13,6 +13,8 @@
     "electron:dev": "concurrently -k \"cross-env BROWSER=none vite\" \"npm run electron:build -- --watch\"",
     "electron:build": "tsc -p electron/tsconfig.json && node -e \"require('fs').writeFileSync('dist-electron/package.json', '{\\\"type\\\": \\\"commonjs\\\"}')\" && electron .",
     "test": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "i18n:check": "node scripts/i18n-check.mjs"
   },
   "dependencies": {
@@ -39,6 +41,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

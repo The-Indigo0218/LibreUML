@@ -57,6 +57,14 @@ export interface ViewNode {
   height?: number;
   zIndex?: number;
   color?: string;
+  /** Per-node border width override. Undefined = shape default. */
+  borderWidth?: number;
+  /** Per-node border line style override. Undefined = solid. */
+  borderStyle?: NodeBorderStyle;
+  /** Per-node font family override for sans text. Undefined = shape default. */
+  fontFamily?: string;
+  /** Per-node base font size (px) for the node's title; other text scales with it. */
+  fontSize?: number;
   /** Persisted text content for Note nodes (no IR backing element). */
   content?: string;
   /** Persisted title for Note nodes. */
@@ -66,6 +74,18 @@ export interface ViewNode {
   /** Package name for package container nodes. */
   packageName?: string;
 }
+
+/**
+ * How an edge's line body is routed between its two anchors.
+ *   'straight'    Direct line; bends only where the user adds waypoints (default).
+ *   'orthogonal'  L-shaped 90° path with obstacle avoidance.
+ *   'curved'      Smooth cubic Bezier.
+ * Undefined is treated as 'straight' so edges are free-form (StarUML-style) by default.
+ */
+export type EdgeRoutingMode = 'straight' | 'orthogonal' | 'curved';
+
+/** Per-node border line style. */
+export type NodeBorderStyle = 'solid' | 'dashed' | 'dotted';
 
 export interface ViewEdge {
   id: string;
@@ -78,6 +98,18 @@ export interface ViewEdge {
   sourceRole?: string;
   targetRole?: string;
   anchorLocked?: boolean;
+  /** Line routing style. Undefined = 'straight'. */
+  routingMode?: EdgeRoutingMode;
+  /** Per-edge color override. Undefined = kind/base color. */
+  color?: string;
+  /** Per-edge line width override. Undefined = default (2px). */
+  lineWidth?: number;
+  /** Per-edge line style override. Undefined = kind default. */
+  lineStyle?: NodeBorderStyle;
+  /** Per-edge label font family override. Undefined = default. */
+  fontFamily?: string;
+  /** Per-edge label font size override (px). Undefined = default (11px). */
+  fontSize?: number;
 }
 
 export interface DiagramView {
@@ -191,6 +223,8 @@ export interface IRClass extends IRElement {
   isFinal?: boolean;
   isActive?: boolean;
   isExternal?: boolean;
+  /** Generic type parameters, stored with angle brackets (e.g. "<T>"). */
+  generics?: string;
 }
 
 export interface IRInterface extends IRElement {
@@ -201,6 +235,8 @@ export interface IRInterface extends IRElement {
   attributeIds?: string[];
   operationIds: string[];
   isExternal?: boolean;
+  /** Generic type parameters, stored with angle brackets (e.g. "<T>"). */
+  generics?: string;
 }
 
 export interface IREnumLiteral {
@@ -318,10 +354,10 @@ export interface IRLifeline extends IRElement {
 
 export type MessageKind =
   | 'SYNC'      // solid line, closed triangle arrowhead
-  | 'ASYNC'     // solid line, open arrowhead (Fase 2)
-  | 'REPLY'     // dashed line, open arrowhead (Fase 2)
-  | 'CREATE'    // (Fase 4) instantiates target lifeline
-  | 'DESTROY';  // (Fase 4) terminates target lifeline
+  | 'ASYNC'     // solid line, open arrowhead
+  | 'REPLY'     // dashed line, open arrowhead
+  | 'CREATE'    // instantiates target lifeline
+  | 'DESTROY';  // terminates target lifeline
 
 export interface IRMessage extends IRElement {
   kind: 'MESSAGE';
@@ -388,10 +424,10 @@ export type FragmentKind =
   | 'ALT'      // alternative (if/else) with multiple guarded operands
   | 'OPT'      // optional (single guarded operand)
   | 'LOOP'     // iteration with guard
-  | 'PAR'      // parallel (Fase 4)
-  | 'SEQ'      // weak sequencing (Fase 4)
-  | 'BREAK'    // break (Fase 4)
-  | 'CRITICAL'; // critical region (Fase 4)
+  | 'PAR'      // parallel
+  | 'SEQ'      // weak sequencing
+  | 'BREAK'    // break
+  | 'CRITICAL'; // critical region
 
 export interface IRInteractionOperand {
   id: string;

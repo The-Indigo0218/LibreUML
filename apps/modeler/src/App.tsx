@@ -12,6 +12,12 @@ import { useAuthStore } from './features/auth/store/auth.store';
 
 const ApiKeysPage = lazy(() => import('./features/cloud/components/ApiKeysPage'));
 
+// Playwright drag harness — registered only under the VITE_E2E build flag, so it
+// is tree-shaken out of normal builds (auth-free, public route).
+const E2EHarness = import.meta.env.VITE_E2E
+  ? lazy(() => import('./e2e/E2EHarness'))
+  : null;
+
 function AppRoutes() {
   const checkSession = useAuthStore((s) => s.checkSession);
 
@@ -22,6 +28,18 @@ function AppRoutes() {
 
   return (
     <Routes>
+      {/* E2E drag harness (VITE_E2E only) — public, auth-free */}
+      {E2EHarness && (
+        <Route
+          path="/__e2e"
+          element={
+            <Suspense fallback={null}>
+              <E2EHarness />
+            </Suspense>
+          }
+        />
+      )}
+
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/oauth/callback" element={<OAuthCallback />} />

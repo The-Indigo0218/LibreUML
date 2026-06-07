@@ -38,11 +38,11 @@ import {
 } from '../../adapters/view-models/node.view-model';
 import { resolveNodeColors, resolveNoteColors, resolveActorColors, resolveUseCaseColors, resolveSystemBoundaryColors } from '../tokens/colors';
 import { getClassShapeSize, computeClassLayout } from '../shapes/ClassShape';
-import { getNoteShapeSize } from '../shapes/NoteShape';
-import { getActorShapeSize } from '../shapes/ActorShape';
-import { getUseCaseShapeSize } from '../shapes/UseCaseShape';
+import { getNoteShapeSize, noteScale, noteFontFamily } from '../shapes/NoteShape';
+import { getActorShapeSize, actorFont } from '../shapes/ActorShape';
+import { getUseCaseShapeSize, ucMetrics } from '../shapes/UseCaseShape';
 import { getSystemBoundaryShapeSize } from '../shapes/SystemBoundaryShape';
-import { getDomainEntityShapeSize } from '../shapes/DomainEntityShape';
+import { getDomainEntityShapeSize, computeDomainEntityLayout } from '../shapes/DomainEntityShape';
 import {
   selectAnchors,
   retractAnchor,
@@ -50,6 +50,7 @@ import {
   faceToMarkerAngle,
 } from '../edges/geometry';
 import { avoidObstacles } from '../edges/obstacleAvoidance';
+import { computeLabelPositions } from '../edges/geometry';
 import type { NodeBounds, AnchorFace } from '../edges/geometry';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 
@@ -57,10 +58,6 @@ import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 const H_PAD = 10;
 const BORDER_W = 2;
 const RADIUS = 2;
-const STEREO_FONT = 10;
-const BADGE_FONT = 10;
-const NAME_FONT = 14;
-const SEC_FONT = 12;
 const ROW_H = 20;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 // Single-quoted font name so the value is valid inside an SVG double-quoted attribute
@@ -202,9 +199,9 @@ function getCanvasBg(): string {
  * Simple word-wrap for monospace note content.
  * Matches the character-count estimate used by NoteShape.tsx (0.55 em/char).
  */
-function wrapNoteLines(text: string): string[] {
+function wrapNoteLines(text: string, secFont: number = NOTE_SEC_FONT): string[] {
   const contentW = NOTE_W - 2 * NOTE_H_PAD; // 208px
-  const avgCharW = NOTE_SEC_FONT * 0.55;     // ~6.6px per monospace char
+  const avgCharW = secFont * 0.55;           // ~6.6px per monospace char at base size
   const charsPerLine = Math.max(1, Math.floor(contentW / avgCharW));
 
   const result: string[] = [];
@@ -273,12 +270,12 @@ const ACTOR_ARM_HALF = 18;
 const ACTOR_LEG_DX = 16;
 const ACTOR_LEG_DY = 18;
 const ACTOR_NAME_Y = ACTOR_BODY_BOT + ACTOR_LEG_DY + 8;
-const ACTOR_NAME_FONT = 13;
 const STROKE_W = 1.5;
 
 function svgActorShape(shape: ShapeDescriptor, vm: ActorViewModel): string {
   const colors = resolveActorColors();
   const { width: W } = getActorShapeSize(vm);
+  const { fontSans, nameFont } = actorFont(vm);
   const cx = W / 2;
   const x = shape.x;
   const y = shape.y;
@@ -292,20 +289,17 @@ function svgActorShape(shape: ShapeDescriptor, vm: ActorViewModel): string {
     `  <line x1="${cx - ACTOR_ARM_HALF}" y1="${ACTOR_ARM_Y}" x2="${cx + ACTOR_ARM_HALF}" y2="${ACTOR_ARM_Y}" stroke="${stroke}" stroke-width="${STROKE_W}"/>`,
     `  <line x1="${cx}" y1="${ACTOR_BODY_BOT}" x2="${cx - ACTOR_LEG_DX}" y2="${ACTOR_BODY_BOT + ACTOR_LEG_DY}" stroke="${stroke}" stroke-width="${STROKE_W}"/>`,
     `  <line x1="${cx}" y1="${ACTOR_BODY_BOT}" x2="${cx + ACTOR_LEG_DX}" y2="${ACTOR_BODY_BOT + ACTOR_LEG_DY}" stroke="${stroke}" stroke-width="${STROKE_W}"/>`,
-    `  <text x="${cx}" y="${ACTOR_NAME_Y}" text-anchor="middle" font-family="${FONT_SANS}" font-size="${ACTOR_NAME_FONT}" font-style="${fontStyle}" fill="${escapeXml(colors.text)}">${escapeXml(vm.name)}</text>`,
+    `  <text x="${cx}" y="${ACTOR_NAME_Y}" text-anchor="middle" font-family="${fontSans}" font-size="${nameFont}" font-style="${fontStyle}" fill="${escapeXml(colors.text)}">${escapeXml(vm.name)}</text>`,
     `</g>`,
   ].join('\n');
 }
 
-const UC_BASE_H = 56;
-const UC_EP_H = 16;
 const UC_EP_SEP_PAD = 6;
-const UC_EP_FONT = 11;
-const UC_NAME_FONT_SVG = 13;
 
 function svgUseCaseShape(shape: ShapeDescriptor, vm: UseCaseViewModel): string {
   const colors = resolveUseCaseColors();
   const { width: W, height: H } = getUseCaseShapeSize(vm);
+  const { fontSans, nameFont, epFont, baseH, epH } = ucMetrics(vm);
   const cx = W / 2;
   const cy = H / 2;
   const rx = cx - 2;
@@ -313,18 +307,18 @@ function svgUseCaseShape(shape: ShapeDescriptor, vm: UseCaseViewModel): string {
   const x = shape.x;
   const y = shape.y;
   const hasEP = vm.extensionPoints.length > 0;
-  const sepY = UC_BASE_H - UC_EP_SEP_PAD - 1;
-  const nameY = UC_BASE_H / 2 + UC_NAME_FONT_SVG / 2 - (hasEP ? 4 : 0);
+  const sepY = baseH - UC_EP_SEP_PAD - 1;
+  const nameY = baseH / 2 + nameFont / 2 - (hasEP ? 4 : 0);
 
   const epLines = vm.extensionPoints.map((ep, i) => {
-    const epY = UC_BASE_H + UC_EP_SEP_PAD + i * UC_EP_H + UC_EP_FONT;
-    return `  <text x="${cx}" y="${epY}" text-anchor="middle" font-family="${FONT_MONO}" font-size="${UC_EP_FONT}" fill="${escapeXml(colors.text)}">${escapeXml(ep)}</text>`;
+    const epY = baseH + UC_EP_SEP_PAD + i * epH + epFont;
+    return `  <text x="${cx}" y="${epY}" text-anchor="middle" font-family="${FONT_MONO}" font-size="${epFont}" fill="${escapeXml(colors.text)}">${escapeXml(ep)}</text>`;
   });
 
   return [
     `<g transform="translate(${x},${y})">`,
     `  <ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="${escapeXml(colors.fill)}" stroke="${escapeXml(colors.stroke)}" stroke-width="${STROKE_W}"/>`,
-    `  <text x="${cx}" y="${nameY}" text-anchor="middle" font-family="${FONT_SANS}" font-size="${UC_NAME_FONT_SVG}" fill="${escapeXml(colors.text)}">${escapeXml(vm.name)}</text>`,
+    `  <text x="${cx}" y="${nameY}" text-anchor="middle" font-family="${fontSans}" font-size="${nameFont}" fill="${escapeXml(colors.text)}">${escapeXml(vm.name)}</text>`,
     hasEP ? `  <line x1="${cx - rx + 4}" y1="${sepY}" x2="${cx + rx - 4}" y2="${sepY}" stroke="${escapeXml(colors.stroke)}" stroke-width="1" stroke-dasharray="3,2"/>` : '',
     ...epLines,
     `</g>`,
@@ -356,7 +350,8 @@ function svgSystemBoundaryShape(shape: ShapeDescriptor, vm: SystemBoundaryViewMo
 // ─── Domain Model shapes ──────────────────────────────────────────────────────
 
 function svgDomainEntityShape(shape: ShapeDescriptor, vm: DomainEntityViewModel): string {
-  const { width: W, height: H } = getDomainEntityShapeSize(vm);
+  const layout = computeDomainEntityLayout(vm);
+  const { width: W, height: H, headerH, nameY, separatorY, attrItemsY, fontSans, nameFont, attrFont, attrRowH } = layout;
   const x = shape.x;
   const y = shape.y;
   const BORDER = '#f59e0b';
@@ -364,21 +359,18 @@ function svgDomainEntityShape(shape: ShapeDescriptor, vm: DomainEntityViewModel)
   const TEXT = '#1e293b';
   const MUTED = '#475569';
   const H_PAD = 12;
-  const HEADER_H = 42;
-  const ATTR_ROW_H = 20;
-  const ATTR_START_Y = HEADER_H + 6;
 
   const attrLines = vm.attributes.map((a, i) =>
-    `  <text x="${H_PAD}" y="${ATTR_START_Y + (i + 1) * ATTR_ROW_H - 4}" font-family="${FONT_SANS}" font-size="12" fill="${MUTED}">${escapeXml(a.name)}</text>`,
+    `  <text x="${H_PAD}" y="${attrItemsY + i * attrRowH + 2}" font-family="${fontSans}" font-size="${attrFont}" fill="${MUTED}" dominant-baseline="hanging">${escapeXml(a.name)}</text>`,
   );
 
   return [
     `<g transform="translate(${x},${y})">`,
     `  <rect width="${W}" height="${H}" fill="#fffbeb" stroke="${BORDER}" stroke-width="3" rx="4"/>`,
-    `  <rect width="${W}" height="${HEADER_H}" fill="${HEADER_BG}" rx="4"/>`,
-    `  <rect y="2" width="${W}" height="${HEADER_H - 2}" fill="${HEADER_BG}"/>`,
-    `  <text x="${W / 2}" y="${HEADER_H / 2 + 5}" font-family="${FONT_SANS}" font-size="14" font-weight="bold" fill="${TEXT}" text-anchor="middle">${escapeXml(vm.name)}</text>`,
-    `  <line x1="0" y1="${HEADER_H}" x2="${W}" y2="${HEADER_H}" stroke="${BORDER}" stroke-width="3"/>`,
+    `  <rect width="${W}" height="${headerH}" fill="${HEADER_BG}" rx="4"/>`,
+    `  <rect y="2" width="${W}" height="${headerH - 2}" fill="${HEADER_BG}"/>`,
+    `  <text x="${W / 2}" y="${nameY + 3}" font-family="${fontSans}" font-size="${nameFont}" font-weight="bold" fill="${TEXT}" text-anchor="middle" dominant-baseline="hanging">${escapeXml(vm.name)}</text>`,
+    `  <line x1="0" y1="${separatorY}" x2="${W}" y2="${separatorY}" stroke="${BORDER}" stroke-width="3"/>`,
     ...attrLines,
     `</g>`,
   ].join('\n');
@@ -389,7 +381,10 @@ function svgDomainEntityShape(shape: ShapeDescriptor, vm: DomainEntityViewModel)
 function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   const colors = resolveNodeColors(vm.style.containerClass);
   const layout = computeClassLayout(vm);
-  const { width: W, height: H, headerH, stereotypeY, badgeY, nameY, fontStyle, separators, sections } = layout;
+  const {
+    width: W, height: H, headerH, stereotypeY, badgeY, nameY, fontStyle, separators, sections,
+    fontSans, stereoFont, badgeFont, nameFont, secFont,
+  } = layout;
 
   const stereoText = vm.style.showStereotype && vm.stereotype ? `<<${vm.stereotype}>>` : null;
   const stereoIsItalic = vm.style.labelFormat.includes('italic');
@@ -415,7 +410,7 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   if (stereoText !== null && stereotypeY >= 0) {
     lines.push(
       `  <text x="${W / 2}" y="${stereotypeY + 2}"` +
-      ` font-size="${STEREO_FONT}" font-family="${FONT_MONO}"` +
+      ` font-size="${stereoFont}" font-family="${FONT_MONO}"` +
       ` fill="${escapeXml(colors.border)}" text-anchor="middle" dominant-baseline="hanging"` +
       ` font-style="${stereoIsItalic ? 'italic' : 'normal'}">${escapeXml(stereoText)}</text>`,
     );
@@ -425,7 +420,7 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   if (vm.badge !== undefined && badgeY >= 0) {
     lines.push(
       `  <text x="${W / 2}" y="${badgeY + 2}"` +
-      ` font-size="${BADGE_FONT}" font-family="${FONT_SANS}"` +
+      ` font-size="${badgeFont}" font-family="${fontSans}"` +
       ` fill="${escapeXml(colors.textMuted)}" text-anchor="middle" dominant-baseline="hanging">${escapeXml(vm.badge)}</text>`,
     );
   }
@@ -433,7 +428,7 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   // Name text
   lines.push(
     `  <text x="${W / 2}" y="${nameY + 3}"` +
-    ` font-size="${NAME_FONT}" font-family="${FONT_SANS}"` +
+    ` font-size="${nameFont}" font-family="${fontSans}"` +
     ` fill="${escapeXml(colors.text)}" text-anchor="middle" dominant-baseline="hanging"` +
     ` ${svgFontAttrs(fontStyle)}>${escapeXml(nameText)}</text>`,
   );
@@ -457,7 +452,7 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
       const decoAttr = item.isStatic ? ' text-decoration="underline"' : '';
       lines.push(
         `  <text x="${H_PAD}" y="${itemY}"` +
-        ` font-size="${SEC_FONT}" font-family="${FONT_MONO}"` +
+        ` font-size="${secFont}" font-family="${FONT_MONO}"` +
         ` fill="${escapeXml(colors.textMuted)}" dominant-baseline="hanging"` +
         ` font-style="${fontStyleVal}"${decoAttr}>${escapeXml(item.text)}</text>`,
       );
@@ -471,10 +466,15 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
 function svgNoteShape(shape: ShapeDescriptor, vm: NoteViewModel): string {
   const colors = resolveNoteColors();
   const { height: H } = getNoteShapeSize(vm);
+  const scale = noteScale(vm);
+  const fontSans = noteFontFamily(vm);
+  const titleFont = NOTE_TITLE_FONT * scale;
+  const secFont = NOTE_SEC_FONT * scale;
+  const titleBarH = NOTE_TITLE_H * scale;
   const W = NOTE_W;
-  const titleH = vm.title !== undefined ? NOTE_TITLE_H : 0;
+  const titleH = vm.title !== undefined ? titleBarH : 0;
   const contentY = titleH + NOTE_V_PAD;
-  const wrappedLines = wrapNoteLines(vm.content);
+  const wrappedLines = wrapNoteLines(vm.content, secFont);
 
   const lines: string[] = [];
   lines.push(`<g transform="translate(${shape.x}, ${shape.y})">`);
@@ -494,18 +494,18 @@ function svgNoteShape(shape: ShapeDescriptor, vm: NoteViewModel): string {
   if (vm.title !== undefined) {
     // Title bar background
     lines.push(
-      `  <rect x="0" y="0" width="${W - NOTE_FOLD}" height="${NOTE_TITLE_H}"` +
+      `  <rect x="0" y="0" width="${W - NOTE_FOLD}" height="${titleBarH}"` +
       ` fill="${escapeXml(colors.surfacePrimary)}" opacity="0.5"/>`,
     );
     // Title text
     lines.push(
       `  <text x="${NOTE_H_PAD}" y="${NOTE_V_PAD / 2 + 2}"` +
-      ` font-size="${NOTE_TITLE_FONT}" font-family="${FONT_SANS}"` +
+      ` font-size="${titleFont}" font-family="${fontSans}"` +
       ` fill="${escapeXml(colors.border)}" dominant-baseline="hanging" font-weight="bold">${escapeXml(vm.title)}</text>`,
     );
     // Dashed separator line
     lines.push(
-      `  <line x1="0" y1="${NOTE_TITLE_H}" x2="${W - NOTE_FOLD}" y2="${NOTE_TITLE_H}"` +
+      `  <line x1="0" y1="${titleBarH}" x2="${W - NOTE_FOLD}" y2="${titleBarH}"` +
       ` stroke="${escapeXml(colors.border)}" stroke-width="1" stroke-dasharray="4 3"/>`,
     );
   }
@@ -514,13 +514,13 @@ function svgNoteShape(shape: ShapeDescriptor, vm: NoteViewModel): string {
   if (wrappedLines.length > 0) {
     const tspans = wrappedLines
       .map((line, i) => {
-        const dyAttr = i === 0 ? '' : ` dy="${NOTE_SEC_FONT * NOTE_LINE_H}"`;
+        const dyAttr = i === 0 ? '' : ` dy="${secFont * NOTE_LINE_H}"`;
         return `<tspan x="${NOTE_H_PAD}"${dyAttr}>${escapeXml(line)}</tspan>`;
       })
       .join('');
     lines.push(
       `  <text x="${NOTE_H_PAD}" y="${contentY}"` +
-      ` font-size="${NOTE_SEC_FONT}" font-family="${FONT_MONO}"` +
+      ` font-size="${secFont}" font-family="${FONT_MONO}"` +
       ` fill="${escapeXml(colors.textMuted)}" dominant-baseline="hanging">${tspans}</text>`,
     );
   }
@@ -558,6 +558,7 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
   let markerFace: AnchorFace;
   let midX: number;
   let midY: number;
+  let labelPositions: ReturnType<typeof computeLabelPositions> | null = null;
 
   if (isSelfLoop) {
     const loop = selfLoopPath(sourceBounds, retract);
@@ -588,6 +589,9 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
     const n = points.length;
     midX = (points[0]! + points[n - 2]!) / 2;
     midY = (points[1]! + points[n - 1]!) / 2 - 10;
+    // Anchor positions for multiplicity / role labels (mirrors KonvaEdge).
+    const targetAlong = Math.max(16, retract + 10);
+    labelPositions = computeLabelPositions(points, src.x, src.y, markerX, markerY, targetAlong, false);
   }
 
   const marker = svgMarker(edge.kind, markerX, markerY, markerFace, stroke, bg);
@@ -602,7 +606,27 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
       `${escapeXml(stereotypeText)}</text>`
     : '';
 
-  return [lineSvg, marker, labelSvg].filter(Boolean).join('\n');
+  // Multiplicity / role / verb labels — honor the per-edge font override.
+  const labelFamily = edge.fontFamily ?? FONT_SANS;
+  const labelSize = edge.fontSize ?? 11;
+  const edgeLabel = (x: number, y: number, text: string, italic: boolean): string =>
+    `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" ` +
+    `font-family="${labelFamily}" font-size="${labelSize}"${italic ? ' font-style="italic"' : ''} ` +
+    `fill="${escapeXml(getEdgeColor())}" style="paint-order:stroke" ` +
+    `stroke="${escapeXml(bg)}" stroke-width="3" stroke-linejoin="round">${escapeXml(text)}</text>`;
+
+  const textLabels: string[] = [];
+  if (labelPositions) {
+    const lp = labelPositions;
+    if (edge.sourceMultiplicity) textLabels.push(edgeLabel(lp.sourceMultX, lp.sourceMultY, edge.sourceMultiplicity, false));
+    if (edge.sourceRole) textLabels.push(edgeLabel(lp.sourceRoleX, lp.sourceRoleY, edge.sourceRole, true));
+    if (edge.targetMultiplicity) textLabels.push(edgeLabel(lp.targetMultX, lp.targetMultY, edge.targetMultiplicity, false));
+    if (edge.targetRole) textLabels.push(edgeLabel(lp.targetRoleX, lp.targetRoleY, edge.targetRole, true));
+  }
+  // Verb / center label (domain associations) — only when no stereotype occupies the center.
+  if (!stereotypeText && edge.label) textLabels.push(edgeLabel(midX, midY, edge.label, true));
+
+  return [lineSvg, marker, labelSvg, ...textLabels].filter(Boolean).join('\n');
 }
 
 function svgMarker(

@@ -987,10 +987,12 @@
     "footerNote": "Presiona ESC para cerrar este diálogo en cualquier momento",
     "categories": {
       "general": "General",
+      "relations": "Relaciones",
       "canvas": "Lienzo",
       "terminal": "Terminal"
     },
     "shortcuts": {
+      "showShortcuts": "Mostrar Atajos de Teclado",
       "newDiagram": "Nuevo Diagrama (Electron)",
       "newDiagramWeb": "Nuevo Diagrama (Web / Chromium)",
       "openFile": "Abrir Archivo",
@@ -1014,6 +1016,137 @@
     "actions": {
       "close": "¡Entendido!"
     }
+  },
+  "selectionToolbar": {
+    "edit": "Editar",
+    "editSpec": "Editar especificación",
+    "editProps": "Editar propiedades",
+    "duplicate": "Duplicar",
+    "delete": "Borrar",
+    "reverse": "Invertir dirección",
+    "properties": "Propiedades",
+    "color": "Color",
+    "border": "Borde",
+    "font": "Fuente",
+    "stroke": "Trazo",
+    "borderSolid": "Sólido",
+    "borderDashed": "Discontinuo",
+    "borderDotted": "Punteado",
+    "copyStyle": "Copiar estilo",
+    "pasteStyle": "Pegar estilo (Ctrl+Shift+V)",
+    "routing": "Estilo de línea",
+    "routingStraight": "Recta",
+    "routingOrthogonal": "Ortogonal",
+    "routingCurved": "Curva"
+  },
+  "inlineEdgePanel": {
+    "title": "Relación",
+    "close": "Cerrar",
+    "rolePlaceholder": "Rol (ej: empleado)",
+    "reverse": "Invertir",
+    "advanced": "Avanzado…"
+  },
+  "inlineClassPanel": {
+    "name": "Nombre de clase",
+    "close": "Cerrar",
+    "attributes": "Atributos",
+    "operations": "Operaciones",
+    "addAttribute": "Añadir atributo…",
+    "addOperation": "Añadir operación…",
+    "literals": "Literales",
+    "addLiteral": "Añadir literal…",
+    "stereotypes": "Estereotipos",
+    "addStereotype": "Añadir estereotipo…",
+    "parameters": "Parámetros",
+    "addParameter": "Añadir parámetro…",
+    "paramName": "parám",
+    "abstract": "Alternar abstracta",
+    "remove": "Quitar",
+    "advanced": "Avanzado…"
+  },
+  "inlineUseCasePanel": {
+    "name": "Nombre del caso de uso",
+    "close": "Cerrar",
+    "brief": "Descripción breve",
+    "briefPlaceholder": "Qué hace este caso de uso…",
+    "extensionPoints": "Puntos de extensión",
+    "addExtensionPoint": "Añadir punto de extensión…",
+    "remove": "Quitar",
+    "advanced": "Avanzado…"
+  },
+  "inlineDomainPanel": {
+    "name": "Nombre de entidad",
+    "close": "Cerrar",
+    "attributes": "Atributos",
+    "addAttribute": "Añadir atributo…",
+    "remove": "Quitar",
+    "advanced": "Avanzado…"
+  },
+  "inlineActorPanel": {
+    "name": "Nombre del actor",
+    "close": "Cerrar",
+    "type": "Tipo",
+    "type_human": "Humano",
+    "type_system": "Sistema",
+    "type_timer": "Temporizador",
+    "abstract": "Abstracto",
+    "advanced": "Avanzado…"
+  },
+  "inlineMessagePanel": {
+    "name": "Nombre del mensaje",
+    "kind": "Tipo",
+    "arguments": "Argumentos",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "inlineFragmentPanel": {
+    "kind": "Tipo",
+    "operands": "Operandos",
+    "guard": "Guarda",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "inlineStateInvariantPanel": {
+    "constraint": "Restricción",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "inlineInteractionUsePanel": {
+    "name": "Nombre",
+    "referencedName": "Interacción referenciada",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "inlineGatePanel": {
+    "name": "Nombre de la puerta",
+    "side": "Lado",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "relationPicker": {
+    "title": "Tipo de relación"
+  },
+  "relationTypes": {
+    "association": "Asociación",
+    "inheritance": "Generalización",
+    "implementation": "Realización",
+    "dependency": "Dependencia",
+    "aggregation": "Agregación",
+    "composition": "Composición"
+  },
+  "nodeTypePicker": {
+    "title": "Crear y conectar"
+  },
+  "nodeTypes": {
+    "class": "Clase",
+    "interface": "Interfaz",
+    "abstract": "Clase abstracta",
+    "enum": "Enumeración",
+    "note": "Nota",
+    "actor": "Actor",
+    "use_case": "Caso de uso",
+    "domain_entity": "Entidad",
+    "package": "Paquete"
   },
   "singleClassGenerator": {
     "title": "Generar Código de Clase",

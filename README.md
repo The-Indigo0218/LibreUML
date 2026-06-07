@@ -1,7 +1,7 @@
 
 # LibreUML
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
 ![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
 ![Tests](https://img.shields.io/badge/tests-373%20passing-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-React%20%7C%20Konva%20%7C%20TypeScript-blueviolet)

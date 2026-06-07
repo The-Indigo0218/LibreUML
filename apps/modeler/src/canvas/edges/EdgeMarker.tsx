@@ -31,10 +31,16 @@ interface EdgeMarkerProps {
   y: number;
   face: AnchorFace;
   stroke: string;
+  /**
+   * Explicit rotation (degrees) overriding the cardinal faceToMarkerAngle(face).
+   * Used by floating anchors so the marker points along the true diagonal
+   * arrival direction instead of snapping to one of the four cardinal angles.
+   */
+  angleOverride?: number;
 }
 
-export default function EdgeMarker({ kind, x, y, face, stroke }: EdgeMarkerProps) {
-  const rotation = faceToMarkerAngle(face);
+export default function EdgeMarker({ kind, x, y, face, stroke, angleOverride }: EdgeMarkerProps) {
+  const rotation = angleOverride ?? faceToMarkerAngle(face);
   const bg = getCanvasBg();
 
   switch (kind) {

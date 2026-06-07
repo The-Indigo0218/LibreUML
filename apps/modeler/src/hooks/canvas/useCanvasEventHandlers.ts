@@ -38,7 +38,6 @@ const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
 export interface UseCanvasEventHandlersParams {
   activeTabId: string | null;
   isStandalone: boolean;
-  updateFileContent: (fileId: string, content: DiagramView) => void;
 }
 
 export interface UseCanvasEventHandlersResult {
@@ -50,7 +49,6 @@ export interface UseCanvasEventHandlersResult {
 export function useCanvasEventHandlers({
   activeTabId,
   isStandalone,
-  updateFileContent,
 }: UseCanvasEventHandlersParams): UseCanvasEventHandlersResult {
   const onNodesChange = useCallback(
     (changes: KonvaNodeChange[]) => {
@@ -72,8 +70,6 @@ export function useCanvasEventHandlers({
         if (change.type === 'position') {
           updatedViewNodes = updatedViewNodes.map((vn) => {
             if (vn.id !== change.id) return vn;
-            
-            // If node has a parent package, store position relative to parent
             if (vn.parentPackageId) {
               const parentNode = currentView.nodes.find((n) => n.id === vn.parentPackageId);
               if (parentNode) {
@@ -84,15 +80,12 @@ export function useCanvasEventHandlers({
                 };
               }
             }
-            
-            // Root-level node or parent not found, store absolute position
             return { ...vn, x: change.position.x, y: change.position.y };
           });
           hasPosition = true;
         } else if (change.type === 'remove') {
           const removedVN = currentView.nodes.find((vn) => vn.id === change.id);
           if (removedVN) {
-            // Remove the ViewNode and un-nest any children that had it as their package parent.
             updatedViewNodes = updatedViewNodes
               .filter((vn) => vn.id !== change.id)
               .map((vn) => vn.parentPackageId === change.id ? { ...vn, parentPackageId: null } : vn);
@@ -121,11 +114,14 @@ export function useCanvasEventHandlers({
           node.content.edges = updatedViewEdges;
         });
       } else {
-        // Position-only: no undo entry
-        updateFileContent(activeTabId, { ...currentView, nodes: updatedViewNodes, edges: updatedViewEdges });
+        withUndo('vfs', 'Move Node', activeTabId, (draft: any) => {
+          const node = draft.project?.nodes[activeTabId];
+          if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+          node.content.nodes = updatedViewNodes;
+        });
       }
     },
-    [activeTabId, updateFileContent, isStandalone],
+    [activeTabId, isStandalone],
   );
 
   const onEdgesChange = useCallback(
@@ -198,7 +194,7 @@ export function useCanvasEventHandlers({
         });
       }
     },
-    [activeTabId, updateFileContent, isStandalone],
+    [activeTabId, isStandalone],
   );
 
   const onConnect = useCallback(
@@ -342,6 +338,9 @@ export function useCanvasEventHandlers({
         waypoints: [],
         sourceHandle: connection.sourceHandle ?? undefined,
         targetHandle: connection.targetHandle ?? undefined,
+        // Freshly drawn edges default to free-form straight; legacy edges (no
+        // routingMode) keep orthogonal so existing diagrams look unchanged.
+        routingMode: 'straight',
       };
       const isExternalFile = !!(fileNode as VFSFile).isExternal;
 
@@ -393,7 +392,7 @@ export function useCanvasEventHandlers({
         });
       }
     },
-    [activeTabId, updateFileContent, isStandalone],
+    [activeTabId, isStandalone],
   );
 
   return { onNodesChange, onEdgesChange, onConnect };

@@ -21,6 +21,7 @@ import {
   type SemanticKind,
   type NodeBuilderContext,
 } from './sharedNodeBuilders';
+import { readGenerics, realStereotypes } from '../../../../util/classifierGenerics';
 
 // ─── Style registry ───────────────────────────────────────────────────────────
 
@@ -160,19 +161,31 @@ function makeClassNode(
   viewNode: ViewNode,
   label: string,
   displayConfig: ElementDisplayConfig,
+  stereotype: string | undefined,
+  sublabel: string | undefined,
   sections: NodeSection[],
   onRename: (name: string, generics?: string) => void,
   allViewNodes: ViewNode[],
   badge?: string,
 ) {
+  const style =
+    stereotype && !displayConfig.style.showStereotype
+      ? { ...displayConfig.style, showStereotype: true }
+      : displayConfig.style;
   const viewModel: NodeViewModel = {
     id: viewNode.id,
     domainId: viewNode.elementId,
     label,
-    stereotype: displayConfig.stereotype,
+    stereotype,
+    sublabel,
     badge: badge || undefined,
     sections,
-    style: displayConfig.style,
+    style,
+    colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
     metadata: { onRename },
   };
   return {
@@ -209,6 +222,8 @@ function makePackageNode(
     name: computePackageDisplayName(viewNode, pkg),
     collapsed: viewNode.collapsed ?? false,
     color: viewNode.color,
+    borderWidth: viewNode.borderWidth,
+    borderStyle: viewNode.borderStyle,
     childCount,
     depth,
   };
@@ -239,6 +254,13 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
 
     const label = element?.name ?? 'NewClass';
     const displayConfig = VFS_DISPLAY[kind] ?? VFS_DISPLAY.CLASS;
+    const userStereotypes = element ? realStereotypes(element as IRClass | IRInterface | IREnum) : [];
+    const stereotype =
+      [displayConfig.stereotype, ...userStereotypes].filter(Boolean).join(', ') || undefined;
+    const sublabel =
+      element && (kind === 'CLASS' || kind === 'ABSTRACT_CLASS' || kind === 'INTERFACE')
+        ? readGenerics(element as IRClass | IRInterface)
+        : undefined;
     const sections = element
       ? buildSections(model, element as IRClass | IRInterface | IREnum, kind)
       : [];
@@ -254,7 +276,7 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
           case 'ABSTRACT_CLASS':
             ops.updateClass(viewNode.elementId, {
               name,
-              ...(generics !== undefined ? { stereotypes: [generics] } : {}),
+              ...(generics !== undefined ? { generics } : {}),
             });
             break;
           case 'INTERFACE':
@@ -272,7 +294,7 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
           case 'ABSTRACT_CLASS':
             ms.updateClass(viewNode.elementId, {
               name,
-              ...(generics !== undefined ? { stereotypes: [generics] } : {}),
+              ...(generics !== undefined ? { generics } : {}),
             });
             break;
           case 'INTERFACE':
@@ -285,6 +307,6 @@ export function buildClassDiagramNodes(ctx: NodeBuilderContext) {
       }
     };
 
-    return makeClassNode(viewNode, label, displayConfig, sections, onRename, diagramView.nodes, badge);
+    return makeClassNode(viewNode, label, displayConfig, stereotype, sublabel, sections, onRename, diagramView.nodes, badge);
   });
 }

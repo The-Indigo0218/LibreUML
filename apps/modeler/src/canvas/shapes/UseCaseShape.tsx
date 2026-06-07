@@ -3,8 +3,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { UseCaseViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveUseCaseColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
-
-// ─── Layout constants ──────────────────────────────────────────────────────────
+import { borderDash } from './borderStyle';
 
 const MIN_W = 140;
 const MAX_W = 280;
@@ -17,20 +16,33 @@ const STROKE_W = 1.5;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const FONT_MONO = '"Fira Code", monospace';
 const H_PAD = 16;
-const SPEC_DOT_R = 4;   // radius of the "has spec" indicator dot
+const SPEC_DOT_R = 4;
+
+export function ucMetrics(vm: UseCaseViewModel) {
+  const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
+  const scale = (vm.fontSizeOverride ?? NAME_FONT) / NAME_FONT;
+  return {
+    fontSans,
+    nameFont: NAME_FONT * scale,
+    epFont: EP_FONT * scale,
+    baseH: BASE_H * scale,
+    epH: EP_H * scale,
+  };
+}
 
 export function getUseCaseShapeSize(vm: UseCaseViewModel): { width: number; height: number } {
-  const nameW = measureTextWidth(vm.name, `${NAME_FONT}px ${FONT_SANS}`) + H_PAD * 2;
+  const { fontSans, nameFont, epFont, baseH, epH } = ucMetrics(vm);
+  const nameW = measureTextWidth(vm.name, `${nameFont}px ${fontSans}`) + H_PAD * 2;
   const epW = vm.extensionPoints.length > 0
     ? Math.max(...vm.extensionPoints.map(ep =>
-        measureTextWidth(ep, `${EP_FONT}px ${FONT_MONO}`) + H_PAD * 2,
+        measureTextWidth(ep, `${epFont}px ${FONT_MONO}`) + H_PAD * 2,
       ))
     : 0;
   const width = Math.min(MAX_W, Math.max(MIN_W, nameW, epW));
   const epBlock = vm.extensionPoints.length > 0
-    ? EP_SEP_PAD + 1 + EP_SEP_PAD + vm.extensionPoints.length * EP_H
+    ? EP_SEP_PAD + 1 + EP_SEP_PAD + vm.extensionPoints.length * epH
     : 0;
-  const height = BASE_H + epBlock;
+  const height = baseH + epBlock;
   return { width, height };
 }
 
@@ -70,13 +82,17 @@ export default function UseCaseShape({
   onDragEnd,
 }: UseCaseShapeProps) {
   const colors = resolveUseCaseColors();
+  const stroke = vm.colorOverride ?? colors.stroke;
+  const strokeW = vm.borderWidthOverride ?? STROKE_W;
+  const dash = borderDash(vm.borderStyleOverride, strokeW);
+  const { fontSans, nameFont, epFont, baseH, epH } = ucMetrics(vm);
   const { width: W, height: H } = getUseCaseShapeSize(vm);
   const cx = W / 2;
   const cy = H / 2;
   const rx = cx - 2;
   const ry = cy - 2;
   const hasEP = vm.extensionPoints.length > 0;
-  const sepY = BASE_H - EP_SEP_PAD - 1;
+  const sepY = baseH - EP_SEP_PAD - 1;
 
   return (
     <Group
@@ -106,39 +122,37 @@ export default function UseCaseShape({
       onMouseEnter={(e) => onMouseEnter?.(e, vm.id)}
       onMouseLeave={(e) => onMouseLeave?.(e, vm.id)}
     >
-      {/* ── Ellipse body ────────────────────────────────────────────────────── */}
       <Ellipse
         x={cx}
         y={cy}
         radiusX={rx}
         radiusY={ry}
         fill={colors.fill}
-        stroke={colors.stroke}
-        strokeWidth={STROKE_W}
+        stroke={stroke}
+        strokeWidth={strokeW}
+        dash={dash}
         perfectDrawEnabled={false}
         listening={false}
       />
 
-      {/* ── Use case name ───────────────────────────────────────────────────── */}
       <Text
         x={H_PAD}
-        y={BASE_H / 2 - NAME_FONT / 2 - (hasEP ? 4 : 0)}
+        y={baseH / 2 - nameFont / 2 - (hasEP ? 4 : 0)}
         width={W - H_PAD * 2}
         text={vm.name}
-        fontSize={NAME_FONT}
-        fontFamily={FONT_SANS}
+        fontSize={nameFont}
+        fontFamily={fontSans}
         fill={colors.text}
         align="center"
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Extension points ─────────────────────────────────────────────────── */}
       {hasEP && (
         <>
           <Line
             points={[cx - rx + 4, sepY, cx + rx - 4, sepY]}
-            stroke={colors.stroke}
+            stroke={stroke}
             strokeWidth={1}
             dash={[3, 2]}
             listening={false}
@@ -147,10 +161,10 @@ export default function UseCaseShape({
             <Text
               key={i}
               x={H_PAD}
-              y={BASE_H + EP_SEP_PAD + i * EP_H}
+              y={baseH + EP_SEP_PAD + i * epH}
               width={W - H_PAD * 2}
               text={ep}
-              fontSize={EP_FONT}
+              fontSize={epFont}
               fontFamily={FONT_MONO}
               fill={colors.text}
               align="center"
@@ -161,7 +175,6 @@ export default function UseCaseShape({
         </>
       )}
 
-      {/* ── "Has spec" indicator dot (top-right of ellipse) ──────────────────── */}
       {vm.hasSpec && (
         <Circle
           x={cx + rx - SPEC_DOT_R - 1}
@@ -175,10 +188,8 @@ export default function UseCaseShape({
         />
       )}
 
-      {/* ── Transparent hit-target ──────────────────────────────────────────── */}
       <Rect width={W} height={H} listening={true} />
 
-      {/* ── Selection outline ───────────────────────────────────────────────── */}
       {selected && (
         <Ellipse
           x={cx}

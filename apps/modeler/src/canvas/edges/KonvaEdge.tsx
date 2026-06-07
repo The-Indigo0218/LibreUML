@@ -53,11 +53,15 @@ import {
   orthogonalPolylineRoute,
   resolveRoutingMode,
   selfLoopPath,
+  computeLabelPositions,
+  LABEL_ALONG,
+  ROLE_STACK,
   type NodeBounds,
   type NodeShape,
   type LockedHandle,
   type AnchorPoint,
   type Point,
+  type LabelPositions,
 } from './geometry';
 import { avoidObstacles } from './obstacleAvoidance';
 import EdgeMarker from './EdgeMarker';
@@ -138,129 +142,6 @@ function getStereotypeLabel(kind: RelationKind): string | null {
     default:
       return null;
   }
-}
-
-// ─── Label position helpers ────────────────────────────────────────────────────
-
-const LABEL_ALONG = 16; // px along edge from anchor — ensures pill clears node boundary
-const LABEL_PERP  = 10; // px perpendicular from the edge line
-const ROLE_STACK  = 28; // px along edge direction from multiplicity to role
-
-/**
- * Returns the geometric midpoint of a flat Konva polyline.
- * For bezier arrays (8-element control-point form) falls back to segment midpoint.
- */
-function pathMidpoint(pts: number[], isBezier: boolean): { x: number; y: number } {
-  const n = pts.length;
-  if (n < 4) return { x: pts[0] ?? 0, y: pts[1] ?? 0 };
-
-  if (isBezier) {
-    return { x: (pts[0] + pts[n - 2]) / 2, y: (pts[1] + pts[n - 1]) / 2 };
-  }
-  if (n === 4) return { x: (pts[0] + pts[2]) / 2, y: (pts[1] + pts[3]) / 2 };
-
-  let total = 0;
-  const lens: number[] = [];
-  for (let i = 0; i < n - 2; i += 2) {
-    const len = Math.hypot(pts[i + 2] - pts[i], pts[i + 3] - pts[i + 1]);
-    lens.push(len);
-    total += len;
-  }
-  let acc = 0;
-  const half = total / 2;
-  for (let i = 0; i < lens.length; i++) {
-    const next = acc + lens[i];
-    if (next >= half) {
-      const t = lens[i] > 0 ? (half - acc) / lens[i] : 0;
-      return {
-        x: pts[i * 2]     + t * (pts[i * 2 + 2] - pts[i * 2]),
-        y: pts[i * 2 + 1] + t * (pts[i * 2 + 3] - pts[i * 2 + 1]),
-      };
-    }
-    acc = next;
-  }
-  return { x: pts[n - 2], y: pts[n - 1] };
-}
-
-interface LabelPositions {
-  sourceMultX: number;
-  sourceMultY: number;
-  sourceRoleX: number;
-  sourceRoleY: number;
-  targetMultX: number;
-  targetMultY: number;
-  targetRoleX: number;
-  targetRoleY: number;
-  centerX: number;
-  centerY: number;
-}
-
-/**
- * Computes label anchor positions using the actual first/last edge segment
- * direction vectors so labels are always pushed outside the node boundary.
- *
- * srcX/srcY     — source anchor (ON node boundary)
- * tgtX/tgtY     — target marker position (ON node boundary)
- * pts           — flat points array from the routing function
- * targetAlong   — override for the along-edge offset at the target end;
- *                 should be max(LABEL_ALONG, markerDepth + 10) to clear the marker
- * isBezier      — true for cubic bezier arrays (control-point form)
- */
-function computeLabelPositions(
-  pts: number[],
-  srcX: number,
-  srcY: number,
-  tgtX: number,
-  tgtY: number,
-  targetAlong: number,
-  isBezier: boolean,
-): LabelPositions {
-  const n = pts.length;
-  const hasMid = n > 4;
-
-  // Direction at source: from anchor toward first segment (or toward target for 2-pt lines)
-  const sDirX = (hasMid ? pts[2] : pts[n - 2]) - srcX;
-  const sDirY = (hasMid ? pts[3] : pts[n - 1]) - srcY;
-  const sLen  = Math.sqrt(sDirX * sDirX + sDirY * sDirY) || 1;
-  const sNX   = sDirX / sLen;
-  const sNY   = sDirY / sLen;
-  // CW 90° rotation = right side of travel direction
-  const sPerpX =  sNY;
-  const sPerpY = -sNX;
-
-  // Direction at target: backward from marker along last segment
-  const tDirX = (hasMid ? pts[n - 4] : pts[0]) - tgtX;
-  const tDirY = (hasMid ? pts[n - 3] : pts[1]) - tgtY;
-  const tLen  = Math.sqrt(tDirX * tDirX + tDirY * tDirY) || 1;
-  const tNX   = tDirX / tLen;
-  const tNY   = tDirY / tLen;
-  // CCW of backward = CW of forward = right side of travel at target end
-  const tPerpX = -tNY;
-  const tPerpY =  tNX;
-
-  // Multiplicity anchor positions
-  const srcMultX = srcX + sNX * LABEL_ALONG + sPerpX * LABEL_PERP;
-  const srcMultY = srcY + sNY * LABEL_ALONG + sPerpY * LABEL_PERP;
-  const tgtMultX = tgtX + tNX * targetAlong + tPerpX * LABEL_PERP;
-  const tgtMultY = tgtY + tNY * targetAlong + tPerpY * LABEL_PERP;
-
-  const mid = pathMidpoint(pts, isBezier);
-
-  return {
-    sourceMultX: srcMultX,
-    sourceMultY: srcMultY,
-    // Role stacks along the edge direction (away from the node) so it never
-    // overlaps the class box when the edge exits from the top face going upward.
-    sourceRoleX: srcMultX + sNX * ROLE_STACK,
-    sourceRoleY: srcMultY + sNY * ROLE_STACK,
-    targetMultX: tgtMultX,
-    targetMultY: tgtMultY,
-    targetRoleX: tgtMultX + tNX * ROLE_STACK,
-    targetRoleY: tgtMultY + tNY * ROLE_STACK,
-    // Geometric midpoint of the actual path for kind badge / stereotype label
-    centerX: mid.x,
-    centerY: mid.y - 14,
-  };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

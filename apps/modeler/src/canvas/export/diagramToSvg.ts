@@ -50,6 +50,7 @@ import {
   faceToMarkerAngle,
 } from '../edges/geometry';
 import { avoidObstacles } from '../edges/obstacleAvoidance';
+import { computeLabelPositions } from '../edges/geometry';
 import type { NodeBounds, AnchorFace } from '../edges/geometry';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 
@@ -557,6 +558,7 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
   let markerFace: AnchorFace;
   let midX: number;
   let midY: number;
+  let labelPositions: ReturnType<typeof computeLabelPositions> | null = null;
 
   if (isSelfLoop) {
     const loop = selfLoopPath(sourceBounds, retract);
@@ -587,6 +589,9 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
     const n = points.length;
     midX = (points[0]! + points[n - 2]!) / 2;
     midY = (points[1]! + points[n - 1]!) / 2 - 10;
+    // Anchor positions for multiplicity / role labels (mirrors KonvaEdge).
+    const targetAlong = Math.max(16, retract + 10);
+    labelPositions = computeLabelPositions(points, src.x, src.y, markerX, markerY, targetAlong, false);
   }
 
   const marker = svgMarker(edge.kind, markerX, markerY, markerFace, stroke, bg);
@@ -601,7 +606,27 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
       `${escapeXml(stereotypeText)}</text>`
     : '';
 
-  return [lineSvg, marker, labelSvg].filter(Boolean).join('\n');
+  // Multiplicity / role / verb labels — honor the per-edge font override.
+  const labelFamily = edge.fontFamily ?? FONT_SANS;
+  const labelSize = edge.fontSize ?? 11;
+  const edgeLabel = (x: number, y: number, text: string, italic: boolean): string =>
+    `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" ` +
+    `font-family="${labelFamily}" font-size="${labelSize}"${italic ? ' font-style="italic"' : ''} ` +
+    `fill="${escapeXml(getEdgeColor())}" style="paint-order:stroke" ` +
+    `stroke="${escapeXml(bg)}" stroke-width="3" stroke-linejoin="round">${escapeXml(text)}</text>`;
+
+  const textLabels: string[] = [];
+  if (labelPositions) {
+    const lp = labelPositions;
+    if (edge.sourceMultiplicity) textLabels.push(edgeLabel(lp.sourceMultX, lp.sourceMultY, edge.sourceMultiplicity, false));
+    if (edge.sourceRole) textLabels.push(edgeLabel(lp.sourceRoleX, lp.sourceRoleY, edge.sourceRole, true));
+    if (edge.targetMultiplicity) textLabels.push(edgeLabel(lp.targetMultX, lp.targetMultY, edge.targetMultiplicity, false));
+    if (edge.targetRole) textLabels.push(edgeLabel(lp.targetRoleX, lp.targetRoleY, edge.targetRole, true));
+  }
+  // Verb / center label (domain associations) — only when no stereotype occupies the center.
+  if (!stereotypeText && edge.label) textLabels.push(edgeLabel(midX, midY, edge.label, true));
+
+  return [lineSvg, marker, labelSvg, ...textLabels].filter(Boolean).join('\n');
 }
 
 function svgMarker(

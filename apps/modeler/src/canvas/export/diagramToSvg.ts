@@ -57,10 +57,6 @@ import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 const H_PAD = 10;
 const BORDER_W = 2;
 const RADIUS = 2;
-const STEREO_FONT = 10;
-const BADGE_FONT = 10;
-const NAME_FONT = 14;
-const SEC_FONT = 12;
 const ROW_H = 20;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 // Single-quoted font name so the value is valid inside an SVG double-quoted attribute
@@ -389,7 +385,10 @@ function svgDomainEntityShape(shape: ShapeDescriptor, vm: DomainEntityViewModel)
 function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   const colors = resolveNodeColors(vm.style.containerClass);
   const layout = computeClassLayout(vm);
-  const { width: W, height: H, headerH, stereotypeY, badgeY, nameY, fontStyle, separators, sections } = layout;
+  const {
+    width: W, height: H, headerH, stereotypeY, badgeY, nameY, fontStyle, separators, sections,
+    fontSans, stereoFont, badgeFont, nameFont, secFont,
+  } = layout;
 
   const stereoText = vm.style.showStereotype && vm.stereotype ? `<<${vm.stereotype}>>` : null;
   const stereoIsItalic = vm.style.labelFormat.includes('italic');
@@ -415,7 +414,7 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   if (stereoText !== null && stereotypeY >= 0) {
     lines.push(
       `  <text x="${W / 2}" y="${stereotypeY + 2}"` +
-      ` font-size="${STEREO_FONT}" font-family="${FONT_MONO}"` +
+      ` font-size="${stereoFont}" font-family="${FONT_MONO}"` +
       ` fill="${escapeXml(colors.border)}" text-anchor="middle" dominant-baseline="hanging"` +
       ` font-style="${stereoIsItalic ? 'italic' : 'normal'}">${escapeXml(stereoText)}</text>`,
     );
@@ -425,7 +424,7 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   if (vm.badge !== undefined && badgeY >= 0) {
     lines.push(
       `  <text x="${W / 2}" y="${badgeY + 2}"` +
-      ` font-size="${BADGE_FONT}" font-family="${FONT_SANS}"` +
+      ` font-size="${badgeFont}" font-family="${fontSans}"` +
       ` fill="${escapeXml(colors.textMuted)}" text-anchor="middle" dominant-baseline="hanging">${escapeXml(vm.badge)}</text>`,
     );
   }
@@ -433,7 +432,7 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
   // Name text
   lines.push(
     `  <text x="${W / 2}" y="${nameY + 3}"` +
-    ` font-size="${NAME_FONT}" font-family="${FONT_SANS}"` +
+    ` font-size="${nameFont}" font-family="${fontSans}"` +
     ` fill="${escapeXml(colors.text)}" text-anchor="middle" dominant-baseline="hanging"` +
     ` ${svgFontAttrs(fontStyle)}>${escapeXml(nameText)}</text>`,
   );
@@ -457,7 +456,7 @@ function svgClassShape(shape: ShapeDescriptor, vm: NodeViewModel): string {
       const decoAttr = item.isStatic ? ' text-decoration="underline"' : '';
       lines.push(
         `  <text x="${H_PAD}" y="${itemY}"` +
-        ` font-size="${SEC_FONT}" font-family="${FONT_MONO}"` +
+        ` font-size="${secFont}" font-family="${FONT_MONO}"` +
         ` fill="${escapeXml(colors.textMuted)}" dominant-baseline="hanging"` +
         ` font-style="${fontStyleVal}"${decoAttr}>${escapeXml(item.text)}</text>`,
       );

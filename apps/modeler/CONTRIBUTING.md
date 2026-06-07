@@ -3,6 +3,11 @@
 First off, thank you for considering contributing to **LibreUML**! 🚀  
 We are an open-source project built by students for students (and developers), and we value **every contribution** — whether it's fixing a typo, translating languages, or building a complex engineering engine.
 
+## 📜 License
+
+By contributing, you agree that your contributions will be licensed under the **GNU Affero General Public License v3 (AGPL-3.0)** — the same license that covers the project.  
+If you or your company need a commercial license (exempt from AGPL obligations), see [COMMERCIAL_LICENSE.md](./COMMERCIAL_LICENSE.md).
+
 ---
 
 ## 🛠️ The Tech Stack

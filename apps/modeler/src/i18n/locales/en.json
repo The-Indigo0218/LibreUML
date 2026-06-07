@@ -1083,6 +1083,37 @@
     "abstract": "Abstract",
     "advanced": "Advanced…"
   },
+  "inlineMessagePanel": {
+    "name": "Message name",
+    "kind": "Kind",
+    "arguments": "Arguments",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
+  "inlineFragmentPanel": {
+    "kind": "Kind",
+    "operands": "Operands",
+    "guard": "Guard",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
+  "inlineStateInvariantPanel": {
+    "constraint": "Constraint",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
+  "inlineInteractionUsePanel": {
+    "name": "Name",
+    "referencedName": "Referenced interaction",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
+  "inlineGatePanel": {
+    "name": "Gate name",
+    "side": "Side",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
   "relationPicker": {
     "title": "Relation type"
   },

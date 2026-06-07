@@ -11,6 +11,16 @@ import InlineDomainPanel from './overlays/InlineDomainPanel';
 import type { InlineDomainPanelProps } from './overlays/InlineDomainPanel';
 import InlineActorPanel from './overlays/InlineActorPanel';
 import type { InlineActorPanelProps } from './overlays/InlineActorPanel';
+import InlineMessagePanel from './overlays/InlineMessagePanel';
+import type { InlineMessagePanelProps } from './overlays/InlineMessagePanel';
+import InlineFragmentPanel from './overlays/InlineFragmentPanel';
+import type { InlineFragmentPanelProps } from './overlays/InlineFragmentPanel';
+import InlineStateInvariantPanel from './overlays/InlineStateInvariantPanel';
+import type { InlineStateInvariantPanelProps } from './overlays/InlineStateInvariantPanel';
+import InlineInteractionUsePanel from './overlays/InlineInteractionUsePanel';
+import type { InlineInteractionUsePanelProps } from './overlays/InlineInteractionUsePanel';
+import InlineGatePanel from './overlays/InlineGatePanel';
+import type { InlineGatePanelProps } from './overlays/InlineGatePanel';
 import RelationPickerMenu from './overlays/RelationPickerMenu';
 import NodeTypePickerMenu from './overlays/NodeTypePickerMenu';
 import type { UmlRelationType, stereotype } from '../features/diagram/types/diagram.types';
@@ -31,6 +41,11 @@ interface CanvasOverlayProps {
   inlineUseCasePanel?: InlineUseCasePanelProps | null;
   inlineDomainPanel?: InlineDomainPanelProps | null;
   inlineActorPanel?: InlineActorPanelProps | null;
+  inlineMessagePanel?: InlineMessagePanelProps | null;
+  inlineFragmentPanel?: InlineFragmentPanelProps | null;
+  inlineStateInvariantPanel?: InlineStateInvariantPanelProps | null;
+  inlineInteractionUsePanel?: InlineInteractionUsePanelProps | null;
+  inlineGatePanel?: InlineGatePanelProps | null;
   relationPicker?: {
     x: number;
     y: number;
@@ -57,6 +72,11 @@ export default function CanvasOverlay({
   inlineUseCasePanel,
   inlineDomainPanel,
   inlineActorPanel,
+  inlineMessagePanel,
+  inlineFragmentPanel,
+  inlineStateInvariantPanel,
+  inlineInteractionUsePanel,
+  inlineGatePanel,
   relationPicker,
   nodeTypePicker,
 }: CanvasOverlayProps) {
@@ -95,6 +115,16 @@ export default function CanvasOverlay({
       {inlineDomainPanel && <InlineDomainPanel key={inlineDomainPanel.elementId} {...inlineDomainPanel} />}
 
       {inlineActorPanel && <InlineActorPanel key={inlineActorPanel.elementId} {...inlineActorPanel} />}
+
+      {inlineMessagePanel && <InlineMessagePanel key={inlineMessagePanel.elementId} {...inlineMessagePanel} />}
+
+      {inlineFragmentPanel && <InlineFragmentPanel key={inlineFragmentPanel.elementId} {...inlineFragmentPanel} />}
+
+      {inlineStateInvariantPanel && <InlineStateInvariantPanel key={inlineStateInvariantPanel.elementId} {...inlineStateInvariantPanel} />}
+
+      {inlineInteractionUsePanel && <InlineInteractionUsePanel key={inlineInteractionUsePanel.elementId} {...inlineInteractionUsePanel} />}
+
+      {inlineGatePanel && <InlineGatePanel key={inlineGatePanel.elementId} {...inlineGatePanel} />}
 
       {relationPicker && (
         <RelationPickerMenu

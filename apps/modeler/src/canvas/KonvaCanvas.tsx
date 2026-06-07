@@ -39,6 +39,11 @@ import type { InlineClassPanelProps } from './overlays/InlineClassPanel';
 import type { InlineUseCasePanelProps } from './overlays/InlineUseCasePanel';
 import type { InlineDomainPanelProps } from './overlays/InlineDomainPanel';
 import type { InlineActorPanelProps } from './overlays/InlineActorPanel';
+import type { InlineMessagePanelProps } from './overlays/InlineMessagePanel';
+import type { InlineFragmentPanelProps } from './overlays/InlineFragmentPanel';
+import type { InlineStateInvariantPanelProps } from './overlays/InlineStateInvariantPanel';
+import type { InlineInteractionUsePanelProps } from './overlays/InlineInteractionUsePanel';
+import type { InlineGatePanelProps } from './overlays/InlineGatePanel';
 import { worldToScreen } from './engine/projection';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
 import { useWorkspaceStore } from '../store/workspace.store';
@@ -921,6 +926,26 @@ export default function KonvaCanvas() {
   const inlineActorPanelId = useUiStore((s) => s.inlineActorPanelId);
   const openInlineActorPanel = useUiStore((s) => s.openInlineActorPanel);
   const closeInlineActorPanel = useUiStore((s) => s.closeInlineActorPanel);
+
+  const inlineMessagePanelId = useUiStore((s) => s.inlineMessagePanelId);
+  const openInlineMessagePanel = useUiStore((s) => s.openInlineMessagePanel);
+  const closeInlineMessagePanel = useUiStore((s) => s.closeInlineMessagePanel);
+
+  const inlineFragmentPanelId = useUiStore((s) => s.inlineFragmentPanelId);
+  const openInlineFragmentPanel = useUiStore((s) => s.openInlineFragmentPanel);
+  const closeInlineFragmentPanel = useUiStore((s) => s.closeInlineFragmentPanel);
+
+  const inlineStateInvariantPanelId = useUiStore((s) => s.inlineStateInvariantPanelId);
+  const openInlineStateInvariantPanel = useUiStore((s) => s.openInlineStateInvariantPanel);
+  const closeInlineStateInvariantPanel = useUiStore((s) => s.closeInlineStateInvariantPanel);
+
+  const inlineInteractionUsePanelId = useUiStore((s) => s.inlineInteractionUsePanelId);
+  const openInlineInteractionUsePanel = useUiStore((s) => s.openInlineInteractionUsePanel);
+  const closeInlineInteractionUsePanel = useUiStore((s) => s.closeInlineInteractionUsePanel);
+
+  const inlineGatePanelId = useUiStore((s) => s.inlineGatePanelId);
+  const openInlineGatePanel = useUiStore((s) => s.openInlineGatePanel);
+  const closeInlineGatePanel = useUiStore((s) => s.closeInlineGatePanel);
 
   // Active model (standalone localModel vs global) — used to tell a class node
   // (inline panel) from interfaces/enums (full modal) and to resolve the panel.
@@ -1882,6 +1907,84 @@ export default function KonvaCanvas() {
     };
   }, [inlineActorPanelId, activeModel, closeInlineActorPanel]);
 
+  // ── Inline sequence panels (message/fragment/state-invariant/interaction-use/gate) ──
+  // These elements are *derived* shapes (not ViewNodes), so the auto-close effect
+  // locates them in `shapes` by domainId rather than in diagramView.nodes.
+  useEffect(() => {
+    if (!inlineMessagePanelId) return;
+    const sh = shapes.find((s) => isMessageViewModel(s.data) && s.data.domainId === inlineMessagePanelId);
+    if (!sh || !selectedIds.has(sh.id)) closeInlineMessagePanel();
+  }, [inlineMessagePanelId, selectedIds, shapes, closeInlineMessagePanel]);
+
+  const inlineMessagePanel = useMemo<InlineMessagePanelProps | null>(() => {
+    if (!inlineMessagePanelId || !activeModel?.messages?.[inlineMessagePanelId]) return null;
+    return {
+      elementId: inlineMessagePanelId,
+      onAdvanced: () => { closeInlineMessagePanel(); useUiStore.getState().openMessageProps(inlineMessagePanelId); },
+      onClose: closeInlineMessagePanel,
+    };
+  }, [inlineMessagePanelId, activeModel, closeInlineMessagePanel]);
+
+  useEffect(() => {
+    if (!inlineFragmentPanelId) return;
+    const sh = shapes.find((s) => isFragmentViewModel(s.data) && s.data.domainId === inlineFragmentPanelId);
+    if (!sh || !selectedIds.has(sh.id)) closeInlineFragmentPanel();
+  }, [inlineFragmentPanelId, selectedIds, shapes, closeInlineFragmentPanel]);
+
+  const inlineFragmentPanel = useMemo<InlineFragmentPanelProps | null>(() => {
+    if (!inlineFragmentPanelId || !activeModel?.interactionFragments?.[inlineFragmentPanelId]) return null;
+    return {
+      elementId: inlineFragmentPanelId,
+      onAdvanced: () => { closeInlineFragmentPanel(); useUiStore.getState().openFragmentProps(inlineFragmentPanelId); },
+      onClose: closeInlineFragmentPanel,
+    };
+  }, [inlineFragmentPanelId, activeModel, closeInlineFragmentPanel]);
+
+  useEffect(() => {
+    if (!inlineStateInvariantPanelId) return;
+    const sh = shapes.find((s) => isStateInvariantViewModel(s.data) && s.data.domainId === inlineStateInvariantPanelId);
+    if (!sh || !selectedIds.has(sh.id)) closeInlineStateInvariantPanel();
+  }, [inlineStateInvariantPanelId, selectedIds, shapes, closeInlineStateInvariantPanel]);
+
+  const inlineStateInvariantPanel = useMemo<InlineStateInvariantPanelProps | null>(() => {
+    if (!inlineStateInvariantPanelId || !activeModel?.stateInvariants?.[inlineStateInvariantPanelId]) return null;
+    return {
+      elementId: inlineStateInvariantPanelId,
+      onAdvanced: () => { closeInlineStateInvariantPanel(); useUiStore.getState().openStateInvariantProps(inlineStateInvariantPanelId); },
+      onClose: closeInlineStateInvariantPanel,
+    };
+  }, [inlineStateInvariantPanelId, activeModel, closeInlineStateInvariantPanel]);
+
+  useEffect(() => {
+    if (!inlineInteractionUsePanelId) return;
+    const sh = shapes.find((s) => isInteractionUseViewModel(s.data) && s.data.domainId === inlineInteractionUsePanelId);
+    if (!sh || !selectedIds.has(sh.id)) closeInlineInteractionUsePanel();
+  }, [inlineInteractionUsePanelId, selectedIds, shapes, closeInlineInteractionUsePanel]);
+
+  const inlineInteractionUsePanel = useMemo<InlineInteractionUsePanelProps | null>(() => {
+    if (!inlineInteractionUsePanelId || !activeModel?.interactionUses?.[inlineInteractionUsePanelId]) return null;
+    return {
+      elementId: inlineInteractionUsePanelId,
+      onAdvanced: () => { closeInlineInteractionUsePanel(); useUiStore.getState().openInteractionUseProps(inlineInteractionUsePanelId); },
+      onClose: closeInlineInteractionUsePanel,
+    };
+  }, [inlineInteractionUsePanelId, activeModel, closeInlineInteractionUsePanel]);
+
+  useEffect(() => {
+    if (!inlineGatePanelId) return;
+    const sh = shapes.find((s) => isGateViewModel(s.data) && s.data.domainId === inlineGatePanelId);
+    if (!sh || !selectedIds.has(sh.id)) closeInlineGatePanel();
+  }, [inlineGatePanelId, selectedIds, shapes, closeInlineGatePanel]);
+
+  const inlineGatePanel = useMemo<InlineGatePanelProps | null>(() => {
+    if (!inlineGatePanelId || !activeModel?.gates?.[inlineGatePanelId]) return null;
+    return {
+      elementId: inlineGatePanelId,
+      onAdvanced: () => { closeInlineGatePanel(); useUiStore.getState().openGateProps(inlineGatePanelId); },
+      onClose: closeInlineGatePanel,
+    };
+  }, [inlineGatePanelId, activeModel, closeInlineGatePanel]);
+
   return (
     <div
       ref={containerRef}
@@ -2037,15 +2140,15 @@ export default function KonvaCanvas() {
                   : isLifelineViewModel(vm)
                   ? () => startUseCaseInlineEdit(shape.id)
                   : isFragmentViewModel(vm)
-                  ? () => useUiStore.getState().openFragmentProps(vm.domainId)
+                  ? () => openInlineFragmentPanel(vm.domainId)
                   : isMessageViewModel(vm)
-                  ? () => useUiStore.getState().openMessageProps(vm.domainId)
+                  ? () => openInlineMessagePanel(vm.domainId)
                   : isStateInvariantViewModel(vm)
-                  ? () => useUiStore.getState().openStateInvariantProps(vm.domainId)
+                  ? () => openInlineStateInvariantPanel(vm.domainId)
                   : isInteractionUseViewModel(vm)
-                  ? () => useUiStore.getState().openInteractionUseProps(vm.domainId)
+                  ? () => openInlineInteractionUsePanel(vm.domainId)
                   : isGateViewModel(vm)
-                  ? () => useUiStore.getState().openGateProps(vm.domainId)
+                  ? () => openInlineGatePanel(vm.domainId)
                   : isNodeViewModel(vm)
                   ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
                   : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
@@ -2232,6 +2335,11 @@ export default function KonvaCanvas() {
         inlineUseCasePanel={inlineUseCasePanel}
         inlineDomainPanel={inlineDomainPanel}
         inlineActorPanel={inlineActorPanel}
+        inlineMessagePanel={inlineMessagePanel}
+        inlineFragmentPanel={inlineFragmentPanel}
+        inlineStateInvariantPanel={inlineStateInvariantPanel}
+        inlineInteractionUsePanel={inlineInteractionUsePanel}
+        inlineGatePanel={inlineGatePanel}
         relationPicker={relationPickerOverlay}
         nodeTypePicker={nodeTypePickerOverlay}
       />

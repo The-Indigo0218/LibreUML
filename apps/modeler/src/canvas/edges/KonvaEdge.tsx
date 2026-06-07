@@ -476,6 +476,7 @@ export default function KonvaEdge({
       {showLines && (
         <>
           <Line
+            id={`edge-line-${id}`}
             points={points}
             bezier={bezier}
             stroke={stroke}

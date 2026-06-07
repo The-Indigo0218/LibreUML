@@ -20,11 +20,18 @@ const STROKE_W = 1.5;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const H_PAD = 8;
 
+function actorFont(vm: ActorViewModel): { fontSans: string; nameFont: number; nameH: number } {
+  const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
+  const scale = (vm.fontSizeOverride ?? NAME_FONT) / NAME_FONT;
+  return { fontSans, nameFont: NAME_FONT * scale, nameH: NAME_H * scale };
+}
+
 export function getActorShapeSize(vm: ActorViewModel): { width: number; height: number } {
   const minW = ARM_HALF * 2 + HEAD_R * 2;
-  const textW = measureTextWidth(vm.name, `${NAME_FONT}px ${FONT_SANS}`) + H_PAD * 2;
+  const { fontSans, nameFont, nameH } = actorFont(vm);
+  const textW = measureTextWidth(vm.name, `${nameFont}px ${fontSans}`) + H_PAD * 2;
   const width = Math.max(minW, textW);
-  const height = BODY_BOT + LEG_DY + NAME_GAP + NAME_H + 4;
+  const height = BODY_BOT + LEG_DY + NAME_GAP + nameH + 4;
   return { width, height };
 }
 
@@ -63,6 +70,7 @@ export default function ActorShape({
   const stroke = vm.colorOverride ?? colors.stroke;
   const strokeW = vm.borderWidthOverride ?? STROKE_W;
   const dash = borderDash(vm.borderStyleOverride, strokeW);
+  const { fontSans, nameFont } = actorFont(vm);
   const { width: W, height: H } = getActorShapeSize(vm);
   const cx = W / 2;
 
@@ -163,8 +171,8 @@ export default function ActorShape({
         y={BODY_BOT + LEG_DY + NAME_GAP}
         width={W}
         text={vm.name}
-        fontSize={NAME_FONT}
-        fontFamily={FONT_SANS}
+        fontSize={nameFont}
+        fontFamily={fontSans}
         fontStyle={vm.isAbstract ? 'italic' : 'normal'}
         fill={colors.text}
         align="center"

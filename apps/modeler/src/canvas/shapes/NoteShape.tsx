@@ -20,19 +20,24 @@ const NOTE_LINE_H = 1.5;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const FONT_MONO = '"Fira Code", monospace';
 
-function estimateNoteHeight(content: string, title: string | undefined): number {
+function noteScale(vm: NoteViewModel): number {
+  return (vm.fontSizeOverride ?? NOTE_TITLE_FONT) / NOTE_TITLE_FONT;
+}
+
+function estimateNoteHeight(content: string, title: string | undefined, secFont: number, titleBarH: number): number {
   const contentInnerW = NOTE_W - 2 * NOTE_H_PAD;
-  const charsPerLine = Math.max(1, Math.floor(contentInnerW / (NOTE_SEC_FONT * 0.55)));
+  const charsPerLine = Math.max(1, Math.floor(contentInnerW / (secFont * 0.55)));
   const lineCount = content.split('\n').reduce((n, line) => {
     return n + Math.max(1, Math.ceil((line.length || 1) / charsPerLine));
   }, 0);
-  const contentH = lineCount * NOTE_SEC_FONT * NOTE_LINE_H;
-  const titleH = title !== undefined ? NOTE_TITLE_H : 0;
+  const contentH = lineCount * secFont * NOTE_LINE_H;
+  const titleH = title !== undefined ? titleBarH : 0;
   return Math.max(NOTE_MIN_H, titleH + NOTE_V_PAD + contentH + NOTE_V_PAD);
 }
 
 export function getNoteShapeSize(vm: NoteViewModel): { width: number; height: number } {
-  return { width: NOTE_W, height: estimateNoteHeight(vm.content, vm.title) };
+  const scale = noteScale(vm);
+  return { width: NOTE_W, height: estimateNoteHeight(vm.content, vm.title, NOTE_SEC_FONT * scale, NOTE_TITLE_H * scale) };
 }
 
 interface NoteShapeProps {
@@ -70,21 +75,26 @@ export default function NoteShape({
   const border = vm.colorOverride ?? colors.border;
   const borderW = vm.borderWidthOverride ?? 1;
   const dash = borderDash(vm.borderStyleOverride, borderW);
+  const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
+  const scale = noteScale(vm);
+  const titleFont = NOTE_TITLE_FONT * scale;
+  const secFont = NOTE_SEC_FONT * scale;
+  const titleBarH = NOTE_TITLE_H * scale;
   const contentRef = useRef<Konva.Text>(null);
 
-  const [shapeH, setShapeH] = useState(() => estimateNoteHeight(vm.content, vm.title));
+  const [shapeH, setShapeH] = useState(() => estimateNoteHeight(vm.content, vm.title, secFont, titleBarH));
 
   useLayoutEffect(() => {
     const textNode = contentRef.current;
     if (!textNode) return;
-    const titleH = vm.title !== undefined ? NOTE_TITLE_H : 0;
+    const titleH = vm.title !== undefined ? titleBarH : 0;
     const total = titleH + NOTE_V_PAD + textNode.height() + NOTE_V_PAD;
     setShapeH(Math.max(NOTE_MIN_H, total));
-  }, [vm.content, vm.title]);
+  }, [vm.content, vm.title, titleBarH]);
 
   const W = NOTE_W;
   const H = shapeH;
-  const titleH = vm.title !== undefined ? NOTE_TITLE_H : 0;
+  const titleH = vm.title !== undefined ? titleBarH : 0;
   const contentY = titleH + NOTE_V_PAD;
 
   return (
@@ -151,7 +161,7 @@ export default function NoteShape({
         <>
           <Rect
             width={W - NOTE_FOLD}
-            height={NOTE_TITLE_H}
+            height={titleBarH}
             fill={colors.surfacePrimary}
             opacity={0.5}
             perfectDrawEnabled={false}
@@ -162,8 +172,8 @@ export default function NoteShape({
             y={NOTE_V_PAD / 2 + 2}
             width={W - NOTE_H_PAD * 2 - NOTE_FOLD}
             text={vm.title}
-            fontSize={NOTE_TITLE_FONT}
-            fontFamily={FONT_SANS}
+            fontSize={titleFont}
+            fontFamily={fontSans}
             fontStyle="bold"
             fill={colors.border}
             ellipsis={true}
@@ -172,7 +182,7 @@ export default function NoteShape({
           />
 
           <Line
-            points={[0, NOTE_TITLE_H, W - NOTE_FOLD, NOTE_TITLE_H]}
+            points={[0, titleBarH, W - NOTE_FOLD, titleBarH]}
             stroke={border}
             strokeWidth={1}
             dash={[4, 3]}
@@ -187,7 +197,7 @@ export default function NoteShape({
         y={contentY}
         width={W - 2 * NOTE_H_PAD}
         text={vm.content}
-        fontSize={NOTE_SEC_FONT}
+        fontSize={secFont}
         fontFamily={FONT_MONO}
         fill={colors.textMuted}
         wrap="word"

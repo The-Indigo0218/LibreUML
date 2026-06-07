@@ -34,6 +34,8 @@ function makeDomainEntityNode(
     colorOverride: viewNode.color,
     borderWidthOverride: viewNode.borderWidth,
     borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
     onRename,
     onOpenProps,
   };

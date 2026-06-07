@@ -27,31 +27,43 @@ interface DomainEntityLayout {
   nameY: number;
   separatorY: number;
   attrItemsY: number;
+  fontSans: string;
+  nameFont: number;
+  attrFont: number;
+  attrRowH: number;
 }
 
 function computeLayout(vm: DomainEntityViewModel): DomainEntityLayout {
+  const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
+  const scale = (vm.fontSizeOverride ?? NAME_FONT) / NAME_FONT;
+  const nameFont = NAME_FONT * scale;
+  const attrFont = ATTR_FONT * scale;
+  const nameH = NAME_H * scale;
+  const attrRowH = ATTR_ROW_H * scale;
+  const minAttrH = MIN_ATTR_H * scale;
+
   const candidates = [
-    measureTextWidth(vm.name, `bold ${NAME_FONT}px ${FONT_SANS}`) + 2 * H_PAD + 16,
+    measureTextWidth(vm.name, `bold ${nameFont}px ${fontSans}`) + 2 * H_PAD + 16,
     ...vm.attributes.map(
-      (a) => measureTextWidth(a.name, `${ATTR_FONT}px ${FONT_SANS}`) + 2 * H_PAD,
+      (a) => measureTextWidth(a.name, `${attrFont}px ${fontSans}`) + 2 * H_PAD,
     ),
   ];
   const width = Math.min(MAX_W, Math.max(MIN_W, Math.max(...candidates, 0)));
 
   let y = HEADER_V_PAD;
   const nameY = y;
-  y += NAME_H + HEADER_V_PAD;
+  y += nameH + HEADER_V_PAD;
   const headerH = y;
   const separatorY = y;
 
   y += ATTR_V_PAD;
   const attrItemsY = y;
   const attrsH = vm.attributes.length > 0
-    ? vm.attributes.length * ATTR_ROW_H
-    : MIN_ATTR_H;
+    ? vm.attributes.length * attrRowH
+    : minAttrH;
   y += attrsH + ATTR_V_PAD;
 
-  return { width, height: y, headerH, nameY, separatorY, attrItemsY };
+  return { width, height: y, headerH, nameY, separatorY, attrItemsY, fontSans, nameFont, attrFont, attrRowH };
 }
 
 export function getDomainEntityShapeSize(vm: DomainEntityViewModel): { width: number; height: number } {
@@ -96,7 +108,7 @@ export default function DomainEntityShape({
   const borderW = vm.borderWidthOverride ?? BORDER_W;
   const borderDashArr = borderDash(vm.borderStyleOverride, borderW);
   const layout = useMemo(() => computeLayout(vm), [vm]);
-  const { width: W, height: H } = layout;
+  const { width: W, height: H, fontSans, nameFont, attrFont, attrRowH } = layout;
 
   return (
     <Group
@@ -148,8 +160,8 @@ export default function DomainEntityShape({
         y={layout.nameY + 3}
         width={W - 2 * H_PAD}
         text={vm.name}
-        fontSize={NAME_FONT}
-        fontFamily={FONT_SANS}
+        fontSize={nameFont}
+        fontFamily={fontSans}
         fontStyle="bold"
         fill={colors.text}
         align="center"
@@ -168,11 +180,11 @@ export default function DomainEntityShape({
         <Text
           key={attr.id}
           x={H_PAD}
-          y={layout.attrItemsY + i * ATTR_ROW_H + 2}
+          y={layout.attrItemsY + i * attrRowH + 2}
           width={W - 2 * H_PAD}
           text={attr.name}
-          fontSize={ATTR_FONT}
-          fontFamily={FONT_SANS}
+          fontSize={attrFont}
+          fontFamily={fontSans}
           fill={colors.textMuted}
           listening={false}
           perfectDrawEnabled={false}

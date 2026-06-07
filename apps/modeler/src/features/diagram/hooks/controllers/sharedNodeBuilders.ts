@@ -65,6 +65,8 @@ export function makeNoteNode(
     colorOverride: viewNode.color,
     borderWidthOverride: viewNode.borderWidth,
     borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
     onSave: (update) => onSave(viewNode.id, update),
   };
   return {

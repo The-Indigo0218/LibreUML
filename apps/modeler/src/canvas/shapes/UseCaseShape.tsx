@@ -18,18 +18,31 @@ const FONT_MONO = '"Fira Code", monospace';
 const H_PAD = 16;
 const SPEC_DOT_R = 4;
 
+function ucMetrics(vm: UseCaseViewModel) {
+  const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
+  const scale = (vm.fontSizeOverride ?? NAME_FONT) / NAME_FONT;
+  return {
+    fontSans,
+    nameFont: NAME_FONT * scale,
+    epFont: EP_FONT * scale,
+    baseH: BASE_H * scale,
+    epH: EP_H * scale,
+  };
+}
+
 export function getUseCaseShapeSize(vm: UseCaseViewModel): { width: number; height: number } {
-  const nameW = measureTextWidth(vm.name, `${NAME_FONT}px ${FONT_SANS}`) + H_PAD * 2;
+  const { fontSans, nameFont, epFont, baseH, epH } = ucMetrics(vm);
+  const nameW = measureTextWidth(vm.name, `${nameFont}px ${fontSans}`) + H_PAD * 2;
   const epW = vm.extensionPoints.length > 0
     ? Math.max(...vm.extensionPoints.map(ep =>
-        measureTextWidth(ep, `${EP_FONT}px ${FONT_MONO}`) + H_PAD * 2,
+        measureTextWidth(ep, `${epFont}px ${FONT_MONO}`) + H_PAD * 2,
       ))
     : 0;
   const width = Math.min(MAX_W, Math.max(MIN_W, nameW, epW));
   const epBlock = vm.extensionPoints.length > 0
-    ? EP_SEP_PAD + 1 + EP_SEP_PAD + vm.extensionPoints.length * EP_H
+    ? EP_SEP_PAD + 1 + EP_SEP_PAD + vm.extensionPoints.length * epH
     : 0;
-  const height = BASE_H + epBlock;
+  const height = baseH + epBlock;
   return { width, height };
 }
 
@@ -72,13 +85,14 @@ export default function UseCaseShape({
   const stroke = vm.colorOverride ?? colors.stroke;
   const strokeW = vm.borderWidthOverride ?? STROKE_W;
   const dash = borderDash(vm.borderStyleOverride, strokeW);
+  const { fontSans, nameFont, epFont, baseH, epH } = ucMetrics(vm);
   const { width: W, height: H } = getUseCaseShapeSize(vm);
   const cx = W / 2;
   const cy = H / 2;
   const rx = cx - 2;
   const ry = cy - 2;
   const hasEP = vm.extensionPoints.length > 0;
-  const sepY = BASE_H - EP_SEP_PAD - 1;
+  const sepY = baseH - EP_SEP_PAD - 1;
 
   return (
     <Group
@@ -123,11 +137,11 @@ export default function UseCaseShape({
 
       <Text
         x={H_PAD}
-        y={BASE_H / 2 - NAME_FONT / 2 - (hasEP ? 4 : 0)}
+        y={baseH / 2 - nameFont / 2 - (hasEP ? 4 : 0)}
         width={W - H_PAD * 2}
         text={vm.name}
-        fontSize={NAME_FONT}
-        fontFamily={FONT_SANS}
+        fontSize={nameFont}
+        fontFamily={fontSans}
         fill={colors.text}
         align="center"
         listening={false}
@@ -147,10 +161,10 @@ export default function UseCaseShape({
             <Text
               key={i}
               x={H_PAD}
-              y={BASE_H + EP_SEP_PAD + i * EP_H}
+              y={baseH + EP_SEP_PAD + i * epH}
               width={W - H_PAD * 2}
               text={ep}
-              fontSize={EP_FONT}
+              fontSize={epFont}
               fontFamily={FONT_MONO}
               fill={colors.text}
               align="center"

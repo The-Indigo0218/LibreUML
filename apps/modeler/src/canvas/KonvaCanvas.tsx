@@ -1669,20 +1669,18 @@ export default function KonvaCanvas() {
             dotted: t('selectionToolbar.borderDotted'),
           },
         });
-        if (isNodeViewModel(shape.data)) {
-          const vnFont = vfsController.diagramView?.nodes.find((n) => n.id === toolbarTarget.id);
-          actions.push({
-            icon: 'font',
-            label: t('selectionToolbar.font'),
-            onClick: () => {},
-            font: { family: vnFont?.fontFamily ?? NODE_FONT_FAMILIES[0].value, size: vnFont?.fontSize ?? 14 },
-            fontFamilies: NODE_FONT_FAMILIES,
-            fontSizes: NODE_FONT_SIZES,
-            onPickFontFamily: (family) => vfsController.applyNodeStyle([toolbarTarget.id], { fontFamily: family }),
-            onPickFontSize: (size) => vfsController.applyNodeStyle([toolbarTarget.id], { fontSize: size }),
-            onClearFont: () => vfsController.applyNodeStyle([toolbarTarget.id], { fontFamily: null, fontSize: null }),
-          });
-        }
+        const vnFont = vfsController.diagramView?.nodes.find((n) => n.id === toolbarTarget.id);
+        actions.push({
+          icon: 'font',
+          label: t('selectionToolbar.font'),
+          onClick: () => {},
+          font: { family: vnFont?.fontFamily ?? NODE_FONT_FAMILIES[0].value, size: vnFont?.fontSize ?? 0 },
+          fontFamilies: NODE_FONT_FAMILIES,
+          fontSizes: NODE_FONT_SIZES,
+          onPickFontFamily: (family) => vfsController.applyNodeStyle([toolbarTarget.id], { fontFamily: family }),
+          onPickFontSize: (size) => vfsController.applyNodeStyle([toolbarTarget.id], { fontSize: size }),
+          onClearFont: () => vfsController.applyNodeStyle([toolbarTarget.id], { fontFamily: null, fontSize: null }),
+        });
         actions.push({
           icon: 'copyStyle',
           label: t('selectionToolbar.copyStyle'),

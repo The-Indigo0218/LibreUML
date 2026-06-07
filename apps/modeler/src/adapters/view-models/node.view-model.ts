@@ -62,6 +62,8 @@ export interface NoteViewModel {
   colorOverride?: string;
   borderWidthOverride?: number;
   borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
   onSave?: (update: { content?: string; title?: string }) => void;
 }
 
@@ -87,6 +89,8 @@ export interface ActorViewModel {
   colorOverride?: string;
   borderWidthOverride?: number;
   borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
 }
@@ -101,6 +105,8 @@ export interface UseCaseViewModel {
   colorOverride?: string;
   borderWidthOverride?: number;
   borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
   onRename?: (name: string) => void;
   onOpenSpec?: () => void;
 }
@@ -134,6 +140,8 @@ export interface DomainEntityViewModel {
   colorOverride?: string;
   borderWidthOverride?: number;
   borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
 }

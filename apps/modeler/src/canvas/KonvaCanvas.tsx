@@ -660,17 +660,14 @@ export default function KonvaCanvas() {
       const ops = vfsController.isStandalone && activeTabId ? standaloneModelOps(activeTabId) : null;
 
       if (isStateInvariantViewModel(vm)) {
-        ops
-          ? ops.updateStateInvariant(vm.domainId, { afterSequenceNumber: newSlot })
-          : useModelStore.getState().updateStateInvariant(vm.domainId, { afterSequenceNumber: newSlot });
+        if (ops) ops.updateStateInvariant(vm.domainId, { afterSequenceNumber: newSlot });
+        else useModelStore.getState().updateStateInvariant(vm.domainId, { afterSequenceNumber: newSlot });
       } else if (isInteractionUseViewModel(vm)) {
-        ops
-          ? ops.updateInteractionUse(vm.domainId, { afterSequenceNumber: newSlot })
-          : useModelStore.getState().updateInteractionUse(vm.domainId, { afterSequenceNumber: newSlot });
+        if (ops) ops.updateInteractionUse(vm.domainId, { afterSequenceNumber: newSlot });
+        else useModelStore.getState().updateInteractionUse(vm.domainId, { afterSequenceNumber: newSlot });
       } else if (isGateViewModel(vm)) {
-        ops
-          ? ops.updateGate(vm.domainId, { afterSequenceNumber: newSlot })
-          : useModelStore.getState().updateGate(vm.domainId, { afterSequenceNumber: newSlot });
+        if (ops) ops.updateGate(vm.domainId, { afterSequenceNumber: newSlot });
+        else useModelStore.getState().updateGate(vm.domainId, { afterSequenceNumber: newSlot });
       }
 
       // Reset visual position — the store update will re-derive the canonical Y.

@@ -2,7 +2,14 @@ import React from 'react';
 
 function mockComponent(name: string) {
   return React.forwardRef<HTMLDivElement, Record<string, unknown>>((props, ref) => {
-    const { children, listening, perfectDrawEnabled, onDblClick, onContextMenu, ...rest } = props;
+    const {
+      children,
+      listening: _listening,
+      perfectDrawEnabled: _perfectDrawEnabled,
+      onDblClick: _onDblClick,
+      onContextMenu: _onContextMenu,
+      ...rest
+    } = props;
     const safe: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(rest)) {
       if (typeof v !== 'function') safe[k] = v;

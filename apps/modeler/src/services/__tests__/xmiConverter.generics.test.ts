@@ -6,7 +6,7 @@ import type { DomainNode } from '../../core/domain/models/nodes';
 // ── helpers ────────────────────────────────────────────────────────────────────
 
 function classNode(id: string, name = 'Box'): DomainNode {
-  return { id, type: 'CLASS', name, attributes: [], methods: [] } as DomainNode;
+  return { id, type: 'CLASS', name, attributes: [], methods: [], createdAt: 0, updatedAt: 0 } as DomainNode;
 }
 
 function irClass(id: string, overrides: Partial<IRClass> = {}): IRClass {

@@ -206,7 +206,7 @@ async function parseLegacyJsonFallback(file: File): Promise<LumlParseResult> {
     };
     return {
       exportType: 'diagram',
-      view: raw.view as DiagramView,
+      view: raw.view as unknown as DiagramView,
       partialModel,
       name: raw.diagramName,
     };

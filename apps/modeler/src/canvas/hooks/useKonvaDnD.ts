@@ -12,6 +12,7 @@ import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/d
 import type { stereotype } from '../../features/diagram/types/diagram.types';
 import { SB_DEFAULT_W, SB_DEFAULT_H } from '../shapes/SystemBoundaryShape';
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../shapes/UCModuleShape';
+import { measureElementSize } from '../engine/elementSize';
 
 export const DRAG_TYPE_NEW = 'application/libreuml-node' as const;
 export const DRAG_TYPE_EXISTING = 'application/libreuml-existing-node' as const;
@@ -570,15 +571,16 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     const currentModel = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
     if (!currentModel) return;
 
-    // Layout constants
-    const PAD = 40;
-    const TAB_H = 24;
-    const EL_W = 256;
-    const EL_H = 120;
-    const EL_GAP_X = 20;
-    const EL_GAP_Y = 20;
-    const COLS = 3;
-    const PKG_GAP = 20;
+    // Layout constants — spacing is content-driven (real node sizes), so a
+    // class with many members reserves more room and nodes never overlap.
+    const PAD = 40;         // inner padding inside a package
+    const TAB_H = 24;       // package header tab height
+    const GAP_X = 28;       // horizontal gap between sibling nodes
+    const GAP_Y = 28;       // vertical gap between rows
+    const PKG_GAP = 32;     // vertical gap between stacked sub-packages
+    const MAX_ROW_W = 1100; // wrap a row once it grows past this width
+    const MIN_PKG_W = 240;
+    const MIN_PKG_H = 160;
 
     // Collect elements
     const parentElements: Array<{ id: string }> = [
@@ -607,43 +609,70 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       ]);
     }
 
-    // Compute layout
-    const parentElOffsets = new Map<string, { x: number; y: number }>();
-    let rowX = PAD;
-    let rowY = TAB_H + PAD;
-    for (let i = 0; i < parentElements.length; i++) {
-      parentElOffsets.set(parentElements[i].id, { x: rowX, y: rowY });
-      rowX += EL_W + EL_GAP_X;
-      if ((i + 1) % COLS === 0) { rowX = PAD; rowY += EL_H + EL_GAP_Y; }
-    }
-    const classRowsCount = Math.ceil(parentElements.length / COLS);
-    const classAreaBottom = TAB_H + PAD + (parentElements.length > 0 ? classRowsCount * (EL_H + EL_GAP_Y) : 0);
+    // Resolve a model element's real rendered size (name + every member).
+    const sizeOf = (id: string): { width: number; height: number } => {
+      const cls = currentModel.classes[id];
+      if (cls) return measureElementSize(currentModel, cls, cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS');
+      const iface = currentModel.interfaces[id];
+      if (iface) return measureElementSize(currentModel, iface, 'INTERFACE');
+      const enm = currentModel.enums[id];
+      if (enm) return measureElementSize(currentModel, enm, 'ENUM');
+      return { width: 256, height: 120 };
+    };
 
+    // Shelf-packing: lay elements left→right, wrapping to a new row once the
+    // current row exceeds MAX_ROW_W. Each row is as tall as its tallest node,
+    // so variable-height nodes never collide.
+    const packElements = (
+      els: Array<{ id: string }>,
+      originX: number,
+      originY: number,
+    ): { offsets: Map<string, { x: number; y: number }>; right: number; bottom: number } => {
+      const offsets = new Map<string, { x: number; y: number }>();
+      let x = originX;
+      let y = originY;
+      let rowH = 0;
+      let right = originX;
+      for (const el of els) {
+        const { width: w, height: h } = sizeOf(el.id);
+        if (x > originX && x + w > originX + MAX_ROW_W) {
+          x = originX;
+          y += rowH + GAP_Y;
+          rowH = 0;
+        }
+        offsets.set(el.id, { x, y });
+        right = Math.max(right, x + w);
+        x += w + GAP_X;
+        rowH = Math.max(rowH, h);
+      }
+      return { offsets, right, bottom: y + rowH };
+    };
+
+    // Compute layout — the dragged package's own elements first…
+    const parentPack = packElements(parentElements, PAD, TAB_H + PAD);
+    const parentElOffsets = parentPack.offsets;
+    let contentRight = parentPack.right;
+    let cursorY = parentElements.length > 0 ? parentPack.bottom + PKG_GAP : TAB_H + PAD;
+
+    // …then each sub-package, sized to its own packed contents, stacked below.
     const subPkgOffsets = new Map<string, { x: number; y: number }>();
     const subPkgElOffsets = new Map<string, Map<string, { x: number; y: number }>>();
-    let subPkgY = classAreaBottom + (parentElements.length > 0 ? PKG_GAP : 0);
-
     const subPkgDims = new Map<string, { w: number; h: number }>();
     for (const subPkgPath of directSubPkgPaths) {
       const subEls = subPkgElements.get(subPkgPath) ?? [];
-      const elOffsets = new Map<string, { x: number; y: number }>();
-      let sx = PAD; let sy = TAB_H + PAD;
-      for (let i = 0; i < subEls.length; i++) {
-        elOffsets.set(subEls[i].id, { x: sx, y: sy });
-        sx += EL_W + EL_GAP_X;
-        if ((i + 1) % COLS === 0) { sx = PAD; sy += EL_H + EL_GAP_Y; }
-      }
-      subPkgElOffsets.set(subPkgPath, elOffsets);
-      const subRows = Math.max(1, Math.ceil(subEls.length / COLS));
-      const subW = Math.max(400, COLS * (EL_W + EL_GAP_X) + 2 * PAD);
-      const subH = Math.max(150, TAB_H + PAD + subRows * (EL_H + EL_GAP_Y) + PAD);
+      const inner = packElements(subEls, PAD, TAB_H + PAD);
+      const subW = Math.max(MIN_PKG_W, inner.right + PAD);
+      const subH = Math.max(MIN_PKG_H, inner.bottom + PAD);
+      subPkgElOffsets.set(subPkgPath, inner.offsets);
       subPkgDims.set(subPkgPath, { w: subW, h: subH });
-      subPkgOffsets.set(subPkgPath, { x: PAD, y: subPkgY });
-      subPkgY += subH + PKG_GAP;
+      subPkgOffsets.set(subPkgPath, { x: PAD, y: cursorY });
+      cursorY += subH + PKG_GAP;
+      contentRight = Math.max(contentRight, PAD + subW);
     }
 
-    const parentW = Math.max(600, COLS * (EL_W + EL_GAP_X) + 2 * PAD);
-    const parentH = subPkgY + PAD;
+    const lastBottom = directSubPkgPaths.length > 0 ? cursorY - PKG_GAP : parentPack.bottom;
+    const parentW = Math.max(MIN_PKG_W, contentRight + PAD);
+    const parentH = Math.max(MIN_PKG_H, lastBottom + PAD);
 
     // Find or create package element IDs — exact name match only to avoid
     // incorrectly reusing an unrelated package with the same short name.

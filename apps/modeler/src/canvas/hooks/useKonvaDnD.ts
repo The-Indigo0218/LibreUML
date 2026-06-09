@@ -954,26 +954,27 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
 
         console.debug('[DnD:onDrop] after fallback — existingPackageId:', existingPackageId, 'currentModel packages:', Object.keys(currentModel?.packages ?? {}));
 
-        // Check if we should show hierarchy modal BEFORE placing
-        const segments = packageFullPath.split('.');
         const parentViewNodeId = findParentPackageViewNode(packageFullPath);
-        console.debug('[DnD:onDrop] segments:', segments, 'parentViewNodeId:', parentViewNodeId);
 
-        if (segments.length > 1 && !parentViewNodeId) {
-          const parentPath = segments.slice(0, -1).join('.');
-          const { classCount, subPackageCount, siblingCount } = getParentContent(parentPath, packageFullPath, currentModel);
-          if (classCount > 0 || siblingCount > 0) {
-            setHierarchyModal({
-              isOpen: true,
-              packageFullPath,
-              parentPath,
-              classCount,
-              subPackageCount,
-              position,
-              isStandaloneFile,
-            });
-            return;
-          }
+        // Check if we should show hierarchy modal BEFORE placing.
+        // If the dropped package has its own content (classes or sub-packages),
+        // offer to place it alone or with everything inside it.
+        const ownContent = getParentContent(packageFullPath, packageFullPath, currentModel);
+        console.debug('[DnD:onDrop] hierarchy-modal check — packageFullPath:', packageFullPath, { ...ownContent, willShow: ownContent.classCount > 0 || ownContent.subPackageCount > 0 });
+
+        if (ownContent.classCount > 0 || ownContent.subPackageCount > 0) {
+          setHierarchyModal({
+            isOpen: true,
+            packageFullPath,
+            // Anchor the "place hierarchy" layout to the dragged package itself,
+            // so it places the package with all its own classes & sub-packages.
+            parentPath: packageFullPath,
+            classCount: ownContent.classCount,
+            subPackageCount: ownContent.subPackageCount,
+            position,
+            isStandaloneFile,
+          });
+          return;
         }
 
         // If package exists in model but not on canvas, just add view node

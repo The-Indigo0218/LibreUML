@@ -375,7 +375,7 @@
     },
     "packageHierarchy": {
       "title": "Place Package Hierarchy",
-      "parentContains": "The parent package '{{parentPath}}' contains {{content}}. How would you like to place it?",
+      "parentContains": "The package '{{parentPath}}' contains {{content}}. How would you like to place it?",
       "class_one": "1 class",
       "class_other": "{{count}} classes",
       "subPackage_one": "1 sub-package",
@@ -383,8 +383,8 @@
       "and": "and",
       "placeOnlyTitle": "Place only '{{packagePath}}'",
       "placeOnlyDesc": "Place this package independently with full qualified name",
-      "placeHierarchyTitle": "Place complete '{{parentPath}}' hierarchy",
-      "placeHierarchyDesc": "Place parent package with all classes, sub-packages, and relationships",
+      "placeHierarchyTitle": "Place '{{parentPath}}' with all its content",
+      "placeHierarchyDesc": "Place the package with all its classes, sub-packages, and relationships",
       "cancel": "Cancel"
     }
   },

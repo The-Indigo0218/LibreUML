@@ -384,7 +384,7 @@
     },
     "packageHierarchy": {
       "title": "Colocar Jerarquía de Paquetes",
-      "parentContains": "El paquete padre '{{parentPath}}' contiene {{content}}. ¿Cómo deseas colocarlo?",
+      "parentContains": "El paquete '{{parentPath}}' contiene {{content}}. ¿Cómo deseas colocarlo?",
       "class_one": "1 clase",
       "class_other": "{{count}} clases",
       "subPackage_one": "1 sub-paquete",
@@ -392,8 +392,8 @@
       "and": "y",
       "placeOnlyTitle": "Colocar solo '{{packagePath}}'",
       "placeOnlyDesc": "Colocar este paquete de forma independiente con nombre completo",
-      "placeHierarchyTitle": "Colocar jerarquía completa de '{{parentPath}}'",
-      "placeHierarchyDesc": "Colocar paquete padre con todas las clases, sub-paquetes y relaciones",
+      "placeHierarchyTitle": "Colocar '{{parentPath}}' con todo su contenido",
+      "placeHierarchyDesc": "Colocar el paquete con todas sus clases, sub-paquetes y relaciones",
       "cancel": "Cancelar"
     }
   },

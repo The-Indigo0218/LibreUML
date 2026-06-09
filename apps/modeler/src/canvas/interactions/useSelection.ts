@@ -243,7 +243,10 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
         return;
       }
       const stage = stageRef.current;
-      if (e.target === (stage as unknown)) {
+      const isBackground =
+        e.target === (stage as unknown) ||
+        (e.target as Konva.Node).name() === 'bg-rect';
+      if (isBackground) {
         setSelectedIds(new Set());
         setSelectedEdgeId(null);
         clear();

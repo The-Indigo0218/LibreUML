@@ -848,30 +848,35 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      
+
       const hasPackageData = event.dataTransfer.types.includes(DRAG_TYPE_PACKAGE.toLowerCase());
       const hasNewData = event.dataTransfer.types.includes(DRAG_TYPE_NEW.toLowerCase());
       const hasExistingData = event.dataTransfer.types.includes(DRAG_TYPE_EXISTING.toLowerCase());
       const hasSidebarClass = event.dataTransfer.types.includes(SIDEBAR_DND_TYPE.toLowerCase());
+
+      console.debug('[DnD:onDrop] types:', [...event.dataTransfer.types], { hasPackageData, hasNewData, hasExistingData, hasSidebarClass });
 
       if (!hasPackageData && !hasNewData && !hasExistingData && !hasSidebarClass) {
         return;
       }
 
       const position = getCenteredPosition(event.clientX, event.clientY);
+      console.debug('[DnD:onDrop] position:', position, 'stageRef.current:', !!stageRef.current);
 
       const packageData = event.dataTransfer.getData(DRAG_TYPE_PACKAGE);
+      console.debug('[DnD:onDrop] packageData:', packageData, 'activeTabId:', activeTabId);
       if (packageData) {
-        if (!activeTabId) return;
+        if (!activeTabId) { console.debug('[DnD:onDrop] early return: no activeTabId'); return; }
 
         const freshProject = useVFSStore.getState().project;
-        if (!freshProject) return;
+        if (!freshProject) { console.debug('[DnD:onDrop] early return: no freshProject'); return; }
         const freshFileNode = freshProject.nodes[activeTabId];
-        if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+        if (!freshFileNode || freshFileNode.type !== 'FILE') { console.debug('[DnD:onDrop] early return: bad fileNode', freshFileNode); return; }
         const freshContent = (freshFileNode as VFSFile).content;
-        if (!isDiagramView(freshContent)) return;
+        if (!isDiagramView(freshContent)) { console.debug('[DnD:onDrop] early return: isDiagramView failed', freshContent); return; }
 
         const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
+        console.debug('[DnD:onDrop] isStandaloneFile:', isStandaloneFile, 'packageFullPath:', packageData);
         const packageFullPath = packageData;
         let existingPackageId: string | null = null;
         let existingViewNodeId: string | null = null;
@@ -931,11 +936,13 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           }
         }
         
+        console.debug('[DnD:onDrop] existingViewNodeId:', existingViewNodeId, 'existingPackageId:', existingPackageId);
+
         if (existingViewNodeId) {
           showToast(`"${packageFullPath}" is already on canvas. Drag it directly to move it.`);
           return;
         }
-        
+
         if (!existingPackageId && currentModel) {
           let pkg = Object.values(currentModel.packages ?? {}).find(p => p.name === packageFullPath);
           if (!pkg) {
@@ -945,10 +952,13 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           if (pkg) existingPackageId = pkg.id;
         }
 
+        console.debug('[DnD:onDrop] after fallback — existingPackageId:', existingPackageId, 'currentModel packages:', Object.keys(currentModel?.packages ?? {}));
+
         // Check if we should show hierarchy modal BEFORE placing
         const segments = packageFullPath.split('.');
         const parentViewNodeId = findParentPackageViewNode(packageFullPath);
-        
+        console.debug('[DnD:onDrop] segments:', segments, 'parentViewNodeId:', parentViewNodeId);
+
         if (segments.length > 1 && !parentViewNodeId) {
           const parentPath = segments.slice(0, -1).join('.');
           const { classCount, subPackageCount, siblingCount } = getParentContent(parentPath, packageFullPath, currentModel);
@@ -968,6 +978,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
 
         // If package exists in model but not on canvas, just add view node
         if (existingPackageId) {
+          console.debug('[DnD:onDrop] → calling undoTransaction to add view node, existingPackageId:', existingPackageId);
           undoTransaction({
             label: `Add to canvas: ${packageFullPath}`,
             scope: isStandaloneFile ? activeTabId : 'global',
@@ -975,20 +986,25 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
               store: 'vfs',
               mutate: (draft: any) => {
                 const node = draft.project?.nodes[activeTabId];
+                console.debug('[DnD:mutate] node:', node?.type, 'isDiagramView:', isDiagramView(node?.content));
                 if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
                 const newViewNodeId = crypto.randomUUID();
-                node.content.nodes.push({
+                const newVN = {
                   id: newViewNodeId,
                   elementId: existingPackageId,
                   x: position.x,
                   y: position.y,
                   collapsed: false,
                   parentPackageId: parentViewNodeId,
-                });
+                };
+                console.debug('[DnD:mutate] pushing view node:', newVN);
+                node.content.nodes.push(newVN);
+                console.debug('[DnD:mutate] nodes count after push:', node.content.nodes.length);
               },
             }],
             affectedElementIds: [existingPackageId],
           });
+          console.debug('[DnD:onDrop] undoTransaction done');
           return;
         }
 

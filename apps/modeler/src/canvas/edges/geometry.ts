@@ -311,6 +311,23 @@ export function directionToAngle(dx: number, dy: number): number {
 }
 
 /**
+ * Marker rotation (degrees) for an edge whose final body segment arrives at
+ * `tgt` coming from `from` (the last waypoint, or the source anchor when the
+ * edge has no bends). Used to align the arrowhead with the real last segment of
+ * straight / polyline edges instead of snapping it to the target face's cardinal
+ * angle — which visibly distorts the head on diagonal and bent edges.
+ *
+ * Returns undefined when the two points coincide so the caller can fall back to
+ * the face-based angle.
+ */
+export function arrivalAngle(from: Point, tgt: Point): number | undefined {
+  const dx = tgt.x - from.x;
+  const dy = tgt.y - from.y;
+  if (dx === 0 && dy === 0) return undefined;
+  return directionToAngle(dx, dy);
+}
+
+/**
  * Orthogonal route: two right-angle bends through a midpoint elbow.
  * Returns a flat Konva `points` array.
  *

@@ -15,6 +15,7 @@ import type {
   IRMessage,
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+import { getAbsolutePosition } from '../../features/diagram/hooks/controllers/sharedNodeBuilders';
 import { standaloneModelOps } from '../../store/standaloneModelOps';
 import {
   TOOL_TO_MESSAGE_KIND,
@@ -66,17 +67,33 @@ export function useCanvasEventHandlers({
       let hasRemove = false;
       let hasPosition = false;
 
+      // IDs moved in THIS batch. When a package is dragged, its children are
+      // dragged with it (same delta), so they appear here too.
+      const movedIds = new Set(
+        changes.filter((c) => c.type === 'position').map((c) => c.id),
+      );
+
       for (const change of changes) {
         if (change.type === 'position') {
           updatedViewNodes = updatedViewNodes.map((vn) => {
             if (vn.id !== change.id) return vn;
             if (vn.parentPackageId) {
+              // Rigid group move: if the parent moved in this same drag, the
+              // child's RELATIVE position is unchanged — only the parent's
+              // absolute position changes. Recomputing from the snapped absolute
+              // would double-count the delta and drift by grid snapping, leaving
+              // children visually offset from their package.
+              if (movedIds.has(vn.parentPackageId)) return vn;
+              // Child dragged on its own: convert the absolute drop point to a
+              // position relative to the parent's *absolute* position (handles
+              // nested packages, not just top-level parents).
               const parentNode = currentView.nodes.find((n) => n.id === vn.parentPackageId);
               if (parentNode) {
+                const parentAbs = getAbsolutePosition(parentNode, currentView.nodes);
                 return {
                   ...vn,
-                  x: change.position.x - parentNode.x,
-                  y: change.position.y - parentNode.y,
+                  x: change.position.x - parentAbs.x,
+                  y: change.position.y - parentAbs.y,
                 };
               }
             }

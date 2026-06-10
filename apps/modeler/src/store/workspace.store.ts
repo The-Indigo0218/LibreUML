@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
+import { getUndoManager } from '../core/undo/undoBridge';
 
 interface WorkspaceStoreState {
   openTabs: string[];
@@ -35,6 +36,10 @@ export const useWorkspaceStore = create<WorkspaceStoreState>()(
 
       closeTab: (fileId) =>
         set((state) => {
+          // Drop this file's per-file undo timeline so it doesn't leak memory.
+          // Undo history is ephemeral (never persisted), so this is safe.
+          getUndoManager()?.clearScope(fileId);
+
           const newOpenTabs = state.openTabs.filter((id) => id !== fileId);
           let newActiveTabId = state.activeTabId;
 

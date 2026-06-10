@@ -145,7 +145,8 @@
       "messageReply": "Reply",
       "messageCreate": "Create Message",
       "messageDestroy": "Destroy Message"
-    }
+    },
+    "otherDiagram": "from another diagram"
   },
   "contextMenu": {
     "pane": {
@@ -386,6 +387,13 @@
       "placeHierarchyTitle": "Place '{{parentPath}}' with all its content",
       "placeHierarchyDesc": "Place the package with all its classes, sub-packages, and relationships",
       "cancel": "Cancel"
+    },
+    "crossDiagram": {
+      "title": "Tool from another diagram",
+      "description": "'{{tool}}' is not a native element of the {{diagram}}. You can add it anyway (best-effort — it may not export or generate code cleanly) or skip it.",
+      "addAnywayTitle": "Add it anyway",
+      "addAnywayDesc": "Place the element in this diagram in free mode (best-effort for export and code generation).",
+      "abstain": "Don't add"
     }
   },
   "alerts": {

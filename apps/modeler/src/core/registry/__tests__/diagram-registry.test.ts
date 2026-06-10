@@ -4,6 +4,8 @@ import {
   getDiagramRegistry,
   isDiagramTypeRegistered,
   getRegisteredDiagramTypes,
+  getAllTools,
+  getNativeNodeToolIds,
 } from '../diagram-registry';
 
 describe('Diagram Registry', () => {
@@ -235,6 +237,48 @@ describe('Diagram Registry', () => {
       expect(types).toContain('DOMAIN_MODEL_DIAGRAM');
       expect(types).toContain('SEQUENCE_DIAGRAM');
       expect(types).toHaveLength(4);
+    });
+  });
+
+  // #1 — all-tools palette + cross-diagram drop guard
+  describe('getAllTools / getNativeNodeToolIds', () => {
+    it('aggregates node tools from every registry without duplicates', () => {
+      const { nodes } = getAllTools();
+      const ids = nodes.map((t) => t.id);
+
+      // Tools native to different diagram types all appear in the merged list.
+      expect(ids).toEqual(expect.arrayContaining(['class', 'actor', 'domain_entity', 'lifeline']));
+      // De-duplicated: 'note' is declared by both Class and Sequence registries.
+      expect(ids.filter((id) => id === 'note')).toHaveLength(1);
+      // No duplicate ids overall.
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('aggregates edge tools and de-duplicates the shared "association" tool', () => {
+      const { edges } = getAllTools();
+      const ids = edges.map((t) => t.id);
+      // 'association' is shared by Class/UseCase/Domain edge tools → collapsed to one.
+      expect(ids.filter((id) => id === 'association')).toHaveLength(1);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+
+    it('returns the native node-tool ids for a diagram type', () => {
+      expect(getNativeNodeToolIds('CLASS_DIAGRAM')).toEqual(
+        new Set(['class', 'interface', 'abstract', 'enum', 'note']),
+      );
+      expect(getNativeNodeToolIds('DOMAIN_MODEL_DIAGRAM')).toEqual(new Set(['domain_entity']));
+    });
+
+    it('marks cross-diagram tools as non-native (the drop-guard condition)', () => {
+      const classNative = getNativeNodeToolIds('CLASS_DIAGRAM');
+      // 'actor' belongs to UseCase, not Class → guard fires.
+      expect(classNative.has('actor')).toBe(false);
+      // 'class' is native → no guard.
+      expect(classNative.has('class')).toBe(true);
+    });
+
+    it('returns an empty set for an unregistered diagram type', () => {
+      expect(getNativeNodeToolIds('UNKNOWN' as never).size).toBe(0);
     });
   });
 

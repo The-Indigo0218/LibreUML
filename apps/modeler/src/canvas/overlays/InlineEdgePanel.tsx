@@ -19,6 +19,7 @@
 import { useState } from 'react';
 import { X, ArrowLeftRight, Settings2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useDismissOnOutsideClick } from '../../hooks/useDismissOnOutsideClick';
 import { isValidMultiplicity } from '../../core/domain/multiplicity.utils';
 import MultiplicitySelector from '../../features/diagram/components/shared/MultiplicitySelector';
 
@@ -57,6 +58,7 @@ export default function InlineEdgePanel({
   onClose,
 }: InlineEdgePanelProps) {
   const { t } = useTranslation();
+  const dismissRef = useDismissOnOutsideClick<HTMLDivElement>(onClose);
   const [sourceRole, setSourceRole] = useState(values.sourceRole);
   const [targetRole, setTargetRole] = useState(values.targetRole);
   const [sourceMul, setSourceMul] = useState(values.sourceMultiplicity);
@@ -74,6 +76,7 @@ export default function InlineEdgePanel({
 
   return (
     <div
+      ref={dismissRef}
       className="absolute right-4 top-16 z-30 pointer-events-auto w-72
                  rounded-xl border border-surface-border bg-surface-primary/97 shadow-2xl backdrop-blur-sm
                  animate-in fade-in slide-in-from-right-2 duration-150"

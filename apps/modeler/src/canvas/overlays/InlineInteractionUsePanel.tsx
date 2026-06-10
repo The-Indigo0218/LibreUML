@@ -12,6 +12,7 @@
  */
 
 import { useTranslation } from 'react-i18next';
+import { useDismissOnOutsideClick } from '../../hooks/useDismissOnOutsideClick';
 import { X, Settings2 } from 'lucide-react';
 import { useModelStore } from '../../store/model.store';
 import { useVFSStore } from '../../store/project-vfs.store';
@@ -30,6 +31,7 @@ export interface InlineInteractionUsePanelProps {
 
 export default function InlineInteractionUsePanel({ elementId, onAdvanced, onClose }: InlineInteractionUsePanelProps) {
   const { t } = useTranslation();
+  const dismissRef = useDismissOnOutsideClick<HTMLDivElement>(onClose);
   const globalModel = useModelStore((s) => s.model);
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const isStandalone = useVFSStore((s): boolean => {
@@ -64,6 +66,7 @@ export default function InlineInteractionUsePanel({ elementId, onAdvanced, onClo
 
   return (
     <div
+      ref={dismissRef}
       className="absolute right-4 top-16 z-30 pointer-events-auto w-72 max-h-[80vh] overflow-y-auto custom-scrollbar
                  rounded-xl border border-surface-border bg-surface-primary/97 shadow-2xl backdrop-blur-sm
                  animate-in fade-in slide-in-from-right-2 duration-150"

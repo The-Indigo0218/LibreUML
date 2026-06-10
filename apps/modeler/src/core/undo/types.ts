@@ -15,6 +15,12 @@ export interface UndoEntry {
   scope: string;
   patchSets: StorePatchSet[];
   affectedElementIds?: string[];
+  /**
+   * Monotonic sequence number assigned by the UndoManager at record time.
+   * Used to order entries chronologically *across* independent timelines
+   * (per-file view timelines + the shared model timeline). Internal field.
+   */
+  seq?: number;
 }
 
 export interface UndoManagerConfig {

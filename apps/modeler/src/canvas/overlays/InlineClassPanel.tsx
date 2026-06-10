@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDismissOnOutsideClick } from '../../hooks/useDismissOnOutsideClick';
 import { Plus, X, Settings2, ChevronRight, ChevronDown } from 'lucide-react';
 import { useModelStore } from '../../store/model.store';
 import { useVFSStore } from '../../store/project-vfs.store';
@@ -42,6 +43,7 @@ export interface InlineClassPanelProps {
 
 export default function InlineClassPanel({ elementId, onAdvanced, onClose }: InlineClassPanelProps) {
   const { t } = useTranslation();
+  const dismissRef = useDismissOnOutsideClick<HTMLDivElement>(onClose);
   /** Operation whose parameter list is expanded inline (null = all collapsed). */
   const [expandedOpId, setExpandedOpId] = useState<string | null>(null);
   const globalModel = useModelStore((s) => s.model);
@@ -300,6 +302,7 @@ export default function InlineClassPanel({ elementId, onAdvanced, onClose }: Inl
 
   return (
     <div
+      ref={dismissRef}
       className="absolute right-4 top-16 z-30 pointer-events-auto w-80 max-h-[80vh] overflow-y-auto custom-scrollbar
                  rounded-xl border border-surface-border bg-surface-primary/97 shadow-2xl backdrop-blur-sm
                  animate-in fade-in slide-in-from-right-2 duration-150"

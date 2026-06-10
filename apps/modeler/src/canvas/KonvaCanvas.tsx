@@ -53,6 +53,7 @@ import { useFormatPainterStore } from '../store/formatPainter.store';
 import type { DiagramType } from '../core/domain/vfs/vfs.types';
 import DuplicateFileModal from '../components/shared/DuplicateFileModal';
 import PackageHierarchyModal from './overlays/PackageHierarchyModal';
+import CrossDiagramDropModal from './overlays/CrossDiagramDropModal';
 import ConfirmationModal from '../components/shared/ConfirmationModal';
 import { DeletePackageModal } from '../features/diagram/components/layout/packageExplorer/DeletePackageModal';
 import NoteEditorModal from '../features/diagram/components/modals/NoteEditorModal';
@@ -784,7 +785,7 @@ export default function KonvaCanvas() {
   // Single-key relation/connection tool shortcuts (diagram-aware).
   useRelationShortcuts();
 
-  const { onDragOver: handleDragOver, onDrop: handleDrop, duplicateModal, hierarchyModal } = useKonvaDnD({ stageRef });
+  const { onDragOver: handleDragOver, onDrop: handleDrop, duplicateModal, hierarchyModal, crossDiagramModal } = useKonvaDnD({ stageRef });
 
   const startInlineEditing = useInlineEditorStore((s) => s.startEditing);
   const updateEditorPosition = useInlineEditorStore((s) => s.updatePosition);
@@ -2387,6 +2388,15 @@ export default function KonvaCanvas() {
           onPlaceSimple={hierarchyModal.onPlaceSimple}
           onPlaceHierarchy={hierarchyModal.onPlaceHierarchy}
           onCancel={hierarchyModal.onCancel}
+        />
+      )}
+
+      {crossDiagramModal.isOpen && (
+        <CrossDiagramDropModal
+          toolLabel={crossDiagramModal.toolLabel}
+          diagramLabel={crossDiagramModal.diagramLabel}
+          onAddAnyway={crossDiagramModal.onAddAnyway}
+          onCancel={crossDiagramModal.onCancel}
         />
       )}
 

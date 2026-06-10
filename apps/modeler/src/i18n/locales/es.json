@@ -153,7 +153,8 @@
       "messageReply": "Respuesta",
       "messageCreate": "Mensaje de Creación",
       "messageDestroy": "Mensaje de Destrucción"
-    }
+    },
+    "otherDiagram": "de otro diagrama"
   },
   "contextMenu": {
     "pane": {
@@ -395,6 +396,13 @@
       "placeHierarchyTitle": "Colocar '{{parentPath}}' con todo su contenido",
       "placeHierarchyDesc": "Colocar el paquete con todas sus clases, sub-paquetes y relaciones",
       "cancel": "Cancelar"
+    },
+    "crossDiagram": {
+      "title": "Herramienta de otro diagrama",
+      "description": "'{{tool}}' no es un elemento nativo del {{diagram}}. Puedes agregarlo de todas formas (best-effort — puede no exportar ni generar código correctamente) o abstenerte.",
+      "addAnywayTitle": "Agregar de todas formas",
+      "addAnywayDesc": "Coloca el elemento en este diagrama en modo libre (best-effort para exportar y generar código).",
+      "abstain": "No agregar"
     }
   },
   "alerts": {

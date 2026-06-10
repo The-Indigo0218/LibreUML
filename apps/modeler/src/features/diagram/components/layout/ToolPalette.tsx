@@ -5,7 +5,7 @@ import { useVFSStore } from "../../../../store/project-vfs.store";
 import type { stereotype, UmlRelationType } from "../../types/diagram.types";
 import { edgeConfig } from "../../../../config/theme.config";
 import { useTranslation } from "react-i18next";
-import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
+import { getDiagramRegistry, getAllTools } from "../../../../core/registry/diagram-registry";
 import { getIconComponent } from "../../../../core/registry/icon-map";
 import { useKonvaAutoLayout } from "../../../../canvas/hooks/useKonvaAutoLayout";
 import { DRAG_TYPE_NEW } from "../../../../canvas/hooks/useKonvaDnD";
@@ -41,6 +41,22 @@ export default function ToolPalette() {
       return getDiagramRegistry('CLASS_DIAGRAM'); // Fallback to CLASS_DIAGRAM
     }
   }, [diagramType]);
+
+  // The palette lists every node tool across all diagram types (#1). Tools the
+  // active diagram doesn't own are marked "foreign" and sorted after the native
+  // ones; dropping one triggers the cross-diagram guard in useKonvaDnD.
+  const nativeNodeIds = useMemo(
+    () => new Set(registry.tools.nodes.map((tool) => tool.id)),
+    [registry],
+  );
+  const allNodeTools = useMemo(() => {
+    const tools = getAllTools().nodes;
+    return [...tools].sort((a, b) => {
+      const aForeign = nativeNodeIds.has(a.id) ? 0 : 1;
+      const bForeign = nativeNodeIds.has(b.id) ? 0 : 1;
+      return aForeign - bForeign;
+    });
+  }, [nativeNodeIds]);
 
   const setTabConnectionMode = useWorkspaceStore((s) => s.setTabConnectionMode);
 
@@ -91,7 +107,7 @@ export default function ToolPalette() {
           setIsOpen={setIsNodesOpen}
         >
           <div className="flex flex-col gap-2 px-3">
-            {registry.tools.nodes.map((tool) => (
+            {allNodeTools.map((tool) => (
               <DraggableItem
                 key={tool.id}
                 type={tool.id as stereotype}
@@ -99,6 +115,8 @@ export default function ToolPalette() {
                 label={tool.translationKey ? t(tool.translationKey) : tool.label}
                 color={tool.color || 'var(--color-uml-class-border)'}
                 onDragStart={onDragStart}
+                isForeign={!nativeNodeIds.has(tool.id)}
+                foreignHint={t("sidebar.otherDiagram")}
               />
             ))}
           </div>
@@ -180,6 +198,10 @@ interface DraggableItemProps {
   label: string;
   color: string;
   onDragStart: (event: React.DragEvent, type: stereotype) => void;
+  /** True when the tool is not native to the active diagram type. */
+  isForeign?: boolean;
+  /** Tooltip suffix shown for foreign tools (e.g. "from another diagram"). */
+  foreignHint?: string;
 }
 
 function DraggableItem({
@@ -188,16 +210,18 @@ function DraggableItem({
   label,
   color,
   onDragStart,
+  isForeign = false,
+  foreignHint,
 }: DraggableItemProps) {
   const [isHovered, setIsHovered] = useState(false);
-  
+
   // Get icon component dynamically
   const IconComponent = getIconComponent(icon);
 
   return (
     <div
-      title={label}
-      className="group flex items-center cursor-grab active:cursor-grabbing rounded-lg transition-all duration-200 border flex-row gap-3 px-3 py-2.5 justify-start"
+      title={isForeign && foreignHint ? `${label} · ${foreignHint}` : label}
+      className={`group flex items-center cursor-grab active:cursor-grabbing rounded-lg transition-all duration-200 border flex-row gap-3 px-3 py-2.5 justify-start ${isForeign ? "opacity-50 hover:opacity-100" : ""}`}
       draggable
       onDragStart={(e) => onDragStart(e, type)}
       onMouseEnter={() => setIsHovered(true)}
@@ -222,6 +246,13 @@ function DraggableItem({
       >
         {label}
       </span>
+
+      {isForeign && (
+        <span
+          className="ml-auto shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/70"
+          aria-hidden
+        />
+      )}
     </div>
   );
 }

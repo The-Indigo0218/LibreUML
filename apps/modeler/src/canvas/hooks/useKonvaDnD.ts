@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type Konva from 'konva';
 import { useWorkspaceStore } from '../../store/workspace.store';
 import { useVFSStore } from '../../store/project-vfs.store';
@@ -13,6 +14,11 @@ import type { stereotype } from '../../features/diagram/types/diagram.types';
 import { SB_DEFAULT_W, SB_DEFAULT_H } from '../shapes/SystemBoundaryShape';
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../shapes/UCModuleShape';
 import { measureElementSize } from '../engine/elementSize';
+import {
+  getAllTools,
+  getNativeNodeToolIds,
+  getDiagramRegistry,
+} from '../../core/registry/diagram-registry';
 
 export const DRAG_TYPE_NEW = 'application/libreuml-node' as const;
 export const DRAG_TYPE_EXISTING = 'application/libreuml-existing-node' as const;
@@ -276,9 +282,17 @@ export interface UseKonvaDnDResult {
     onPlaceHierarchy: () => void;
     onCancel: () => void;
   };
+  crossDiagramModal: {
+    isOpen: boolean;
+    toolLabel: string;
+    diagramLabel: string;
+    onAddAnyway: () => void;
+    onCancel: () => void;
+  };
 }
 
 export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult {
+  const { t } = useTranslation();
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
   const hideDuplicateFileWarning = useSettingsStore((s) => s.hideDuplicateFileWarning);
@@ -308,6 +322,22 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     subPackageCount: 0,
     position: { x: 0, y: 0 },
     isStandaloneFile: false,
+  });
+
+  // Guard shown when a node tool that the active diagram type does not own is
+  // dropped onto the canvas (see #1 "all-tools palette" — best-effort free mode).
+  const [crossDiagramModal, setCrossDiagramModal] = useState<{
+    isOpen: boolean;
+    stereotype: stereotype | '';
+    toolLabel: string;
+    diagramLabel: string;
+    position: { x: number; y: number };
+  }>({
+    isOpen: false,
+    stereotype: '',
+    toolLabel: '',
+    diagramLabel: '',
+    position: { x: 0, y: 0 },
   });
 
   const getCenteredPosition = useCallback(
@@ -869,6 +899,140 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     }
   }, [hierarchyModal, activeTabId]);
 
+  /**
+   * Creates a new semantic element + ViewNode for the given stereotype at a
+   * canvas position. Extracted from onDrop so the cross-diagram "add anyway"
+   * path can reuse the exact same creation logic.
+   */
+  const createNodeFromStereotype = useCallback(
+    (stereotype: stereotype, position: { x: number; y: number }) => {
+      if (!activeTabId) return;
+
+      const dropConfig = VFS_DROP_CONFIG[stereotype];
+      if (!dropConfig) {
+        console.warn(`[VFS Drop] Stereotype "${stereotype}" has no VFS semantic mapping. Drop ignored.`);
+        return;
+      }
+
+      const freshProject = useVFSStore.getState().project;
+      if (!freshProject) return;
+      const freshFileNode = freshProject.nodes[activeTabId];
+      if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+      const freshContent = (freshFileNode as VFSFile).content;
+      if (!isDiagramView(freshContent)) return;
+
+      const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
+      const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
+      const newElementId = crypto.randomUUID();
+      const newViewNodeId = crypto.randomUUID();
+      const effectivePosition = dropConfig.overridePosition
+        ? dropConfig.overridePosition(position)
+        : position;
+
+      if (isStandaloneFile) {
+        const currentLocalModel = getLocalModel(activeTabId);
+        const elementName = (currentLocalModel && !dropConfig.isVisualOnly)
+          ? dropConfig.getNextName(currentLocalModel)
+          : 'Note';
+
+        undoTransaction({
+          label: `Create ${stereotype}`,
+          scope: activeTabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE') return;
+              if (!dropConfig.isVisualOnly) {
+                if (!node.localModel) {
+                  const now = Date.now();
+                  node.localModel = {
+                    id: crypto.randomUUID(), name: `${node.name} (standalone)`, version: '1.0.0',
+                    packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                    attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                    objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                    createdAt: now, updatedAt: now,
+                  };
+                }
+                dropConfig.applyToLocalModelDraft(node.localModel, newElementId, elementName);
+              }
+              if (isDiagramView(node.content)) {
+                node.content.nodes.push({
+                  id: newViewNodeId,
+                  elementId: dropConfig.isVisualOnly ? '' : newElementId,
+                  x: effectivePosition.x, y: effectivePosition.y,
+                  ...(dropConfig.initialDimensions ?? {}),
+                });
+              }
+            },
+          }],
+        });
+      } else {
+        const modelState = useModelStore.getState();
+        const currentModel = modelState.model;
+        const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
+        const elementName = (currentModel && !dropConfig.isVisualOnly)
+          ? dropConfig.getNextName(currentModel)
+          : 'Note';
+
+        if (dropConfig.isVisualOnly) {
+          withUndo('vfs', 'Add Note', activeTabId, (draft: any) => {
+            const node = draft.project?.nodes[activeTabId];
+            if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+            node.content.nodes.push({ id: newViewNodeId, elementId: '', x: effectivePosition.x, y: effectivePosition.y });
+          });
+        } else {
+          undoTransaction({
+            label: `Create ${stereotype}`,
+            scope: 'global',
+            mutations: [
+              {
+                store: 'model',
+                mutate: (draft: any) => {
+                  if (!draft.model) {
+                    const now = Date.now();
+                    draft.model = {
+                      id: domainModelId, name: 'Domain Model', version: '1.0.0',
+                      packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                      attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                      objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                      packageNames: [], createdAt: now, updatedAt: now,
+                    };
+                  }
+                  dropConfig.applyToModelDraft(draft.model, newElementId, elementName, isExternalFile || undefined);
+                },
+              },
+              {
+                store: 'vfs',
+                mutate: (draft: any) => {
+                  const node = draft.project?.nodes[activeTabId];
+                  if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+                  node.content.nodes.push({
+                    id: newViewNodeId,
+                    elementId: newElementId,
+                    x: effectivePosition.x, y: effectivePosition.y,
+                    ...(dropConfig.initialDimensions ?? {}),
+                  });
+                },
+              },
+            ],
+          });
+        }
+      }
+    },
+    [activeTabId],
+  );
+
+  const handleCrossDiagramAddAnyway = useCallback(() => {
+    const { stereotype, position } = crossDiagramModal;
+    setCrossDiagramModal((prev) => ({ ...prev, isOpen: false }));
+    if (stereotype) createNodeFromStereotype(stereotype, position);
+  }, [crossDiagramModal, createNodeFromStereotype]);
+
+  const handleCrossDiagramCancel = useCallback(() => {
+    setCrossDiagramModal((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
@@ -1291,118 +1455,32 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
 
       if (!activeTabId) return;
 
-      const dropConfig = VFS_DROP_CONFIG[stereotype];
-
-      if (!dropConfig) {
+      if (!VFS_DROP_CONFIG[stereotype]) {
         console.warn(`[VFS Drop] Stereotype "${stereotype}" has no VFS semantic mapping. Drop ignored.`);
         return;
       }
 
-      const freshProject = useVFSStore.getState().project;
-      if (!freshProject) return;
-      const freshFileNode = freshProject.nodes[activeTabId];
-      if (!freshFileNode || freshFileNode.type !== 'FILE') return;
-      const freshContent = (freshFileNode as VFSFile).content;
-      if (!isDiagramView(freshContent)) return;
-
-      const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
-      const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
-      const newElementId = crypto.randomUUID();
-      const newViewNodeId = crypto.randomUUID();
-      const effectivePosition = dropConfig.overridePosition
-        ? dropConfig.overridePosition(position)
-        : position;
-
-      if (isStandaloneFile) {
-        const currentLocalModel = getLocalModel(activeTabId);
-        const elementName = (currentLocalModel && !dropConfig.isVisualOnly)
-          ? dropConfig.getNextName(currentLocalModel)
-          : 'Note';
-
-        undoTransaction({
-          label: `Create ${stereotype}`,
-          scope: activeTabId,
-          mutations: [{
-            store: 'vfs',
-            mutate: (draft: any) => {
-              const node = draft.project?.nodes[activeTabId];
-              if (!node || node.type !== 'FILE') return;
-              if (!dropConfig.isVisualOnly) {
-                if (!node.localModel) {
-                  const now = Date.now();
-                  node.localModel = {
-                    id: crypto.randomUUID(), name: `${node.name} (standalone)`, version: '1.0.0',
-                    packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
-                    attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
-                    objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
-                    createdAt: now, updatedAt: now,
-                  };
-                }
-                dropConfig.applyToLocalModelDraft(node.localModel, newElementId, elementName);
-              }
-              if (isDiagramView(node.content)) {
-                node.content.nodes.push({
-                  id: newViewNodeId,
-                  elementId: dropConfig.isVisualOnly ? '' : newElementId,
-                  x: effectivePosition.x, y: effectivePosition.y,
-                  ...(dropConfig.initialDimensions ?? {}),
-                });
-              }
-            },
-          }],
-        });
-      } else {
-        const modelState = useModelStore.getState();
-        const currentModel = modelState.model;
-        const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
-        const elementName = (currentModel && !dropConfig.isVisualOnly)
-          ? dropConfig.getNextName(currentModel)
-          : 'Note';
-
-        if (dropConfig.isVisualOnly) {
-          withUndo('vfs', 'Add Note', activeTabId, (draft: any) => {
-            const node = draft.project?.nodes[activeTabId];
-            if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
-            node.content.nodes.push({ id: newViewNodeId, elementId: '', x: effectivePosition.x, y: effectivePosition.y });
-          });
-        } else {
-          undoTransaction({
-            label: `Create ${stereotype}`,
-            scope: 'global',
-            mutations: [
-              {
-                store: 'model',
-                mutate: (draft: any) => {
-                  if (!draft.model) {
-                    const now = Date.now();
-                    draft.model = {
-                      id: domainModelId, name: 'Domain Model', version: '1.0.0',
-                      packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
-                      attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
-                      objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
-                      packageNames: [], createdAt: now, updatedAt: now,
-                    };
-                  }
-                  dropConfig.applyToModelDraft(draft.model, newElementId, elementName, isExternalFile || undefined);
-                },
-              },
-              {
-                store: 'vfs',
-                mutate: (draft: any) => {
-                  const node = draft.project?.nodes[activeTabId];
-                  if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
-                  node.content.nodes.push({
-                    id: newViewNodeId,
-                    elementId: newElementId,
-                    x: effectivePosition.x, y: effectivePosition.y,
-                    ...(dropConfig.initialDimensions ?? {}),
-                  });
-                },
-              },
-            ],
-          });
+      // Cross-diagram guard: a tool the active diagram type does not natively
+      // own goes through a confirmation (add anyway in free mode / abstain).
+      const activeNode = useVFSStore.getState().project?.nodes[activeTabId];
+      const activeDiagramType =
+        activeNode?.type === 'FILE' ? (activeNode as VFSFile).diagramType : undefined;
+      if (activeDiagramType && !getNativeNodeToolIds(activeDiagramType).has(stereotype)) {
+        const toolDef = getAllTools().nodes.find((tdef) => tdef.id === stereotype);
+        const toolLabel = toolDef
+          ? toolDef.translationKey ? t(toolDef.translationKey) : toolDef.label
+          : stereotype;
+        let diagramLabel: string = activeDiagramType;
+        try {
+          diagramLabel = getDiagramRegistry(activeDiagramType).displayName;
+        } catch {
+          /* unregistered type — fall back to the raw diagram type */
         }
+        setCrossDiagramModal({ isOpen: true, stereotype, toolLabel, diagramLabel, position });
+        return;
       }
+
+      createNodeFromStereotype(stereotype, position);
     },
     [
       getCenteredPosition,
@@ -1414,6 +1492,8 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       showToast,
       addElementToDiagram,
       stageRef,
+      createNodeFromStereotype,
+      t,
     ],
   );
 
@@ -1436,6 +1516,13 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       onPlaceSimple: handleHierarchyPlaceSimple,
       onPlaceHierarchy: handleHierarchyPlaceHierarchy,
       onCancel: handleHierarchyCancel,
+    },
+    crossDiagramModal: {
+      isOpen: crossDiagramModal.isOpen,
+      toolLabel: crossDiagramModal.toolLabel,
+      diagramLabel: crossDiagramModal.diagramLabel,
+      onAddAnyway: handleCrossDiagramAddAnyway,
+      onCancel: handleCrossDiagramCancel,
     },
   };
 }

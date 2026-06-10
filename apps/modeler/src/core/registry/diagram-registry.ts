@@ -1,6 +1,7 @@
 import type {
   DiagramTypeRegistry,
   DiagramRegistryMap,
+  ToolConfig,
 } from './diagram-registry.types';
 import type { DiagramType, SemanticModel, ResolvedElement } from '../domain/vfs/vfs.types';
 import type { DomainNode } from '../domain/models/nodes';
@@ -966,6 +967,41 @@ export function isDiagramTypeRegistered(diagramType: string): diagramType is Dia
  */
 export function getRegisteredDiagramTypes(): DiagramType[] {
   return Object.keys(diagramRegistry) as DiagramType[];
+}
+
+/** Aggregated, de-duplicated tool lists across every registered diagram type. */
+export interface AggregatedTools {
+  nodes: ToolConfig[];
+  edges: ToolConfig[];
+}
+
+/**
+ * Merges the `tools.nodes`/`tools.edges` of every registered diagram type into a
+ * single de-duplicated palette (first occurrence of each tool id wins). Lets the
+ * ToolPalette expose every tool regardless of the active diagram type; the drop
+ * guard (useKonvaDnD) decides what to do when a tool the active diagram doesn't
+ * own is dropped onto the canvas.
+ */
+export function getAllTools(): AggregatedTools {
+  const nodes = new Map<string, ToolConfig>();
+  const edges = new Map<string, ToolConfig>();
+  for (const type of getRegisteredDiagramTypes()) {
+    const reg = diagramRegistry[type];
+    for (const tool of reg.tools.nodes) if (!nodes.has(tool.id)) nodes.set(tool.id, tool);
+    for (const tool of reg.tools.edges) if (!edges.has(tool.id)) edges.set(tool.id, tool);
+  }
+  return { nodes: [...nodes.values()], edges: [...edges.values()] };
+}
+
+/**
+ * The set of node-tool ids that the given diagram type natively owns. Used by the
+ * palette to mark "foreign" tools and by the drop guard to decide whether a
+ * dropped stereotype belongs to the active diagram. Unknown/unregistered types
+ * yield an empty set.
+ */
+export function getNativeNodeToolIds(diagramType: DiagramType): Set<string> {
+  const reg = diagramRegistry[diagramType];
+  return new Set(reg ? reg.tools.nodes.map((t) => t.id) : []);
 }
 
 /**

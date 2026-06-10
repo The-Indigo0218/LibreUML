@@ -47,6 +47,7 @@ import {
   retractAnchor,
   edgeIntersection,
   directionToAngle,
+  arrivalAngle,
   curvedRoute,
   straightRoute,
   polylineRoute,
@@ -419,6 +420,19 @@ export default function KonvaEdge({
           pts = avoidObstacles(src, retractedTgt, obstacles ?? []);
           break;
       }
+    }
+
+    // Phase A (edge fixed anchor): align the arrowhead with the real last
+    // segment for straight / polyline bodies, where the diagonal arrival would
+    // otherwise snap to the target face's cardinal angle and look distorted.
+    // Orthogonal (axis-aligned final elbow) and bezier (tangent already equals
+    // the face normal) keep the face-based angle, so legacy diagrams are
+    // unchanged. Floating already sets markerAngle above.
+    if (!useFloating && !isBezier && routing !== 'orthogonal') {
+      const lastFrom = hasWaypoints
+        ? effectiveWaypoints![effectiveWaypoints!.length - 1]
+        : src;
+      markerAngle = arrivalAngle(lastFrom, tgt) ?? markerAngle;
     }
 
     // Target labels must clear the marker depth (e.g. 24px diamond for COMPOSITION)

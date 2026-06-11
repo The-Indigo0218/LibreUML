@@ -306,48 +306,52 @@ export default function KonvaCanvas() {
       const currentNodeId = end === 'source' ? edge.sourceId : edge.targetId;
       const otherNodeId = end === 'source' ? edge.targetId : edge.sourceId;
       const bm = boundsMapRef.current;
+      const FIXED_R = 12;
 
-      // Innermost node containing the drop (smallest area wins → nodes in packages).
+      const thisBounds = bm.get(currentNodeId);
+      const otherBounds = bm.get(otherNodeId);
+
+      // 1) Re-anchor: released near one of the CURRENT node's 8 marks. Checked
+      //    first because marks sit on the perimeter (the bounds boundary), where
+      //    a strict containment test is unreliable.
+      if (thisBounds && otherBounds) {
+        let nearest: { x: number; y: number; d: number } | null = null;
+        for (const p of getAnchorPoints(thisBounds)) {
+          const d = Math.hypot(dropWorld.x - p.x, dropWorld.y - p.y);
+          if (d <= FIXED_R && (!nearest || d < nearest.d)) nearest = { x: p.x, y: p.y, d };
+        }
+        if (nearest) {
+          // Lock this end to the mark; lock the other end to its current position
+          // so resolveLockedAnchors (which needs both handles) renders correctly.
+          const thisHandle = lockedHandleAt(thisBounds, nearest.x, nearest.y);
+          const otherHandle = lockedHandleAt(otherBounds, otherEnd.x, otherEnd.y);
+          vfsController.updateVFSEdgeProps(edgeId, {
+            anchorLocked: true,
+            sourceHandle: end === 'source' ? thisHandle : otherHandle,
+            targetHandle: end === 'target' ? thisHandle : otherHandle,
+          });
+          return;
+        }
+      }
+
+      // 2) Re-link: dropped on a different node. A small tolerance keeps perimeter
+      //    drops working; innermost (smallest-area) node wins for nodes in packages.
+      const PAD = 6;
       let hitNodeId: string | null = null;
       let hitArea = Infinity;
       for (const [nodeId, b] of bm.entries()) {
         const inside =
-          dropWorld.x >= b.x && dropWorld.x <= b.x + b.width &&
-          dropWorld.y >= b.y && dropWorld.y <= b.y + b.height;
+          dropWorld.x >= b.x - PAD && dropWorld.x <= b.x + b.width + PAD &&
+          dropWorld.y >= b.y - PAD && dropWorld.y <= b.y + b.height + PAD;
         if (inside && b.width * b.height < hitArea) {
           hitNodeId = nodeId;
           hitArea = b.width * b.height;
         }
       }
-      if (!hitNodeId) return; // empty canvas → revert
-
-      // Dropped on a different node → re-link the relation's endpoint.
-      if (hitNodeId !== currentNodeId) {
+      if (hitNodeId && hitNodeId !== currentNodeId) {
         vfsController.relinkEdgeEndpoint(edgeId, end, hitNodeId);
-        return;
       }
-
-      // Same node → fix the anchor only if released near one of its 8 marks.
-      const thisBounds = bm.get(currentNodeId);
-      const otherBounds = bm.get(otherNodeId);
-      if (!thisBounds || !otherBounds) return;
-      const FIXED_R = 12;
-      let nearest: { x: number; y: number; d: number } | null = null;
-      for (const p of getAnchorPoints(thisBounds)) {
-        const d = Math.hypot(dropWorld.x - p.x, dropWorld.y - p.y);
-        if (d <= FIXED_R && (!nearest || d < nearest.d)) nearest = { x: p.x, y: p.y, d };
-      }
-      if (!nearest) return; // not on a mark → keep floating (revert)
-
-      // Lock this end to the mark; lock the other end to its current position so
-      // resolveLockedAnchors (which needs both handles) renders correctly.
-      const thisHandle = lockedHandleAt(thisBounds, nearest.x, nearest.y);
-      const otherHandle = lockedHandleAt(otherBounds, otherEnd.x, otherEnd.y);
-      vfsController.updateVFSEdgeProps(edgeId, {
-        anchorLocked: true,
-        sourceHandle: end === 'source' ? thisHandle : otherHandle,
-        targetHandle: end === 'target' ? thisHandle : otherHandle,
-      });
+      // else: empty canvas or same node off-mark → revert (no state change).
     },
     [edges, vfsController],
   );

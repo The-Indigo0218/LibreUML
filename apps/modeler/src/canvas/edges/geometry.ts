@@ -196,6 +196,16 @@ export function anchorPointToHandle(bounds: NodeBounds, pt: AnchorPoint): Locked
 }
 
 /**
+ * Plain-coordinate variant of anchorPointToHandle: maps an (x, y) on a node's
+ * border to its nearest of the 8 LockedHandle labels. Used by the connection
+ * draw to snapshot the handle the user dropped on (the anchor dots carry no
+ * face, so the AnchorPoint overload is inconvenient there).
+ */
+export function lockedHandleAt(bounds: NodeBounds, x: number, y: number): LockedHandle {
+  return anchorPointToHandle(bounds, { x, y, face: 'Top' });
+}
+
+/**
  * Reconstructs an AnchorPoint from a stored LockedHandle.
  * Corner anchors are returned with a placeholder face — callers must
  * use resolveLockedAnchors (which assigns dynamic corner faces) instead

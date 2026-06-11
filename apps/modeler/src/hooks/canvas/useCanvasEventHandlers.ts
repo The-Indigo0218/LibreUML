@@ -355,6 +355,9 @@ export function useCanvasEventHandlers({
         waypoints: [],
         sourceHandle: connection.sourceHandle ?? undefined,
         targetHandle: connection.targetHandle ?? undefined,
+        // Locked only when the user dropped on a precise connection point; else
+        // the edge floats (P1 default). Handles are still kept for reference.
+        ...(connection.anchorLocked ? { anchorLocked: true } : {}),
         // Freshly drawn edges default to free-form straight; legacy edges (no
         // routingMode) keep orthogonal so existing diagrams look unchanged.
         routingMode: 'straight',

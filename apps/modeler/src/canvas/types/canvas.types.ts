@@ -72,4 +72,10 @@ export interface KonvaConnection {
   target: string | null;
   sourceHandle: string | null;
   targetHandle: string | null;
+  /**
+   * True when the user dropped precisely on one of the 8 connection points →
+   * the new edge locks to sourceHandle/targetHandle. Absent/false → floating
+   * connection (endpoints slide along the border, the draw.io default).
+   */
+  anchorLocked?: boolean;
 }

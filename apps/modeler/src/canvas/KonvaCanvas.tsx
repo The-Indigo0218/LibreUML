@@ -27,7 +27,7 @@ import SelectionRect from './selection/SelectionRect';
 import { useSelection } from './interactions/useSelection';
 import { useDragHandler } from './interactions/useDragHandler';
 import type { CanvasNode } from './interactions/useDragHandler';
-import { useConnectionDraw } from './interactions/useConnectionDraw';
+import { useConnectionDraw, type DropAnchoring } from './interactions/useConnectionDraw';
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import { useRelationShortcuts } from './interactions/useRelationShortcuts';
 import { usePackageDrop } from './interactions/usePackageDrop';
@@ -341,12 +341,13 @@ export default function KonvaCanvas() {
   });
 
   const handleConnectionCreated = useCallback(
-    (sourceNodeId: string, targetNodeId: string) => {
+    (sourceNodeId: string, targetNodeId: string, anchoring?: DropAnchoring) => {
       onConnect({
         source: sourceNodeId,
         target: targetNodeId,
-        sourceHandle: null,
-        targetHandle: null,
+        sourceHandle: anchoring?.sourceHandle ?? null,
+        targetHandle: anchoring?.targetHandle ?? null,
+        anchorLocked: anchoring?.anchorLocked,
       });
     },
     [onConnect],
@@ -2298,21 +2299,23 @@ export default function KonvaCanvas() {
               });
             })}
 
-            {!connectionDraw.isConnecting &&
-              connectionDraw.hoveredNodeAnchors.map((dot, i) => (
-                <Circle
-                  key={`anchor-${dot.nodeId}-${i}`}
-                  x={dot.x}
-                  y={dot.y}
-                  radius={4}
-                  fill="#22d3ee"
-                  stroke="#0891b2"
-                  strokeWidth={1.5}
-                  opacity={0.85}
-                  listening={false}
-                />
-              ))}
+            {/* Connection points (draw.io Xs): shown on hover and while drawing,
+                so the user can aim at one of the 8 to lock the endpoint. */}
+            {connectionDraw.hoveredNodeAnchors.map((dot, i) => (
+              <Circle
+                key={`anchor-${dot.nodeId}-${i}`}
+                x={dot.x}
+                y={dot.y}
+                radius={4}
+                fill="#22d3ee"
+                stroke="#0891b2"
+                strokeWidth={1.5}
+                opacity={0.85}
+                listening={false}
+              />
+            ))}
 
+            {/* Snap indicator: green = will lock to this fixed point; red = invalid. */}
             {connectionDraw.isConnecting && connectionDraw.snapTargetDot && (
               <Circle
                 x={connectionDraw.snapTargetDot.x}
@@ -2326,6 +2329,7 @@ export default function KonvaCanvas() {
               />
             )}
 
+            {/* Temp line: green when locking to a fixed point, blue when floating. */}
             {connectionDraw.tempLine && (
               <Line
                 points={[
@@ -2334,7 +2338,13 @@ export default function KonvaCanvas() {
                   connectionDraw.tempLine.x2,
                   connectionDraw.tempLine.y2,
                 ]}
-                stroke={connectionDraw.snapValid === false ? '#ef4444' : connectionDraw.snapValid === true ? '#10b981' : '#22d3ee'}
+                stroke={
+                  connectionDraw.snapValid === false
+                    ? '#ef4444'
+                    : connectionDraw.snapFixed
+                      ? '#10b981'
+                      : '#22d3ee'
+                }
                 strokeWidth={2}
                 dash={[8, 5]}
                 lineCap="round"

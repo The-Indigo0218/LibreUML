@@ -38,6 +38,9 @@ export interface EdgeDescriptor {
   anchorLocked?: boolean;
   sourceHandle?: string;
   targetHandle?: string;
+  // P4 — free continuous border anchors (nx, ny ∈ [0,1] relative to bounds).
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
   // «extend» specific
   condition?: string;
   extensionPoint?: string;

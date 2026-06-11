@@ -76,6 +76,9 @@ export interface VFSCanvasEdge {
   type: string;
   sourceHandle?: string;
   targetHandle?: string;
+  /** P4 — free continuous border anchors (nx, ny ∈ [0,1]). */
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
   /** Manual user waypoints. */
   waypoints?: { x: number; y: number }[];
   /** Line routing style. Undefined = 'straight'. */
@@ -348,6 +351,8 @@ export function useVFSCanvasController(): VFSCanvasResult {
         type: 'vfsUmlEdge',
         sourceHandle: viewEdge.anchorLocked ? viewEdge.sourceHandle : undefined,
         targetHandle: viewEdge.anchorLocked ? viewEdge.targetHandle : undefined,
+        sourceAnchor: viewEdge.sourceAnchor,
+        targetAnchor: viewEdge.targetAnchor,
         waypoints: viewEdge.waypoints,
         routingMode: viewEdge.routingMode,
         color: viewEdge.color,

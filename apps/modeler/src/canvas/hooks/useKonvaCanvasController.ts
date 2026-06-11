@@ -114,6 +114,8 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
       anchorLocked: e.data.anchorLocked,
       sourceHandle: e.sourceHandle ?? undefined,
       targetHandle: e.targetHandle ?? undefined,
+      sourceAnchor: e.sourceAnchor,
+      targetAnchor: e.targetAnchor,
       condition: e.data.condition,
       extensionPoint: e.data.extensionPoint,
       waypoints: e.waypoints,

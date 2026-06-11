@@ -101,7 +101,7 @@ import {
   type NodeViewModel,
   type PackageViewModel,
 } from '../adapters/view-models/node.view-model';
-import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, getAnchorPoints, lockedHandleAt, type NodeBounds, type LockedHandle } from './edges/geometry';
+import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, ratioFromPoint, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
 import { yToMessageSlot, yToInvariantSlot } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
@@ -299,44 +299,15 @@ export default function KonvaCanvas() {
       edgeId: string,
       end: 'source' | 'target',
       dropWorld: { x: number; y: number },
-      otherEnd: { x: number; y: number },
     ) => {
       const edge = edges.find((e) => e.id === edgeId);
       if (!edge) return;
       const currentNodeId = end === 'source' ? edge.sourceId : edge.targetId;
-      const otherNodeId = end === 'source' ? edge.targetId : edge.sourceId;
       const bm = boundsMapRef.current;
-      const FIXED_R = 12;
+      const PAD = 6;       // tolerance so perimeter drops still hit a node
+      const MAGNET = 10;   // snap radius to cardinal/corner ratios (px)
 
-      const thisBounds = bm.get(currentNodeId);
-      const otherBounds = bm.get(otherNodeId);
-
-      // 1) Re-anchor: released near one of the CURRENT node's 8 marks. Checked
-      //    first because marks sit on the perimeter (the bounds boundary), where
-      //    a strict containment test is unreliable.
-      if (thisBounds && otherBounds) {
-        let nearest: { x: number; y: number; d: number } | null = null;
-        for (const p of getAnchorPoints(thisBounds)) {
-          const d = Math.hypot(dropWorld.x - p.x, dropWorld.y - p.y);
-          if (d <= FIXED_R && (!nearest || d < nearest.d)) nearest = { x: p.x, y: p.y, d };
-        }
-        if (nearest) {
-          // Lock this end to the mark; lock the other end to its current position
-          // so resolveLockedAnchors (which needs both handles) renders correctly.
-          const thisHandle = lockedHandleAt(thisBounds, nearest.x, nearest.y);
-          const otherHandle = lockedHandleAt(otherBounds, otherEnd.x, otherEnd.y);
-          vfsController.updateVFSEdgeProps(edgeId, {
-            anchorLocked: true,
-            sourceHandle: end === 'source' ? thisHandle : otherHandle,
-            targetHandle: end === 'target' ? thisHandle : otherHandle,
-          });
-          return;
-        }
-      }
-
-      // 2) Re-link: dropped on a different node. A small tolerance keeps perimeter
-      //    drops working; innermost (smallest-area) node wins for nodes in packages.
-      const PAD = 6;
+      // Innermost node under the drop (smallest area wins → nodes in packages).
       let hitNodeId: string | null = null;
       let hitArea = Infinity;
       for (const [nodeId, b] of bm.entries()) {
@@ -348,10 +319,24 @@ export default function KonvaCanvas() {
           hitArea = b.width * b.height;
         }
       }
-      if (hitNodeId && hitNodeId !== currentNodeId) {
-        vfsController.relinkEdgeEndpoint(edgeId, end, hitNodeId);
+      if (!hitNodeId) return; // empty canvas → revert
+
+      // Same node → re-anchor to a free continuous border point (P4). The magnet
+      // snaps to cardinals/corners so clean drops still land exactly on T/B/L/R.
+      // Stored per-endpoint → the other end keeps whatever it had (mixed ends ok).
+      if (hitNodeId === currentNodeId) {
+        const thisBounds = bm.get(currentNodeId);
+        if (!thisBounds) return;
+        const anchor = ratioFromPoint(thisBounds, dropWorld.x, dropWorld.y, MAGNET);
+        vfsController.updateVFSEdgeProps(
+          edgeId,
+          end === 'source' ? { sourceAnchor: anchor } : { targetAnchor: anchor },
+        );
+        return;
       }
-      // else: empty canvas or same node off-mark → revert (no state change).
+
+      // Different node → re-link the relation's endpoint (floats to the new node).
+      vfsController.relinkEdgeEndpoint(edgeId, end, hitNodeId);
     },
     [edges, vfsController],
   );
@@ -2171,6 +2156,8 @@ export default function KonvaCanvas() {
                 anchorLocked={edge.anchorLocked}
                 sourceHandle={edge.sourceHandle ?? undefined}
                 targetHandle={edge.targetHandle ?? undefined}
+                sourceAnchor={edge.sourceAnchor}
+                targetAnchor={edge.targetAnchor}
                 floating={floating}
                 sourceShape={sourceShape}
                 targetShape={targetShape}
@@ -2302,6 +2289,8 @@ export default function KonvaCanvas() {
                 anchorLocked={edge.anchorLocked}
                 sourceHandle={edge.sourceHandle ?? undefined}
                 targetHandle={edge.targetHandle ?? undefined}
+                sourceAnchor={edge.sourceAnchor}
+                targetAnchor={edge.targetAnchor}
                 floating={floating}
                 sourceShape={sourceShape}
                 targetShape={targetShape}

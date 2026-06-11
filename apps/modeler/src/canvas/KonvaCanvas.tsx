@@ -393,9 +393,10 @@ export default function KonvaCanvas() {
       onConnect({
         source: sourceNodeId,
         target: targetNodeId,
-        sourceHandle: anchoring?.sourceHandle ?? null,
-        targetHandle: anchoring?.targetHandle ?? null,
-        anchorLocked: anchoring?.anchorLocked,
+        sourceHandle: null,
+        targetHandle: null,
+        sourceAnchor: anchoring?.sourceAnchor,
+        targetAnchor: anchoring?.targetAnchor,
       });
     },
     [onConnect],

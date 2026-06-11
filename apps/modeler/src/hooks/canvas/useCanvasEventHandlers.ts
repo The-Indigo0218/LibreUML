@@ -353,11 +353,11 @@ export function useCanvasEventHandlers({
         id: crypto.randomUUID(),
         relationId: newRelationId,
         waypoints: [],
-        sourceHandle: connection.sourceHandle ?? undefined,
-        targetHandle: connection.targetHandle ?? undefined,
-        // Locked only when the user dropped on a precise connection point; else
-        // the edge floats (P1 default). Handles are still kept for reference.
-        ...(connection.anchorLocked ? { anchorLocked: true } : {}),
+        // P4 — newly drawn edges anchor to the continuous border point where each
+        // end was placed (free border default). The 8-handle/anchorLocked path is
+        // superseded; handles are no longer captured at draw time.
+        ...(connection.sourceAnchor ? { sourceAnchor: connection.sourceAnchor } : {}),
+        ...(connection.targetAnchor ? { targetAnchor: connection.targetAnchor } : {}),
         // Freshly drawn edges default to free-form straight; legacy edges (no
         // routingMode) keep orthogonal so existing diagrams look unchanged.
         routingMode: 'straight',

@@ -6,34 +6,22 @@ import type { NodeBounds } from '../../edges/geometry';
 const A: NodeBounds = { x: 0, y: 0, width: 100, height: 100 };
 const B: NodeBounds = { x: 200, y: 0, width: 100, height: 100 };
 
-describe('computeDropAnchoring', () => {
-  it('returns empty anchoring (floating) when not fixed', () => {
+describe('computeDropAnchoring (P4 — free border anchors)', () => {
+  it('anchors both ends to their continuous border ratio', () => {
     const r = computeDropAnchoring(
-      false,
-      { bounds: A, x: 100, y: 50 }, // A right-mid
-      { bounds: B, x: 200, y: 50 }, // B left-mid
+      { bounds: A, x: 100, y: 50 },  // A right-mid → (1, 0.5)
+      { bounds: B, x: 200, y: 35 },  // B left border, 35% down → (0, 0.35)
     );
-    expect(r).toEqual({});
-    expect(r.anchorLocked).toBeUndefined();
+    expect(r.sourceAnchor).toEqual({ nx: 1, ny: 0.5 });
+    expect(r.targetAnchor).toEqual({ nx: 0, ny: 0.35 });
   });
 
-  it('locks BOTH endpoints to their nearest handle when fixed', () => {
+  it('magnet snaps near-cardinal drops to exact ratios', () => {
     const r = computeDropAnchoring(
-      true,
-      { bounds: A, x: 100, y: 50 }, // A right-mid → R
-      { bounds: B, x: 200, y: 50 }, // B left-mid → L
+      { bounds: A, x: 96, y: 53 },   // ~right-mid → magnets to (1, 0.5)
+      { bounds: B, x: 200, y: 100 }, // B bottom-left corner → (0, 1)
     );
-    expect(r).toEqual({ sourceHandle: 'R', targetHandle: 'L', anchorLocked: true });
-  });
-
-  it('maps corner drops to corner handles', () => {
-    const r = computeDropAnchoring(
-      true,
-      { bounds: A, x: 100, y: 100 }, // A bottom-right → BR
-      { bounds: B, x: 200, y: 0 },   // B top-left → TL
-    );
-    expect(r.sourceHandle).toBe('BR');
-    expect(r.targetHandle).toBe('TL');
-    expect(r.anchorLocked).toBe(true);
+    expect(r.sourceAnchor).toEqual({ nx: 1, ny: 0.5 });
+    expect(r.targetAnchor).toEqual({ nx: 0, ny: 1 });
   });
 });

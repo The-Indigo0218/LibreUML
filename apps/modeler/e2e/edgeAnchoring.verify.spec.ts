@@ -65,14 +65,14 @@ test.describe('edge anchoring P1/P2/P3', () => {
     await page.screenshot({ path: '/tmp/verify-p1-floating.png' });
   });
 
-  test('P2 — drawing onto a connection point locks the anchor (fixed)', async ({ page }) => {
+  test('P2/P4 — drawing onto a cardinal mark anchors to that exact ratio (magnet)', async ({ page }) => {
     await seedDiagram(page, TWO);
     expect((await getView(page)).edges.length).toBe(0);
 
     const a = await nodeRect(page, 'vn-a');
     const b = await nodeRect(page, 'vn-b');
     const from = anchorOf(a!, 'R');           // source: A right-mid mark
-    const to = anchorOf(b!, 'L');             // target: B left-mid mark (on-mark → fixed)
+    const to = anchorOf(b!, 'L');             // target: B left-mid mark
 
     await page.mouse.move(from.x, from.y);    // hover to arm nearAnchorRef
     await page.waitForTimeout(80);
@@ -81,18 +81,18 @@ test.describe('edge anchoring P1/P2/P3', () => {
     await expect.poll(async () => (await getView(page)).edges.length).toBe(1);
     const edge: any = (await getView(page)).edges[0];
     await page.screenshot({ path: '/tmp/verify-p2-fixed.png' });
-    expect(edge.anchorLocked).toBe(true);
-    expect(edge.sourceHandle).toBeTruthy();
-    expect(edge.targetHandle).toBeTruthy();
+    // Free border anchors; magnet lands the clean cardinal drops exactly.
+    expect(edge.sourceAnchor).toEqual({ nx: 1, ny: 0.5 });
+    expect(edge.targetAnchor).toEqual({ nx: 0, ny: 0.5 });
   });
 
-  test('P2 — dropping off a mark creates a floating edge (not locked)', async ({ page }) => {
+  test('P2/P4 — drawing onto a mid-border point anchors to a continuous {nx,ny}', async ({ page }) => {
     await seedDiagram(page, TWO);
     const a = await nodeRect(page, 'vn-a');
     const b = await nodeRect(page, 'vn-b');
     const from = anchorOf(a!, 'R');
-    const leftMid = anchorOf(b!, 'L');
-    const to = { x: leftMid.x, y: leftMid.y + 16 }; // ~16px off the L mark → floating band
+    // Drop on B's LEFT border, ~30% down — between the L mark and the BL corner.
+    const to = { x: b!.x, y: b!.y + b!.height * 0.3 };
 
     await page.mouse.move(from.x, from.y);
     await page.waitForTimeout(80);
@@ -100,8 +100,10 @@ test.describe('edge anchoring P1/P2/P3', () => {
 
     await expect.poll(async () => (await getView(page)).edges.length).toBe(1);
     const edge: any = (await getView(page)).edges[0];
-    await page.screenshot({ path: '/tmp/verify-p2-floating.png' });
-    expect(edge.anchorLocked).toBeFalsy();
+    await page.screenshot({ path: '/tmp/verify-p2-freepoint.png' });
+    expect(edge.targetAnchor.nx).toBe(0);                // left border
+    expect(edge.targetAnchor.ny).toBeGreaterThan(0.15);  // continuous, not a cardinal
+    expect(edge.targetAnchor.ny).toBeLessThan(0.45);
   });
 
   test('P3 — dragging the target endpoint onto another node re-links it', async ({ page }) => {

@@ -2082,6 +2082,7 @@ export default function KonvaCanvas() {
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}
+          onMouseLeave={connectionDraw.clearHoverAnchors}
           onClick={stageHandlers.onClick}
           onContextMenu={handleStageContextMenu}
         >

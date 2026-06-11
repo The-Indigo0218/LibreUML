@@ -129,6 +129,11 @@ test.describe('edge anchoring P1/P2/P3', () => {
     // No phantom edge — re-link mutates the existing relation, not a new one.
     expect((await getView(page)).edges.length).toBe(1);
 
+    // Freeze check: capture WITHOUT moving the mouse — this is the exact moment
+    // the connection-point dots used to stay frozen on Beta. With the mouseup
+    // auto-clear they should be gone.
+    await page.screenshot({ path: '/tmp/verify-p3-relink-frozen-check.png' });
+
     // What a real user sees after releasing: dismiss the telemetry toast and move
     // the cursor off the nodes so the transient connection-point overlay clears.
     await page.getByRole('button', { name: 'No thanks' }).click().catch(() => {});

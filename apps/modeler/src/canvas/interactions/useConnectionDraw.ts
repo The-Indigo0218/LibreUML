@@ -276,6 +276,12 @@ export interface UseConnectionDrawReturn {
   tempLine: TempLine | null;
   /** Anchor dots for the currently hovered node (show 8 dots when hovering a node). */
   hoveredNodeAnchors: AnchorDot[];
+  /**
+   * Clears the hovered-node connection-point overlay. Call when an interaction
+   * that the stage mousemove won't follow ends (e.g. a Konva drag release) or
+   * when the pointer leaves the canvas, so the 8 dots never freeze on a node.
+   */
+  clearHoverAnchors: () => void;
   /** The anchor being snapped to as connection target. */
   snapTargetDot: AnchorDot | null;
   /**
@@ -349,6 +355,13 @@ export function useConnectionDraw({
     const stage = stageRef.current;
     if (stage) stage.draggable(true);
   }, [stageRef]);
+
+  /** Drops the hover overlay (dots + hover refs) without touching connect state. */
+  const clearHoverAnchors = useCallback(() => {
+    hoverNodeIdRef.current = null;
+    nearAnchorRef.current = false;
+    setHoveredNodeAnchors([]);
+  }, []);
 
   // ── Validity helpers ───────────────────────────────────────────────────────
 
@@ -592,12 +605,18 @@ export function useConnectionDraw({
   // canvas" bug from MAG-01.5 (isDragging.current gets stuck when mouse leaves canvas).
   useEffect(() => {
     const handleWindowMouseUp = () => {
-      if (!isConnectingRef.current) return;
-      resetState();
+      if (isConnectingRef.current) {
+        resetState();
+        return;
+      }
+      // A node/endpoint drag or click just ended. The stage mousemove won't fire
+      // again until the user moves, so clear the hover overlay now to stop the
+      // 8-point dots from freezing on a node. They repaint on the next move.
+      clearHoverAnchors();
     };
     window.addEventListener('mouseup', handleWindowMouseUp);
     return () => window.removeEventListener('mouseup', handleWindowMouseUp);
-  }, [resetState]);
+  }, [resetState, clearHoverAnchors]);
 
   return {
     isConnecting,
@@ -605,6 +624,7 @@ export function useConnectionDraw({
     nearAnchorRef,
     tempLine,
     hoveredNodeAnchors,
+    clearHoverAnchors,
     snapTargetDot,
     snapFixed,
     snapValid,

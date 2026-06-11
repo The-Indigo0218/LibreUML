@@ -101,7 +101,7 @@ import {
   type NodeViewModel,
   type PackageViewModel,
 } from '../adapters/view-models/node.view-model';
-import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, type NodeBounds, type LockedHandle } from './edges/geometry';
+import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, getAnchorPoints, lockedHandleAt, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
 import { yToMessageSlot, yToInvariantSlot } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
@@ -291,6 +291,65 @@ export default function KonvaCanvas() {
       vfsController.updateEdgeWaypoints(edgeId, waypoints);
     },
     [vfsController],
+  );
+
+  // P3 — endpoint drag: re-link to another node, re-anchor to a mark, or revert.
+  const handleEndpointDrop = useCallback(
+    (
+      edgeId: string,
+      end: 'source' | 'target',
+      dropWorld: { x: number; y: number },
+      otherEnd: { x: number; y: number },
+    ) => {
+      const edge = edges.find((e) => e.id === edgeId);
+      if (!edge) return;
+      const currentNodeId = end === 'source' ? edge.sourceId : edge.targetId;
+      const otherNodeId = end === 'source' ? edge.targetId : edge.sourceId;
+      const bm = boundsMapRef.current;
+
+      // Innermost node containing the drop (smallest area wins → nodes in packages).
+      let hitNodeId: string | null = null;
+      let hitArea = Infinity;
+      for (const [nodeId, b] of bm.entries()) {
+        const inside =
+          dropWorld.x >= b.x && dropWorld.x <= b.x + b.width &&
+          dropWorld.y >= b.y && dropWorld.y <= b.y + b.height;
+        if (inside && b.width * b.height < hitArea) {
+          hitNodeId = nodeId;
+          hitArea = b.width * b.height;
+        }
+      }
+      if (!hitNodeId) return; // empty canvas → revert
+
+      // Dropped on a different node → re-link the relation's endpoint.
+      if (hitNodeId !== currentNodeId) {
+        vfsController.relinkEdgeEndpoint(edgeId, end, hitNodeId);
+        return;
+      }
+
+      // Same node → fix the anchor only if released near one of its 8 marks.
+      const thisBounds = bm.get(currentNodeId);
+      const otherBounds = bm.get(otherNodeId);
+      if (!thisBounds || !otherBounds) return;
+      const FIXED_R = 12;
+      let nearest: { x: number; y: number; d: number } | null = null;
+      for (const p of getAnchorPoints(thisBounds)) {
+        const d = Math.hypot(dropWorld.x - p.x, dropWorld.y - p.y);
+        if (d <= FIXED_R && (!nearest || d < nearest.d)) nearest = { x: p.x, y: p.y, d };
+      }
+      if (!nearest) return; // not on a mark → keep floating (revert)
+
+      // Lock this end to the mark; lock the other end to its current position so
+      // resolveLockedAnchors (which needs both handles) renders correctly.
+      const thisHandle = lockedHandleAt(thisBounds, nearest.x, nearest.y);
+      const otherHandle = lockedHandleAt(otherBounds, otherEnd.x, otherEnd.y);
+      vfsController.updateVFSEdgeProps(edgeId, {
+        anchorLocked: true,
+        sourceHandle: end === 'source' ? thisHandle : otherHandle,
+        targetHandle: end === 'target' ? thisHandle : otherHandle,
+      });
+    },
+    [edges, vfsController],
   );
 
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
@@ -2260,6 +2319,7 @@ export default function KonvaCanvas() {
                 renderMode="labels"
                 selected={selectedEdgeId === edge.id}
                 onWaypointsChange={handleEdgeWaypointsChange}
+                onEndpointDrop={handleEndpointDrop}
                 onDblClick={handleEdgeDblClick}
                 visible={isVisible && !shouldHideEdge}
               />

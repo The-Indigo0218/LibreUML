@@ -27,7 +27,7 @@ import SelectionRect from './selection/SelectionRect';
 import { useSelection } from './interactions/useSelection';
 import { useDragHandler } from './interactions/useDragHandler';
 import type { CanvasNode } from './interactions/useDragHandler';
-import { useConnectionDraw } from './interactions/useConnectionDraw';
+import { useConnectionDraw, type DropAnchoring } from './interactions/useConnectionDraw';
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import { useRelationShortcuts } from './interactions/useRelationShortcuts';
 import { usePackageDrop } from './interactions/usePackageDrop';
@@ -101,7 +101,7 @@ import {
   type NodeViewModel,
   type PackageViewModel,
 } from '../adapters/view-models/node.view-model';
-import { selectAnchors, anchorPointToHandle, resolveRoutingMode, type NodeBounds, type LockedHandle } from './edges/geometry';
+import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, getAnchorPoints, lockedHandleAt, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
 import { yToMessageSlot, yToInvariantSlot } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
@@ -293,6 +293,69 @@ export default function KonvaCanvas() {
     [vfsController],
   );
 
+  // P3 — endpoint drag: re-link to another node, re-anchor to a mark, or revert.
+  const handleEndpointDrop = useCallback(
+    (
+      edgeId: string,
+      end: 'source' | 'target',
+      dropWorld: { x: number; y: number },
+      otherEnd: { x: number; y: number },
+    ) => {
+      const edge = edges.find((e) => e.id === edgeId);
+      if (!edge) return;
+      const currentNodeId = end === 'source' ? edge.sourceId : edge.targetId;
+      const otherNodeId = end === 'source' ? edge.targetId : edge.sourceId;
+      const bm = boundsMapRef.current;
+      const FIXED_R = 12;
+
+      const thisBounds = bm.get(currentNodeId);
+      const otherBounds = bm.get(otherNodeId);
+
+      // 1) Re-anchor: released near one of the CURRENT node's 8 marks. Checked
+      //    first because marks sit on the perimeter (the bounds boundary), where
+      //    a strict containment test is unreliable.
+      if (thisBounds && otherBounds) {
+        let nearest: { x: number; y: number; d: number } | null = null;
+        for (const p of getAnchorPoints(thisBounds)) {
+          const d = Math.hypot(dropWorld.x - p.x, dropWorld.y - p.y);
+          if (d <= FIXED_R && (!nearest || d < nearest.d)) nearest = { x: p.x, y: p.y, d };
+        }
+        if (nearest) {
+          // Lock this end to the mark; lock the other end to its current position
+          // so resolveLockedAnchors (which needs both handles) renders correctly.
+          const thisHandle = lockedHandleAt(thisBounds, nearest.x, nearest.y);
+          const otherHandle = lockedHandleAt(otherBounds, otherEnd.x, otherEnd.y);
+          vfsController.updateVFSEdgeProps(edgeId, {
+            anchorLocked: true,
+            sourceHandle: end === 'source' ? thisHandle : otherHandle,
+            targetHandle: end === 'target' ? thisHandle : otherHandle,
+          });
+          return;
+        }
+      }
+
+      // 2) Re-link: dropped on a different node. A small tolerance keeps perimeter
+      //    drops working; innermost (smallest-area) node wins for nodes in packages.
+      const PAD = 6;
+      let hitNodeId: string | null = null;
+      let hitArea = Infinity;
+      for (const [nodeId, b] of bm.entries()) {
+        const inside =
+          dropWorld.x >= b.x - PAD && dropWorld.x <= b.x + b.width + PAD &&
+          dropWorld.y >= b.y - PAD && dropWorld.y <= b.y + b.height + PAD;
+        if (inside && b.width * b.height < hitArea) {
+          hitNodeId = nodeId;
+          hitArea = b.width * b.height;
+        }
+      }
+      if (hitNodeId && hitNodeId !== currentNodeId) {
+        vfsController.relinkEdgeEndpoint(edgeId, end, hitNodeId);
+      }
+      // else: empty canvas or same node off-mark → revert (no state change).
+    },
+    [edges, vfsController],
+  );
+
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [hoveredPackageId, setHoveredPackageId] = useState<string | null>(null);
   const [isHoverValid, setIsHoverValid] = useState<boolean>(true);
@@ -341,12 +404,13 @@ export default function KonvaCanvas() {
   });
 
   const handleConnectionCreated = useCallback(
-    (sourceNodeId: string, targetNodeId: string) => {
+    (sourceNodeId: string, targetNodeId: string, anchoring?: DropAnchoring) => {
       onConnect({
         source: sourceNodeId,
         target: targetNodeId,
-        sourceHandle: null,
-        targetHandle: null,
+        sourceHandle: anchoring?.sourceHandle ?? null,
+        targetHandle: anchoring?.targetHandle ?? null,
+        anchorLocked: anchoring?.anchorLocked,
       });
     },
     [onConnect],
@@ -1573,7 +1637,12 @@ export default function KonvaCanvas() {
                   id !== edge.sourceId && id !== edge.targetId && nonPackageIds.has(id),
               )
               .map(([, b]) => b);
-        const floating = isUseCaseDiagram && !isSelfLoop && !edge.anchorLocked;
+        const floating = shouldFloat({
+          isUseCaseDiagram,
+          isSelfLoop,
+          anchorLocked: edge.anchorLocked,
+          routingMode: edge.routingMode,
+        });
         const sourceShape = shapeOutlineOf(edge.sourceId);
         const targetShape = shapeOutlineOf(edge.targetId);
         return { edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles, floating, sourceShape, targetShape };
@@ -2013,6 +2082,7 @@ export default function KonvaCanvas() {
           onMouseDown={handleStageMouseDown}
           onMouseMove={handleStageMouseMove}
           onMouseUp={handleStageMouseUp}
+          onMouseLeave={connectionDraw.clearHoverAnchors}
           onClick={stageHandlers.onClick}
           onContextMenu={handleStageContextMenu}
         >
@@ -2254,6 +2324,7 @@ export default function KonvaCanvas() {
                 renderMode="labels"
                 selected={selectedEdgeId === edge.id}
                 onWaypointsChange={handleEdgeWaypointsChange}
+                onEndpointDrop={handleEndpointDrop}
                 onDblClick={handleEdgeDblClick}
                 visible={isVisible && !shouldHideEdge}
               />
@@ -2293,21 +2364,23 @@ export default function KonvaCanvas() {
               });
             })}
 
-            {!connectionDraw.isConnecting &&
-              connectionDraw.hoveredNodeAnchors.map((dot, i) => (
-                <Circle
-                  key={`anchor-${dot.nodeId}-${i}`}
-                  x={dot.x}
-                  y={dot.y}
-                  radius={4}
-                  fill="#22d3ee"
-                  stroke="#0891b2"
-                  strokeWidth={1.5}
-                  opacity={0.85}
-                  listening={false}
-                />
-              ))}
+            {/* Connection points (draw.io Xs): shown on hover and while drawing,
+                so the user can aim at one of the 8 to lock the endpoint. */}
+            {connectionDraw.hoveredNodeAnchors.map((dot, i) => (
+              <Circle
+                key={`anchor-${dot.nodeId}-${i}`}
+                x={dot.x}
+                y={dot.y}
+                radius={4}
+                fill="#22d3ee"
+                stroke="#0891b2"
+                strokeWidth={1.5}
+                opacity={0.85}
+                listening={false}
+              />
+            ))}
 
+            {/* Snap indicator: green = will lock to this fixed point; red = invalid. */}
             {connectionDraw.isConnecting && connectionDraw.snapTargetDot && (
               <Circle
                 x={connectionDraw.snapTargetDot.x}
@@ -2321,6 +2394,7 @@ export default function KonvaCanvas() {
               />
             )}
 
+            {/* Temp line: green when locking to a fixed point, blue when floating. */}
             {connectionDraw.tempLine && (
               <Line
                 points={[
@@ -2329,7 +2403,13 @@ export default function KonvaCanvas() {
                   connectionDraw.tempLine.x2,
                   connectionDraw.tempLine.y2,
                 ]}
-                stroke={connectionDraw.snapValid === false ? '#ef4444' : connectionDraw.snapValid === true ? '#10b981' : '#22d3ee'}
+                stroke={
+                  connectionDraw.snapValid === false
+                    ? '#ef4444'
+                    : connectionDraw.snapFixed
+                      ? '#10b981'
+                      : '#22d3ee'
+                }
                 strokeWidth={2}
                 dash={[8, 5]}
                 lineCap="round"

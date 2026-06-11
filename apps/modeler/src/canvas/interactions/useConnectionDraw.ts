@@ -39,6 +39,7 @@ import type { RefObject } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { NodeBounds } from '../edges/geometry';
+import { lockedHandleAt } from '../edges/geometry';
 import type { AnyNodeViewModel } from '../../adapters/view-models/node.view-model';
 import {
   isNoteViewModel,
@@ -60,6 +61,13 @@ import { useWorkspaceStore } from '../../store/workspace.store';
 const ANCHOR_DETECT_R = 16;
 /** Cursor must be within this radius (world px) of an anchor to snap during drag. */
 const ANCHOR_SNAP_R = 24;
+/**
+ * Tighter radius: dropping within this distance of a connection point LOCKS the
+ * endpoint to it (fixed, draw.io green). Between this and ANCHOR_SNAP_R the edge
+ * still connects to the node but FLOATS (P1 default) — so the perimeter stays
+ * mostly floating and the 8 points are a deliberate opt-in.
+ */
+const FIXED_SNAP_R = 9;
 /** Cursor must be within this padding (world px) of a node's bounding box to show anchors. */
 const NODE_HOVER_PAD = 20;
 
@@ -142,24 +150,54 @@ function getAnchorDots(nodeId: string, b: NodeBounds): AnchorDot[] {
   ];
 }
 
-/** Returns the nearest anchor within `radius`, optionally excluding a node. */
+/** An anchor dot plus its distance to the probe point. */
+type SnappedDot = AnchorDot & { dist: number };
+
+/** Returns the nearest anchor within `radius` (with its distance), optionally excluding a node. */
 function findNearest(
   pos: { x: number; y: number },
   boundsMap: Map<string, NodeBounds>,
   radius: number,
   excludeNodeId?: string,
-): AnchorDot | null {
-  let best: (AnchorDot & { dist: number }) | null = null;
+): SnappedDot | null {
+  let best: SnappedDot | null = null;
   for (const [nodeId, bounds] of boundsMap.entries()) {
     if (nodeId === excludeNodeId) continue;
     for (const dot of getAnchorDots(nodeId, bounds)) {
       const d = Math.hypot(pos.x - dot.x, pos.y - dot.y);
       if (d <= radius && (!best || d < best.dist)) {
-        best = { ...dot, dist: d };
+        best = { nodeId, x: dot.x, y: dot.y, dist: d };
       }
     }
   }
-  return best ? { nodeId: best.nodeId, x: best.x, y: best.y } : null;
+  return best;
+}
+
+/** Persisted anchoring for a completed connection. */
+export interface DropAnchoring {
+  sourceHandle?: string;
+  targetHandle?: string;
+  anchorLocked?: boolean;
+}
+
+/**
+ * Decides the anchoring of a completed connection (model A / draw.io):
+ *  - `fixed` (the user dropped within FIXED_SNAP_R of a target point) → lock
+ *    BOTH endpoints to their nearest of the 8 handles.
+ *  - otherwise → floating: no handles, edge slides along both borders (P1).
+ * All-or-nothing keeps the model simple; mixed fixed/floating ends are future work.
+ */
+export function computeDropAnchoring(
+  fixed: boolean,
+  source: { bounds: NodeBounds; x: number; y: number },
+  target: { bounds: NodeBounds; x: number; y: number },
+): DropAnchoring {
+  if (!fixed) return {};
+  return {
+    sourceHandle: lockedHandleAt(source.bounds, source.x, source.y),
+    targetHandle: lockedHandleAt(target.bounds, target.x, target.y),
+    anchorLocked: true,
+  };
 }
 
 /** Returns the node ID whose bounds (with padding) contain pos, or null. */
@@ -202,8 +240,12 @@ export interface UseConnectionDrawOptions {
   nodes: ConnectionNode[];
   /** Active tab ID — used to read current connection mode from WorkspaceStore. */
   activeTabId: string | null;
-  /** Called when a valid connection is completed (sourceNodeId → targetNodeId). */
-  onConnect: (sourceNodeId: string, targetNodeId: string) => void;
+  /**
+   * Called when a valid connection is completed (sourceNodeId → targetNodeId).
+   * `anchoring` carries the locked handles when the user dropped on a precise
+   * connection point; empty (floating) otherwise.
+   */
+  onConnect: (sourceNodeId: string, targetNodeId: string, anchoring?: DropAnchoring) => void;
   /**
    * Called (class diagram only) when the active connection mode is NOT valid for
    * the dropped pair but other relation types are — opens a picker at the given
@@ -234,8 +276,19 @@ export interface UseConnectionDrawReturn {
   tempLine: TempLine | null;
   /** Anchor dots for the currently hovered node (show 8 dots when hovering a node). */
   hoveredNodeAnchors: AnchorDot[];
+  /**
+   * Clears the hovered-node connection-point overlay. Call when an interaction
+   * that the stage mousemove won't follow ends (e.g. a Konva drag release) or
+   * when the pointer leaves the canvas, so the 8 dots never freeze on a node.
+   */
+  clearHoverAnchors: () => void;
   /** The anchor being snapped to as connection target. */
   snapTargetDot: AnchorDot | null;
+  /**
+   * True when the current snap is within FIXED_SNAP_R — i.e. releasing now would
+   * LOCK the endpoint to this point (green). False = floating drop (blue).
+   */
+  snapFixed: boolean;
   /**
    * Validity of the current snap target for the active relation mode:
    * true = valid, false = invalid, null = neutral (no snap, or a delegated
@@ -271,6 +324,7 @@ export function useConnectionDraw({
   const [tempLine, setTempLine] = useState<TempLine | null>(null);
   const [hoveredNodeAnchors, setHoveredNodeAnchors] = useState<AnchorDot[]>([]);
   const [snapTargetDot, setSnapTargetDot] = useState<AnchorDot | null>(null);
+  const [snapFixed, setSnapFixed] = useState(false);
   const [snapValid, setSnapValid] = useState<boolean | null>(null);
   /** Source node id while connecting — drives the candidate-validity highlight. */
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null);
@@ -294,12 +348,20 @@ export function useConnectionDraw({
     setIsConnecting(false);
     setTempLine(null);
     setSnapTargetDot(null);
+    setSnapFixed(false);
     setSnapValid(null);
     setConnectingSourceId(null);
     setHoveredNodeAnchors([]);
     const stage = stageRef.current;
     if (stage) stage.draggable(true);
   }, [stageRef]);
+
+  /** Drops the hover overlay (dots + hover refs) without touching connect state. */
+  const clearHoverAnchors = useCallback(() => {
+    hoverNodeIdRef.current = null;
+    nearAnchorRef.current = false;
+    setHoveredNodeAnchors([]);
+  }, []);
 
   // ── Validity helpers ───────────────────────────────────────────────────────
 
@@ -367,12 +429,27 @@ export function useConnectionDraw({
         const srcVM = nodes.find((n) => n.id === src.nodeId)?.data;
         const excludeNodeId = nodeAllowsSelfLoop(srcVM) ? undefined : src.nodeId;
         const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, excludeNodeId);
-        const endX = snap ? snap.x : pos.x;
-        const endY = snap ? snap.y : pos.y;
+        // Within the tight radius → releasing now locks the endpoint (green).
+        const fixed = !!snap && snap.dist <= FIXED_SNAP_R;
+        // Snap the temp line only when locking; floating drops follow the cursor
+        // so the user sees they are NOT committing to a fixed point.
+        const endX = fixed ? snap!.x : pos.x;
+        const endY = fixed ? snap!.y : pos.y;
 
         setTempLine({ x1: src.x, y1: src.y, x2: endX, y2: endY });
-        setSnapTargetDot(snap);
+        setSnapTargetDot(fixed ? snap : null);
+        setSnapFixed(fixed);
         setSnapValid(snap ? computeSnapValidity(src.nodeId, snap.nodeId) : null);
+
+        // Show the hovered target node's 8 connection points (draw.io Xs) so the
+        // user can aim at one. Only updates when the hovered node changes.
+        const tgtId = findHoveredNode(pos, boundsMapRef.current);
+        const overlayId = tgtId && tgtId !== excludeNodeId ? tgtId : null;
+        if (overlayId !== hoverNodeIdRef.current) {
+          hoverNodeIdRef.current = overlayId;
+          const b = overlayId ? boundsMapRef.current.get(overlayId) : undefined;
+          setHoveredNodeAnchors(b ? getAnchorDots(overlayId!, b) : []);
+        }
       } else {
         // ── Hover mode: update nearAnchorRef + visible anchor dots ────────
         const near = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R);
@@ -446,6 +523,20 @@ export function useConnectionDraw({
           const excludeNodeId = nodeAllowsSelfLoop(srcVM) ? undefined : src.nodeId;
           const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, excludeNodeId);
           if (snap) {
+            // Lock to the dropped point only within the tight radius; otherwise
+            // float (P1). Resolved once and threaded through every onConnect path.
+            const fixed = snap.dist <= FIXED_SNAP_R;
+            const srcBounds = boundsMapRef.current.get(src.nodeId);
+            const tgtBounds = boundsMapRef.current.get(snap.nodeId);
+            const anchoring: DropAnchoring =
+              srcBounds && tgtBounds
+                ? computeDropAnchoring(
+                    fixed,
+                    { bounds: srcBounds, x: src.x, y: src.y },
+                    { bounds: tgtBounds, x: snap.x, y: snap.y },
+                  )
+                : {};
+
             // ── Validate via connectionValidator.ts ───────────────────────
             const srcNode = nodes.find((n) => n.id === src.nodeId);
             const tgtNode = nodes.find((n) => n.id === snap.nodeId);
@@ -457,13 +548,13 @@ export function useConnectionDraw({
               // Package→package: always allowed. Kind is forced to DEPENDENCY in the handler.
               // Use case / domain / sequence diagram nodes: delegate entirely to onConnect.
               if (srcStereotype === 'package' && tgtStereotype === 'package') {
-                onConnect(src.nodeId, snap.nodeId);
+                onConnect(src.nodeId, snap.nodeId, anchoring);
               } else if (USE_CASE_STEREOTYPES.has(srcStereotype) || USE_CASE_STEREOTYPES.has(tgtStereotype)) {
-                onConnect(src.nodeId, snap.nodeId);
+                onConnect(src.nodeId, snap.nodeId, anchoring);
               } else if (DOMAIN_MODEL_STEREOTYPES.has(srcStereotype) || DOMAIN_MODEL_STEREOTYPES.has(tgtStereotype)) {
-                onConnect(src.nodeId, snap.nodeId);
+                onConnect(src.nodeId, snap.nodeId, anchoring);
               } else if (SEQUENCE_STEREOTYPES.has(srcStereotype) || SEQUENCE_STEREOTYPES.has(tgtStereotype)) {
-                onConnect(src.nodeId, snap.nodeId);
+                onConnect(src.nodeId, snap.nodeId, anchoring);
               } else {
                 const wsState = useWorkspaceStore.getState();
                 const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
@@ -471,7 +562,7 @@ export function useConnectionDraw({
                 const umlType = RELATION_TO_UML[kind] ?? 'association';
 
                 if (validateConnection(srcStereotype, tgtStereotype, umlType)) {
-                  onConnect(src.nodeId, snap.nodeId);
+                  onConnect(src.nodeId, snap.nodeId, anchoring);
                 } else {
                   // Instead of rejecting, offer the valid relation types.
                   const validTypes = CLASS_RELATION_TYPES.filter((ut) =>
@@ -486,7 +577,7 @@ export function useConnectionDraw({
               }
             } else {
               // Fallback: let onConnect handle validation if nodes not found.
-              onConnect(src.nodeId, snap.nodeId);
+              onConnect(src.nodeId, snap.nodeId, anchoring);
             }
           } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current)) {
             // Quick Linker: released on empty canvas (no snap, no node under
@@ -514,12 +605,18 @@ export function useConnectionDraw({
   // canvas" bug from MAG-01.5 (isDragging.current gets stuck when mouse leaves canvas).
   useEffect(() => {
     const handleWindowMouseUp = () => {
-      if (!isConnectingRef.current) return;
-      resetState();
+      if (isConnectingRef.current) {
+        resetState();
+        return;
+      }
+      // A node/endpoint drag or click just ended. The stage mousemove won't fire
+      // again until the user moves, so clear the hover overlay now to stop the
+      // 8-point dots from freezing on a node. They repaint on the next move.
+      clearHoverAnchors();
     };
     window.addEventListener('mouseup', handleWindowMouseUp);
     return () => window.removeEventListener('mouseup', handleWindowMouseUp);
-  }, [resetState]);
+  }, [resetState, clearHoverAnchors]);
 
   return {
     isConnecting,
@@ -527,7 +624,9 @@ export function useConnectionDraw({
     nearAnchorRef,
     tempLine,
     hoveredNodeAnchors,
+    clearHoverAnchors,
     snapTargetDot,
+    snapFixed,
     snapValid,
     candidateValidity,
     stageHandlers: {

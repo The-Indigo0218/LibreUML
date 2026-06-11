@@ -240,6 +240,19 @@ export interface KonvaEdgeProps {
   onSelect?: (edgeId: string) => void;
   /** Persists a new waypoints array after a handle drag / insert / delete. */
   onWaypointsChange?: (edgeId: string, waypoints: Point[]) => void;
+  /**
+   * Endpoint drag (P3): fired when the user releases a source/target endpoint
+   * handle. `dropWorld` is the released position; `otherEnd` is the current
+   * pixel position of the non-dragged endpoint (so the canvas can re-anchor the
+   * other end without recomputing geometry). The canvas decides re-link vs
+   * re-anchor vs revert.
+   */
+  onEndpointDrop?: (
+    edgeId: string,
+    end: 'source' | 'target',
+    dropWorld: Point,
+    otherEnd: Point,
+  ) => void;
 }
 
 export default function KonvaEdge({
@@ -280,6 +293,7 @@ export default function KonvaEdge({
   selected = false,
   onSelect,
   onWaypointsChange,
+  onEndpointDrop,
 }: KonvaEdgeProps) {
   // Local draft of waypoints during an in-progress handle drag. Null =
   // use the props value. Lets the line follow the handle live without touching
@@ -297,6 +311,9 @@ export default function KonvaEdge({
   // Live pointer + which interior segment is active (a) — state so render reflects
   // the drag without reading the ref during render.
   const [segLive, setSegLive] = useState<{ x: number; y: number; a: number } | null>(null);
+  // Endpoint drag (P3): which end + live pointer, so a dashed preview follows the
+  // cursor from the opposite (fixed) endpoint until release.
+  const [draftEndpoint, setDraftEndpoint] = useState<{ end: 'source' | 'target'; x: number; y: number } | null>(null);
   // Effective routing once the legacy fallback is applied (undefined → orthogonal).
   const routing = resolveRoutingMode(routingMode);
   // When active (highlighted or hovered): use kind-specific color; else base gray.
@@ -453,6 +470,9 @@ export default function KonvaEdge({
 
   // ── Waypoint editing handles ───────────────────────────────────────────────
   const showHandles = showLabels && selected && !isSelfLoop && !!onWaypointsChange;
+  // Endpoint handles (P3) — drag to re-link or re-anchor. Independent of
+  // onWaypointsChange so they appear even for edges without waypoints.
+  const showEndpoints = showLabels && selected && !isSelfLoop && !!onEndpointDrop;
   const moveWaypoints = effectiveWaypoints ?? [];
   const persistedWaypoints = waypoints ?? [];
   // Control polyline from PERSISTED waypoints — stable node identity for ghosts
@@ -464,6 +484,9 @@ export default function KonvaEdge({
   ];
   const HANDLE_FILL = '#6366f1';
   const HANDLE_STROKE = '#ffffff';
+  // Endpoint handles render as a hollow ring to distinguish them from the solid
+  // indigo waypoint dots.
+  const ENDPOINT_FILL = '#ffffff';
 
   const commitWaypoints = (next: Point[]) => {
     onWaypointsChange?.(id, next);
@@ -909,6 +932,62 @@ export default function KonvaEdge({
             }
             return <>{bars}</>;
           })()}
+        </>
+      )}
+
+      {/* ── Endpoint handles (P3): drag to re-link or re-anchor ─────────────── */}
+      {showEndpoints && (
+        <>
+          {/* Dashed preview from the fixed end to the dragged endpoint. */}
+          {draftEndpoint && (
+            <Line
+              points={
+                draftEndpoint.end === 'source'
+                  ? [draftEndpoint.x, draftEndpoint.y, markerX, markerY]
+                  : [srcX, srcY, draftEndpoint.x, draftEndpoint.y]
+              }
+              stroke="#6366f1"
+              strokeWidth={2}
+              dash={[8, 5]}
+              lineCap="round"
+              listening={false}
+            />
+          )}
+          {([
+            { end: 'source' as const, x: srcX, y: srcY, other: { x: markerX, y: markerY } },
+            { end: 'target' as const, x: markerX, y: markerY, other: { x: srcX, y: srcY } },
+          ]).map(({ end, x, y, other }) => {
+            const live = draftEndpoint?.end === end ? draftEndpoint : null;
+            return (
+              <Circle
+                key={`ep-${end}`}
+                x={live ? live.x : x}
+                y={live ? live.y : y}
+                radius={6}
+                fill={ENDPOINT_FILL}
+                stroke={HANDLE_FILL}
+                strokeWidth={2.5}
+                opacity={live ? 1 : 0.9}
+                draggable
+                onMouseDown={(e) => { e.cancelBubble = true; }}
+                onDragStart={(e) => {
+                  e.cancelBubble = true;
+                  setDraftEndpoint({ end, x: e.target.x(), y: e.target.y() });
+                }}
+                onDragMove={(e) => {
+                  setDraftEndpoint({ end, x: e.target.x(), y: e.target.y() });
+                }}
+                onDragEnd={(e) => {
+                  const dropWorld = { x: e.target.x(), y: e.target.y() };
+                  setDraftEndpoint(null);
+                  // Snap the Konva node back; the store update (if any) re-renders
+                  // the handle at its resolved position.
+                  e.target.position({ x, y });
+                  onEndpointDrop?.(id, end, dropWorld, other);
+                }}
+              />
+            );
+          })}
         </>
       )}
     </Group>

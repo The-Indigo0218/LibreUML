@@ -399,6 +399,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
     reverseEdgeById: edgeActions.reverseEdgeById,
     changeEdgeKind: edgeActions.changeEdgeKind,
     updateVFSEdgeProps: edgeActions.updateVFSEdgeProps,
+    relinkEdgeEndpoint: edgeActions.relinkEdgeEndpoint,
     updateEdgeWaypoints: edgeActions.updateEdgeWaypoints,
     updateEdgeRoutingMode: edgeActions.updateEdgeRoutingMode,
     updateEdgeStyle: edgeActions.updateEdgeStyle,

@@ -111,6 +111,8 @@ export interface E2EApi {
   nodeRect: (id: string) => E2ENodeRect | null;
   /** Page-space midpoint of a rendered edge line (id = view edge id). */
   edgeMidpoint: (edgeId: string) => { x: number; y: number } | null;
+  /** Page-space coords of an edge line's source (first) or target (last) point. */
+  edgeEndpoint: (edgeId: string, end: 'source' | 'target') => { x: number; y: number } | null;
 }
 
 declare global {
@@ -146,6 +148,19 @@ export default function E2EHarness() {
         if (!pts || pts.length < 4) return null;
         const mid = { x: (pts[0] + pts[pts.length - 2]) / 2, y: (pts[1] + pts[pts.length - 1]) / 2 };
         const screen = stage.getAbsoluteTransform().point(mid);
+        const c = stage.container().getBoundingClientRect();
+        return { x: c.left + screen.x, y: c.top + screen.y };
+      },
+      edgeEndpoint: (edgeId, end) => {
+        const stage = Konva.stages[Konva.stages.length - 1];
+        const line = stage?.findOne(`#edge-line-${edgeId}`);
+        if (!stage || !line) return null;
+        const pts = (line as unknown as { points: () => number[] }).points();
+        if (!pts || pts.length < 4) return null;
+        const pt = end === 'source'
+          ? { x: pts[0], y: pts[1] }
+          : { x: pts[pts.length - 2], y: pts[pts.length - 1] };
+        const screen = stage.getAbsoluteTransform().point(pt);
         const c = stage.container().getBoundingClientRect();
         return { x: c.left + screen.x, y: c.top + screen.y };
       },

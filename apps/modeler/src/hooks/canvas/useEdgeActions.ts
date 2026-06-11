@@ -11,6 +11,7 @@ import type {
   NodeBorderStyle,
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+import { useToastStore } from '../../store/toast.store';
 
 /**
  * Partial visual-style patch for an edge. Only keys present are touched;
@@ -42,8 +43,21 @@ export interface UseEdgeActionsResult {
       sourceRole?: string;
       targetRole?: string;
       anchorLocked?: boolean;
+      sourceHandle?: string;
+      targetHandle?: string;
     },
   ) => void;
+  /**
+   * Re-links one end of an edge to a different node (P3 endpoint drag). Mutates
+   * the underlying relation's sourceId/targetId and clears the edge's locked
+   * anchoring so it floats to the new node. Blocks self-loops for kinds that
+   * forbid them. Returns true if the re-link was applied.
+   */
+  relinkEdgeEndpoint: (
+    viewEdgeId: string,
+    end: 'source' | 'target',
+    newNodeViewId: string,
+  ) => boolean;
   /** Replaces an edge's manual waypoints. One undo transaction per call. */
   updateEdgeWaypoints: (
     viewEdgeId: string,
@@ -171,6 +185,93 @@ export function useEdgeActions({
     [activeTabId, isStandalone],
   );
 
+  const relinkEdgeEndpoint = useCallback(
+    (viewEdgeId: string, end: 'source' | 'target', newNodeViewId: string): boolean => {
+      if (!activeTabId) return false;
+      const currentProject = useVFSStore.getState().project;
+      if (!currentProject) return false;
+      const fileNode = currentProject.nodes[activeTabId];
+      if (!fileNode || fileNode.type !== 'FILE') return false;
+      if (!isDiagramView((fileNode as VFSFile).content)) return false;
+
+      const currentView = (fileNode as VFSFile).content as DiagramView;
+      const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
+      if (!viewEdge) return false;
+      const { relationId } = viewEdge;
+
+      // Resolve the dropped node's model element id from its view node.
+      const newVN = currentView.nodes.find((vn) => vn.id === newNodeViewId);
+      if (!newVN) return false;
+      const newElementId = newVN.elementId ?? newVN.id;
+
+      const SELF_LOOP_FORBIDDEN = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);
+      // No-op + warn if the re-link would create a forbidden self-loop.
+      const guardSelfLoop = (rel: { kind: RelationKind; sourceId: string; targetId: string }) => {
+        const otherId = end === 'source' ? rel.targetId : rel.sourceId;
+        if (newElementId === otherId && SELF_LOOP_FORBIDDEN.has(rel.kind)) {
+          useToastStore.getState().show('⚠️ Una relación de herencia no puede apuntar a sí misma');
+          return false;
+        }
+        return true;
+      };
+
+      // Clears the locked anchoring so the re-linked edge floats to the new node.
+      const clearAnchoring = (ve: any) => {
+        delete ve.anchorLocked;
+        delete ve.sourceHandle;
+        delete ve.targetHandle;
+      };
+
+      if (isStandalone) {
+        const rel = getLocalModel(activeTabId)?.relations[relationId];
+        if (!rel || !guardSelfLoop(rel)) return false;
+        withUndo('vfs', 'Reconnect Relation', activeTabId, (draft: any) => {
+          const node = draft.project?.nodes[activeTabId];
+          const r = node?.localModel?.relations[relationId];
+          if (!r) return;
+          if (end === 'source') r.sourceId = newElementId;
+          else r.targetId = newElementId;
+          node.localModel.updatedAt = Date.now();
+          if (isDiagramView(node.content)) {
+            const ve = node.content.edges.find((e: any) => e.id === viewEdgeId);
+            if (ve) clearAnchoring(ve);
+          }
+        });
+        return true;
+      }
+
+      const rel = useModelStore.getState().model?.relations[relationId];
+      if (!rel || !guardSelfLoop(rel)) return false;
+      undoTransaction({
+        label: 'Reconnect Relation',
+        scope: 'global',
+        mutations: [
+          {
+            store: 'model',
+            mutate: (draft: any) => {
+              const r = draft.model?.relations[relationId];
+              if (!r) return;
+              if (end === 'source') r.sourceId = newElementId;
+              else r.targetId = newElementId;
+              draft.model.updatedAt = Date.now();
+            },
+          },
+          {
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+              const ve = node.content.edges.find((e: any) => e.id === viewEdgeId);
+              if (ve) clearAnchoring(ve);
+            },
+          },
+        ],
+      });
+      return true;
+    },
+    [activeTabId, isStandalone],
+  );
+
   const updateVFSEdgeProps = useCallback(
     (
       viewEdgeId: string,
@@ -180,6 +281,8 @@ export function useEdgeActions({
         sourceRole?: string;
         targetRole?: string;
         anchorLocked?: boolean;
+        sourceHandle?: string;
+        targetHandle?: string;
       },
     ) => {
       if (!activeTabId) return;
@@ -290,5 +393,5 @@ export function useEdgeActions({
     [activeTabId],
   );
 
-  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps, updateEdgeWaypoints, updateEdgeRoutingMode, updateEdgeStyle };
+  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps, updateEdgeWaypoints, updateEdgeRoutingMode, updateEdgeStyle, relinkEdgeEndpoint };
 }

@@ -101,7 +101,7 @@ import {
   type NodeViewModel,
   type PackageViewModel,
 } from '../adapters/view-models/node.view-model';
-import { selectAnchors, anchorPointToHandle, resolveRoutingMode, type NodeBounds, type LockedHandle } from './edges/geometry';
+import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
 import { yToMessageSlot, yToInvariantSlot } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
@@ -1573,7 +1573,12 @@ export default function KonvaCanvas() {
                   id !== edge.sourceId && id !== edge.targetId && nonPackageIds.has(id),
               )
               .map(([, b]) => b);
-        const floating = isUseCaseDiagram && !isSelfLoop && !edge.anchorLocked;
+        const floating = shouldFloat({
+          isUseCaseDiagram,
+          isSelfLoop,
+          anchorLocked: edge.anchorLocked,
+          routingMode: edge.routingMode,
+        });
         const sourceShape = shapeOutlineOf(edge.sourceId);
         const targetShape = shapeOutlineOf(edge.targetId);
         return { edge, isSelfLoop, sourceBounds, targetBounds, isVisible, shouldHideEdge, obstacles, floating, sourceShape, targetShape };

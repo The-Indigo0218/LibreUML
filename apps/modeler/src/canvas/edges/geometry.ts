@@ -27,6 +27,30 @@ export function resolveRoutingMode(mode?: EdgeRoutingMode): EdgeRoutingMode {
   return mode ?? 'orthogonal';
 }
 
+/**
+ * Decides whether an edge's endpoints should use floating anchors (slide along
+ * the border toward the opposing node) instead of the fixed closest-pair
+ * selection. This is the single gate shared by every diagram type.
+ *
+ * Rules (in order):
+ *  - Self-loops and explicitly locked edges never float.
+ *  - UseCase diagrams always float (their long-standing default).
+ *  - Everywhere else, only `straight` edges float. `curved` is excluded because
+ *    the floating body is rendered as a straight segment (it would flatten the
+ *    curve); legacy `orthogonal` edges (routingMode undefined) stay untouched so
+ *    pre-existing diagrams render pixel-identically.
+ */
+export function shouldFloat(opts: {
+  isUseCaseDiagram: boolean;
+  isSelfLoop: boolean;
+  anchorLocked?: boolean;
+  routingMode?: EdgeRoutingMode;
+}): boolean {
+  if (opts.isSelfLoop || opts.anchorLocked) return false;
+  if (opts.isUseCaseDiagram) return true;
+  return resolveRoutingMode(opts.routingMode) === 'straight';
+}
+
 export interface NodeBounds {
   x: number;
   y: number;

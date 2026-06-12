@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
-import { useModelValidation } from "../../hooks/useModelValidation";
+import { useProjectProblems } from "../../hooks/useProjectProblems";
 import { useLayoutStore } from "../../../../store/layout.store";
 import { useCodeGenerationStore, LANGUAGE_OPTIONS } from "../../../../store/codeGeneration.store";
 import { useUndoManager } from "../../../../core/undo/useUndoManager";
@@ -269,7 +269,7 @@ export default function StatusBar() {
 
   const fileName    = activeFile?.name || t('statusbar.untitled');
   const diagramType = activeFile?.diagramType || "UNSPECIFIED";
-  const { errorCount, errors, warningCount } = useModelValidation();
+  const { errorCount, warningCount, problems } = useProjectProblems();
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { quota } = useQuota();
@@ -315,7 +315,7 @@ export default function StatusBar() {
             <button
               onClick={openProblemsTab}
               className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-              title={errors.length > 0 ? errors.join('\n') : 'No problems'}
+              title={problems.length > 0 ? problems.map((p) => p.message).join('\n') : 'No problems'}
             >
               <XCircle className="w-3.5 h-3.5 text-red-400" />
               <span className={`text-xs font-medium ${errorCount > 0 ? 'text-red-400' : 'text-text-primary'}`}>

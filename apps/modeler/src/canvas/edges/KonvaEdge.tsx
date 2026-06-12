@@ -53,6 +53,7 @@ import {
   polylineRoute,
   orthogonalPolylineRoute,
   resolveRoutingMode,
+  anchorFromRatio,
   selfLoopPath,
   computeLabelPositions,
   LABEL_ALONG,
@@ -217,6 +218,13 @@ export interface KonvaEdgeProps {
   sourceHandle?: string;
   targetHandle?: string;
   /**
+   * P4 — free continuous border anchor (nx, ny ∈ [0,1] relative to bounds).
+   * When present, overrides the resolved endpoint for that side (priority over
+   * locked handle / floating). Resolved per-endpoint → enables mixed ends.
+   */
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
+  /**
    * Floating anchors. When true (and not locked / no waypoints), endpoints
    * slide along each node's border toward the opposing node instead of snapping
    * to one of the 8 fixed handles — radial/diagonal entry, recalculated as nodes
@@ -286,6 +294,8 @@ export default function KonvaEdge({
   anchorLocked = false,
   sourceHandle,
   targetHandle,
+  sourceAnchor,
+  targetAnchor,
   floating = false,
   sourceShape = 'rect',
   targetShape = 'rect',
@@ -408,6 +418,18 @@ export default function KonvaEdge({
       retractedTgt = retract > 0 ? retractAnchor(tgt, retract) : tgt;
     }
 
+    // P4 — free border anchors override the resolved endpoint(s), per side. Wins
+    // over floating / locked handles. The target side recomputes its retract and
+    // falls back to face-based marker rotation (anchorFromRatio assigns a face).
+    if (sourceAnchor) {
+      src = anchorFromRatio(sourceBounds, sourceAnchor);
+    }
+    if (targetAnchor) {
+      tgt = anchorFromRatio(targetBounds, targetAnchor);
+      retractedTgt = retract > 0 ? retractAnchor(tgt, retract) : tgt;
+      markerAngle = undefined;
+    }
+
     let pts: number[];
     let isBezier = false;
 
@@ -466,7 +488,7 @@ export default function KonvaEdge({
       srcY: src.y,
       labelPositions: computeLabelPositions(pts, src.x, src.y, tgt.x, tgt.y, targetAlong, isBezier),
     };
-  }, [sourceBounds, targetBounds, kind, isSelfLoop, routing, obstacles, retract, anchorLocked, sourceHandle, targetHandle, floating, sourceShape, targetShape, effectiveWaypoints]);
+  }, [sourceBounds, targetBounds, kind, isSelfLoop, routing, obstacles, retract, anchorLocked, sourceHandle, targetHandle, sourceAnchor, targetAnchor, floating, sourceShape, targetShape, effectiveWaypoints]);
 
   // ── Waypoint editing handles ───────────────────────────────────────────────
   const showHandles = showLabels && selected && !isSelfLoop && !!onWaypointsChange;

@@ -65,14 +65,14 @@ test.describe('edge anchoring P1/P2/P3', () => {
     await page.screenshot({ path: '/tmp/verify-p1-floating.png' });
   });
 
-  test('P2 — drawing onto a connection point locks the anchor (fixed)', async ({ page }) => {
+  test('P2/P4 — drawing onto a cardinal mark anchors to that exact ratio (magnet)', async ({ page }) => {
     await seedDiagram(page, TWO);
     expect((await getView(page)).edges.length).toBe(0);
 
     const a = await nodeRect(page, 'vn-a');
     const b = await nodeRect(page, 'vn-b');
     const from = anchorOf(a!, 'R');           // source: A right-mid mark
-    const to = anchorOf(b!, 'L');             // target: B left-mid mark (on-mark → fixed)
+    const to = anchorOf(b!, 'L');             // target: B left-mid mark
 
     await page.mouse.move(from.x, from.y);    // hover to arm nearAnchorRef
     await page.waitForTimeout(80);
@@ -81,18 +81,18 @@ test.describe('edge anchoring P1/P2/P3', () => {
     await expect.poll(async () => (await getView(page)).edges.length).toBe(1);
     const edge: any = (await getView(page)).edges[0];
     await page.screenshot({ path: '/tmp/verify-p2-fixed.png' });
-    expect(edge.anchorLocked).toBe(true);
-    expect(edge.sourceHandle).toBeTruthy();
-    expect(edge.targetHandle).toBeTruthy();
+    // Free border anchors; magnet lands the clean cardinal drops exactly.
+    expect(edge.sourceAnchor).toEqual({ nx: 1, ny: 0.5 });
+    expect(edge.targetAnchor).toEqual({ nx: 0, ny: 0.5 });
   });
 
-  test('P2 — dropping off a mark creates a floating edge (not locked)', async ({ page }) => {
+  test('P2/P4 — drawing onto a mid-border point anchors to a continuous {nx,ny}', async ({ page }) => {
     await seedDiagram(page, TWO);
     const a = await nodeRect(page, 'vn-a');
     const b = await nodeRect(page, 'vn-b');
     const from = anchorOf(a!, 'R');
-    const leftMid = anchorOf(b!, 'L');
-    const to = { x: leftMid.x, y: leftMid.y + 16 }; // ~16px off the L mark → floating band
+    // Drop on B's LEFT border, ~30% down — between the L mark and the BL corner.
+    const to = { x: b!.x, y: b!.y + b!.height * 0.3 };
 
     await page.mouse.move(from.x, from.y);
     await page.waitForTimeout(80);
@@ -100,8 +100,24 @@ test.describe('edge anchoring P1/P2/P3', () => {
 
     await expect.poll(async () => (await getView(page)).edges.length).toBe(1);
     const edge: any = (await getView(page)).edges[0];
-    await page.screenshot({ path: '/tmp/verify-p2-floating.png' });
-    expect(edge.anchorLocked).toBeFalsy();
+    await page.screenshot({ path: '/tmp/verify-p2-freepoint.png' });
+    expect(edge.targetAnchor.nx).toBe(0);                // left border
+    expect(edge.targetAnchor.ny).toBeGreaterThan(0.15);  // continuous, not a cardinal
+    expect(edge.targetAnchor.ny).toBeLessThan(0.45);
+  });
+
+  test('color — temp line is amber over empty canvas (will create a node)', async ({ page }) => {
+    await seedDiagram(page, TWO);
+    const a = await nodeRect(page, 'vn-a');
+    const from = anchorOf(a!, 'R');
+    // Press on the source anchor and drag to empty canvas WITHOUT releasing.
+    await page.mouse.move(from.x, from.y);
+    await page.waitForTimeout(80);
+    await page.mouse.down();
+    await page.mouse.move(720, 180, { steps: 8 });
+    await page.waitForTimeout(80);
+    await page.screenshot({ path: '/tmp/verify-color-empty-amber.png' });
+    await page.mouse.up();
   });
 
   test('P3 — dragging the target endpoint onto another node re-links it', async ({ page }) => {
@@ -143,21 +159,52 @@ test.describe('edge anchoring P1/P2/P3', () => {
     await page.screenshot({ path: '/tmp/verify-p3-relink-clean.png' });
   });
 
-  test('P3 — dragging the target endpoint onto a mark of the same node re-anchors (fixed)', async ({ page }) => {
+  test('P4 — dragging the endpoint to a free border point stores a continuous {nx,ny}', async ({ page }) => {
     await seedDiagram(page, TWO_WITH_EDGE);
-    expect(((await getView(page)).edges[0] as any).anchorLocked).toBeFalsy();
+    expect(((await getView(page)).edges[0] as any).targetAnchor).toBeUndefined();
     await selectEdge(page);
 
     const ep = await lineLastPoint(page, 've');
-    const bTop = anchorOf((await nodeRect(page, 'vn-b'))!, 'T'); // a mark on B itself
+    const b = (await nodeRect(page, 'vn-b'))!;
+    // A non-cardinal point: Beta's LEFT border, 35% down from the top.
+    const free = { x: b.x, y: b.y + b.height * 0.35 };
+    expect(ep).toBeTruthy();
+
+    await dragFromTo(page, ep!, free);
+    await page.waitForTimeout(150);
+
+    const a: any = (await getView(page)).edges[0].targetAnchor;
+    await page.screenshot({ path: '/tmp/verify-p4-freepoint.png' });
+    expect(a).toBeTruthy();
+    expect(a.nx).toBe(0);                 // magnet snapped to the left edge
+    expect(a.ny).toBeGreaterThan(0.15);   // …but the vertical position is continuous
+    expect(a.ny).toBeLessThan(0.5);       //    (not a cardinal 0 / 0.5 / 1)
+
+    // And a clean drop on a corner magnets to an exact ratio.
+    const ep2 = await lineLastPoint(page, 've');
+    await dragFromTo(page, ep2!, { x: b.x, y: b.y }); // top-left corner
+    await page.waitForTimeout(150);
+    const a2: any = (await getView(page)).edges[0].targetAnchor;
+    expect(a2).toEqual({ nx: 0, ny: 0 });
+  });
+
+  test('P3/P4 — dropping the endpoint on a cardinal mark magnets to that exact ratio', async ({ page }) => {
+    await seedDiagram(page, TWO_WITH_EDGE);
+    expect(((await getView(page)).edges[0] as any).targetAnchor).toBeUndefined();
+    await selectEdge(page);
+
+    const ep = await lineLastPoint(page, 've');
+    const bTop = anchorOf((await nodeRect(page, 'vn-b'))!, 'T'); // top-mid mark on B
     expect(ep).toBeTruthy();
 
     await dragFromTo(page, ep!, bTop);
     await page.waitForTimeout(150);
 
-    await expect.poll(async () => ((await getView(page)).edges[0] as any).anchorLocked === true).toBe(true);
-    const edge: any = (await getView(page)).edges[0];
+    // P4: re-anchor stores a continuous {nx,ny}; the magnet lands a clean top-mid
+    // drop exactly on (0.5, 0) instead of needing a discrete handle.
+    await expect
+      .poll(async () => JSON.stringify((await getView(page)).edges[0].targetAnchor ?? null))
+      .toBe(JSON.stringify({ nx: 0.5, ny: 0 }));
     await page.screenshot({ path: '/tmp/verify-p3-reanchor.png' });
-    expect(edge.targetHandle).toBeTruthy();
   });
 });

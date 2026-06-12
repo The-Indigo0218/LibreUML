@@ -205,6 +205,54 @@ export function lockedHandleAt(bounds: NodeBounds, x: number, y: number): Locked
   return anchorPointToHandle(bounds, { x, y, face: 'Top' });
 }
 
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/**
+ * P4 — captures a free border anchor: the relative position (nx, ny ∈ [0,1]) of
+ * a point within a node's bounding box. Clamped so it stays on/inside the box.
+ * `magnet` (px, optional) snaps the ratio to the nearest of the 8 handle ratios
+ * when within range, so cardinal/corner drops land clean while the rest stays
+ * continuous.
+ */
+export function ratioFromPoint(
+  bounds: NodeBounds,
+  x: number,
+  y: number,
+  magnet = 0,
+): { nx: number; ny: number } {
+  let nx = clamp01((x - bounds.x) / (bounds.width || 1));
+  let ny = clamp01((y - bounds.y) / (bounds.height || 1));
+  if (magnet > 0) {
+    const mx = magnet / (bounds.width || 1);
+    const my = magnet / (bounds.height || 1);
+    for (const t of [0, 0.5, 1]) {
+      if (Math.abs(nx - t) <= mx) nx = t;
+      if (Math.abs(ny - t) <= my) ny = t;
+    }
+  }
+  return { nx, ny };
+}
+
+/**
+ * P4 — resolves a free border anchor (nx, ny ∈ [0,1]) into an AnchorPoint. The
+ * point is projected onto the NEAREST side of the box (so it sits on the border
+ * even if the stored ratio drifted slightly inward), and `face` is that side —
+ * used for arrow retract and curved/orthogonal entry direction.
+ */
+export function anchorFromRatio(bounds: NodeBounds, r: { nx: number; ny: number }): AnchorPoint {
+  const x = bounds.x + clamp01(r.nx) * bounds.width;
+  const y = bounds.y + clamp01(r.ny) * bounds.height;
+  const dl = x - bounds.x;
+  const dr = bounds.x + bounds.width - x;
+  const dt = y - bounds.y;
+  const db = bounds.y + bounds.height - y;
+  const m = Math.min(dl, dr, dt, db);
+  if (m === dt) return { x, y: bounds.y, face: 'Top' };
+  if (m === db) return { x, y: bounds.y + bounds.height, face: 'Bottom' };
+  if (m === dl) return { x: bounds.x, y, face: 'Left' };
+  return { x: bounds.x + bounds.width, y, face: 'Right' };
+}
+
 /**
  * Reconstructs an AnchorPoint from a stored LockedHandle.
  * Corner anchors are returned with a placeholder face — callers must

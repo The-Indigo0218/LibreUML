@@ -13,9 +13,10 @@
  *      - On empty space or invalid → discard (toast shown for invalid stereotypes).
  *
  * Anchor system:
- *   8 points per node: 4 cardinal midpoints (T, B, L, R) + 4 corners (TL, TR, BL, BR).
- *   ANCHOR_DETECT_R  = 16 px — activates nearAnchorRef when cursor is within this radius.
- *   ANCHOR_SNAP_R    = 24 px — snaps to target anchor during drag.
+ *   Source starts at one of 8 marks (4 cardinals + 4 corners). The TARGET anchors
+ *   to the continuous border point under the drop (P4 «free border default»), with
+ *   the 8 marks acting only as a magnet (ANCHOR_MAGNET) that snaps near-cardinals.
+ *   ANCHOR_DETECT_R  = 16 px — activates nearAnchorRef (source start) within this radius.
  *   NODE_HOVER_PAD   = 20 px — shows anchor dots when cursor is within this padding of node bounds.
  *
  * Drag suppression:
@@ -39,7 +40,7 @@ import type { RefObject } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { NodeBounds } from '../edges/geometry';
-import { lockedHandleAt } from '../edges/geometry';
+import { ratioFromPoint, anchorFromRatio } from '../edges/geometry';
 import type { AnyNodeViewModel } from '../../adapters/view-models/node.view-model';
 import {
   isNoteViewModel,
@@ -59,15 +60,6 @@ import { useWorkspaceStore } from '../../store/workspace.store';
 
 /** Cursor must be within this radius (world px) of an anchor to activate connection mode. */
 const ANCHOR_DETECT_R = 16;
-/** Cursor must be within this radius (world px) of an anchor to snap during drag. */
-const ANCHOR_SNAP_R = 24;
-/**
- * Tighter radius: dropping within this distance of a connection point LOCKS the
- * endpoint to it (fixed, draw.io green). Between this and ANCHOR_SNAP_R the edge
- * still connects to the node but FLOATS (P1 default) — so the perimeter stays
- * mostly floating and the 8 points are a deliberate opt-in.
- */
-const FIXED_SNAP_R = 9;
 /** Cursor must be within this padding (world px) of a node's bounding box to show anchors. */
 const NODE_HOVER_PAD = 20;
 
@@ -173,30 +165,29 @@ function findNearest(
   return best;
 }
 
-/** Persisted anchoring for a completed connection. */
+/** Persisted anchoring for a completed connection (P4 — free border points). */
 export interface DropAnchoring {
-  sourceHandle?: string;
-  targetHandle?: string;
-  anchorLocked?: boolean;
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
 }
 
+/** Magnet radius (world px) snapping a captured ratio to cardinals/corners. */
+const ANCHOR_MAGNET = 10;
+
 /**
- * Decides the anchoring of a completed connection (model A / draw.io):
- *  - `fixed` (the user dropped within FIXED_SNAP_R of a target point) → lock
- *    BOTH endpoints to their nearest of the 8 handles.
- *  - otherwise → floating: no handles, edge slides along both borders (P1).
- * All-or-nothing keeps the model simple; mixed fixed/floating ends are future work.
+ * Anchoring of a completed connection (P4 — «free border default»): both ends
+ * anchor to the continuous border point where they were placed. `source` is the
+ * start point (a mark); `target` is the ACTUAL drop position — projected onto
+ * the border by anchorFromRatio at render time. The magnet snaps near-cardinal
+ * drops to exact T/B/L/R while the rest stays continuous.
  */
 export function computeDropAnchoring(
-  fixed: boolean,
   source: { bounds: NodeBounds; x: number; y: number },
   target: { bounds: NodeBounds; x: number; y: number },
 ): DropAnchoring {
-  if (!fixed) return {};
   return {
-    sourceHandle: lockedHandleAt(source.bounds, source.x, source.y),
-    targetHandle: lockedHandleAt(target.bounds, target.x, target.y),
-    anchorLocked: true,
+    sourceAnchor: ratioFromPoint(source.bounds, source.x, source.y, ANCHOR_MAGNET),
+    targetAnchor: ratioFromPoint(target.bounds, target.x, target.y, ANCHOR_MAGNET),
   };
 }
 
@@ -204,18 +195,23 @@ export function computeDropAnchoring(
 function findHoveredNode(
   pos: { x: number; y: number },
   boundsMap: Map<string, NodeBounds>,
+  excludeNodeId?: string,
 ): string | null {
-  for (const [nodeId, bounds] of boundsMap.entries()) {
-    if (
-      pos.x >= bounds.x - NODE_HOVER_PAD &&
-      pos.x <= bounds.x + bounds.width + NODE_HOVER_PAD &&
-      pos.y >= bounds.y - NODE_HOVER_PAD &&
-      pos.y <= bounds.y + bounds.height + NODE_HOVER_PAD
-    ) {
-      return nodeId;
+  // Innermost (smallest-area) containing node wins, so a node inside a package
+  // is preferred over the package behind it.
+  let best: string | null = null;
+  let bestArea = Infinity;
+  for (const [nodeId, b] of boundsMap.entries()) {
+    if (nodeId === excludeNodeId) continue;
+    const inside =
+      pos.x >= b.x - NODE_HOVER_PAD && pos.x <= b.x + b.width + NODE_HOVER_PAD &&
+      pos.y >= b.y - NODE_HOVER_PAD && pos.y <= b.y + b.height + NODE_HOVER_PAD;
+    if (inside && b.width * b.height < bestArea) {
+      best = nodeId;
+      bestArea = b.width * b.height;
     }
   }
-  return null;
+  return best;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -285,8 +281,9 @@ export interface UseConnectionDrawReturn {
   /** The anchor being snapped to as connection target. */
   snapTargetDot: AnchorDot | null;
   /**
-   * True when the current snap is within FIXED_SNAP_R — i.e. releasing now would
-   * LOCK the endpoint to this point (green). False = floating drop (blue).
+   * True when the cursor is over a target node — releasing now anchors the
+   * endpoint to the continuous border point under it (green). False = over empty
+   * canvas, the drop would create a linked node instead (blue, follows cursor).
    */
   snapFixed: boolean;
   /**
@@ -428,27 +425,23 @@ export function useConnectionDraw({
 
         const srcVM = nodes.find((n) => n.id === src.nodeId)?.data;
         const excludeNodeId = nodeAllowsSelfLoop(srcVM) ? undefined : src.nodeId;
-        const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, excludeNodeId);
-        // Within the tight radius → releasing now locks the endpoint (green).
-        const fixed = !!snap && snap.dist <= FIXED_SNAP_R;
-        // Snap the temp line only when locking; floating drops follow the cursor
-        // so the user sees they are NOT committing to a fixed point.
-        const endX = fixed ? snap!.x : pos.x;
-        const endY = fixed ? snap!.y : pos.y;
+        // P4 — releasing over a node anchors to the continuous border point under
+        // the cursor (magnet to cardinals). Preview that exact landing point.
+        const tgtId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId);
+        const tgtBounds = tgtId ? boundsMapRef.current.get(tgtId) : undefined;
+        const landing = tgtBounds
+          ? anchorFromRatio(tgtBounds, ratioFromPoint(tgtBounds, pos.x, pos.y, ANCHOR_MAGNET))
+          : null;
 
-        setTempLine({ x1: src.x, y1: src.y, x2: endX, y2: endY });
-        setSnapTargetDot(fixed ? snap : null);
-        setSnapFixed(fixed);
-        setSnapValid(snap ? computeSnapValidity(src.nodeId, snap.nodeId) : null);
+        setTempLine({ x1: src.x, y1: src.y, x2: landing ? landing.x : pos.x, y2: landing ? landing.y : pos.y });
+        setSnapTargetDot(landing && tgtId ? { nodeId: tgtId, x: landing.x, y: landing.y } : null);
+        setSnapFixed(!!landing);
+        setSnapValid(tgtId ? computeSnapValidity(src.nodeId, tgtId) : null);
 
-        // Show the hovered target node's 8 connection points (draw.io Xs) so the
-        // user can aim at one. Only updates when the hovered node changes.
-        const tgtId = findHoveredNode(pos, boundsMapRef.current);
-        const overlayId = tgtId && tgtId !== excludeNodeId ? tgtId : null;
-        if (overlayId !== hoverNodeIdRef.current) {
-          hoverNodeIdRef.current = overlayId;
-          const b = overlayId ? boundsMapRef.current.get(overlayId) : undefined;
-          setHoveredNodeAnchors(b ? getAnchorDots(overlayId!, b) : []);
+        // Show the hovered target node's 8 connection points (the magnet marks).
+        if (tgtId !== hoverNodeIdRef.current) {
+          hoverNodeIdRef.current = tgtId;
+          setHoveredNodeAnchors(tgtBounds ? getAnchorDots(tgtId!, tgtBounds) : []);
         }
       } else {
         // ── Hover mode: update nearAnchorRef + visible anchor dots ────────
@@ -521,25 +514,24 @@ export function useConnectionDraw({
         if (pos) {
           const srcVM = nodes.find((n) => n.id === src.nodeId)?.data;
           const excludeNodeId = nodeAllowsSelfLoop(srcVM) ? undefined : src.nodeId;
-          const snap = findNearest(pos, boundsMapRef.current, ANCHOR_SNAP_R, excludeNodeId);
-          if (snap) {
-            // Lock to the dropped point only within the tight radius; otherwise
-            // float (P1). Resolved once and threaded through every onConnect path.
-            const fixed = snap.dist <= FIXED_SNAP_R;
+          // P4 — the target is whatever node the cursor is over (innermost). The
+          // endpoint anchors to the continuous border point under the drop, so the
+          // whole perimeter is reachable (not just the 8 marks).
+          const tgtNodeId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId);
+          if (tgtNodeId) {
             const srcBounds = boundsMapRef.current.get(src.nodeId);
-            const tgtBounds = boundsMapRef.current.get(snap.nodeId);
+            const tgtBounds = boundsMapRef.current.get(tgtNodeId);
             const anchoring: DropAnchoring =
               srcBounds && tgtBounds
                 ? computeDropAnchoring(
-                    fixed,
                     { bounds: srcBounds, x: src.x, y: src.y },
-                    { bounds: tgtBounds, x: snap.x, y: snap.y },
+                    { bounds: tgtBounds, x: pos.x, y: pos.y },
                   )
                 : {};
 
             // ── Validate via connectionValidator.ts ───────────────────────
             const srcNode = nodes.find((n) => n.id === src.nodeId);
-            const tgtNode = nodes.find((n) => n.id === snap.nodeId);
+            const tgtNode = nodes.find((n) => n.id === tgtNodeId);
 
             if (srcNode && tgtNode) {
               const srcStereotype = resolveStereotype(srcNode.data);
@@ -548,13 +540,13 @@ export function useConnectionDraw({
               // Package→package: always allowed. Kind is forced to DEPENDENCY in the handler.
               // Use case / domain / sequence diagram nodes: delegate entirely to onConnect.
               if (srcStereotype === 'package' && tgtStereotype === 'package') {
-                onConnect(src.nodeId, snap.nodeId, anchoring);
+                onConnect(src.nodeId, tgtNodeId, anchoring);
               } else if (USE_CASE_STEREOTYPES.has(srcStereotype) || USE_CASE_STEREOTYPES.has(tgtStereotype)) {
-                onConnect(src.nodeId, snap.nodeId, anchoring);
+                onConnect(src.nodeId, tgtNodeId, anchoring);
               } else if (DOMAIN_MODEL_STEREOTYPES.has(srcStereotype) || DOMAIN_MODEL_STEREOTYPES.has(tgtStereotype)) {
-                onConnect(src.nodeId, snap.nodeId, anchoring);
+                onConnect(src.nodeId, tgtNodeId, anchoring);
               } else if (SEQUENCE_STEREOTYPES.has(srcStereotype) || SEQUENCE_STEREOTYPES.has(tgtStereotype)) {
-                onConnect(src.nodeId, snap.nodeId, anchoring);
+                onConnect(src.nodeId, tgtNodeId, anchoring);
               } else {
                 const wsState = useWorkspaceStore.getState();
                 const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
@@ -562,14 +554,14 @@ export function useConnectionDraw({
                 const umlType = RELATION_TO_UML[kind] ?? 'association';
 
                 if (validateConnection(srcStereotype, tgtStereotype, umlType)) {
-                  onConnect(src.nodeId, snap.nodeId, anchoring);
+                  onConnect(src.nodeId, tgtNodeId, anchoring);
                 } else {
                   // Instead of rejecting, offer the valid relation types.
                   const validTypes = CLASS_RELATION_TYPES.filter((ut) =>
                     validateConnection(srcStereotype, tgtStereotype, ut),
                   );
                   if (validTypes.length > 0 && onPickRelation) {
-                    onPickRelation(src.nodeId, snap.nodeId, validTypes, { x: snap.x, y: snap.y });
+                    onPickRelation(src.nodeId, tgtNodeId, validTypes, { x: pos.x, y: pos.y });
                   } else {
                     useToastStore.getState().show('⚠️ Relación inválida según estereotipos UML');
                   }
@@ -577,11 +569,11 @@ export function useConnectionDraw({
               }
             } else {
               // Fallback: let onConnect handle validation if nodes not found.
-              onConnect(src.nodeId, snap.nodeId, anchoring);
+              onConnect(src.nodeId, tgtNodeId, anchoring);
             }
           } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current)) {
-            // Quick Linker: released on empty canvas (no snap, no node under
-            // the cursor) → offer to create a new node linked to the source.
+            // Quick Linker: released on empty canvas (no node under the cursor at
+            // all) → offer to create a new node linked to the source.
             onDropEmpty(src.nodeId, { x: pos.x, y: pos.y });
           }
         }

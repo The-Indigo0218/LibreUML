@@ -45,6 +45,8 @@ export interface UseEdgeActionsResult {
       anchorLocked?: boolean;
       sourceHandle?: string;
       targetHandle?: string;
+      sourceAnchor?: { nx: number; ny: number };
+      targetAnchor?: { nx: number; ny: number };
     },
   ) => void;
   /**
@@ -215,11 +217,14 @@ export function useEdgeActions({
         return true;
       };
 
-      // Clears the locked anchoring so the re-linked edge floats to the new node.
+      // Clears any anchoring (locked handles + free P4 anchors) so the re-linked
+      // edge floats to the new node.
       const clearAnchoring = (ve: any) => {
         delete ve.anchorLocked;
         delete ve.sourceHandle;
         delete ve.targetHandle;
+        delete ve.sourceAnchor;
+        delete ve.targetAnchor;
       };
 
       if (isStandalone) {
@@ -283,6 +288,8 @@ export function useEdgeActions({
         anchorLocked?: boolean;
         sourceHandle?: string;
         targetHandle?: string;
+        sourceAnchor?: { nx: number; ny: number };
+        targetAnchor?: { nx: number; ny: number };
       },
     ) => {
       if (!activeTabId) return;

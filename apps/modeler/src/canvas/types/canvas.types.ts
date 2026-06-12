@@ -38,6 +38,9 @@ export interface EdgeDescriptor {
   anchorLocked?: boolean;
   sourceHandle?: string;
   targetHandle?: string;
+  // P4 — free continuous border anchors (nx, ny ∈ [0,1] relative to bounds).
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
   // «extend» specific
   condition?: string;
   extensionPoint?: string;
@@ -78,4 +81,10 @@ export interface KonvaConnection {
    * connection (endpoints slide along the border, the draw.io default).
    */
   anchorLocked?: boolean;
+  /**
+   * P4 — free continuous border anchors (nx, ny ∈ [0,1]) captured at draw time.
+   * When present they supersede the handle/lock fields on the new edge.
+   */
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
 }

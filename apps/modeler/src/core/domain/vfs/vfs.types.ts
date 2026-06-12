@@ -98,6 +98,15 @@ export interface ViewEdge {
   sourceRole?: string;
   targetRole?: string;
   anchorLocked?: boolean;
+  /**
+   * P4 — free continuous anchor: position of the endpoint on the node's border,
+   * relative to its bounding box (nx, ny ∈ [0,1]). Resolved per-endpoint and
+   * takes priority over locked handles / floating. Undefined → fall back to the
+   * existing chain (handle → floating → closest-pair). The 8 handles act as a
+   * magnet when capturing, but the stored value is continuous.
+   */
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
   /** Line routing style. Undefined = 'straight'. */
   routingMode?: EdgeRoutingMode;
   /** Per-edge color override. Undefined = kind/base color. */

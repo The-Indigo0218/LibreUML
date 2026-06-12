@@ -59,11 +59,19 @@ function sendKeepaliveFlush(projectId: string, modelVersion: number): void {
       if (node.type !== 'FILE') continue;
       const entry = cloudDiagrams[vfsId];
       if (!entry) continue;
+      const file = node as VFSFile;
       void fetch(`${base}/projects/${projectId}/diagrams/${entry.cloudId}`, {
         ...opts,
         body: JSON.stringify({
-          viewData: (node as VFSFile).content ?? {},
-          version:  entry.version,
+          // Embed the standalone semantic model, matching the regular sync paths
+          // (cloudSync.service syncDiagram / saveToCloud). Without this a hard
+          // close inside the debounce window would overwrite the cloud viewData
+          // and drop the standalone model. (Audit C1)
+          viewData: {
+            ...(file.content ?? {}),
+            ...(file.standalone && file.localModel ? { _localModel: file.localModel } : {}),
+          },
+          version: entry.version,
         }),
       });
     }

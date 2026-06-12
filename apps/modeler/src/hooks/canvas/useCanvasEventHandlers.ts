@@ -353,9 +353,8 @@ export function useCanvasEventHandlers({
         id: crypto.randomUUID(),
         relationId: newRelationId,
         waypoints: [],
-        // P4 — newly drawn edges anchor to the continuous border point where each
-        // end was placed (free border default). The 8-handle/anchorLocked path is
-        // superseded; handles are no longer captured at draw time.
+        // P4 — drawn edges anchor to the continuous border point where each end
+        // was placed (free border default).
         ...(connection.sourceAnchor ? { sourceAnchor: connection.sourceAnchor } : {}),
         ...(connection.targetAnchor ? { targetAnchor: connection.targetAnchor } : {}),
         // Freshly drawn edges default to free-form straight; legacy edges (no

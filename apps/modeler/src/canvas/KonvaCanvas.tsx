@@ -293,7 +293,7 @@ export default function KonvaCanvas() {
     [vfsController],
   );
 
-  // P3 — endpoint drag: re-link to another node, re-anchor to a mark, or revert.
+  // Endpoint drag: re-link to another node, re-anchor to a free border point, or revert.
   const handleEndpointDrop = useCallback(
     (
       edgeId: string,
@@ -319,11 +319,10 @@ export default function KonvaCanvas() {
           hitArea = b.width * b.height;
         }
       }
-      if (!hitNodeId) return; // empty canvas → revert
+      if (!hitNodeId) return;
 
-      // Same node → re-anchor to a free continuous border point (P4). The magnet
-      // snaps to cardinals/corners so clean drops still land exactly on T/B/L/R.
-      // Stored per-endpoint → the other end keeps whatever it had (mixed ends ok).
+      // Same node → re-anchor to a free continuous border point (magnet to
+      // cardinals). Stored per-endpoint, so the other end is left untouched.
       if (hitNodeId === currentNodeId) {
         const thisBounds = bm.get(currentNodeId);
         if (!thisBounds) return;
@@ -335,7 +334,6 @@ export default function KonvaCanvas() {
         return;
       }
 
-      // Different node → re-link the relation's endpoint (floats to the new node).
       vfsController.relinkEdgeEndpoint(edgeId, end, hitNodeId);
     },
     [edges, vfsController],

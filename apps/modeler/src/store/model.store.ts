@@ -638,7 +638,8 @@ export const useModelStore = create<ModelStoreState>()(
         // so the new message takes the slot and the rest stay contiguous.
         const slot = data.sequenceNumber;
         if (draft.model.messages) {
-          for (const m of Object.values(draft.model.messages)) {
+          for (const mid of Object.keys(draft.model.messages)) {
+            const m = draft.model.messages[mid];
             if (m.sequenceNumber >= slot) m.sequenceNumber += 1;
           }
         }

@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useLayoutStore } from '../../../../store/layout.store';
 import { useTerminal } from '../../../../features/terminal/useTerminal';
 import { useKonvaAutoLayout } from '../../../../canvas/hooks/useKonvaAutoLayout';
-import { useModelValidation } from '../../hooks/useModelValidation';
+import { useProjectProblems } from '../../hooks/useProjectProblems';
+import ProblemsPanel from './ProblemsPanel';
 import type { OutputLine } from '../../../../features/terminal/registry';
 
 const TYPE_CLASS: Record<OutputLine['type'], string> = {
@@ -46,7 +47,8 @@ export default function BottomPanel() {
   const { output, input, setInput, handleKeyDown, inputRef } = useTerminal({
     actions: { runLayout },
   });
-  const { errors, errorCount } = useModelValidation();
+  const { errorCount, warningCount } = useProjectProblems();
+  const problemCount = errorCount + warningCount;
   const outputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -81,9 +83,11 @@ export default function BottomPanel() {
           >
             <XCircle className="w-3.5 h-3.5" />
             {t("terminal.tabs.problems")}
-            {errorCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/20 text-red-400">
-                {errorCount}
+            {problemCount > 0 && (
+              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                errorCount > 0 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
+              }`}>
+                {problemCount}
               </span>
             )}
           </button>
@@ -132,27 +136,7 @@ export default function BottomPanel() {
         </>
       )}
 
-      {bottomPanelTab === 'problems' && (
-        <div className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2">
-          {errors.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <span className="text-xs text-[#3d4f6b]">{t("terminal.noProblems")}</span>
-            </div>
-          ) : (
-            <ul className="space-y-0.5">
-              {errors.map((msg, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-2.5 px-2 py-1.5 rounded hover:bg-[#1e2738] transition-colors"
-                >
-                  <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
-                  <span className="text-xs text-[#cbd5e1] font-mono">{msg}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      {bottomPanelTab === 'problems' && <ProblemsPanel />}
     </div>
   );
 }

@@ -134,8 +134,17 @@ export interface VFSCanvasResult {
       sourceRole?: string;
       targetRole?: string;
       anchorLocked?: boolean;
+      sourceHandle?: string;
+      targetHandle?: string;
+      sourceAnchor?: { nx: number; ny: number };
+      targetAnchor?: { nx: number; ny: number };
     },
   ) => void;
+  relinkEdgeEndpoint: (
+    viewEdgeId: string,
+    end: 'source' | 'target',
+    newNodeViewId: string,
+  ) => boolean;
   updateEdgeWaypoints: (viewEdgeId: string, waypoints: { x: number; y: number }[]) => void;
   updateEdgeRoutingMode: (viewEdgeId: string, routingMode: EdgeRoutingMode) => void;
   updateEdgeStyle: (viewEdgeId: string, style: EdgeStylePatch) => void;

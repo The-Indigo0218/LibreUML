@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
-import { Stage, Layer, Line, Circle, Rect } from 'react-konva';
+import { Stage, Layer, Line, Circle, Rect, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import GridPattern from './engine/GridPattern';
 import { useViewport } from './engine/useViewport';
@@ -104,7 +104,7 @@ import {
 import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, ratioFromPoint, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
-import { yToMessageSlot, yToInvariantSlot } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
+import { yToMessageSlot, yToInvariantSlot, messageYForIndex } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
 import { standaloneModelOps } from '../store/standaloneModelOps';
 
 const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
@@ -387,7 +387,12 @@ export default function KonvaCanvas() {
   });
 
   const handleConnectionCreated = useCallback(
-    (sourceNodeId: string, targetNodeId: string, anchoring?: DropAnchoring) => {
+    (
+      sourceNodeId: string,
+      targetNodeId: string,
+      anchoring?: DropAnchoring,
+      dropPoint?: { x: number; y: number },
+    ) => {
       onConnect({
         source: sourceNodeId,
         target: targetNodeId,
@@ -395,6 +400,7 @@ export default function KonvaCanvas() {
         targetHandle: null,
         sourceAnchor: anchoring?.sourceAnchor,
         targetAnchor: anchoring?.targetAnchor,
+        dropY: dropPoint?.y,
       });
     },
     [onConnect],
@@ -1634,6 +1640,39 @@ export default function KonvaCanvas() {
       .filter((d): d is NonNullable<typeof d> => d !== null);
   }, [shapes, edges, boundsMap, visibleNodeIds, vfsController.vfsFile?.diagramType]);
 
+  // P2 — live insertion guide: while drawing a message on a SEQUENCE diagram,
+  // show a dashed horizontal line at the slot under the cursor + a "#k" badge so
+  // the user sees exactly where the message will land before releasing.
+  const sequenceInsertionGuide = useMemo(() => {
+    if (vfsController.vfsFile?.diagramType !== 'SEQUENCE_DIAGRAM') return null;
+    if (!connectionDraw.isConnecting || !connectionDraw.tempLine) return null;
+
+    const lifelineShapes = shapes.filter((s) => isLifelineViewModel(s.data));
+    if (lifelineShapes.length === 0) return null;
+
+    const messageCount = shapes.filter((s) => isMessageViewModel(s.data)).length;
+    const cursorY = connectionDraw.tempLine.y2;
+    // +1 slot so a drop below the last message previews as an append.
+    const slot = yToMessageSlot(cursorY, messageCount + 1);
+    const y = messageYForIndex(slot);
+
+    // Span the guide across all lifeline heads (left edge of leftmost → right of rightmost).
+    let left = Infinity;
+    let right = -Infinity;
+    for (const s of lifelineShapes) {
+      const w = (s.data as { headWidth: number }).headWidth ?? 0;
+      left = Math.min(left, s.x);
+      right = Math.max(right, s.x + w);
+    }
+    const PAD = 16;
+    return { y, left: left - PAD, right: right + PAD, slot };
+  }, [
+    vfsController.vfsFile?.diagramType,
+    connectionDraw.isConnecting,
+    connectionDraw.tempLine,
+    shapes,
+  ]);
+
   // Format-painter clipboard — subscribe so paste action appears live.
   const copiedStyle = useFormatPainterStore((s) => s.copied);
 
@@ -2382,6 +2421,34 @@ export default function KonvaCanvas() {
                 opacity={0.9}
                 listening={false}
               />
+            )}
+
+            {/* P2 — sequence insertion guide: dashed row + "#k" badge showing the
+                slot where the message will be inserted on release. */}
+            {sequenceInsertionGuide && (
+              <>
+                <Line
+                  points={[
+                    sequenceInsertionGuide.left,
+                    sequenceInsertionGuide.y,
+                    sequenceInsertionGuide.right,
+                    sequenceInsertionGuide.y,
+                  ]}
+                  stroke="#6366f1"
+                  strokeWidth={1.5}
+                  dash={[6, 4]}
+                  listening={false}
+                />
+                <Text
+                  x={sequenceInsertionGuide.right + 6}
+                  y={sequenceInsertionGuide.y - 7}
+                  text={`#${sequenceInsertionGuide.slot}`}
+                  fontSize={12}
+                  fontStyle="bold"
+                  fill="#6366f1"
+                  listening={false}
+                />
+              </>
             )}
 
             {/* Temp line: green over a target node (will anchor), amber over empty

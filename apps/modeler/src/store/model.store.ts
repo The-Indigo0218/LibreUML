@@ -128,6 +128,45 @@ function stripMessageFromFragments(model: SemanticModel, messageId: string) {
   });
 }
 
+/**
+ * Core message + auto-activation insertion shared by createMessage and
+ * insertMessageAt. Mutates the draft model in place; the caller is responsible
+ * for bumping updatedAt and for any sequenceNumber reflow.
+ */
+function applyMessageCreation(
+  model: SemanticModel,
+  id: string,
+  activationId: string,
+  data: Omit<IRMessage, 'id' | 'kind'>,
+) {
+  model.messages = model.messages ?? {};
+  model.activations = model.activations ?? {};
+  model.messages[id] = { ...data, id, kind: 'MESSAGE' };
+
+  // Auto-create an activation on the target lifeline for SYNC messages.
+  if (data.messageKind === 'SYNC') {
+    model.activations[activationId] = {
+      id: activationId,
+      kind: 'ACTIVATION',
+      name: '',
+      lifelineId: data.targetLifelineId,
+      startMessageId: id,
+    };
+  }
+
+  // For REPLY messages, close the matching open activation on the source side.
+  if (data.messageKind === 'REPLY' && data.inReplyTo) {
+    const acts = model.activations;
+    for (const aid of Object.keys(acts)) {
+      const act = acts[aid];
+      if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
+        act.endMessageId = id;
+        break;
+      }
+    }
+  }
+}
+
 /** Clears gate references on every message for the given (deleted) gate ids. */
 function clearGateRefsOnMessages(model: SemanticModel, gateIds: Set<string>) {
   if (!model.messages || gateIds.size === 0) return;
@@ -197,6 +236,12 @@ interface ModelStoreState {
   deleteLifeline: (id: string) => void;
 
   createMessage: (data: Omit<IRMessage, 'id' | 'kind'>) => string;
+  /**
+   * Insert a message at the 1-based slot carried in `data.sequenceNumber`,
+   * shifting existing messages at or after that slot down by one. Backs the
+   * "drop where you point" sequence-diagram UX (P1).
+   */
+  insertMessageAt: (data: Omit<IRMessage, 'id' | 'kind'>) => string;
   updateMessage: (id: string, patch: Partial<IRMessage>) => void;
   deleteMessage: (id: string) => void;
   reorderMessages: (updates: Array<{ id: string; sequenceNumber: number }>) => void;
@@ -577,33 +622,27 @@ export const useModelStore = create<ModelStoreState>()(
       const activationId = newId();
       withUndo('model', `Create Message: ${data.name || data.messageKind}`, 'global', (draft) => {
         if (!draft.model) return;
-        draft.model.messages = draft.model.messages ?? {};
-        draft.model.activations = draft.model.activations ?? {};
-        draft.model.messages[id] = { ...data, id, kind: 'MESSAGE' };
+        applyMessageCreation(draft.model, id, activationId, data);
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
 
-        // Auto-create an activation on the target lifeline for SYNC messages.
-        if (data.messageKind === 'SYNC') {
-          draft.model.activations[activationId] = {
-            id: activationId,
-            kind: 'ACTIVATION',
-            name: '',
-            lifelineId: data.targetLifelineId,
-            startMessageId: id,
-          };
-        }
-
-        // For REPLY messages, close the matching open activation on the source side.
-        if (data.messageKind === 'REPLY' && data.inReplyTo) {
-          const acts = draft.model.activations;
-          for (const aid of Object.keys(acts)) {
-            const act = acts[aid];
-            if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
-              act.endMessageId = id;
-              break;
-            }
+    insertMessageAt: (data) => {
+      const id = newId();
+      const activationId = newId();
+      withUndo('model', `Insert Message: ${data.name || data.messageKind}`, 'global', (draft) => {
+        if (!draft.model) return;
+        // `data.sequenceNumber` is the 1-based slot where the user dropped the
+        // message. Shift every existing message at or after that slot down by one
+        // so the new message takes the slot and the rest stay contiguous.
+        const slot = data.sequenceNumber;
+        if (draft.model.messages) {
+          for (const m of Object.values(draft.model.messages)) {
+            if (m.sequenceNumber >= slot) m.sequenceNumber += 1;
           }
         }
-
+        applyMessageCreation(draft.model, id, activationId, data);
         draft.model.updatedAt = Date.now();
       });
       return id;

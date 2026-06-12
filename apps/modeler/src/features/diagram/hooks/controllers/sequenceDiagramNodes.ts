@@ -76,7 +76,7 @@ function computeTimelineLength(messageCount: number): number {
   return Math.max(MIN_TIMELINE, need);
 }
 
-function messageYForIndex(index1Based: number): number {
+export function messageYForIndex(index1Based: number): number {
   // index 1 → first band centred at TIMELINE_TOP_PAD + 0.5 * MESSAGE_BAND_H
   return TIMELINE_TOP_PAD + (index1Based - 0.5) * MESSAGE_BAND_H + LIFELINE_HEAD_H;
 }

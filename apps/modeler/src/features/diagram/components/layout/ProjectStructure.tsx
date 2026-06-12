@@ -27,6 +27,7 @@ import CreateFileModal from "./CreateFileModal";
 import CreateFolderModal from "./CreateFolderModal";
 import ViewDescriptionModal from "./ViewDescriptionModal";
 import type { VFSFolder, VFSFile, DiagramView, SemanticModel } from "../../../../core/domain/vfs/vfs.types";
+import { mergeStandaloneModel } from "../../../../utils/mergeStandaloneModel";
 
 type VFSNode = VFSFolder | VFSFile;
 
@@ -533,11 +534,13 @@ export default function ProjectStructure() {
   };
 
   /**
-   * Merge lifecycle: returns a standalone .luml file back to the shared project workspace.
+   * Merge lifecycle: returns a standalone .luml file back to the shared project.
    *
-   * Injects all localModel elements into the global SemanticModel with conflict
-   * resolution (appends _1, _2 suffix for name collisions). Remaps the DiagramView
-   * to point at new global IDs. Clears localModel and flips standalone: false.
+   * Folds the file's private localModel into the global SemanticModel via a
+   * generic UUID remap (mergeStandaloneModel) — type-complete, so it works for
+   * class, use-case, sequence, domain and any future diagram type, not just
+   * classes. Named classifiers (class/interface/enum) get _1/_2 dedup against the
+   * global model; the DiagramView is remapped; localModel is cleared.
    */
   const handleAddStandaloneToProject = () => {
     if (!contextMenu || !project) return;
@@ -555,102 +558,41 @@ export default function ProjectStructure() {
     }
 
     const ms = useModelStore.getState();
-    if (!ms.model) {
-      ms.initModel(project.domainModelId);
-    }
-    const refreshedMs = useModelStore.getState();
-    const globalModel = refreshedMs.model!;
+    if (!ms.model) ms.initModel(project.domainModelId);
+    const globalModel = useModelStore.getState().model!;
 
-    const resolveConflict = (name: string, existingNames: Set<string>): string => {
-      if (!existingNames.has(name)) return name;
-      let i = 1;
-      while (existingNames.has(`${name}_${i}`)) i++;
-      return `${name}_${i}`;
+    const view = file.content && "nodes" in (file.content as object)
+      ? (file.content as DiagramView)
+      : null;
+    const { elements, packageNames, view: newView, mergedCount } = mergeStandaloneModel(localModel, view);
+
+    // Name dedup for the classifier types validation cares about, in-place on the
+    // freshly-remapped collections (the rest surface in the Problems panel if dup).
+    const dedupe = (
+      coll: Record<string, { name: string }> | undefined,
+      existing: Set<string>,
+    ) => {
+      if (!coll) return;
+      for (const el of Object.values(coll)) {
+        let name = el.name;
+        let i = 1;
+        while (existing.has(name)) name = `${el.name}_${i++}`;
+        existing.add(name);
+        el.name = name;
+      }
     };
+    dedupe(elements.classes as Record<string, { name: string }>, new Set(Object.values(globalModel.classes).map((c) => c.name)));
+    dedupe(elements.interfaces as Record<string, { name: string }>, new Set(Object.values(globalModel.interfaces).map((i) => i.name)));
+    dedupe(elements.enums as Record<string, { name: string }>, new Set(Object.values(globalModel.enums).map((e) => e.name)));
 
-    const existingClassNames = new Set(Object.values(globalModel.classes).map((c) => c.name));
-    const existingIfaceNames = new Set(Object.values(globalModel.interfaces).map((i) => i.name));
-    const existingEnumNames = new Set(Object.values(globalModel.enums).map((e) => e.name));
-
-    // Map: old localModel element ID → new global element ID
-    const elementIdMap = new Map<string, string>();
-
-    for (const cls of Object.values(localModel.classes)) {
-      const resolvedName = resolveConflict(cls.name, existingClassNames);
-      existingClassNames.add(resolvedName);
-      const attrs = cls.attributeIds.map((id) => localModel.attributes[id]).filter(Boolean);
-      const ops = cls.operationIds.map((id) => localModel.operations[id]).filter(Boolean);
-      const newGlobalId = cls.isAbstract
-        ? refreshedMs.createAbstractClass({ name: resolvedName, packageName: cls.packageName, attributeIds: [], operationIds: [] })
-        : refreshedMs.createClass({ name: resolvedName, packageName: cls.packageName, attributeIds: [], operationIds: [] });
-      elementIdMap.set(cls.id, newGlobalId);
-      if (attrs.length > 0 || ops.length > 0) {
-        refreshedMs.setElementMembers(
-          newGlobalId,
-          attrs.map((a) => ({ ...a, id: crypto.randomUUID() })),
-          ops.map((o) => ({ ...o, id: crypto.randomUUID() })),
-        );
-      }
-    }
-
-    for (const iface of Object.values(localModel.interfaces)) {
-      const resolvedName = resolveConflict(iface.name, existingIfaceNames);
-      existingIfaceNames.add(resolvedName);
-      const ops = iface.operationIds.map((id) => localModel.operations[id]).filter(Boolean);
-      const newGlobalId = refreshedMs.createInterface({ name: resolvedName, packageName: iface.packageName, operationIds: [] });
-      elementIdMap.set(iface.id, newGlobalId);
-      if (ops.length > 0) {
-        refreshedMs.setElementMembers(newGlobalId, [], ops.map((o) => ({ ...o, id: crypto.randomUUID() })));
-      }
-    }
-
-    for (const enm of Object.values(localModel.enums)) {
-      const resolvedName = resolveConflict(enm.name, existingEnumNames);
-      existingEnumNames.add(resolvedName);
-      const newGlobalId = refreshedMs.createEnum({ name: resolvedName, packageName: enm.packageName, literals: enm.literals });
-      elementIdMap.set(enm.id, newGlobalId);
-    }
-
-    // Inject package names from localModel into the global model (dedup via addPackageName).
-    for (const pkgName of (localModel.packageNames ?? [])) {
-      if (pkgName) refreshedMs.addPackageName(pkgName);
-    }
-
-    // Inject relations (only those where both endpoints were successfully mapped)
-    const relationIdMap = new Map<string, string>();
-    for (const rel of Object.values(localModel.relations)) {
-      const newSrc = elementIdMap.get(rel.sourceId);
-      const newTgt = elementIdMap.get(rel.targetId);
-      if (!newSrc || !newTgt) continue;
-      const { id: _id, ...relData } = rel;
-      const newRelId = refreshedMs.createRelation({ ...relData, sourceId: newSrc, targetId: newTgt });
-      relationIdMap.set(rel.id, newRelId);
-    }
-
-    // Remap DiagramView
-    const view = file.content as DiagramView | null;
-    let newContent: DiagramView | null = view;
-    if (view && 'nodes' in view) {
-      const diagramView = view as DiagramView;
-      const newNodes = diagramView.nodes.map((vn) => ({
-        ...vn,
-        elementId: elementIdMap.get(vn.elementId) ?? vn.elementId,
-      }));
-      const newEdges = diagramView.edges.map((ve) => ({
-        ...ve,
-        relationId: relationIdMap.get(ve.relationId) ?? ve.relationId,
-      }));
-      newContent = { ...diagramView, nodes: newNodes, edges: newEdges };
-    }
-
+    useModelStore.getState().mergeModelElements(elements, packageNames);
     useVFSStore.getState().updateNode(contextMenu.nodeId, {
       standalone: false,
       localModel: null,
-      content: newContent,
+      content: newView ?? file.content,
     } as Partial<VFSFile>);
 
-    const merged = elementIdMap.size;
-    useToastStore.getState().show(`"${file.name}" merged — ${merged} element${merged !== 1 ? 's' : ''} added to project`);
+    useToastStore.getState().show(`"${file.name}" merged — ${mergedCount} element${mergedCount !== 1 ? "s" : ""} added to project`);
     setContextMenu(null);
   };
 

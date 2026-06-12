@@ -227,6 +227,12 @@ interface ModelStoreState {
 
   integrateExternalElement: (elementId: string) => void;
   untrackElement: (elementId: string) => void;
+  /**
+   * Bulk-merges remapped element collections into the global model (Add to
+   * Project). Ids are pre-remapped to fresh UUIDs by mergeStandaloneModel, so a
+   * shallow spread per collection cannot collide. One undo entry.
+   */
+  mergeModelElements: (elements: Partial<SemanticModel>, packageNames?: string[]) => void;
   resetModel: () => void;
 
   addPackageName: (name: string) => void;
@@ -869,6 +875,23 @@ export const useModelStore = create<ModelStoreState>()(
           draft.model.enums[elementId].isExternal = true;
         } else {
           return;
+        }
+        draft.model.updatedAt = Date.now();
+      }),
+
+    mergeModelElements: (elements, packageNames) =>
+      withUndo('model', 'Add to Project', 'global', (draft) => {
+        if (!draft.model) return;
+        const model = draft.model as unknown as Record<string, Record<string, unknown>>;
+        for (const [key, incoming] of Object.entries(elements)) {
+          if (!incoming || typeof incoming !== 'object') continue;
+          model[key] = { ...(model[key] ?? {}), ...(incoming as Record<string, unknown>) };
+        }
+        if (packageNames?.length) {
+          if (!draft.model.packageNames) draft.model.packageNames = [];
+          for (const p of packageNames) {
+            if (p && !draft.model.packageNames.includes(p)) draft.model.packageNames.push(p);
+          }
         }
         draft.model.updatedAt = Date.now();
       }),

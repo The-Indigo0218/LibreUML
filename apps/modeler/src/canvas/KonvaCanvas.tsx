@@ -2354,8 +2354,9 @@ export default function KonvaCanvas() {
               });
             })}
 
-            {/* Connection points (draw.io Xs): shown on hover and while drawing,
-                so the user can aim at one of the 8 to lock the endpoint. */}
+            {/* Connection-point magnets (cyan): the 8 cardinal/corner marks shown
+                on hover and while drawing. The endpoint can land anywhere on the
+                border (P4); these only magnet near-cardinal drops to exact spots. */}
             {connectionDraw.hoveredNodeAnchors.map((dot, i) => (
               <Circle
                 key={`anchor-${dot.nodeId}-${i}`}
@@ -2370,7 +2371,8 @@ export default function KonvaCanvas() {
               />
             ))}
 
-            {/* Snap indicator: green = will lock to this fixed point; red = invalid. */}
+            {/* Landing indicator: green = the endpoint will anchor to this border
+                point; red = the relation is invalid for the stereotypes. */}
             {connectionDraw.isConnecting && connectionDraw.snapTargetDot && (
               <Circle
                 x={connectionDraw.snapTargetDot.x}
@@ -2384,7 +2386,8 @@ export default function KonvaCanvas() {
               />
             )}
 
-            {/* Temp line: green when locking to a fixed point, blue when floating. */}
+            {/* Temp line: green over a target node (will anchor), cyan over empty
+                canvas (the drop creates a new linked node), red when invalid. */}
             {connectionDraw.tempLine && (
               <Line
                 points={[

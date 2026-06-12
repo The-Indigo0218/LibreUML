@@ -53,6 +53,7 @@ import { useFormatPainterStore } from '../store/formatPainter.store';
 import type { DiagramType } from '../core/domain/vfs/vfs.types';
 import DuplicateFileModal from '../components/shared/DuplicateFileModal';
 import PackageHierarchyModal from './overlays/PackageHierarchyModal';
+import PackageRestoreModal from './overlays/PackageRestoreModal';
 import CrossDiagramDropModal from './overlays/CrossDiagramDropModal';
 import ConfirmationModal from '../components/shared/ConfirmationModal';
 import { DeletePackageModal } from '../features/diagram/components/layout/packageExplorer/DeletePackageModal';
@@ -833,7 +834,7 @@ export default function KonvaCanvas() {
   // Single-key relation/connection tool shortcuts (diagram-aware).
   useRelationShortcuts();
 
-  const { onDragOver: handleDragOver, onDrop: handleDrop, duplicateModal, hierarchyModal, crossDiagramModal } = useKonvaDnD({ stageRef });
+  const { onDragOver: handleDragOver, onDrop: handleDrop, duplicateModal, hierarchyModal, crossDiagramModal, packageRestoreModal } = useKonvaDnD({ stageRef });
 
   const startInlineEditing = useInlineEditorStore((s) => s.startEditing);
   const updateEditorPosition = useInlineEditorStore((s) => s.updatePosition);
@@ -1198,7 +1199,7 @@ export default function KonvaCanvas() {
                   const rec = file.localModel.classes?.[el.id]
                     ?? file.localModel.interfaces?.[el.id]
                     ?? file.localModel.enums?.[el.id];
-                  if (rec) rec.packageName = undefined;
+                  if (rec) { rec.packageName = undefined; rec.packageId = undefined; }
                 });
               }
               file.localModel.updatedAt = Date.now();
@@ -1251,7 +1252,7 @@ export default function KonvaCanvas() {
                   const rec = draft.model.classes[el.id]
                     ?? draft.model.interfaces[el.id]
                     ?? draft.model.enums[el.id];
-                  if (rec) rec.packageName = undefined;
+                  if (rec) { rec.packageName = undefined; rec.packageId = undefined; }
                 });
               }
               draft.model.updatedAt = Date.now();
@@ -2468,6 +2469,16 @@ export default function KonvaCanvas() {
           diagramLabel={crossDiagramModal.diagramLabel}
           onAddAnyway={crossDiagramModal.onAddAnyway}
           onCancel={crossDiagramModal.onCancel}
+        />
+      )}
+
+      {packageRestoreModal.isOpen && (
+        <PackageRestoreModal
+          elementName={packageRestoreModal.elementName}
+          packagePath={packageRestoreModal.packagePath}
+          onNest={packageRestoreModal.onNest}
+          onFree={packageRestoreModal.onFree}
+          onCancel={packageRestoreModal.onCancel}
         />
       )}
 

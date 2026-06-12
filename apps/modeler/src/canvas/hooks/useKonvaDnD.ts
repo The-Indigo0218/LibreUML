@@ -8,6 +8,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useToastStore } from '../../store/toast.store';
 import { getLocalModel } from '../../store/standaloneModelOps';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+import { getAbsolutePosition } from '../../features/diagram/hooks/controllers/sharedNodeBuilders';
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/domain/vfs/vfs.types';
 import type { stereotype } from '../../features/diagram/types/diagram.types';
@@ -289,6 +290,14 @@ export interface UseKonvaDnDResult {
     onAddAnyway: () => void;
     onCancel: () => void;
   };
+  packageRestoreModal: {
+    isOpen: boolean;
+    elementName: string;
+    packagePath: string;
+    onNest: () => void;
+    onFree: () => void;
+    onCancel: () => void;
+  };
 }
 
 export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult {
@@ -412,13 +421,19 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
   );
 
   const addElementToDiagram = useCallback(
-    (elementId: string, position: { x: number; y: number }, replaceNodeId?: string) => {
+    (
+      elementId: string,
+      position: { x: number; y: number },
+      replaceNodeId?: string,
+      parentPackageId?: string,
+    ) => {
       if (!activeTabId) return;
       const newViewNode: ViewNode = {
         id: crypto.randomUUID(),
         elementId,
         x: position.x,
         y: position.y,
+        ...(parentPackageId ? { parentPackageId } : {}),
       };
       withUndo('vfs', 'Add to Diagram', activeTabId, (draft: any) => {
         const node = draft.project?.nodes[activeTabId];
@@ -431,6 +446,135 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     },
     [activeTabId, updateFileContent],
   );
+
+  // ── Package membership restoration (R4) ──────────────────────────────────
+  // Dropping a class/interface/enum from the Model Explorer whose package is not
+  // on the canvas: nest it under the existing package node, or ask whether to
+  // recreate the package (anidar) vs place it free.
+  const [packageRestoreModal, setPackageRestoreModal] = useState<{
+    isOpen: boolean;
+    elementId: string;
+    elementName: string;
+    packagePath: string;
+    position: { x: number; y: number };
+    isStandaloneFile: boolean;
+  }>({ isOpen: false, elementId: '', elementName: '', packagePath: '', position: { x: 0, y: 0 }, isStandaloneFile: false });
+
+  /**
+   * Returns true when the drop was handled as a package restoration (nested
+   * directly, or the choice modal was opened). Returns false when the element
+   * has no package membership and should be added normally.
+   */
+  const tryPackageRestore = useCallback(
+    (elementId: string, position: { x: number; y: number }, isStandaloneFile: boolean): boolean => {
+      if (!activeTabId) return false;
+      const project = useVFSStore.getState().project;
+      const file = project?.nodes[activeTabId] as VFSFile | undefined;
+      if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return false;
+      const model = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
+      if (!model) return false;
+
+      const el = model.classes[elementId] ?? model.interfaces[elementId] ?? model.enums[elementId];
+      if (!el) return false;
+      const pkgName = (el as { packageName?: string }).packageName;
+      const pkgId = (el as { packageId?: string }).packageId;
+      if (!pkgName && !pkgId) return false; // no membership → normal add
+
+      const pkg = (pkgId && model.packages[pkgId])
+        ? model.packages[pkgId]
+        : Object.values(model.packages).find((p) => p.name === pkgName);
+      if (!pkg) return false; // dangling membership → normal add
+
+      const view = file.content as DiagramView;
+      const pkgVN = view.nodes.find((vn) => vn.elementId === pkg.id);
+      if (pkgVN) {
+        // Package already on canvas → nest directly (position relative to it).
+        const pkgAbs = getAbsolutePosition(pkgVN, view.nodes);
+        addElementToDiagram(elementId, { x: position.x - pkgAbs.x, y: position.y - pkgAbs.y }, undefined, pkgVN.id);
+        return true;
+      }
+
+      // Package absent → ask the user.
+      setPackageRestoreModal({
+        isOpen: true,
+        elementId,
+        elementName: el.name,
+        packagePath: pkg.name,
+        position,
+        isStandaloneFile,
+      });
+      return true;
+    },
+    [activeTabId, addElementToDiagram],
+  );
+
+  const handleRestoreNest = useCallback(() => {
+    const { elementId, packagePath, position, isStandaloneFile } = packageRestoreModal;
+    setPackageRestoreModal((p) => ({ ...p, isOpen: false }));
+    if (!activeTabId) return;
+    const project = useVFSStore.getState().project;
+    const file = project?.nodes[activeTabId] as VFSFile | undefined;
+    if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+    const model = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
+    if (!model) return;
+
+    const view = file.content as DiagramView;
+    const findPkgByName = (name: string) => Object.values(model.packages).find((p) => p.name === name);
+
+    const PAD = 40;
+    const TAB_H = 24;
+
+    // Create any missing ancestor package view nodes ("A.B.C" → A, A.B, A.B.C),
+    // nesting each under the previous; existing ones are reused as the parent.
+    const segs = packagePath.split('.');
+    const cumPaths = segs.map((_, i) => segs.slice(0, i + 1).join('.'));
+    const newNodes: ViewNode[] = [];
+    let parentVNId: string | null = null;
+    for (const path of cumPaths) {
+      const pkg = findPkgByName(path);
+      if (!pkg) return; // unresolved package — abort
+      const existing =
+        view.nodes.find((vn) => vn.elementId === pkg.id) ??
+        newNodes.find((vn) => vn.elementId === pkg.id);
+      if (existing) { parentVNId = existing.id; continue; }
+      const vnId = crypto.randomUUID();
+      const isRoot = parentVNId === null;
+      newNodes.push({
+        id: vnId,
+        elementId: pkg.id,
+        x: isRoot ? position.x : PAD,
+        y: isRoot ? position.y : TAB_H + PAD,
+        collapsed: false,
+        parentPackageId: parentVNId,
+      });
+      parentVNId = vnId;
+    }
+
+    // The dropped element nested inside the leaf package.
+    newNodes.push({
+      id: crypto.randomUUID(),
+      elementId,
+      x: PAD,
+      y: TAB_H + PAD,
+      ...(parentVNId ? { parentPackageId: parentVNId } : {}),
+    });
+
+    withUndo('vfs', 'Restore into Package', activeTabId, (draft: any) => {
+      const node = draft.project?.nodes[activeTabId];
+      if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+      node.content.nodes.push(...newNodes);
+    });
+  }, [packageRestoreModal, activeTabId]);
+
+  const handleRestoreFree = useCallback(() => {
+    const { elementId, position } = packageRestoreModal;
+    setPackageRestoreModal((p) => ({ ...p, isOpen: false }));
+    addElementToDiagram(elementId, position);
+  }, [packageRestoreModal, addElementToDiagram]);
+
+  const handleRestoreCancel = useCallback(() => {
+    setPackageRestoreModal((p) => ({ ...p, isOpen: false }));
+  }, []);
 
   const handleModalReplace = useCallback(() => {
     const { elementId, position } = duplicateModal;
@@ -1325,6 +1469,12 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           return;
         }
 
+        // R4 — if the element belongs to a package, nest it (or ask) instead of
+        // dropping it free, so membership defined in the model is restored.
+        const fnode = useVFSStore.getState().project?.nodes[activeTabId ?? ''];
+        const isStandaloneFile = fnode?.type === 'FILE' && (fnode as VFSFile).standalone === true;
+        if (tryPackageRestore(existingElementId, position, isStandaloneFile)) return;
+
         addElementToDiagram(existingElementId, position);
         return;
       }
@@ -1523,6 +1673,14 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       diagramLabel: crossDiagramModal.diagramLabel,
       onAddAnyway: handleCrossDiagramAddAnyway,
       onCancel: handleCrossDiagramCancel,
+    },
+    packageRestoreModal: {
+      isOpen: packageRestoreModal.isOpen,
+      elementName: packageRestoreModal.elementName,
+      packagePath: packageRestoreModal.packagePath,
+      onNest: handleRestoreNest,
+      onFree: handleRestoreFree,
+      onCancel: handleRestoreCancel,
     },
   };
 }

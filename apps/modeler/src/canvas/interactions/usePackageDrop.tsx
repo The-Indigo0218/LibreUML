@@ -6,8 +6,10 @@ import type { NodeBounds } from '../edges/geometry';
 import type { ShapeDescriptor } from '../types/canvas.types';
 import { undoTransaction } from '../../core/undo/undoBridge';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
+import { getAbsolutePosition } from '../../features/diagram/hooks/controllers/sharedNodeBuilders';
 import { useVFSStore } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
+import type { ViewNode, SemanticModel } from '../../core/domain/vfs/vfs.types';
 import PackageDropPicker, { type PackageCandidate } from '../overlays/PackageDropPicker';
 
 const AMBIGUOUS_THRESHOLD = 50;
@@ -105,6 +107,90 @@ function detectOverlappingPackages(
   return candidates;
 }
 
+/**
+ * Re-express a dropped node's stored position when its container changes.
+ * Container children store coords RELATIVE to the container; getAbsolutePosition
+ * resolves them. We compute the node's current absolute position (via its OLD
+ * parent chain), reassign parentPackageId, then re-relativise to the NEW parent
+ * — or leave it absolute when removed from all containers. Mutates in place.
+ *
+ * This unifies package / system-boundary / UC-module containment so a node
+ * never jumps (enter) or vanishes near the origin (exit) on reparent.
+ */
+export function reparentViewNodeCoords(
+  viewNodes: ViewNode[],
+  droppedNodeId: string,
+  newParentId: string | null,
+): void {
+  const node = viewNodes.find((n) => n.id === droppedNodeId);
+  if (!node) return;
+  // Absolute position using the CURRENT (old) parent chain — compute BEFORE
+  // reassigning parentPackageId.
+  const abs = getAbsolutePosition(node, viewNodes);
+  node.parentPackageId = newParentId;
+  if (newParentId) {
+    const parent = viewNodes.find((n) => n.id === newParentId);
+    const parentAbs = parent ? getAbsolutePosition(parent, viewNodes) : { x: 0, y: 0 };
+    node.x = abs.x - parentAbs.x;
+    node.y = abs.y - parentAbs.y;
+  } else {
+    node.x = abs.x;
+    node.y = abs.y;
+  }
+}
+
+/**
+ * Resolve the IRPackage elementId behind a container ViewNode id — but only when
+ * it is a real package (system boundaries / UC modules return undefined, so they
+ * never touch package indices).
+ */
+function resolvePackageElementId(
+  viewNodeId: string | null,
+  viewNodes: Array<{ id: string; elementId: string }>,
+  model: SemanticModel,
+): string | undefined {
+  if (!viewNodeId) return undefined;
+  const vn = viewNodes.find((n) => n.id === viewNodeId);
+  if (!vn) return undefined;
+  return model.packages?.[vn.elementId] ? vn.elementId : undefined;
+}
+
+/** IRPackage reverse-index array name for an element kind, or null if unindexed. */
+function pkgIndexKeyForKind(
+  kind: string | undefined,
+): 'classIds' | 'interfaceIds' | 'enumIds' | 'dataTypeIds' | null {
+  switch (kind) {
+    case 'CLASS': return 'classIds';
+    case 'INTERFACE': return 'interfaceIds';
+    case 'ENUM': return 'enumIds';
+    case 'DATATYPE': return 'dataTypeIds';
+    default: return null;
+  }
+}
+
+/**
+ * Keep IRPackage reverse indices consistent when an element moves between
+ * packages: drop elementId from the old package's array, add it to the new one.
+ */
+export function moveElementInPackageIndex(
+  model: SemanticModel,
+  elementId: string,
+  kind: string | undefined,
+  oldPkgId: string | undefined,
+  newPkgId: string | undefined,
+): void {
+  const key = pkgIndexKeyForKind(kind);
+  if (!key || !model.packages) return;
+  if (oldPkgId && oldPkgId !== newPkgId && model.packages[oldPkgId]) {
+    const arr = model.packages[oldPkgId][key] as string[] | undefined;
+    if (arr) model.packages[oldPkgId][key] = arr.filter((id) => id !== elementId);
+  }
+  if (newPkgId && model.packages[newPkgId]) {
+    const arr = (model.packages[newPkgId][key] as string[] | undefined) ?? [];
+    if (!arr.includes(elementId)) model.packages[newPkgId][key] = [...arr, elementId];
+  }
+}
+
 export function usePackageDrop({
   shapes,
   boundsMap,
@@ -170,37 +256,28 @@ export function usePackageDrop({
             mutate: (draft: any) => {
               const file = draft.project.nodes[activeTabId];
               if (!isDiagramView(file.content)) return;
-              const viewNode = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
-              if (viewNode) {
-                viewNode.parentPackageId = targetPackageId;
-                // When assigning to a UC module or system boundary, convert the
-                // stored position to relative so the child sits inside the container
-                // and is carried along when the container is dragged.
-                if (targetPackageId && (targetIsModule || targetIsBoundary)) {
-                  const parentVN = file.content.nodes.find((vn: any) => vn.id === targetPackageId);
-                  if (parentVN) {
-                    viewNode.x = (viewNode.x ?? 0) - (parentVN.x ?? 0);
-                    viewNode.y = (viewNode.y ?? 0) - (parentVN.y ?? 0);
-                  }
-                }
-                // When removing from a UC module or system boundary, convert back to absolute
-                if (!targetPackageId && currentParentId) {
-                  const prevParent = file.content.nodes.find((vn: any) => vn.id === currentParentId);
-                  const prevParentData = shapes.find((s) => s.id === currentParentId)?.data;
-                  if (prevParent && prevParentData && (isUCModuleViewModel(prevParentData) || isSystemBoundaryViewModel(prevParentData))) {
-                    viewNode.x = (viewNode.x ?? 0) + (prevParent.x ?? 0);
-                    viewNode.y = (viewNode.y ?? 0) + (prevParent.y ?? 0);
-                  }
-                }
-              }
-              // Sync element.packageName in localModel
+              // Unified reparent: keeps absolute screen position stable whether
+              // entering, leaving, or moving between containers (fixes the
+              // "class vanishes when dragged out of a package" bug).
+              reparentViewNodeCoords(file.content.nodes, droppedNodeId, targetPackageId);
+
+              // Sync semantic membership in localModel: packageName (dotted path),
+              // packageId (stable key) and the IRPackage reverse index.
               if (!isPackageDrop && file.localModel) {
                 const droppedVN = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
                 if (droppedVN) {
-                  const el = file.localModel.classes?.[droppedVN.elementId]
-                    ?? file.localModel.interfaces?.[droppedVN.elementId]
-                    ?? file.localModel.enums?.[droppedVN.elementId];
-                  if (el) { el.packageName = effectivePkgPath; file.localModel.updatedAt = Date.now(); }
+                  const lm = file.localModel as SemanticModel;
+                  const el = lm.classes?.[droppedVN.elementId]
+                    ?? lm.interfaces?.[droppedVN.elementId]
+                    ?? lm.enums?.[droppedVN.elementId];
+                  if (el) {
+                    const newPkgId = resolvePackageElementId(targetPackageId, file.content.nodes, lm);
+                    const oldPkgId = resolvePackageElementId(currentParentId, file.content.nodes, lm);
+                    el.packageName = effectivePkgPath;
+                    (el as { packageId?: string }).packageId = newPkgId;
+                    moveElementInPackageIndex(lm, el.id, el.kind, oldPkgId, newPkgId);
+                    lm.updatedAt = Date.now();
+                  }
                 }
               }
             },
@@ -215,25 +292,7 @@ export function usePackageDrop({
             mutate: (draft: any) => {
               const file = draft.project.nodes[activeTabId];
               if (!isDiagramView(file.content)) return;
-              const viewNode = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
-              if (viewNode) {
-                viewNode.parentPackageId = targetPackageId;
-                if (targetPackageId && (targetIsModule || targetIsBoundary)) {
-                  const parentVN = file.content.nodes.find((vn: any) => vn.id === targetPackageId);
-                  if (parentVN) {
-                    viewNode.x = (viewNode.x ?? 0) - (parentVN.x ?? 0);
-                    viewNode.y = (viewNode.y ?? 0) - (parentVN.y ?? 0);
-                  }
-                }
-                if (!targetPackageId && currentParentId) {
-                  const prevParent = file.content.nodes.find((vn: any) => vn.id === currentParentId);
-                  const prevParentData = shapes.find((s) => s.id === currentParentId)?.data;
-                  if (prevParent && prevParentData && (isUCModuleViewModel(prevParentData) || isSystemBoundaryViewModel(prevParentData))) {
-                    viewNode.x = (viewNode.x ?? 0) + (prevParent.x ?? 0);
-                    viewNode.y = (viewNode.y ?? 0) + (prevParent.y ?? 0);
-                  }
-                }
-              }
+              reparentViewNodeCoords(file.content.nodes, droppedNodeId, targetPackageId);
             },
           },
         ];
@@ -248,10 +307,18 @@ export function usePackageDrop({
               if (!file || !isDiagramView(file.content)) return;
               const droppedVN = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
               if (!droppedVN) return;
-              const el = draft.model.classes[droppedVN.elementId]
-                ?? draft.model.interfaces[droppedVN.elementId]
-                ?? draft.model.enums[droppedVN.elementId];
-              if (el) { el.packageName = effectivePkgPath; draft.model.updatedAt = Date.now(); }
+              const model = draft.model as SemanticModel;
+              const el = model.classes[droppedVN.elementId]
+                ?? model.interfaces[droppedVN.elementId]
+                ?? model.enums[droppedVN.elementId];
+              if (el) {
+                const newPkgId = resolvePackageElementId(targetPackageId, file.content.nodes, model);
+                const oldPkgId = resolvePackageElementId(currentParentId, file.content.nodes, model);
+                el.packageName = effectivePkgPath;
+                (el as { packageId?: string }).packageId = newPkgId;
+                moveElementInPackageIndex(model, el.id, el.kind, oldPkgId, newPkgId);
+                model.updatedAt = Date.now();
+              }
             },
           });
         }

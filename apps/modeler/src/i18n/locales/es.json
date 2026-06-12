@@ -397,6 +397,15 @@
       "placeHierarchyDesc": "Colocar el paquete con todas sus clases, sub-paquetes y relaciones",
       "cancel": "Cancelar"
     },
+    "packageRestore": {
+      "title": "Restaurar pertenencia al paquete",
+      "description": "'{{element}}' pertenece al paquete '{{packagePath}}', que no está en el lienzo. ¿Cómo quieres colocarlo?",
+      "nestTitle": "Recrear '{{packagePath}}' y anidarlo",
+      "nestDesc": "Agrega el nodo del paquete (y sus padres) y coloca el elemento dentro, como está definido en el modelo.",
+      "freeTitle": "Colocar libre",
+      "freeDesc": "Suelta el elemento por su cuenta. Conserva su pertenencia al paquete en el modelo.",
+      "cancel": "Cancelar"
+    },
     "crossDiagram": {
       "title": "Herramienta de otro diagrama",
       "description": "'{{tool}}' no es un elemento nativo del {{diagram}}. Puedes agregarlo de todas formas (best-effort — puede no exportar ni generar código correctamente) o abstenerte.",

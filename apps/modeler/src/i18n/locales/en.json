@@ -388,6 +388,15 @@
       "placeHierarchyDesc": "Place the package with all its classes, sub-packages, and relationships",
       "cancel": "Cancel"
     },
+    "packageRestore": {
+      "title": "Restore package membership",
+      "description": "'{{element}}' belongs to the package '{{packagePath}}', which is not on the canvas. How would you like to place it?",
+      "nestTitle": "Recreate '{{packagePath}}' and nest it",
+      "nestDesc": "Add the package node (and its parents) and place the element inside, as defined in the model.",
+      "freeTitle": "Place it free",
+      "freeDesc": "Drop the element on its own. It keeps its package membership in the model.",
+      "cancel": "Cancel"
+    },
     "crossDiagram": {
       "title": "Tool from another diagram",
       "description": "'{{tool}}' is not a native element of the {{diagram}}. You can add it anyway (best-effort — it may not export or generate code cleanly) or skip it.",

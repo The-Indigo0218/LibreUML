@@ -2386,7 +2386,7 @@ export default function KonvaCanvas() {
               />
             )}
 
-            {/* Temp line: green over a target node (will anchor), cyan over empty
+            {/* Temp line: green over a target node (will anchor), amber over empty
                 canvas (the drop creates a new linked node), red when invalid. */}
             {connectionDraw.tempLine && (
               <Line
@@ -2401,7 +2401,7 @@ export default function KonvaCanvas() {
                     ? '#ef4444'
                     : connectionDraw.snapFixed
                       ? '#10b981'
-                      : '#22d3ee'
+                      : '#f59e0b'
                 }
                 strokeWidth={2}
                 dash={[8, 5]}

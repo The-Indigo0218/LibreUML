@@ -106,6 +106,20 @@ test.describe('edge anchoring P1/P2/P3', () => {
     expect(edge.targetAnchor.ny).toBeLessThan(0.45);
   });
 
+  test('color — temp line is amber over empty canvas (will create a node)', async ({ page }) => {
+    await seedDiagram(page, TWO);
+    const a = await nodeRect(page, 'vn-a');
+    const from = anchorOf(a!, 'R');
+    // Press on the source anchor and drag to empty canvas WITHOUT releasing.
+    await page.mouse.move(from.x, from.y);
+    await page.waitForTimeout(80);
+    await page.mouse.down();
+    await page.mouse.move(720, 180, { steps: 8 });
+    await page.waitForTimeout(80);
+    await page.screenshot({ path: '/tmp/verify-color-empty-amber.png' });
+    await page.mouse.up();
+  });
+
   test('P3 — dragging the target endpoint onto another node re-links it', async ({ page }) => {
     await seedDiagram(page, THREE_WITH_EDGE);
     await selectEdge(page);

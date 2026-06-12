@@ -87,4 +87,9 @@ export interface KonvaConnection {
    */
   sourceAnchor?: { nx: number; ny: number };
   targetAnchor?: { nx: number; ny: number };
+  /**
+   * World-space Y of the release point. Sequence diagrams use it to insert the
+   * new message at the slot under the cursor instead of always appending (P1).
+   */
+  dropY?: number;
 }

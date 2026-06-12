@@ -16,6 +16,7 @@ import type {
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 import { getAbsolutePosition } from '../../features/diagram/hooks/controllers/sharedNodeBuilders';
+import { yToMessageSlot } from '../../features/diagram/hooks/controllers/sequenceDiagramNodes';
 import { standaloneModelOps } from '../../store/standaloneModelOps';
 import {
   TOOL_TO_MESSAGE_KIND,
@@ -252,7 +253,14 @@ export function useCanvasEventHandlers({
           TOOL_TO_MESSAGE_KIND[rawMode ?? ''] ?? 'SYNC';
 
         const existingMessages = activeModel.messages ?? {};
-        const sequenceNumber = nextMessageSequenceNumber(existingMessages);
+        const messageCount = Object.keys(existingMessages).length;
+        // P1 — insert at the slot under the drop point. yToMessageSlot clamps to
+        // [1, messageCount + 1]; the +1 lets a drop below the last message append.
+        // No drop point (programmatic/fallback) → append at the end as before.
+        const sequenceNumber =
+          connection.dropY != null
+            ? yToMessageSlot(connection.dropY, messageCount + 1)
+            : nextMessageSequenceNumber(existingMessages);
 
         const inReplyTo =
           messageKind === 'REPLY'
@@ -279,11 +287,13 @@ export function useCanvasEventHandlers({
           ...(autoAssignment ? { fragmentId: autoAssignment.fragmentId } : {}),
         };
 
+        // insertMessageAt shifts existing messages at/after the slot down by one;
+        // when the slot is messageCount + 1 it degenerates to a plain append.
         let newMessageId: string;
         if (isStandalone) {
-          newMessageId = standaloneModelOps(activeTabId).createMessage(payload);
+          newMessageId = standaloneModelOps(activeTabId).insertMessageAt(payload);
         } else {
-          newMessageId = useModelStore.getState().createMessage(payload);
+          newMessageId = useModelStore.getState().insertMessageAt(payload);
         }
 
         // Push the new message into the matched operand's messageIds.

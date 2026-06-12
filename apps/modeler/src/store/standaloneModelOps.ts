@@ -499,6 +499,47 @@ export function standaloneModelOps(fileId: string) {
       return id;
     },
 
+    insertMessageAt: (data: Omit<IRMessage, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      const activationId = crypto.randomUUID();
+      update((m) => {
+        m.messages = m.messages ?? {};
+        m.activations = m.activations ?? {};
+
+        // `data.sequenceNumber` is the 1-based slot where the user dropped the
+        // message. Shift every existing message at or after that slot down by one.
+        const slot = data.sequenceNumber;
+        for (const existing of Object.values(m.messages)) {
+          if (existing.sequenceNumber >= slot) existing.sequenceNumber += 1;
+        }
+
+        m.messages[id] = { ...data, id, kind: 'MESSAGE' };
+
+        if (data.messageKind === 'SYNC') {
+          m.activations[activationId] = {
+            id: activationId,
+            kind: 'ACTIVATION',
+            name: '',
+            lifelineId: data.targetLifelineId,
+            startMessageId: id,
+          };
+        }
+
+        if (data.messageKind === 'REPLY' && data.inReplyTo) {
+          for (const aid of Object.keys(m.activations)) {
+            const act = m.activations[aid];
+            if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
+              act.endMessageId = id;
+              break;
+            }
+          }
+        }
+
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
     updateMessage: (id: string, patch: Partial<IRMessage>) => {
       update((m) => {
         if (!m.messages?.[id]) return;

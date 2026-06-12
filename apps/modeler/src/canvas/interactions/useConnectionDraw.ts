@@ -239,9 +239,16 @@ export interface UseConnectionDrawOptions {
   /**
    * Called when a valid connection is completed (sourceNodeId → targetNodeId).
    * `anchoring` carries the locked handles when the user dropped on a precise
-   * connection point; empty (floating) otherwise.
+   * connection point; empty (floating) otherwise. `dropPoint` is the world-space
+   * release position — sequence diagrams use its Y to insert the message at the
+   * slot where the user pointed (P1).
    */
-  onConnect: (sourceNodeId: string, targetNodeId: string, anchoring?: DropAnchoring) => void;
+  onConnect: (
+    sourceNodeId: string,
+    targetNodeId: string,
+    anchoring?: DropAnchoring,
+    dropPoint?: { x: number; y: number },
+  ) => void;
   /**
    * Called (class diagram only) when the active connection mode is NOT valid for
    * the dropped pair but other relation types are — opens a picker at the given
@@ -539,14 +546,15 @@ export function useConnectionDraw({
 
               // Package→package: always allowed. Kind is forced to DEPENDENCY in the handler.
               // Use case / domain / sequence diagram nodes: delegate entirely to onConnect.
+              const dropPoint = { x: pos.x, y: pos.y };
               if (srcStereotype === 'package' && tgtStereotype === 'package') {
-                onConnect(src.nodeId, tgtNodeId, anchoring);
+                onConnect(src.nodeId, tgtNodeId, anchoring, dropPoint);
               } else if (USE_CASE_STEREOTYPES.has(srcStereotype) || USE_CASE_STEREOTYPES.has(tgtStereotype)) {
-                onConnect(src.nodeId, tgtNodeId, anchoring);
+                onConnect(src.nodeId, tgtNodeId, anchoring, dropPoint);
               } else if (DOMAIN_MODEL_STEREOTYPES.has(srcStereotype) || DOMAIN_MODEL_STEREOTYPES.has(tgtStereotype)) {
-                onConnect(src.nodeId, tgtNodeId, anchoring);
+                onConnect(src.nodeId, tgtNodeId, anchoring, dropPoint);
               } else if (SEQUENCE_STEREOTYPES.has(srcStereotype) || SEQUENCE_STEREOTYPES.has(tgtStereotype)) {
-                onConnect(src.nodeId, tgtNodeId, anchoring);
+                onConnect(src.nodeId, tgtNodeId, anchoring, dropPoint);
               } else {
                 const wsState = useWorkspaceStore.getState();
                 const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;
@@ -554,7 +562,7 @@ export function useConnectionDraw({
                 const umlType = RELATION_TO_UML[kind] ?? 'association';
 
                 if (validateConnection(srcStereotype, tgtStereotype, umlType)) {
-                  onConnect(src.nodeId, tgtNodeId, anchoring);
+                  onConnect(src.nodeId, tgtNodeId, anchoring, dropPoint);
                 } else {
                   // Instead of rejecting, offer the valid relation types.
                   const validTypes = CLASS_RELATION_TYPES.filter((ut) =>
@@ -569,7 +577,7 @@ export function useConnectionDraw({
               }
             } else {
               // Fallback: let onConnect handle validation if nodes not found.
-              onConnect(src.nodeId, tgtNodeId, anchoring);
+              onConnect(src.nodeId, tgtNodeId, anchoring, { x: pos.x, y: pos.y });
             }
           } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current)) {
             // Quick Linker: released on empty canvas (no node under the cursor at

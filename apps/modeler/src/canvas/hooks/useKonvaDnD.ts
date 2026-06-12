@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type Konva from 'konva';
 import { useWorkspaceStore } from '../../store/workspace.store';
 import { useVFSStore } from '../../store/project-vfs.store';
@@ -12,10 +13,17 @@ import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/d
 import type { stereotype } from '../../features/diagram/types/diagram.types';
 import { SB_DEFAULT_W, SB_DEFAULT_H } from '../shapes/SystemBoundaryShape';
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../shapes/UCModuleShape';
+import { measureElementSize } from '../engine/elementSize';
+import {
+  getAllTools,
+  getNativeNodeToolIds,
+  getDiagramRegistry,
+} from '../../core/registry/diagram-registry';
 
 export const DRAG_TYPE_NEW = 'application/libreuml-node' as const;
 export const DRAG_TYPE_EXISTING = 'application/libreuml-existing-node' as const;
 export const DRAG_TYPE_PACKAGE = 'application/libreuml-package' as const;
+export const SIDEBAR_DND_TYPE = 'application/libreuml-sidebar-class' as const;
 
 const NODE_WIDTH = 256;
 const NODE_HEIGHT = 120;
@@ -32,16 +40,23 @@ export function getNextVFSName(existingNames: string[], prefix: string): string 
   return `${prefix} ${max + 1}`;
 }
 
-interface DropConfig {
+export interface DropConfig {
   getNextName: (model: SemanticModel) => string;
   applyToModelDraft: (modelDraft: any, id: string, name: string, isExternal?: boolean) => void;
   applyToLocalModelDraft: (lm: any, id: string, name: string) => void;
   isVisualOnly?: boolean;
   /** Initial ViewNode dimensions — used for resizable containers like SystemBoundary. */
   initialDimensions?: { width: number; height: number };
+  /** Override the drop position (x, y) — used by lifelines that must snap to y=0. */
+  overridePosition?: (pos: { x: number; y: number }) => { x: number; y: number };
 }
 
-const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
+/**
+ * Per-stereotype recipe for creating a node: how to name it and how to write the
+ * semantic element into the shared or local model. Shared with the Quick Linker,
+ * which creates a node + relation in one transaction reusing these builders.
+ */
+export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
   class: {
     getNextName: (model) =>
       getNextVFSName(Object.values(model.classes).filter((c) => !c.isAbstract).map((c) => c.name), 'Class'),
@@ -166,6 +181,22 @@ const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
       lm.updatedAt = Date.now();
     },
   },
+  lifeline: {
+    getNextName: (model) =>
+      getNextVFSName(Object.values(model.lifelines ?? {}).map((l) => l.alias ?? l.name), 'Lifeline'),
+    applyToModelDraft: (m, id, name) => {
+      m.lifelines = m.lifelines ?? {};
+      m.lifelines[id] = { id, name, kind: 'LIFELINE', participantKind: 'ANONYMOUS', alias: name };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.lifelines = lm.lifelines ?? {};
+      lm.lifelines[id] = { id, name, kind: 'LIFELINE', participantKind: 'ANONYMOUS', alias: name };
+      lm.updatedAt = Date.now();
+    },
+    // Sequence diagram constraint: lifelines always sit at y=0 (head at the top).
+    overridePosition: (pos) => ({ x: pos.x, y: 0 }),
+  },
   package: {
     getNextName: (model) => getNextVFSName(Object.values(model.packages).map((p) => p.name), 'Package'),
     applyToModelDraft: (m, id, name, isExternal) => {
@@ -251,9 +282,17 @@ export interface UseKonvaDnDResult {
     onPlaceHierarchy: () => void;
     onCancel: () => void;
   };
+  crossDiagramModal: {
+    isOpen: boolean;
+    toolLabel: string;
+    diagramLabel: string;
+    onAddAnyway: () => void;
+    onCancel: () => void;
+  };
 }
 
 export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult {
+  const { t } = useTranslation();
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
   const updateFileContent = useVFSStore((s) => s.updateFileContent);
   const hideDuplicateFileWarning = useSettingsStore((s) => s.hideDuplicateFileWarning);
@@ -283,6 +322,22 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     subPackageCount: 0,
     position: { x: 0, y: 0 },
     isStandaloneFile: false,
+  });
+
+  // Guard shown when a node tool that the active diagram type does not own is
+  // dropped onto the canvas (see #1 "all-tools palette" — best-effort free mode).
+  const [crossDiagramModal, setCrossDiagramModal] = useState<{
+    isOpen: boolean;
+    stereotype: stereotype | '';
+    toolLabel: string;
+    diagramLabel: string;
+    position: { x: number; y: number };
+  }>({
+    isOpen: false,
+    stereotype: '',
+    toolLabel: '',
+    diagramLabel: '',
+    position: { x: 0, y: 0 },
   });
 
   const getCenteredPosition = useCallback(
@@ -546,15 +601,16 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     const currentModel = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
     if (!currentModel) return;
 
-    // Layout constants
-    const PAD = 40;
-    const TAB_H = 24;
-    const EL_W = 256;
-    const EL_H = 120;
-    const EL_GAP_X = 20;
-    const EL_GAP_Y = 20;
-    const COLS = 3;
-    const PKG_GAP = 20;
+    // Layout constants — spacing is content-driven (real node sizes), so a
+    // class with many members reserves more room and nodes never overlap.
+    const PAD = 40;         // inner padding inside a package
+    const TAB_H = 24;       // package header tab height
+    const GAP_X = 28;       // horizontal gap between sibling nodes
+    const GAP_Y = 28;       // vertical gap between rows
+    const PKG_GAP = 32;     // vertical gap between stacked sub-packages
+    const MAX_ROW_W = 1100; // wrap a row once it grows past this width
+    const MIN_PKG_W = 240;
+    const MIN_PKG_H = 160;
 
     // Collect elements
     const parentElements: Array<{ id: string }> = [
@@ -583,43 +639,70 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       ]);
     }
 
-    // Compute layout
-    const parentElOffsets = new Map<string, { x: number; y: number }>();
-    let rowX = PAD;
-    let rowY = TAB_H + PAD;
-    for (let i = 0; i < parentElements.length; i++) {
-      parentElOffsets.set(parentElements[i].id, { x: rowX, y: rowY });
-      rowX += EL_W + EL_GAP_X;
-      if ((i + 1) % COLS === 0) { rowX = PAD; rowY += EL_H + EL_GAP_Y; }
-    }
-    const classRowsCount = Math.ceil(parentElements.length / COLS);
-    const classAreaBottom = TAB_H + PAD + (parentElements.length > 0 ? classRowsCount * (EL_H + EL_GAP_Y) : 0);
+    // Resolve a model element's real rendered size (name + every member).
+    const sizeOf = (id: string): { width: number; height: number } => {
+      const cls = currentModel.classes[id];
+      if (cls) return measureElementSize(currentModel, cls, cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS');
+      const iface = currentModel.interfaces[id];
+      if (iface) return measureElementSize(currentModel, iface, 'INTERFACE');
+      const enm = currentModel.enums[id];
+      if (enm) return measureElementSize(currentModel, enm, 'ENUM');
+      return { width: 256, height: 120 };
+    };
 
+    // Shelf-packing: lay elements left→right, wrapping to a new row once the
+    // current row exceeds MAX_ROW_W. Each row is as tall as its tallest node,
+    // so variable-height nodes never collide.
+    const packElements = (
+      els: Array<{ id: string }>,
+      originX: number,
+      originY: number,
+    ): { offsets: Map<string, { x: number; y: number }>; right: number; bottom: number } => {
+      const offsets = new Map<string, { x: number; y: number }>();
+      let x = originX;
+      let y = originY;
+      let rowH = 0;
+      let right = originX;
+      for (const el of els) {
+        const { width: w, height: h } = sizeOf(el.id);
+        if (x > originX && x + w > originX + MAX_ROW_W) {
+          x = originX;
+          y += rowH + GAP_Y;
+          rowH = 0;
+        }
+        offsets.set(el.id, { x, y });
+        right = Math.max(right, x + w);
+        x += w + GAP_X;
+        rowH = Math.max(rowH, h);
+      }
+      return { offsets, right, bottom: y + rowH };
+    };
+
+    // Compute layout — the dragged package's own elements first…
+    const parentPack = packElements(parentElements, PAD, TAB_H + PAD);
+    const parentElOffsets = parentPack.offsets;
+    let contentRight = parentPack.right;
+    let cursorY = parentElements.length > 0 ? parentPack.bottom + PKG_GAP : TAB_H + PAD;
+
+    // …then each sub-package, sized to its own packed contents, stacked below.
     const subPkgOffsets = new Map<string, { x: number; y: number }>();
     const subPkgElOffsets = new Map<string, Map<string, { x: number; y: number }>>();
-    let subPkgY = classAreaBottom + (parentElements.length > 0 ? PKG_GAP : 0);
-
     const subPkgDims = new Map<string, { w: number; h: number }>();
     for (const subPkgPath of directSubPkgPaths) {
       const subEls = subPkgElements.get(subPkgPath) ?? [];
-      const elOffsets = new Map<string, { x: number; y: number }>();
-      let sx = PAD; let sy = TAB_H + PAD;
-      for (let i = 0; i < subEls.length; i++) {
-        elOffsets.set(subEls[i].id, { x: sx, y: sy });
-        sx += EL_W + EL_GAP_X;
-        if ((i + 1) % COLS === 0) { sx = PAD; sy += EL_H + EL_GAP_Y; }
-      }
-      subPkgElOffsets.set(subPkgPath, elOffsets);
-      const subRows = Math.max(1, Math.ceil(subEls.length / COLS));
-      const subW = Math.max(400, COLS * (EL_W + EL_GAP_X) + 2 * PAD);
-      const subH = Math.max(150, TAB_H + PAD + subRows * (EL_H + EL_GAP_Y) + PAD);
+      const inner = packElements(subEls, PAD, TAB_H + PAD);
+      const subW = Math.max(MIN_PKG_W, inner.right + PAD);
+      const subH = Math.max(MIN_PKG_H, inner.bottom + PAD);
+      subPkgElOffsets.set(subPkgPath, inner.offsets);
       subPkgDims.set(subPkgPath, { w: subW, h: subH });
-      subPkgOffsets.set(subPkgPath, { x: PAD, y: subPkgY });
-      subPkgY += subH + PKG_GAP;
+      subPkgOffsets.set(subPkgPath, { x: PAD, y: cursorY });
+      cursorY += subH + PKG_GAP;
+      contentRight = Math.max(contentRight, PAD + subW);
     }
 
-    const parentW = Math.max(600, COLS * (EL_W + EL_GAP_X) + 2 * PAD);
-    const parentH = subPkgY + PAD;
+    const lastBottom = directSubPkgPaths.length > 0 ? cursorY - PKG_GAP : parentPack.bottom;
+    const parentW = Math.max(MIN_PKG_W, contentRight + PAD);
+    const parentH = Math.max(MIN_PKG_H, lastBottom + PAD);
 
     // Find or create package element IDs — exact name match only to avoid
     // incorrectly reusing an unrelated package with the same short name.
@@ -690,7 +773,9 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       return nodes;
     };
 
-    const viewEdges = relevantRelations.map((rel) => ({ id: crypto.randomUUID(), relationId: rel.id, waypoints: [] }));
+    // Edges drawn onto the canvas now default to free-form straight; legacy
+    // edges (no routingMode) keep orthogonal so existing diagrams are unchanged.
+    const viewEdges = relevantRelations.map((rel) => ({ id: crypto.randomUUID(), relationId: rel.id, waypoints: [], routingMode: 'straight' as const }));
 
     if (isStandaloneFile) {
       undoTransaction({
@@ -814,6 +899,140 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
     }
   }, [hierarchyModal, activeTabId]);
 
+  /**
+   * Creates a new semantic element + ViewNode for the given stereotype at a
+   * canvas position. Extracted from onDrop so the cross-diagram "add anyway"
+   * path can reuse the exact same creation logic.
+   */
+  const createNodeFromStereotype = useCallback(
+    (stereotype: stereotype, position: { x: number; y: number }) => {
+      if (!activeTabId) return;
+
+      const dropConfig = VFS_DROP_CONFIG[stereotype];
+      if (!dropConfig) {
+        console.warn(`[VFS Drop] Stereotype "${stereotype}" has no VFS semantic mapping. Drop ignored.`);
+        return;
+      }
+
+      const freshProject = useVFSStore.getState().project;
+      if (!freshProject) return;
+      const freshFileNode = freshProject.nodes[activeTabId];
+      if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+      const freshContent = (freshFileNode as VFSFile).content;
+      if (!isDiagramView(freshContent)) return;
+
+      const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
+      const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
+      const newElementId = crypto.randomUUID();
+      const newViewNodeId = crypto.randomUUID();
+      const effectivePosition = dropConfig.overridePosition
+        ? dropConfig.overridePosition(position)
+        : position;
+
+      if (isStandaloneFile) {
+        const currentLocalModel = getLocalModel(activeTabId);
+        const elementName = (currentLocalModel && !dropConfig.isVisualOnly)
+          ? dropConfig.getNextName(currentLocalModel)
+          : 'Note';
+
+        undoTransaction({
+          label: `Create ${stereotype}`,
+          scope: activeTabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const node = draft.project?.nodes[activeTabId];
+              if (!node || node.type !== 'FILE') return;
+              if (!dropConfig.isVisualOnly) {
+                if (!node.localModel) {
+                  const now = Date.now();
+                  node.localModel = {
+                    id: crypto.randomUUID(), name: `${node.name} (standalone)`, version: '1.0.0',
+                    packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                    attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                    objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                    createdAt: now, updatedAt: now,
+                  };
+                }
+                dropConfig.applyToLocalModelDraft(node.localModel, newElementId, elementName);
+              }
+              if (isDiagramView(node.content)) {
+                node.content.nodes.push({
+                  id: newViewNodeId,
+                  elementId: dropConfig.isVisualOnly ? '' : newElementId,
+                  x: effectivePosition.x, y: effectivePosition.y,
+                  ...(dropConfig.initialDimensions ?? {}),
+                });
+              }
+            },
+          }],
+        });
+      } else {
+        const modelState = useModelStore.getState();
+        const currentModel = modelState.model;
+        const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
+        const elementName = (currentModel && !dropConfig.isVisualOnly)
+          ? dropConfig.getNextName(currentModel)
+          : 'Note';
+
+        if (dropConfig.isVisualOnly) {
+          withUndo('vfs', 'Add Note', activeTabId, (draft: any) => {
+            const node = draft.project?.nodes[activeTabId];
+            if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+            node.content.nodes.push({ id: newViewNodeId, elementId: '', x: effectivePosition.x, y: effectivePosition.y });
+          });
+        } else {
+          undoTransaction({
+            label: `Create ${stereotype}`,
+            scope: 'global',
+            mutations: [
+              {
+                store: 'model',
+                mutate: (draft: any) => {
+                  if (!draft.model) {
+                    const now = Date.now();
+                    draft.model = {
+                      id: domainModelId, name: 'Domain Model', version: '1.0.0',
+                      packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                      attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                      objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                      packageNames: [], createdAt: now, updatedAt: now,
+                    };
+                  }
+                  dropConfig.applyToModelDraft(draft.model, newElementId, elementName, isExternalFile || undefined);
+                },
+              },
+              {
+                store: 'vfs',
+                mutate: (draft: any) => {
+                  const node = draft.project?.nodes[activeTabId];
+                  if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
+                  node.content.nodes.push({
+                    id: newViewNodeId,
+                    elementId: newElementId,
+                    x: effectivePosition.x, y: effectivePosition.y,
+                    ...(dropConfig.initialDimensions ?? {}),
+                  });
+                },
+              },
+            ],
+          });
+        }
+      }
+    },
+    [activeTabId],
+  );
+
+  const handleCrossDiagramAddAnyway = useCallback(() => {
+    const { stereotype, position } = crossDiagramModal;
+    setCrossDiagramModal((prev) => ({ ...prev, isOpen: false }));
+    if (stereotype) createNodeFromStereotype(stereotype, position);
+  }, [crossDiagramModal, createNodeFromStereotype]);
+
+  const handleCrossDiagramCancel = useCallback(() => {
+    setCrossDiagramModal((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
@@ -822,29 +1041,35 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      
+
       const hasPackageData = event.dataTransfer.types.includes(DRAG_TYPE_PACKAGE.toLowerCase());
       const hasNewData = event.dataTransfer.types.includes(DRAG_TYPE_NEW.toLowerCase());
       const hasExistingData = event.dataTransfer.types.includes(DRAG_TYPE_EXISTING.toLowerCase());
-      
-      if (!hasPackageData && !hasNewData && !hasExistingData) {
+      const hasSidebarClass = event.dataTransfer.types.includes(SIDEBAR_DND_TYPE.toLowerCase());
+
+      console.debug('[DnD:onDrop] types:', [...event.dataTransfer.types], { hasPackageData, hasNewData, hasExistingData, hasSidebarClass });
+
+      if (!hasPackageData && !hasNewData && !hasExistingData && !hasSidebarClass) {
         return;
       }
 
       const position = getCenteredPosition(event.clientX, event.clientY);
+      console.debug('[DnD:onDrop] position:', position, 'stageRef.current:', !!stageRef.current);
 
       const packageData = event.dataTransfer.getData(DRAG_TYPE_PACKAGE);
+      console.debug('[DnD:onDrop] packageData:', packageData, 'activeTabId:', activeTabId);
       if (packageData) {
-        if (!activeTabId) return;
+        if (!activeTabId) { console.debug('[DnD:onDrop] early return: no activeTabId'); return; }
 
         const freshProject = useVFSStore.getState().project;
-        if (!freshProject) return;
+        if (!freshProject) { console.debug('[DnD:onDrop] early return: no freshProject'); return; }
         const freshFileNode = freshProject.nodes[activeTabId];
-        if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+        if (!freshFileNode || freshFileNode.type !== 'FILE') { console.debug('[DnD:onDrop] early return: bad fileNode', freshFileNode); return; }
         const freshContent = (freshFileNode as VFSFile).content;
-        if (!isDiagramView(freshContent)) return;
+        if (!isDiagramView(freshContent)) { console.debug('[DnD:onDrop] early return: isDiagramView failed', freshContent); return; }
 
         const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
+        console.debug('[DnD:onDrop] isStandaloneFile:', isStandaloneFile, 'packageFullPath:', packageData);
         const packageFullPath = packageData;
         let existingPackageId: string | null = null;
         let existingViewNodeId: string | null = null;
@@ -904,11 +1129,13 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           }
         }
         
+        console.debug('[DnD:onDrop] existingViewNodeId:', existingViewNodeId, 'existingPackageId:', existingPackageId);
+
         if (existingViewNodeId) {
           showToast(`"${packageFullPath}" is already on canvas. Drag it directly to move it.`);
           return;
         }
-        
+
         if (!existingPackageId && currentModel) {
           let pkg = Object.values(currentModel.packages ?? {}).find(p => p.name === packageFullPath);
           if (!pkg) {
@@ -918,29 +1145,34 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
           if (pkg) existingPackageId = pkg.id;
         }
 
-        // Check if we should show hierarchy modal BEFORE placing
-        const segments = packageFullPath.split('.');
+        console.debug('[DnD:onDrop] after fallback — existingPackageId:', existingPackageId, 'currentModel packages:', Object.keys(currentModel?.packages ?? {}));
+
         const parentViewNodeId = findParentPackageViewNode(packageFullPath);
-        
-        if (segments.length > 1 && !parentViewNodeId) {
-          const parentPath = segments.slice(0, -1).join('.');
-          const { classCount, subPackageCount, siblingCount } = getParentContent(parentPath, packageFullPath, currentModel);
-          if (classCount > 0 || siblingCount > 0) {
-            setHierarchyModal({
-              isOpen: true,
-              packageFullPath,
-              parentPath,
-              classCount,
-              subPackageCount,
-              position,
-              isStandaloneFile,
-            });
-            return;
-          }
+
+        // Check if we should show hierarchy modal BEFORE placing.
+        // If the dropped package has its own content (classes or sub-packages),
+        // offer to place it alone or with everything inside it.
+        const ownContent = getParentContent(packageFullPath, packageFullPath, currentModel);
+        console.debug('[DnD:onDrop] hierarchy-modal check — packageFullPath:', packageFullPath, { ...ownContent, willShow: ownContent.classCount > 0 || ownContent.subPackageCount > 0 });
+
+        if (ownContent.classCount > 0 || ownContent.subPackageCount > 0) {
+          setHierarchyModal({
+            isOpen: true,
+            packageFullPath,
+            // Anchor the "place hierarchy" layout to the dragged package itself,
+            // so it places the package with all its own classes & sub-packages.
+            parentPath: packageFullPath,
+            classCount: ownContent.classCount,
+            subPackageCount: ownContent.subPackageCount,
+            position,
+            isStandaloneFile,
+          });
+          return;
         }
 
         // If package exists in model but not on canvas, just add view node
         if (existingPackageId) {
+          console.debug('[DnD:onDrop] → calling undoTransaction to add view node, existingPackageId:', existingPackageId);
           undoTransaction({
             label: `Add to canvas: ${packageFullPath}`,
             scope: isStandaloneFile ? activeTabId : 'global',
@@ -948,20 +1180,25 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
               store: 'vfs',
               mutate: (draft: any) => {
                 const node = draft.project?.nodes[activeTabId];
+                console.debug('[DnD:mutate] node:', node?.type, 'isDiagramView:', isDiagramView(node?.content));
                 if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
                 const newViewNodeId = crypto.randomUUID();
-                node.content.nodes.push({
+                const newVN = {
                   id: newViewNodeId,
                   elementId: existingPackageId,
                   x: position.x,
                   y: position.y,
                   collapsed: false,
                   parentPackageId: parentViewNodeId,
-                });
+                };
+                console.debug('[DnD:mutate] pushing view node:', newVN);
+                node.content.nodes.push(newVN);
+                console.debug('[DnD:mutate] nodes count after push:', node.content.nodes.length);
               },
             }],
             affectedElementIds: [existingPackageId],
           });
+          console.debug('[DnD:onDrop] undoTransaction done');
           return;
         }
 
@@ -1092,121 +1329,158 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
         return;
       }
 
+      // ── Sidebar class/interface/actor → new Lifeline (Sequence Diagrams only) ──
+      const sidebarClassRaw = event.dataTransfer.getData(SIDEBAR_DND_TYPE);
+      if (sidebarClassRaw) {
+        if (!activeTabId) return;
+        const freshProject = useVFSStore.getState().project;
+        if (!freshProject) return;
+        const freshFileNode = freshProject.nodes[activeTabId];
+        if (!freshFileNode || freshFileNode.type !== 'FILE') return;
+
+        if ((freshFileNode as VFSFile).diagramType !== 'SEQUENCE_DIAGRAM') return;
+
+        const freshContent = (freshFileNode as VFSFile).content;
+        if (!isDiagramView(freshContent)) return;
+        const freshView = freshContent as DiagramView;
+        const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
+
+        let parsed: { elementId: string };
+        try { parsed = JSON.parse(sidebarClassRaw); }
+        catch { return; }
+        const { elementId } = parsed;
+
+        const model = isStandaloneFile ? getLocalModel(activeTabId) : useModelStore.getState().model;
+        if (!model) return;
+
+        // Infer participantKind and display name from the element type.
+        type ParticipantKind = 'CLASS' | 'INTERFACE' | 'ACTOR' | 'ANONYMOUS';
+        let participantKind: ParticipantKind = 'ANONYMOUS';
+        let elementName = 'Lifeline';
+
+        if (model.classes[elementId]) {
+          participantKind = 'CLASS';
+          elementName = model.classes[elementId].name;
+        } else if (model.interfaces[elementId]) {
+          participantKind = 'INTERFACE';
+          elementName = model.interfaces[elementId].name;
+        } else if (model.actors[elementId]) {
+          participantKind = 'ACTOR';
+          elementName = model.actors[elementId].name;
+        }
+
+        // Duplicate check: any existing lifeline in this diagram that represents the same element.
+        const isDuplicate = freshView.nodes.some((vn) => {
+          const ll = model.lifelines?.[vn.elementId];
+          return ll?.represents === elementId;
+        });
+        if (isDuplicate) {
+          showToast(`"${elementName}" is already in this diagram`);
+          return;
+        }
+
+        // Compute drop position: center the lifeline head (140px wide) at the cursor X, y=0.
+        const stage = stageRef.current;
+        if (!stage) return;
+        const rect = stage.container().getBoundingClientRect();
+        const scale = stage.scaleX();
+        const canvasX = (event.clientX - rect.left - stage.x()) / scale;
+        const lifelineX = canvasX - 70; // 70 = LIFELINE_HEAD_W / 2
+
+        const lifelineId = crypto.randomUUID();
+        const viewNodeId = crypto.randomUUID();
+
+        if (isStandaloneFile) {
+          undoTransaction({
+            label: `Add Lifeline: ${elementName}`,
+            scope: activeTabId,
+            mutations: [{
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const fileNode = draft.project?.nodes[activeTabId];
+                if (!fileNode || fileNode.type !== 'FILE') return;
+                fileNode.localModel = fileNode.localModel ?? {
+                  id: crypto.randomUUID(), name: 'standalone', version: '1.0.0',
+                  packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
+                  attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
+                  objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
+                  createdAt: Date.now(), updatedAt: Date.now(),
+                };
+                fileNode.localModel.lifelines = fileNode.localModel.lifelines ?? {};
+                fileNode.localModel.lifelines[lifelineId] = {
+                  id: lifelineId, kind: 'LIFELINE', name: elementName,
+                  participantKind, represents: elementId,
+                };
+                fileNode.localModel.updatedAt = Date.now();
+                if (isDiagramView(fileNode.content)) {
+                  fileNode.content.nodes.push({ id: viewNodeId, elementId: lifelineId, x: lifelineX, y: 0 });
+                }
+              },
+            }],
+          });
+        } else {
+          undoTransaction({
+            label: `Add Lifeline: ${elementName}`,
+            scope: 'global',
+            mutations: [
+              {
+                store: 'model',
+                mutate: (draft: any) => {
+                  if (!draft.model) return;
+                  draft.model.lifelines = draft.model.lifelines ?? {};
+                  draft.model.lifelines[lifelineId] = {
+                    id: lifelineId, kind: 'LIFELINE', name: elementName,
+                    participantKind, represents: elementId,
+                  };
+                  draft.model.updatedAt = Date.now();
+                },
+              },
+              {
+                store: 'vfs',
+                mutate: (draft: any) => {
+                  const fileNode = draft.project?.nodes[activeTabId];
+                  if (!fileNode || fileNode.type !== 'FILE' || !isDiagramView(fileNode.content)) return;
+                  fileNode.content.nodes.push({ id: viewNodeId, elementId: lifelineId, x: lifelineX, y: 0 });
+                },
+              },
+            ],
+          });
+        }
+        return;
+      }
+
       const stereotype = event.dataTransfer.getData(DRAG_TYPE_NEW) as stereotype;
 
       if (!stereotype) return;
 
       if (!activeTabId) return;
 
-      const dropConfig = VFS_DROP_CONFIG[stereotype];
-
-      if (!dropConfig) {
+      if (!VFS_DROP_CONFIG[stereotype]) {
         console.warn(`[VFS Drop] Stereotype "${stereotype}" has no VFS semantic mapping. Drop ignored.`);
         return;
       }
 
-      const freshProject = useVFSStore.getState().project;
-      if (!freshProject) return;
-      const freshFileNode = freshProject.nodes[activeTabId];
-      if (!freshFileNode || freshFileNode.type !== 'FILE') return;
-      const freshContent = (freshFileNode as VFSFile).content;
-      if (!isDiagramView(freshContent)) return;
-
-      const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
-      const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
-      const newElementId = crypto.randomUUID();
-      const newViewNodeId = crypto.randomUUID();
-
-      if (isStandaloneFile) {
-        const currentLocalModel = getLocalModel(activeTabId);
-        const elementName = (currentLocalModel && !dropConfig.isVisualOnly)
-          ? dropConfig.getNextName(currentLocalModel)
-          : 'Note';
-
-        undoTransaction({
-          label: `Create ${stereotype}`,
-          scope: activeTabId,
-          mutations: [{
-            store: 'vfs',
-            mutate: (draft: any) => {
-              const node = draft.project?.nodes[activeTabId];
-              if (!node || node.type !== 'FILE') return;
-              if (!dropConfig.isVisualOnly) {
-                if (!node.localModel) {
-                  const now = Date.now();
-                  node.localModel = {
-                    id: crypto.randomUUID(), name: `${node.name} (standalone)`, version: '1.0.0',
-                    packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
-                    attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
-                    objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
-                    createdAt: now, updatedAt: now,
-                  };
-                }
-                dropConfig.applyToLocalModelDraft(node.localModel, newElementId, elementName);
-              }
-              if (isDiagramView(node.content)) {
-                node.content.nodes.push({
-                  id: newViewNodeId,
-                  elementId: dropConfig.isVisualOnly ? '' : newElementId,
-                  x: position.x, y: position.y,
-                  ...(dropConfig.initialDimensions ?? {}),
-                });
-              }
-            },
-          }],
-        });
-      } else {
-        const modelState = useModelStore.getState();
-        const currentModel = modelState.model;
-        const domainModelId = freshProject.domainModelId ?? crypto.randomUUID();
-        const elementName = (currentModel && !dropConfig.isVisualOnly)
-          ? dropConfig.getNextName(currentModel)
-          : 'Note';
-
-        if (dropConfig.isVisualOnly) {
-          withUndo('vfs', 'Add Note', activeTabId, (draft: any) => {
-            const node = draft.project?.nodes[activeTabId];
-            if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
-            node.content.nodes.push({ id: newViewNodeId, elementId: '', x: position.x, y: position.y });
-          });
-        } else {
-          undoTransaction({
-            label: `Create ${stereotype}`,
-            scope: 'global',
-            mutations: [
-              {
-                store: 'model',
-                mutate: (draft: any) => {
-                  if (!draft.model) {
-                    const now = Date.now();
-                    draft.model = {
-                      id: domainModelId, name: 'Domain Model', version: '1.0.0',
-                      packages: {}, classes: {}, interfaces: {}, enums: {}, dataTypes: {},
-                      attributes: {}, operations: {}, actors: {}, useCases: {}, activityNodes: {},
-                      objectInstances: {}, components: {}, nodes: {}, artifacts: {}, relations: {},
-                      packageNames: [], createdAt: now, updatedAt: now,
-                    };
-                  }
-                  dropConfig.applyToModelDraft(draft.model, newElementId, elementName, isExternalFile || undefined);
-                },
-              },
-              {
-                store: 'vfs',
-                mutate: (draft: any) => {
-                  const node = draft.project?.nodes[activeTabId];
-                  if (!node || node.type !== 'FILE' || !isDiagramView(node.content)) return;
-                  node.content.nodes.push({
-                    id: newViewNodeId,
-                    elementId: newElementId,
-                    x: position.x, y: position.y,
-                    ...(dropConfig.initialDimensions ?? {}),
-                  });
-                },
-              },
-            ],
-          });
+      // Cross-diagram guard: a tool the active diagram type does not natively
+      // own goes through a confirmation (add anyway in free mode / abstain).
+      const activeNode = useVFSStore.getState().project?.nodes[activeTabId];
+      const activeDiagramType =
+        activeNode?.type === 'FILE' ? (activeNode as VFSFile).diagramType : undefined;
+      if (activeDiagramType && !getNativeNodeToolIds(activeDiagramType).has(stereotype)) {
+        const toolDef = getAllTools().nodes.find((tdef) => tdef.id === stereotype);
+        const toolLabel = toolDef
+          ? toolDef.translationKey ? t(toolDef.translationKey) : toolDef.label
+          : stereotype;
+        let diagramLabel: string = activeDiagramType;
+        try {
+          diagramLabel = getDiagramRegistry(activeDiagramType).displayName;
+        } catch {
+          /* unregistered type — fall back to the raw diagram type */
         }
+        setCrossDiagramModal({ isOpen: true, stereotype, toolLabel, diagramLabel, position });
+        return;
       }
+
+      createNodeFromStereotype(stereotype, position);
     },
     [
       getCenteredPosition,
@@ -1217,6 +1491,9 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       hideDuplicateFileWarning,
       showToast,
       addElementToDiagram,
+      stageRef,
+      createNodeFromStereotype,
+      t,
     ],
   );
 
@@ -1239,6 +1516,13 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       onPlaceSimple: handleHierarchyPlaceSimple,
       onPlaceHierarchy: handleHierarchyPlaceHierarchy,
       onCancel: handleHierarchyCancel,
+    },
+    crossDiagramModal: {
+      isOpen: crossDiagramModal.isOpen,
+      toolLabel: crossDiagramModal.toolLabel,
+      diagramLabel: crossDiagramModal.diagramLabel,
+      onAddAnyway: handleCrossDiagramAddAnyway,
+      onCancel: handleCrossDiagramCancel,
     },
   };
 }

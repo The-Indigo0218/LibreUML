@@ -11,6 +11,13 @@ import {
   isSystemBoundaryViewModel,
   isUCModuleViewModel,
   isDomainEntityViewModel,
+  isLifelineViewModel,
+  isMessageViewModel,
+  isActivationViewModel,
+  isFragmentViewModel,
+  isStateInvariantViewModel,
+  isInteractionUseViewModel,
+  isGateViewModel,
 } from '../adapters/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
@@ -19,6 +26,13 @@ import UseCaseShape, { getUseCaseShapeSize } from './shapes/UseCaseShape';
 import SystemBoundaryShape, { getSystemBoundaryShapeSize } from './shapes/SystemBoundaryShape';
 import UCModuleShape, { getUCModuleShapeSize } from './shapes/UCModuleShape';
 import DomainEntityShape, { getDomainEntityShapeSize } from './shapes/DomainEntityShape';
+import LifelineShape, { getLifelineShapeSize } from './shapes/LifelineShape';
+import MessageShape, { getMessageShapeSize } from './shapes/MessageShape';
+import ActivationShape, { getActivationShapeSize } from './shapes/ActivationShape';
+import FragmentShape, { getFragmentShapeSize } from './shapes/FragmentShape';
+import StateInvariantShape, { getStateInvariantShapeSize } from './shapes/StateInvariantShape';
+import InteractionUseShape, { getInteractionUseShapeSize } from './shapes/InteractionUseShape';
+import GateShape, { getGateShapeSize } from './shapes/GateShape';
 
 export interface NodeShapeRenderProps {
   key: string;
@@ -34,6 +48,7 @@ export interface NodeShapeRenderProps {
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
+  dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
   onMouseEnter?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   onMouseLeave?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   onResizeEnd?: (id: string, width: number, height: number) => void;
@@ -47,6 +62,13 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
   if (isSystemBoundaryViewModel(vm)) return getSystemBoundaryShapeSize(vm);
   if (isUCModuleViewModel(vm))       return getUCModuleShapeSize(vm);
   if (isDomainEntityViewModel(vm))   return getDomainEntityShapeSize(vm);
+  if (isLifelineViewModel(vm))       return getLifelineShapeSize(vm);
+  if (isMessageViewModel(vm))        return getMessageShapeSize(vm);
+  if (isActivationViewModel(vm))     return getActivationShapeSize(vm);
+  if (isFragmentViewModel(vm))       return getFragmentShapeSize(vm);
+  if (isStateInvariantViewModel(vm)) return getStateInvariantShapeSize(vm);
+  if (isInteractionUseViewModel(vm)) return getInteractionUseShapeSize(vm);
+  if (isGateViewModel(vm))           return getGateShapeSize(vm);
   return getClassShapeSize(vm as NodeViewModel);
 }
 
@@ -88,6 +110,27 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
 
   if (isDomainEntityViewModel(vm))
     return <DomainEntityShape key={key} viewModel={vm} {...common} />;
+
+  if (isLifelineViewModel(vm))
+    return <LifelineShape key={key} viewModel={vm} {...common} />;
+
+  if (isMessageViewModel(vm))
+    return <MessageShape key={key} viewModel={vm} {...common} />;
+
+  if (isActivationViewModel(vm))
+    return <ActivationShape key={key} viewModel={vm} {...common} />;
+
+  if (isFragmentViewModel(vm))
+    return <FragmentShape key={key} viewModel={vm} {...common} />;
+
+  if (isStateInvariantViewModel(vm))
+    return <StateInvariantShape key={key} viewModel={vm} {...common} />;
+
+  if (isInteractionUseViewModel(vm))
+    return <InteractionUseShape key={key} viewModel={vm} {...common} />;
+
+  if (isGateViewModel(vm))
+    return <GateShape key={key} viewModel={vm} {...common} />;
 
   return <ClassShape key={key} viewModel={vm as NodeViewModel} {...common} />;
 }

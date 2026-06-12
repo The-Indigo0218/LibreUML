@@ -57,6 +57,14 @@ export interface ViewNode {
   height?: number;
   zIndex?: number;
   color?: string;
+  /** Per-node border width override. Undefined = shape default. */
+  borderWidth?: number;
+  /** Per-node border line style override. Undefined = solid. */
+  borderStyle?: NodeBorderStyle;
+  /** Per-node font family override for sans text. Undefined = shape default. */
+  fontFamily?: string;
+  /** Per-node base font size (px) for the node's title; other text scales with it. */
+  fontSize?: number;
   /** Persisted text content for Note nodes (no IR backing element). */
   content?: string;
   /** Persisted title for Note nodes. */
@@ -66,6 +74,18 @@ export interface ViewNode {
   /** Package name for package container nodes. */
   packageName?: string;
 }
+
+/**
+ * How an edge's line body is routed between its two anchors.
+ *   'straight'    Direct line; bends only where the user adds waypoints (default).
+ *   'orthogonal'  L-shaped 90° path with obstacle avoidance.
+ *   'curved'      Smooth cubic Bezier.
+ * Undefined is treated as 'straight' so edges are free-form (StarUML-style) by default.
+ */
+export type EdgeRoutingMode = 'straight' | 'orthogonal' | 'curved';
+
+/** Per-node border line style. */
+export type NodeBorderStyle = 'solid' | 'dashed' | 'dotted';
 
 export interface ViewEdge {
   id: string;
@@ -78,6 +98,27 @@ export interface ViewEdge {
   sourceRole?: string;
   targetRole?: string;
   anchorLocked?: boolean;
+  /**
+   * P4 — free continuous anchor: position of the endpoint on the node's border,
+   * relative to its bounding box (nx, ny ∈ [0,1]). Resolved per-endpoint and
+   * takes priority over locked handles / floating. Undefined → fall back to the
+   * existing chain (handle → floating → closest-pair). The 8 handles act as a
+   * magnet when capturing, but the stored value is continuous.
+   */
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
+  /** Line routing style. Undefined = 'straight'. */
+  routingMode?: EdgeRoutingMode;
+  /** Per-edge color override. Undefined = kind/base color. */
+  color?: string;
+  /** Per-edge line width override. Undefined = default (2px). */
+  lineWidth?: number;
+  /** Per-edge line style override. Undefined = kind default. */
+  lineStyle?: NodeBorderStyle;
+  /** Per-edge label font family override. Undefined = default. */
+  fontFamily?: string;
+  /** Per-edge label font size override (px). Undefined = default (11px). */
+  fontSize?: number;
 }
 
 export interface DiagramView {
@@ -191,6 +232,8 @@ export interface IRClass extends IRElement {
   isFinal?: boolean;
   isActive?: boolean;
   isExternal?: boolean;
+  /** Generic type parameters, stored with angle brackets (e.g. "<T>"). */
+  generics?: string;
 }
 
 export interface IRInterface extends IRElement {
@@ -201,6 +244,8 @@ export interface IRInterface extends IRElement {
   attributeIds?: string[];
   operationIds: string[];
   isExternal?: boolean;
+  /** Generic type parameters, stored with angle brackets (e.g. "<T>"). */
+  generics?: string;
 }
 
 export interface IREnumLiteral {
@@ -297,6 +342,159 @@ export interface IRArtifact extends IRElement {
   fileName?: string;
 }
 
+// ─── Sequence Diagram IR ──────────────────────────────────────────────────────
+
+export type LifelineParticipantKind =
+  | 'CLASS'
+  | 'INTERFACE'
+  | 'ACTOR'
+  | 'OBJECT'
+  | 'ANONYMOUS';
+
+export interface IRLifeline extends IRElement {
+  kind: 'LIFELINE';
+  participantKind: LifelineParticipantKind;
+  /** elementId of the IRClass / IRInterface / IRActor / IRObjectInstance this lifeline represents. */
+  represents?: string;
+  /** Display name when participantKind === 'ANONYMOUS' (or override for named participants). */
+  alias?: string;
+  isExternal?: boolean;
+}
+
+export type MessageKind =
+  | 'SYNC'      // solid line, closed triangle arrowhead
+  | 'ASYNC'     // solid line, open arrowhead
+  | 'REPLY'     // dashed line, open arrowhead
+  | 'CREATE'    // instantiates target lifeline
+  | 'DESTROY';  // terminates target lifeline
+
+export interface IRMessage extends IRElement {
+  kind: 'MESSAGE';
+  messageKind: MessageKind;
+  sourceLifelineId: string;
+  targetLifelineId: string;
+  /** Chronological order within the parent fragment (or root-level). */
+  sequenceNumber: number;
+  /** Parent combined fragment id, or undefined when at the diagram root. */
+  fragmentId?: string;
+  /** Optional reference to an IROperation owned by the target's classifier. */
+  operationId?: string;
+  /** Free-form argument string (e.g. "id, name") for MVP. */
+  arguments?: string;
+  /** For REPLY messages, references the invoking message. */
+  inReplyTo?: string;
+  /**
+   * UML 2.5 found message: the source is an unknown participant outside the
+   * interaction. `sourceLifelineId` is empty; the target is a real lifeline.
+   */
+  isFound?: boolean;
+  /**
+   * UML 2.5 lost message: the target is an unknown participant outside the
+   * interaction. `targetLifelineId` is empty; the source is a real lifeline.
+   */
+  isLost?: boolean;
+  /**
+   * When set, the source end of this message connects to a Gate on a fragment
+   * boundary instead of a lifeline. Additive — `sourceLifelineId` is retained
+   * so clearing the gate restores the original routing.
+   */
+  sourceGateId?: string;
+  /** When set, the target end connects to a Gate (see `sourceGateId`). */
+  targetGateId?: string;
+}
+
+/**
+ * UML 2.5 §17.4 Gate — a connection point on a combined fragment's boundary
+ * that relates a message inside the fragment to one outside it.
+ */
+export interface IRGate extends IRElement {
+  kind: 'GATE';
+  /** The combined fragment whose boundary this gate sits on. */
+  ownerFragmentId: string;
+  /** Which vertical edge of the owner the gate sits on. */
+  side: 'LEFT' | 'RIGHT';
+  /** Temporal anchor: the gate's Y, in message-slot units (mirrors invariants). */
+  afterSequenceNumber: number;
+}
+
+export interface IRActivation extends IRElement {
+  kind: 'ACTIVATION';
+  /** Lifeline that owns this activation bar. */
+  lifelineId: string;
+  /** Message id that opened this activation (typically a SYNC entering the lifeline). */
+  startMessageId: string;
+  /** Message id that closed this activation (typically the REPLY pairing); undefined while open. */
+  endMessageId?: string;
+  /** When set, nests this activation inside a parent (re-entrancy). */
+  parentActivationId?: string;
+}
+
+export type FragmentKind =
+  | 'ALT'      // alternative (if/else) with multiple guarded operands
+  | 'OPT'      // optional (single guarded operand)
+  | 'LOOP'     // iteration with guard
+  | 'PAR'      // parallel
+  | 'SEQ'      // weak sequencing
+  | 'BREAK'    // break
+  | 'CRITICAL'; // critical region
+
+export interface IRInteractionOperand {
+  id: string;
+  guard?: string;
+  /** Messages contained in this operand (in `sequenceNumber` order). */
+  messageIds: string[];
+  /** Sub-fragments nested inside this operand. */
+  fragmentIds: string[];
+}
+
+export interface IRInteractionFragment extends IRElement {
+  kind: 'FRAGMENT';
+  fragmentKind: FragmentKind;
+  /** Lifelines spanned horizontally by this fragment's rectangle. */
+  coveredLifelineIds: string[];
+  /** Operands. ALT supports many; OPT/LOOP/PAR support one. */
+  operands: IRInteractionOperand[];
+  parentFragmentId?: string;
+}
+
+/**
+ * UML 2.5 §17.6 InteractionUse — a `ref` fragment that references (reuses)
+ * another Interaction (sequence diagram) within this one.
+ */
+export interface IRInteractionUse extends IRElement {
+  kind: 'INTERACTION_USE';
+  /** Lifelines spanned horizontally by the ref rectangle. */
+  coveredLifelineIds: string[];
+  /** VFS file id of the referenced SEQUENCE_DIAGRAM (undefined when external/unset). */
+  referencedDiagramId?: string;
+  /** Display label of the referenced interaction (falls back to `name`). */
+  referencedName?: string;
+  /**
+   * Temporal anchor: the ref sits in the band just below the message slot with
+   * this number. 0 = at the top, before the first message.
+   */
+  afterSequenceNumber: number;
+}
+
+/**
+ * UML 2.5 §17.4 StateInvariant — a runtime constraint on the state of the
+ * participant a lifeline represents, drawn as a state symbol on the lifeline
+ * between two message occurrences.
+ */
+export interface IRStateInvariant extends IRElement {
+  kind: 'STATE_INVARIANT';
+  /** Lifeline this invariant constrains. */
+  lifelineId: string;
+  /** The runtime constraint text (rendered inside a state symbol / braces). */
+  constraint: string;
+  /**
+   * Temporal anchor: the invariant sits just below the message slot with this
+   * sequenceNumber. 0 = above the first message. Mirrors how messages map
+   * sequenceNumber → Y in the layout builder.
+   */
+  afterSequenceNumber: number;
+}
+
 export type RelationKind =
   | 'ASSOCIATION'
   | 'AGGREGATION'
@@ -361,8 +559,56 @@ export interface SemanticModel {
   components: Record<string, IRComponent>;
   nodes: Record<string, IRNode>;
   artifacts: Record<string, IRArtifact>;
+  lifelines?: Record<string, IRLifeline>;
+  messages?: Record<string, IRMessage>;
+  activations?: Record<string, IRActivation>;
+  interactionFragments?: Record<string, IRInteractionFragment>;
+  stateInvariants?: Record<string, IRStateInvariant>;
+  interactionUses?: Record<string, IRInteractionUse>;
+  gates?: Record<string, IRGate>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;
   packageNames?: string[];
+}
+
+// ─── Semantic resolution types ────────────────────────────────────────────────
+
+/**
+ * Discriminant for any resolvable element in the SemanticModel.
+ * Used by resolveSemanticElement and diagram-registry semanticLookup entries.
+ */
+export type SemanticKind =
+  | 'CLASS'
+  | 'ABSTRACT_CLASS'
+  | 'INTERFACE'
+  | 'ENUM'
+  | 'PACKAGE'
+  | 'NOTE'
+  | 'ACTOR'
+  | 'USECASE'
+  | 'SYSTEM_BOUNDARY'
+  | 'UC_MODULE'
+  | 'DOMAIN_ENTITY'
+  | 'LIFELINE'
+  | 'UNKNOWN';
+
+/**
+ * Result of resolving a ViewNode's elementId against the SemanticModel.
+ * `element` is null for NOTEs and UNKNOWN ids.
+ */
+export interface ResolvedElement {
+  element:
+    | IRClass
+    | IRInterface
+    | IREnum
+    | IRPackage
+    | IRActor
+    | IRUseCase
+    | IRSystemBoundary
+    | IRUCModule
+    | IRDomainEntity
+    | IRLifeline
+    | null;
+  kind: SemanticKind;
 }

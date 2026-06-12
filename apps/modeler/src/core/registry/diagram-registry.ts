@@ -1,8 +1,9 @@
 import type {
   DiagramTypeRegistry,
   DiagramRegistryMap,
+  ToolConfig,
 } from './diagram-registry.types';
-import type { DiagramType } from '../domain/vfs/vfs.types';
+import type { DiagramType, SemanticModel, ResolvedElement } from '../domain/vfs/vfs.types';
 import type { DomainNode } from '../domain/models/nodes';
 import type { DomainEdge } from '../domain/models/edges';
 import type {
@@ -38,9 +39,20 @@ import type {
 } from '../domain/models/edges/use-case.types';
 import type { DomainEntityNode } from '../domain/models/nodes/domain-model.types';
 import type { DomainAssociationEdge } from '../domain/models/edges/domain-model.types';
+import type {
+  LifelineNode,
+} from '../domain/models/nodes/sequence-diagram.types';
+import type {
+  SyncMessageEdge,
+  AsyncMessageEdge,
+  ReplyMessageEdge,
+  CreateMessageEdge,
+  DestroyMessageEdge,
+} from '../domain/models/edges/sequence-diagram.types';
 import { classDiagramValidator } from '../validation/class-diagram.validator';
 import { useCaseDiagramValidator } from '../validation/use-case.validator';
 import { domainModelDiagramValidator } from '../validation/domain-model.validator';
+import { sequenceDiagramValidator } from '../validation/sequence-diagram.validator';
 
 
 /**
@@ -453,6 +465,18 @@ const classDiagramRegistry: DiagramTypeRegistry = {
     createNode: createClassDiagramNode,
     createEdge: createClassDiagramEdge,
   },
+
+  semanticLookup: (model: SemanticModel, id: string): ResolvedElement | null => {
+    const cls = model.classes[id];
+    if (cls) return { element: cls, kind: cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS' };
+    const iface = model.interfaces[id];
+    if (iface) return { element: iface, kind: 'INTERFACE' };
+    const enm = model.enums[id];
+    if (enm) return { element: enm, kind: 'ENUM' };
+    const pkg = model.packages[id];
+    if (pkg) return { element: pkg, kind: 'PACKAGE' };
+    return null;
+  },
 };
 
 /**
@@ -563,6 +587,18 @@ const useCaseDiagramRegistry: DiagramTypeRegistry = {
   factories: {
     createNode: createUseCaseDiagramNode,
     createEdge: createUseCaseDiagramEdge,
+  },
+
+  semanticLookup: (model: SemanticModel, id: string): ResolvedElement | null => {
+    const actor = model.actors?.[id];
+    if (actor) return { element: actor, kind: 'ACTOR' };
+    const uc = model.useCases?.[id];
+    if (uc) return { element: uc, kind: 'USECASE' };
+    const sb = model.systemBoundaries?.[id];
+    if (sb) return { element: sb, kind: 'SYSTEM_BOUNDARY' };
+    const ucm = model.ucModules?.[id];
+    if (ucm) return { element: ucm, kind: 'UC_MODULE' };
+    return null;
   },
 };
 
@@ -691,6 +727,205 @@ const domainModelDiagramRegistry: DiagramTypeRegistry = {
     createNode: createDomainModelDiagramNode,
     createEdge: createDomainModelDiagramEdge,
   },
+
+  semanticLookup: (model: SemanticModel, id: string): ResolvedElement | null => {
+    const de = model.domainEntities?.[id];
+    if (de) return { element: de, kind: 'DOMAIN_ENTITY' };
+    return null;
+  },
+};
+
+/**
+ * Factory function for creating Sequence Diagram nodes.
+ */
+function createSequenceDiagramNode(
+  type: string,
+  partial?: Partial<DomainNode>
+): DomainNode {
+  const now = Date.now();
+  const baseNode = {
+    id: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+    ...partial,
+  };
+
+  switch (type) {
+    case 'LIFELINE':
+      return {
+        ...baseNode,
+        type: 'LIFELINE',
+        name: (partial && 'name' in partial ? partial.name : undefined) || 'Lifeline',
+        participantKind:
+          (partial && 'participantKind' in partial
+            ? (partial as Partial<LifelineNode>).participantKind
+            : undefined) || 'ANONYMOUS',
+      } as LifelineNode;
+
+    case 'NOTE':
+      return {
+        ...baseNode,
+        type: 'NOTE',
+        content: (partial && 'content' in partial ? partial.content : undefined) || 'New note',
+      } as NoteNode;
+
+    default:
+      throw new Error(`Unknown Sequence Diagram node type: ${type}`);
+  }
+}
+
+function createSequenceDiagramEdge(
+  type: string,
+  sourceId: string,
+  targetId: string,
+  partial?: Partial<DomainEdge>
+): DomainEdge {
+  const now = Date.now();
+  const baseEdge = {
+    id: crypto.randomUUID(),
+    sourceNodeId: sourceId,
+    targetNodeId: targetId,
+    createdAt: now,
+    updatedAt: now,
+    ...partial,
+  };
+
+  switch (type) {
+    case 'MESSAGE_SYNC':
+      return { ...baseEdge, type: 'MESSAGE_SYNC' } as SyncMessageEdge;
+    case 'MESSAGE_ASYNC':
+      return { ...baseEdge, type: 'MESSAGE_ASYNC' } as AsyncMessageEdge;
+    case 'MESSAGE_REPLY':
+      return { ...baseEdge, type: 'MESSAGE_REPLY' } as ReplyMessageEdge;
+    case 'MESSAGE_CREATE':
+      return { ...baseEdge, type: 'MESSAGE_CREATE' } as CreateMessageEdge;
+    case 'MESSAGE_DESTROY':
+      return { ...baseEdge, type: 'MESSAGE_DESTROY' } as DestroyMessageEdge;
+    default:
+      throw new Error(`Unknown Sequence Diagram edge type: ${type}`);
+  }
+}
+
+/**
+ * Sequence Diagram Registry Entry
+ */
+const sequenceDiagramRegistry: DiagramTypeRegistry = {
+  type: 'SEQUENCE_DIAGRAM',
+  displayName: 'Sequence Diagram',
+  icon: 'arrow-right-left',
+
+  supportedNodeTypes: ['LIFELINE', 'NOTE'],
+  supportedEdgeTypes: [
+    'MESSAGE_SYNC',
+    'MESSAGE_ASYNC',
+    'MESSAGE_REPLY',
+    'MESSAGE_CREATE',
+    'MESSAGE_DESTROY',
+  ],
+
+  defaultNodeType: 'LIFELINE',
+  defaultEdgeType: 'MESSAGE_SYNC',
+
+  tools: {
+    nodes: [
+      {
+        id: 'lifeline',
+        type: 'NODE',
+        label: 'Lifeline',
+        icon: 'User',
+        color: '#6366F1',
+        translationKey: 'sidebar.nodes.lifeline',
+      },
+      {
+        id: 'note',
+        type: 'NODE',
+        label: 'Note',
+        icon: 'StickyNote',
+        color: 'var(--color-uml-note-border)',
+        translationKey: 'sidebar.nodes.note',
+      },
+    ],
+    edges: [
+      {
+        id: 'message_sync',
+        type: 'EDGE',
+        label: 'Sync Message',
+        icon: 'ArrowRight',
+        translationKey: 'sidebar.connections.messageSync',
+      },
+      {
+        id: 'message_async',
+        type: 'EDGE',
+        label: 'Async Message',
+        icon: 'MoveRight',
+        translationKey: 'sidebar.connections.messageAsync',
+      },
+      {
+        id: 'message_reply',
+        type: 'EDGE',
+        label: 'Reply',
+        icon: 'CornerDownLeft',
+        translationKey: 'sidebar.connections.messageReply',
+      },
+      {
+        id: 'message_create',
+        type: 'EDGE',
+        label: 'Create Message',
+        icon: 'PlusCircle',
+        translationKey: 'sidebar.connections.messageCreate',
+      },
+      {
+        id: 'message_destroy',
+        type: 'EDGE',
+        label: 'Destroy Message',
+        icon: 'XCircle',
+        translationKey: 'sidebar.connections.messageDestroy',
+      },
+    ],
+  },
+
+  codeGenerationActions: [
+    {
+      id: 'generate-stubs',
+      label: 'Generate Operation Stubs',
+      translationKey: 'menubar.code.generateStubs',
+      icon: 'FileCode',
+      enabled: true,
+    },
+  ],
+
+  exportActions: [
+    {
+      id: 'export-image',
+      label: 'Export Image',
+      translationKey: 'menubar.export.image',
+      icon: 'ImageIcon',
+      enabled: true,
+    },
+    {
+      id: 'export-xmi',
+      label: 'Export XMI',
+      translationKey: 'menubar.export.xmi',
+      icon: 'FileCode2',
+      enabled: true,
+    },
+  ],
+
+  nodeComponents: {},
+  edgeComponents: {},
+
+  validator: sequenceDiagramValidator,
+
+  factories: {
+    createNode: createSequenceDiagramNode,
+    createEdge: createSequenceDiagramEdge,
+  },
+
+  semanticLookup: (model: SemanticModel, id: string): ResolvedElement | null => {
+    const ll = model.lifelines?.[id];
+    if (ll) return { element: ll, kind: 'LIFELINE' };
+    return null;
+  },
 };
 
 /**
@@ -703,6 +938,7 @@ export const diagramRegistry: DiagramRegistryMap = {
   CLASS_DIAGRAM: classDiagramRegistry,
   USE_CASE_DIAGRAM: useCaseDiagramRegistry,
   DOMAIN_MODEL_DIAGRAM: domainModelDiagramRegistry,
+  SEQUENCE_DIAGRAM: sequenceDiagramRegistry,
 };
 
 /**
@@ -732,3 +968,45 @@ export function isDiagramTypeRegistered(diagramType: string): diagramType is Dia
 export function getRegisteredDiagramTypes(): DiagramType[] {
   return Object.keys(diagramRegistry) as DiagramType[];
 }
+
+/** Aggregated, de-duplicated tool lists across every registered diagram type. */
+export interface AggregatedTools {
+  nodes: ToolConfig[];
+  edges: ToolConfig[];
+}
+
+/**
+ * Merges the `tools.nodes`/`tools.edges` of every registered diagram type into a
+ * single de-duplicated palette (first occurrence of each tool id wins). Lets the
+ * ToolPalette expose every tool regardless of the active diagram type; the drop
+ * guard (useKonvaDnD) decides what to do when a tool the active diagram doesn't
+ * own is dropped onto the canvas.
+ */
+export function getAllTools(): AggregatedTools {
+  const nodes = new Map<string, ToolConfig>();
+  const edges = new Map<string, ToolConfig>();
+  for (const type of getRegisteredDiagramTypes()) {
+    const reg = diagramRegistry[type];
+    for (const tool of reg.tools.nodes) if (!nodes.has(tool.id)) nodes.set(tool.id, tool);
+    for (const tool of reg.tools.edges) if (!edges.has(tool.id)) edges.set(tool.id, tool);
+  }
+  return { nodes: [...nodes.values()], edges: [...edges.values()] };
+}
+
+/**
+ * The set of node-tool ids that the given diagram type natively owns. Used by the
+ * palette to mark "foreign" tools and by the drop guard to decide whether a
+ * dropped stereotype belongs to the active diagram. Unknown/unregistered types
+ * yield an empty set.
+ */
+export function getNativeNodeToolIds(diagramType: DiagramType): Set<string> {
+  const reg = diagramRegistry[diagramType];
+  return new Set(reg ? reg.tools.nodes.map((t) => t.id) : []);
+}
+
+/**
+ * The subset of DiagramType values that have a registry entry (i.e. are
+ * implemented). Use this instead of the full DiagramType union wherever the
+ * code must only handle diagram types that are actually available.
+ */
+export type RegisteredDiagramType = keyof typeof diagramRegistry;

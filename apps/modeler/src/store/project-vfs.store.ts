@@ -12,6 +12,7 @@ import type {
   SemanticModel,
 } from '../core/domain/vfs/vfs.types';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
+import { undoManager } from '../core/undo/instance';
 
 type VFSNode = VFSFolder | VFSFile;
 
@@ -436,6 +437,10 @@ export const useVFSStore = create<VFSStoreState>()(
             components: {},
             nodes: {},
             artifacts: {},
+            lifelines: {},
+            messages: {},
+            activations: {},
+            interactionFragments: {},
             relations: {},
             createdAt: now,
             updatedAt: now,
@@ -526,11 +531,7 @@ export const useVFSStore = create<VFSStoreState>()(
         },
       },
       onRehydrateStorage: () => (state) => {
-        setTimeout(() => {
-          import('../core/undo/instance').then(({ undoManager }) => {
-            undoManager.clear();
-          });
-        }, 0);
+        setTimeout(() => { undoManager.clear(); }, 0);
         if (state?.project) {
           // Hydration runs synchronously inside create(), so the module-level
           // `useVFSStore` const is still in its temporal dead zone. Call the

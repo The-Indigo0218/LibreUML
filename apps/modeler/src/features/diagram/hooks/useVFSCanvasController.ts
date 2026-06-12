@@ -16,6 +16,8 @@ import {
   useNodeActions,
   useEdgeActions,
 } from '../../../hooks/canvas';
+import type { NodeStylePatch } from '../../../hooks/canvas/useNodeActions';
+import type { EdgeStylePatch } from '../../../hooks/canvas/useEdgeActions';
 import type {
   DiagramView,
   VFSFile,
@@ -23,23 +25,19 @@ import type {
   LibreUMLProject,
   SemanticModel,
   RelationKind,
+  EdgeRoutingMode,
+  NodeBorderStyle,
 } from '../../../core/domain/vfs/vfs.types';
 import { buildClassDiagramNodes } from './controllers/classDiagramNodes';
 import { buildUseCaseDiagramNodes } from './controllers/useCaseDiagramNodes';
 import { buildDomainModelNodes } from './controllers/domainModelNodes';
+import { buildSequenceDiagramNodes } from './controllers/sequenceDiagramNodes';
 import {
   resolveSemanticElement,
   type NodeBuilderContext,
 } from './controllers/sharedNodeBuilders';
 import type {
-  NoteViewModel,
-  PackageViewModel,
-  ActorViewModel,
-  UseCaseViewModel,
-  SystemBoundaryViewModel,
-  UCModuleViewModel,
-  DomainEntityViewModel,
-  NodeViewModel,
+  AnyNodeViewModel,
 } from '../../../adapters/view-models/node.view-model';
 
 // ─── Module-scoped state ──────────────────────────────────────────────────────
@@ -67,7 +65,7 @@ export type VFSCanvasNode = {
   id: string;
   type: string;
   position: { x: number; y: number };
-  data: NodeViewModel | NoteViewModel | PackageViewModel | ActorViewModel | UseCaseViewModel | SystemBoundaryViewModel | UCModuleViewModel | DomainEntityViewModel;
+  data: AnyNodeViewModel;
   domainId?: string;
 };
 
@@ -78,6 +76,19 @@ export interface VFSCanvasEdge {
   type: string;
   sourceHandle?: string;
   targetHandle?: string;
+  /** P4 — free continuous border anchors (nx, ny ∈ [0,1]). */
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
+  /** Manual user waypoints. */
+  waypoints?: { x: number; y: number }[];
+  /** Line routing style. Undefined = 'straight'. */
+  routingMode?: EdgeRoutingMode;
+  /** Per-edge style overrides: color / line width / line style / font. */
+  color?: string;
+  lineWidth?: number;
+  lineStyle?: NodeBorderStyle;
+  fontFamily?: string;
+  fontSize?: number;
   style?: CSSProperties;
   data: {
     domainId: string;
@@ -111,6 +122,7 @@ export interface VFSCanvasResult {
   removeNodeFromDiagram: (viewNodeId: string) => void;
   deleteElementFromModel: (viewNodeId: string) => void;
   duplicateNode: (viewNodeId: string) => void;
+  applyNodeStyle: (viewNodeIds: string[], style: NodeStylePatch) => void;
   deleteEdgeById: (viewEdgeId: string) => void;
   reverseEdgeById: (viewEdgeId: string) => void;
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;
@@ -122,8 +134,20 @@ export interface VFSCanvasResult {
       sourceRole?: string;
       targetRole?: string;
       anchorLocked?: boolean;
+      sourceHandle?: string;
+      targetHandle?: string;
+      sourceAnchor?: { nx: number; ny: number };
+      targetAnchor?: { nx: number; ny: number };
     },
   ) => void;
+  relinkEdgeEndpoint: (
+    viewEdgeId: string,
+    end: 'source' | 'target',
+    newNodeViewId: string,
+  ) => boolean;
+  updateEdgeWaypoints: (viewEdgeId: string, waypoints: { x: number; y: number }[]) => void;
+  updateEdgeRoutingMode: (viewEdgeId: string, routingMode: EdgeRoutingMode) => void;
+  updateEdgeStyle: (viewEdgeId: string, style: EdgeStylePatch) => void;
 }
 
 // ─── Default project bootstrap ────────────────────────────────────────────────
@@ -197,19 +221,20 @@ function ensureDefaultVFSProject(): void {
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
+type NodeBuilder = (ctx: NodeBuilderContext) => VFSCanvasNode[];
+
+// Extend this record when adding a new diagram type — the switch is gone.
+const NODE_BUILDERS: Partial<Record<string, NodeBuilder>> = {
+  CLASS_DIAGRAM:     (ctx) => buildClassDiagramNodes(ctx) as VFSCanvasNode[],
+  PACKAGE_DIAGRAM:   (ctx) => buildClassDiagramNodes(ctx) as VFSCanvasNode[],
+  OBJECT_DIAGRAM:    (ctx) => buildClassDiagramNodes(ctx) as VFSCanvasNode[],
+  USE_CASE_DIAGRAM:  (ctx) => buildUseCaseDiagramNodes(ctx) as VFSCanvasNode[],
+  DOMAIN_MODEL_DIAGRAM: (ctx) => buildDomainModelNodes(ctx) as VFSCanvasNode[],
+  SEQUENCE_DIAGRAM:  (ctx) => buildSequenceDiagramNodes(ctx) as VFSCanvasNode[],
+};
+
 function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSCanvasNode[] {
-  switch (vfsFile.diagramType) {
-    case 'CLASS_DIAGRAM':
-    case 'PACKAGE_DIAGRAM':
-    case 'OBJECT_DIAGRAM':
-      return buildClassDiagramNodes(ctx) as VFSCanvasNode[];
-    case 'USE_CASE_DIAGRAM':
-      return buildUseCaseDiagramNodes(ctx) as VFSCanvasNode[];
-    case 'DOMAIN_MODEL_DIAGRAM':
-      return buildDomainModelNodes(ctx) as VFSCanvasNode[];
-    default:
-      return buildClassDiagramNodes(ctx) as VFSCanvasNode[];
-  }
+  return (NODE_BUILDERS[vfsFile.diagramType] ?? NODE_BUILDERS.CLASS_DIAGRAM!)(ctx);
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -335,6 +360,15 @@ export function useVFSCanvasController(): VFSCanvasResult {
         type: 'vfsUmlEdge',
         sourceHandle: viewEdge.anchorLocked ? viewEdge.sourceHandle : undefined,
         targetHandle: viewEdge.anchorLocked ? viewEdge.targetHandle : undefined,
+        sourceAnchor: viewEdge.sourceAnchor,
+        targetAnchor: viewEdge.targetAnchor,
+        waypoints: viewEdge.waypoints,
+        routingMode: viewEdge.routingMode,
+        color: viewEdge.color,
+        lineWidth: viewEdge.lineWidth,
+        lineStyle: viewEdge.lineStyle,
+        fontFamily: viewEdge.fontFamily,
+        fontSize: viewEdge.fontSize,
         data: {
           domainId: relation.id,
           kind: relation.kind,
@@ -355,7 +389,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
 
   // ── Delegate to extracted hooks ───────────────────────────────────────────
 
-  const eventHandlers = useCanvasEventHandlers({ activeTabId, isStandalone, updateFileContent });
+  const eventHandlers = useCanvasEventHandlers({ activeTabId, isStandalone });
   const nodeActions = useNodeActions({ activeTabId, isStandalone, updateFileContent });
   const edgeActions = useEdgeActions({ activeTabId, isStandalone, updateFileContent });
 
@@ -374,9 +408,14 @@ export function useVFSCanvasController(): VFSCanvasResult {
     removeNodeFromDiagram: nodeActions.removeNodeFromDiagram,
     deleteElementFromModel: nodeActions.deleteElementFromModel,
     duplicateNode: nodeActions.duplicateNode,
+    applyNodeStyle: nodeActions.applyNodeStyle,
     deleteEdgeById: edgeActions.deleteEdgeById,
     reverseEdgeById: edgeActions.reverseEdgeById,
     changeEdgeKind: edgeActions.changeEdgeKind,
     updateVFSEdgeProps: edgeActions.updateVFSEdgeProps,
+    relinkEdgeEndpoint: edgeActions.relinkEdgeEndpoint,
+    updateEdgeWaypoints: edgeActions.updateEdgeWaypoints,
+    updateEdgeRoutingMode: edgeActions.updateEdgeRoutingMode,
+    updateEdgeStyle: edgeActions.updateEdgeStyle,
   };
 }

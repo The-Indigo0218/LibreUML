@@ -152,9 +152,32 @@ function emptySemanticModel(id?: string): SemanticModel {
 // ─── Parse ────────────────────────────────────────────────────────────────────
 
 /**
- * Fallback for V1 .luml files saved as plain JSON (pre-ZIP format).
- * Reads the raw text, validates it matches the legacy DiagramState shape,
- * and delegates to the legacy mapper to produce a diagram-type result.
+ * Returns true when the parsed value is a V2 "flat-JSON" single-diagram export
+ * (the pre-ZIP format: exportType:"diagram" with model+view embedded in root).
+ */
+function isV2FlatDiagram(raw: unknown): raw is {
+  exportType: 'diagram';
+  diagramId: string;
+  diagramName: string;
+  model: Record<string, unknown>;
+  view: Record<string, unknown>;
+} {
+  if (typeof raw !== 'object' || raw === null) return false;
+  const r = raw as Record<string, unknown>;
+  return (
+    r.exportType === 'diagram' &&
+    typeof r.diagramId === 'string' &&
+    typeof r.diagramName === 'string' &&
+    typeof r.model === 'object' && r.model !== null &&
+    typeof r.view === 'object' && r.view !== null
+  );
+}
+
+/**
+ * Fallback for .luml files saved as plain JSON (pre-ZIP format).
+ * Handles two legacy shapes:
+ *   V2 flat-JSON — { exportType:"diagram", diagramId, diagramName, model, view }
+ *   V1 ReactFlow  — { id, name, nodes[], edges[], viewport }
  */
 async function parseLegacyJsonFallback(file: File): Promise<LumlParseResult> {
   let text: string;
@@ -173,6 +196,23 @@ async function parseLegacyJsonFallback(file: File): Promise<LumlParseResult> {
     );
   }
 
+  // ── V2 flat-JSON diagram (pre-ZIP era) ──────────────────────────────────
+  if (isV2FlatDiagram(raw)) {
+    console.info('[LibreUML] V2 flat-JSON diagram detected — migrating to current format.');
+    const rawModel = raw.model as Partial<SemanticModel>;
+    const partialModel: SemanticModel = {
+      ...emptySemanticModel((rawModel as { id?: string }).id),
+      ...rawModel,
+    };
+    return {
+      exportType: 'diagram',
+      view: raw.view as unknown as DiagramView,
+      partialModel,
+      name: raw.diagramName,
+    };
+  }
+
+  // ── V1 ReactFlow snapshot ────────────────────────────────────────────────
   if (!isLegacyDiagramState(raw)) {
     throw new ProjectImportError(
       'Invalid file: does not match any known LibreUML format. ' +

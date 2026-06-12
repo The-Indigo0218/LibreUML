@@ -1,73 +1,51 @@
-/**
- * Generic Node View Model for UI Rendering
- * 
- * This is a presentation DTO that decouples UI components from domain logic.
- * It contains ONLY what the UI needs to render, with no domain-specific types.
- * 
- * CRITICAL: UI components should NEVER import domain types.
- * All domain data must be transformed into this generic structure.
- */
-
-/**
- * Generic section item (attribute, method, literal, etc.)
- */
 export interface NodeSectionItem {
   id: string;
-  text: string; // Pre-formatted display text (e.g., "+ name: String")
-  icon?: string; // Optional icon identifier
+  text: string; 
+  icon?: string; 
   isStatic?: boolean;
   isAbstract?: boolean;
-  metadata?: Record<string, unknown>; // Extensible for future needs
+  metadata?: Record<string, unknown>; 
 }
 
-/**
- * Generic section (attributes, methods, literals, etc.)
- */
+
 export interface NodeSection {
   id: string;
-  title?: string; // Optional section title
+  title?: string; 
   items: NodeSectionItem[];
   collapsible?: boolean;
   collapsed?: boolean;
 }
 
-/**
- * Style configuration for node rendering
- */
+
 export interface NodeStyleConfig {
   containerClass: string;
   headerClass: string;
   badgeColor: string;
-  labelFormat: string; // CSS classes for label formatting (e.g., "italic font-bold")
+  labelFormat: string; 
   showStereotype: boolean;
 }
 
-/**
- * Generic Node View Model
- * 
- * This is what UI components receive. It contains:
- * - Display data (label, stereotype, sections)
- * - Style configuration
- * - NO domain-specific types or logic
- */
+
 export interface NodeViewModel {
-  // Identity
   id: string;
-  domainId: string; // Reference to domain entity for updates
+  domainId: string; 
   
-  // Display data
-  label: string; // Primary label (e.g., class name)
-  sublabel?: string; // Secondary label (e.g., generics like "<T>")
-  stereotype?: string; // Visual stereotype badge (e.g., "interface", "abstract")
-  badge?: string; // Additional badge text (e.g., "main", package name)
+  label: string;
+  sublabel?: string;
+  stereotype?: string; 
+  badge?: string; 
   
-  // Content sections (generic structure)
   sections: NodeSection[];
   
-  // Style configuration
   style: NodeStyleConfig;
-  
-  // Metadata (extensible)
+
+
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+
   metadata?: {
     isMain?: boolean;
     package?: string;
@@ -75,15 +53,17 @@ export interface NodeViewModel {
   };
 }
 
-/**
- * Note-specific view model (simplified)
- */
+
 export interface NoteViewModel {
   id: string;
   domainId: string;
   title?: string;
   content: string;
-  /** Optional persistence callback for saving note content via VFS. */
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
   onSave?: (update: { content?: string; title?: string }) => void;
 }
 
@@ -93,6 +73,8 @@ export interface PackageViewModel {
   name: string;
   collapsed: boolean;
   color?: string;
+  borderWidth?: number;
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
   childCount: number;
   depth: number;
 }
@@ -104,6 +86,11 @@ export interface ActorViewModel {
   name: string;
   isAbstract: boolean;
   actorType?: 'human' | 'system' | 'timer';
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
 }
@@ -115,6 +102,11 @@ export interface UseCaseViewModel {
   name: string;
   extensionPoints: string[];
   hasSpec: boolean;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
   onRename?: (name: string) => void;
   onOpenSpec?: () => void;
 }
@@ -145,25 +137,136 @@ export interface DomainEntityViewModel {
   domainId: string;
   name: string;
   attributes: Array<{ id: string; name: string }>;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
   onRename?: (name: string) => void;
   onOpenProps?: () => void;
 }
 
-/**
- * Union type for all node view models
- */
-export type AnyNodeViewModel = NodeViewModel | NoteViewModel | PackageViewModel | ActorViewModel | UseCaseViewModel | SystemBoundaryViewModel | UCModuleViewModel | DomainEntityViewModel;
+export type LifelineParticipantKindVM = 'CLASS' | 'INTERFACE' | 'ACTOR' | 'OBJECT' | 'ANONYMOUS';
 
-/**
- * Type guard for NodeViewModel
- */
+export interface LifelineViewModel {
+  __brand: 'lifeline';
+  id: string;            
+  domainId: string;       
+  name: string;          
+  participantKind: LifelineParticipantKindVM;
+  isExternal?: boolean;
+  timelineLength: number;
+  headWidth: number;
+  headHeight: number;
+
+  headTopOffset?: number;
+  isDestroyed?: boolean;
+  onRename?: (name: string) => void;
+}
+
+export type MessageKindVM = 'SYNC' | 'ASYNC' | 'REPLY' | 'CREATE' | 'DESTROY';
+
+export interface MessageViewModel {
+  __brand: 'message';
+  id: string;             
+  domainId: string;       
+  name: string;
+  messageKind: MessageKindVM;
+  sequenceNumber: number;
+  displayNumber: string;
+  length: number;
+  isSelfMessage: boolean;
+  isFound?: boolean;
+  isLost?: boolean;
+  onRename?: (name: string) => void;
+}
+
+export interface ActivationViewModel {
+  __brand: 'activation';
+  id: string;             
+  domainId: string;      
+  width: number;
+  height: number;
+  isOpen: boolean;
+  nestingDepth: number;
+}
+
+export type FragmentKindVM =
+  | 'ALT' | 'OPT' | 'LOOP' | 'PAR' | 'SEQ' | 'BREAK' | 'CRITICAL';
+
+export interface FragmentOperandVM {
+  id: string;
+  guard?: string;
+  yOffset: number;
+}
+
+export interface FragmentViewModel {
+  __brand: 'fragment';
+  id: string;
+  domainId: string;
+  fragmentKind: FragmentKindVM;
+  width: number;
+  height: number;
+  operands: FragmentOperandVM[];
+  nestingDepth: number;
+}
+
+export interface StateInvariantViewModel {
+  __brand: 'stateInvariant';
+  id: string;             
+  domainId: string;      
+  constraint: string;
+  width: number;
+  height: number;
+  afterSequenceNumber: number;
+  totalMessages: number;
+}
+
+export interface InteractionUseViewModel {
+  __brand: 'interactionUse';
+  id: string;            
+  domainId: string;    
+  label: string;
+  width: number;
+  height: number;
+  afterSequenceNumber: number;
+  totalMessages: number;
+}
+
+export interface GateViewModel {
+  __brand: 'gate';
+  id: string;           
+  domainId: string;       
+  name: string;
+  side: 'LEFT' | 'RIGHT';
+  size: number;
+  afterSequenceNumber: number;
+  totalMessages: number;
+}
+
+
+export type AnyNodeViewModel =
+  | NodeViewModel
+  | NoteViewModel
+  | PackageViewModel
+  | ActorViewModel
+  | UseCaseViewModel
+  | SystemBoundaryViewModel
+  | UCModuleViewModel
+  | DomainEntityViewModel
+  | LifelineViewModel
+  | MessageViewModel
+  | ActivationViewModel
+  | FragmentViewModel
+  | StateInvariantViewModel
+  | InteractionUseViewModel
+  | GateViewModel;
+
+
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
   return 'sections' in vm;
 }
 
-/**
- * Type guard for NoteViewModel
- */
 export function isNoteViewModel(vm: AnyNodeViewModel): vm is NoteViewModel {
   return 'content' in vm && !('sections' in vm);
 }
@@ -190,4 +293,32 @@ export function isUCModuleViewModel(vm: AnyNodeViewModel): vm is UCModuleViewMod
 
 export function isDomainEntityViewModel(vm: AnyNodeViewModel): vm is DomainEntityViewModel {
   return '__brand' in vm && vm.__brand === 'domainEntity';
+}
+
+export function isLifelineViewModel(vm: AnyNodeViewModel): vm is LifelineViewModel {
+  return '__brand' in vm && vm.__brand === 'lifeline';
+}
+
+export function isMessageViewModel(vm: AnyNodeViewModel): vm is MessageViewModel {
+  return '__brand' in vm && vm.__brand === 'message';
+}
+
+export function isActivationViewModel(vm: AnyNodeViewModel): vm is ActivationViewModel {
+  return '__brand' in vm && vm.__brand === 'activation';
+}
+
+export function isFragmentViewModel(vm: AnyNodeViewModel): vm is FragmentViewModel {
+  return '__brand' in vm && vm.__brand === 'fragment';
+}
+
+export function isStateInvariantViewModel(vm: AnyNodeViewModel): vm is StateInvariantViewModel {
+  return '__brand' in vm && vm.__brand === 'stateInvariant';
+}
+
+export function isInteractionUseViewModel(vm: AnyNodeViewModel): vm is InteractionUseViewModel {
+  return '__brand' in vm && vm.__brand === 'interactionUse';
+}
+
+export function isGateViewModel(vm: AnyNodeViewModel): vm is GateViewModel {
+  return '__brand' in vm && vm.__brand === 'gate';
 }

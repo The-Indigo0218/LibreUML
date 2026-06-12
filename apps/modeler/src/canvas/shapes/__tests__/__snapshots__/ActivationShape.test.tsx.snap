@@ -1,0 +1,69 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ActivationShape > renders a closed activation bar 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"act1","x":55,"y":80,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":10,"height":120,"fill":"#eef2ff","stroke":"#4f46e5","strokeWidth":1}"
+  />
+</div>
+`;
+
+exports[`ActivationShape > renders a deeply nested activation bar 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"act1","x":67,"y":80,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":10,"height":120,"fill":"#eef2ff","stroke":"#4f46e5","strokeWidth":1}"
+  />
+</div>
+`;
+
+exports[`ActivationShape > renders a nested activation bar with offset 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"act1","x":61,"y":80,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":10,"height":120,"fill":"#eef2ff","stroke":"#4f46e5","strokeWidth":1}"
+  />
+</div>
+`;
+
+exports[`ActivationShape > renders an open activation bar with dashed bottom 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"act1","x":55,"y":80,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":10,"height":120,"fill":"#eef2ff","stroke":"#4f46e5","strokeWidth":1}"
+  />
+  <div
+    data-konva="Line"
+    data-props="{"points":[0,120,10,120],"stroke":"#4f46e5","strokeWidth":1.5,"dash":[3,3]}"
+  />
+</div>
+`;
+
+exports[`ActivationShape > renders selected state with cyan outline 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"act1","x":55,"y":80,"visible":true}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":10,"height":120,"fill":"#eef2ff","stroke":"#4f46e5","strokeWidth":1}"
+  />
+  <div
+    data-konva="Rect"
+    data-props="{"x":-2,"y":-2,"width":14,"height":124,"stroke":"#22d3ee","strokeWidth":1.5,"dash":[3,3]}"
+  />
+</div>
+`;

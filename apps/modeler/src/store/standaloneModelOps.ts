@@ -29,6 +29,13 @@ import type {
   IROperation,
   IRDomainEntity,
   IRDomainAttribute,
+  IRLifeline,
+  IRMessage,
+  IRActivation,
+  IRInteractionFragment,
+  IRStateInvariant,
+  IRInteractionUse,
+  IRGate,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -41,6 +48,100 @@ function cascadeDeleteRelations(model: SemanticModel, elementId: string) {
       delete model.relations[rid];
     }
   }
+}
+
+function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: string) {
+  if (!model.messages) return;
+  const removed = new Set<string>();
+  for (const mid of Object.keys(model.messages)) {
+    const msg = model.messages[mid];
+    if (msg.sourceLifelineId === lifelineId || msg.targetLifelineId === lifelineId) {
+      removed.add(mid);
+      delete model.messages[mid];
+    }
+  }
+  if (model.activations) {
+    for (const aid of Object.keys(model.activations)) {
+      const act = model.activations[aid];
+      if (
+        act.lifelineId === lifelineId ||
+        removed.has(act.startMessageId) ||
+        (act.endMessageId && removed.has(act.endMessageId))
+      ) {
+        delete model.activations[aid];
+      }
+    }
+  }
+  if (model.interactionFragments) {
+    for (const fid of Object.keys(model.interactionFragments)) {
+      const frag = model.interactionFragments[fid];
+      frag.coveredLifelineIds = frag.coveredLifelineIds.filter((id) => id !== lifelineId);
+      frag.operands.forEach((op) => {
+        op.messageIds = op.messageIds.filter((mid) => !removed.has(mid));
+      });
+      if (frag.coveredLifelineIds.length === 0) {
+        removeGatesForFragmentLocal(model, fid);
+        delete model.interactionFragments[fid];
+      }
+    }
+  }
+  if (model.stateInvariants) {
+    for (const sid of Object.keys(model.stateInvariants)) {
+      if (model.stateInvariants[sid].lifelineId === lifelineId) {
+        delete model.stateInvariants[sid];
+      }
+    }
+  }
+  if (model.interactionUses) {
+    for (const uid of Object.keys(model.interactionUses)) {
+      const use = model.interactionUses[uid];
+      use.coveredLifelineIds = use.coveredLifelineIds.filter((id) => id !== lifelineId);
+      if (use.coveredLifelineIds.length === 0) {
+        delete model.interactionUses[uid];
+      }
+    }
+  }
+}
+
+function cascadeDeleteActivationsForMessageLocal(model: SemanticModel, messageId: string) {
+  if (!model.activations) return;
+  for (const aid of Object.keys(model.activations)) {
+    const act = model.activations[aid];
+    if (act.startMessageId === messageId) {
+      delete model.activations[aid];
+    } else if (act.endMessageId === messageId) {
+      delete (model.activations[aid] as { endMessageId?: string }).endMessageId;
+    }
+  }
+}
+
+function stripMessageFromFragmentsLocal(model: SemanticModel, messageId: string) {
+  if (!model.interactionFragments) return;
+  for (const frag of Object.values(model.interactionFragments)) {
+    frag.operands.forEach((op) => {
+      op.messageIds = op.messageIds.filter((mid) => mid !== messageId);
+    });
+  }
+}
+
+function clearGateRefsOnMessagesLocal(model: SemanticModel, gateIds: Set<string>) {
+  if (!model.messages || gateIds.size === 0) return;
+  for (const m of Object.values(model.messages)) {
+    if (m.sourceGateId && gateIds.has(m.sourceGateId)) delete (m as { sourceGateId?: string }).sourceGateId;
+    if (m.targetGateId && gateIds.has(m.targetGateId)) delete (m as { targetGateId?: string }).targetGateId;
+  }
+}
+
+function removeGatesForFragmentLocal(model: SemanticModel, fragmentId: string) {
+  if (!model.gates) return;
+  const removed = new Set<string>();
+  for (const gid of Object.keys(model.gates)) {
+    if (model.gates[gid].ownerFragmentId === fragmentId) {
+      removed.add(gid);
+      delete model.gates[gid];
+    }
+  }
+  clearGateRefsOnMessagesLocal(model, removed);
 }
 
 /** Reads the localModel for a file directly from VFSStore (no subscription). */
@@ -330,6 +431,261 @@ export function standaloneModelOps(fileId: string) {
     deleteRelation: (id: string) => {
       update((m) => {
         delete m.relations[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Lifelines (sequence diagrams) ─────────────────────────────────────────
+
+    createLifeline: (data: Omit<IRLifeline, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.lifelines = m.lifelines ?? {};
+        m.lifelines[id] = { ...data, id, kind: 'LIFELINE' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateLifeline: (id: string, patch: Partial<IRLifeline>) => {
+      update((m) => {
+        if (!m.lifelines?.[id]) return;
+        m.lifelines[id] = { ...m.lifelines[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteLifeline: (id: string) => {
+      update((m) => {
+        if (!m.lifelines?.[id]) return;
+        delete m.lifelines[id];
+        cascadeDeleteMessagesByLifeline(m, id);
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Messages (sequence diagrams) ──────────────────────────────────────────
+
+    createMessage: (data: Omit<IRMessage, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      const activationId = crypto.randomUUID();
+      update((m) => {
+        m.messages = m.messages ?? {};
+        m.activations = m.activations ?? {};
+        m.messages[id] = { ...data, id, kind: 'MESSAGE' };
+
+        if (data.messageKind === 'SYNC') {
+          m.activations[activationId] = {
+            id: activationId,
+            kind: 'ACTIVATION',
+            name: '',
+            lifelineId: data.targetLifelineId,
+            startMessageId: id,
+          };
+        }
+
+        if (data.messageKind === 'REPLY' && data.inReplyTo) {
+          for (const aid of Object.keys(m.activations)) {
+            const act = m.activations[aid];
+            if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
+              act.endMessageId = id;
+              break;
+            }
+          }
+        }
+
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateMessage: (id: string, patch: Partial<IRMessage>) => {
+      update((m) => {
+        if (!m.messages?.[id]) return;
+        m.messages[id] = { ...m.messages[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteMessage: (id: string) => {
+      update((m) => {
+        if (!m.messages?.[id]) return;
+        delete m.messages[id];
+        for (const mid of Object.keys(m.messages)) {
+          if (m.messages[mid].inReplyTo === id) {
+            delete m.messages[mid];
+            stripMessageFromFragmentsLocal(m, mid);
+          }
+        }
+        cascadeDeleteActivationsForMessageLocal(m, id);
+        stripMessageFromFragmentsLocal(m, id);
+        m.updatedAt = Date.now();
+      });
+    },
+
+    reorderMessages: (updates: Array<{ id: string; sequenceNumber: number }>) => {
+      update((m) => {
+        if (!m.messages) return;
+        for (const { id, sequenceNumber } of updates) {
+          if (m.messages[id]) {
+            m.messages[id].sequenceNumber = sequenceNumber;
+          }
+        }
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Activations (sequence diagrams) ───────────────────────────────────────
+
+    createActivation: (data: Omit<IRActivation, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.activations = m.activations ?? {};
+        m.activations[id] = { ...data, id, kind: 'ACTIVATION' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateActivation: (id: string, patch: Partial<IRActivation>) => {
+      update((m) => {
+        if (!m.activations?.[id]) return;
+        m.activations[id] = { ...m.activations[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteActivation: (id: string) => {
+      update((m) => {
+        if (!m.activations?.[id]) return;
+        delete m.activations[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Combined Fragments (sequence diagrams) ────────────────────────────────
+
+    createFragment: (data: Omit<IRInteractionFragment, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.interactionFragments = m.interactionFragments ?? {};
+        m.interactionFragments[id] = { ...data, id, kind: 'FRAGMENT' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateFragment: (id: string, patch: Partial<IRInteractionFragment>) => {
+      update((m) => {
+        if (!m.interactionFragments?.[id]) return;
+        m.interactionFragments[id] = { ...m.interactionFragments[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteFragment: (id: string) => {
+      update((m) => {
+        if (!m.interactionFragments?.[id]) return;
+        for (const other of Object.values(m.interactionFragments)) {
+          if (other.parentFragmentId === id) {
+            delete (other as { parentFragmentId?: string }).parentFragmentId;
+          }
+          other.operands.forEach((op) => {
+            op.fragmentIds = op.fragmentIds.filter((fid) => fid !== id);
+          });
+        }
+        if (m.messages) {
+          for (const msg of Object.values(m.messages)) {
+            if (msg.fragmentId === id) delete (msg as { fragmentId?: string }).fragmentId;
+          }
+        }
+        removeGatesForFragmentLocal(m, id);
+        delete m.interactionFragments[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── State Invariants (sequence diagrams) ──────────────────────────────────
+
+    createStateInvariant: (data: Omit<IRStateInvariant, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.stateInvariants = m.stateInvariants ?? {};
+        m.stateInvariants[id] = { ...data, id, kind: 'STATE_INVARIANT' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateStateInvariant: (id: string, patch: Partial<IRStateInvariant>) => {
+      update((m) => {
+        if (!m.stateInvariants?.[id]) return;
+        m.stateInvariants[id] = { ...m.stateInvariants[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteStateInvariant: (id: string) => {
+      update((m) => {
+        if (!m.stateInvariants?.[id]) return;
+        delete m.stateInvariants[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Interaction Uses (`ref`) ──────────────────────────────────────────────
+
+    createInteractionUse: (data: Omit<IRInteractionUse, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.interactionUses = m.interactionUses ?? {};
+        m.interactionUses[id] = { ...data, id, kind: 'INTERACTION_USE' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateInteractionUse: (id: string, patch: Partial<IRInteractionUse>) => {
+      update((m) => {
+        if (!m.interactionUses?.[id]) return;
+        m.interactionUses[id] = { ...m.interactionUses[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteInteractionUse: (id: string) => {
+      update((m) => {
+        if (!m.interactionUses?.[id]) return;
+        delete m.interactionUses[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Gates (`gate`) ────────────────────────────────────────────────────────
+
+    createGate: (data: Omit<IRGate, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.gates = m.gates ?? {};
+        m.gates[id] = { ...data, id, kind: 'GATE' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateGate: (id: string, patch: Partial<IRGate>) => {
+      update((m) => {
+        if (!m.gates?.[id]) return;
+        m.gates[id] = { ...m.gates[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteGate: (id: string) => {
+      update((m) => {
+        if (!m.gates?.[id]) return;
+        delete m.gates[id];
+        clearGateRefsOnMessagesLocal(m, new Set([id]));
         m.updatedAt = Date.now();
       });
     },

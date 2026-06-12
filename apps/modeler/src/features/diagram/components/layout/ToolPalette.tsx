@@ -5,12 +5,13 @@ import { useVFSStore } from "../../../../store/project-vfs.store";
 import type { stereotype, UmlRelationType } from "../../types/diagram.types";
 import { edgeConfig } from "../../../../config/theme.config";
 import { useTranslation } from "react-i18next";
-import { getDiagramRegistry } from "../../../../core/registry/diagram-registry";
+import { getDiagramRegistry, getAllTools } from "../../../../core/registry/diagram-registry";
 import { getIconComponent } from "../../../../core/registry/icon-map";
 import { useKonvaAutoLayout } from "../../../../canvas/hooks/useKonvaAutoLayout";
 import { DRAG_TYPE_NEW } from "../../../../canvas/hooks/useKonvaDnD";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import type { VFSFile } from "../../../../core/domain/vfs/vfs.types";
+import { getRelationShortcutKey } from "../../../../canvas/interactions/relationShortcuts";
 
 export default function ToolPalette() {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
@@ -40,6 +41,22 @@ export default function ToolPalette() {
       return getDiagramRegistry('CLASS_DIAGRAM'); // Fallback to CLASS_DIAGRAM
     }
   }, [diagramType]);
+
+  // The palette lists every node tool across all diagram types (#1). Tools the
+  // active diagram doesn't own are marked "foreign" and sorted after the native
+  // ones; dropping one triggers the cross-diagram guard in useKonvaDnD.
+  const nativeNodeIds = useMemo(
+    () => new Set(registry.tools.nodes.map((tool) => tool.id)),
+    [registry],
+  );
+  const allNodeTools = useMemo(() => {
+    const tools = getAllTools().nodes;
+    return [...tools].sort((a, b) => {
+      const aForeign = nativeNodeIds.has(a.id) ? 0 : 1;
+      const bForeign = nativeNodeIds.has(b.id) ? 0 : 1;
+      return aForeign - bForeign;
+    });
+  }, [nativeNodeIds]);
 
   const setTabConnectionMode = useWorkspaceStore((s) => s.setTabConnectionMode);
 
@@ -90,7 +107,7 @@ export default function ToolPalette() {
           setIsOpen={setIsNodesOpen}
         >
           <div className="flex flex-col gap-2 px-3">
-            {registry.tools.nodes.map((tool) => (
+            {allNodeTools.map((tool) => (
               <DraggableItem
                 key={tool.id}
                 type={tool.id as stereotype}
@@ -98,6 +115,8 @@ export default function ToolPalette() {
                 label={tool.translationKey ? t(tool.translationKey) : tool.label}
                 color={tool.color || 'var(--color-uml-class-border)'}
                 onDragStart={onDragStart}
+                isForeign={!nativeNodeIds.has(tool.id)}
+                foreignHint={t("sidebar.otherDiagram")}
               />
             ))}
           </div>
@@ -125,6 +144,7 @@ export default function ToolPalette() {
                   icon={tool.icon}
                   label={tool.translationKey ? t(tool.translationKey) : tool.label}
                   color={color}
+                  shortcutKey={getRelationShortcutKey(tool.id)}
                 />
               );
             })}
@@ -178,6 +198,10 @@ interface DraggableItemProps {
   label: string;
   color: string;
   onDragStart: (event: React.DragEvent, type: stereotype) => void;
+  /** True when the tool is not native to the active diagram type. */
+  isForeign?: boolean;
+  /** Tooltip suffix shown for foreign tools (e.g. "from another diagram"). */
+  foreignHint?: string;
 }
 
 function DraggableItem({
@@ -186,16 +210,18 @@ function DraggableItem({
   label,
   color,
   onDragStart,
+  isForeign = false,
+  foreignHint,
 }: DraggableItemProps) {
   const [isHovered, setIsHovered] = useState(false);
-  
+
   // Get icon component dynamically
   const IconComponent = getIconComponent(icon);
 
   return (
     <div
-      title={label}
-      className="group flex items-center cursor-grab active:cursor-grabbing rounded-lg transition-all duration-200 border flex-row gap-3 px-3 py-2.5 justify-start"
+      title={isForeign && foreignHint ? `${label} · ${foreignHint}` : label}
+      className={`group flex items-center cursor-grab active:cursor-grabbing rounded-lg transition-all duration-200 border flex-row gap-3 px-3 py-2.5 justify-start ${isForeign ? "opacity-50 hover:opacity-100" : ""}`}
       draggable
       onDragStart={(e) => onDragStart(e, type)}
       onMouseEnter={() => setIsHovered(true)}
@@ -220,6 +246,13 @@ function DraggableItem({
       >
         {label}
       </span>
+
+      {isForeign && (
+        <span
+          className="ml-auto shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400/70"
+          aria-hidden
+        />
+      )}
     </div>
   );
 }
@@ -231,6 +264,8 @@ interface ConnectionItemProps {
   icon: string; // Icon name from Lucide
   label: string;
   color: string;
+  /** Single-key shortcut (uppercase) that activates this tool, or null. */
+  shortcutKey?: string | null;
 }
 
 function ConnectionItem({
@@ -240,6 +275,7 @@ function ConnectionItem({
   icon,
   label,
   color,
+  shortcutKey,
 }: ConnectionItemProps) {
   const isActive = activeMode === mode;
   const [isHovered, setIsHovered] = useState(false);
@@ -252,7 +288,7 @@ function ConnectionItem({
 
   return (
     <button
-      title={label}
+      title={shortcutKey ? `${label} (${shortcutKey})` : label}
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -288,6 +324,19 @@ function ConnectionItem({
       >
         {label}
       </span>
+
+      {shortcutKey && (
+        <kbd
+          className="ml-auto px-1.5 py-0.5 text-[10px] font-mono font-semibold rounded border shrink-0"
+          style={{
+            color: isActive ? "#0B0F1A" : "#9CA3AF",
+            borderColor: isActive ? "#0B0F1A33" : "#9CA3AF33",
+            backgroundColor: isActive ? "#0B0F1A14" : "transparent",
+          }}
+        >
+          {shortcutKey}
+        </kbd>
+      )}
     </button>
   );
 }

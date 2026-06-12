@@ -7,9 +7,48 @@
  * Flat `points` arrays follow the Konva convention: [x0, y0, x1, y1, …].
  */
 
+import type { EdgeRoutingMode } from '../../core/domain/vfs/vfs.types';
+
 export interface Point {
   x: number;
   y: number;
+}
+
+/**
+ * Resolves the routing mode actually used to render an edge.
+ *
+ * Undefined falls back to 'orthogonal' so edges saved before per-edge routing
+ * modes existed keep their original look; freshly drawn edges carry an explicit
+ * mode (created as 'straight'). This is the single source of truth for the
+ * backward-compatibility rule — used by both KonvaEdge (render) and the toolbar
+ * (which mode the popover highlights).
+ */
+export function resolveRoutingMode(mode?: EdgeRoutingMode): EdgeRoutingMode {
+  return mode ?? 'orthogonal';
+}
+
+/**
+ * Decides whether an edge's endpoints should use floating anchors (slide along
+ * the border toward the opposing node) instead of the fixed closest-pair
+ * selection. This is the single gate shared by every diagram type.
+ *
+ * Rules (in order):
+ *  - Self-loops and explicitly locked edges never float.
+ *  - UseCase diagrams always float (their long-standing default).
+ *  - Everywhere else, only `straight` edges float. `curved` is excluded because
+ *    the floating body is rendered as a straight segment (it would flatten the
+ *    curve); legacy `orthogonal` edges (routingMode undefined) stay untouched so
+ *    pre-existing diagrams render pixel-identically.
+ */
+export function shouldFloat(opts: {
+  isUseCaseDiagram: boolean;
+  isSelfLoop: boolean;
+  anchorLocked?: boolean;
+  routingMode?: EdgeRoutingMode;
+}): boolean {
+  if (opts.isSelfLoop || opts.anchorLocked) return false;
+  if (opts.isUseCaseDiagram) return true;
+  return resolveRoutingMode(opts.routingMode) === 'straight';
 }
 
 export interface NodeBounds {
@@ -20,6 +59,9 @@ export interface NodeBounds {
 }
 
 export type AnchorFace = 'Top' | 'Bottom' | 'Left' | 'Right';
+
+/** Geometric outline of a node — rectangles (most shapes) or ellipses (UseCase ovals). */
+export type NodeShape = 'rect' | 'ellipse';
 
 /**
  * 8-position handle label used to persist a locked anchor.
@@ -154,6 +196,64 @@ export function anchorPointToHandle(bounds: NodeBounds, pt: AnchorPoint): Locked
 }
 
 /**
+ * Plain-coordinate variant of anchorPointToHandle: maps an (x, y) on a node's
+ * border to its nearest of the 8 LockedHandle labels. Used by the connection
+ * draw to snapshot the handle the user dropped on (the anchor dots carry no
+ * face, so the AnchorPoint overload is inconvenient there).
+ */
+export function lockedHandleAt(bounds: NodeBounds, x: number, y: number): LockedHandle {
+  return anchorPointToHandle(bounds, { x, y, face: 'Top' });
+}
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+
+/**
+ * P4 — captures a free border anchor: the relative position (nx, ny ∈ [0,1]) of
+ * a point within a node's bounding box. Clamped so it stays on/inside the box.
+ * `magnet` (px, optional) snaps the ratio to the nearest of the 8 handle ratios
+ * when within range, so cardinal/corner drops land clean while the rest stays
+ * continuous.
+ */
+export function ratioFromPoint(
+  bounds: NodeBounds,
+  x: number,
+  y: number,
+  magnet = 0,
+): { nx: number; ny: number } {
+  let nx = clamp01((x - bounds.x) / (bounds.width || 1));
+  let ny = clamp01((y - bounds.y) / (bounds.height || 1));
+  if (magnet > 0) {
+    const mx = magnet / (bounds.width || 1);
+    const my = magnet / (bounds.height || 1);
+    for (const t of [0, 0.5, 1]) {
+      if (Math.abs(nx - t) <= mx) nx = t;
+      if (Math.abs(ny - t) <= my) ny = t;
+    }
+  }
+  return { nx, ny };
+}
+
+/**
+ * P4 — resolves a free border anchor (nx, ny ∈ [0,1]) into an AnchorPoint. The
+ * point is projected onto the NEAREST side of the box (so it sits on the border
+ * even if the stored ratio drifted slightly inward), and `face` is that side —
+ * used for arrow retract and curved/orthogonal entry direction.
+ */
+export function anchorFromRatio(bounds: NodeBounds, r: { nx: number; ny: number }): AnchorPoint {
+  const x = bounds.x + clamp01(r.nx) * bounds.width;
+  const y = bounds.y + clamp01(r.ny) * bounds.height;
+  const dl = x - bounds.x;
+  const dr = bounds.x + bounds.width - x;
+  const dt = y - bounds.y;
+  const db = bounds.y + bounds.height - y;
+  const m = Math.min(dl, dr, dt, db);
+  if (m === dt) return { x, y: bounds.y, face: 'Top' };
+  if (m === db) return { x, y: bounds.y + bounds.height, face: 'Bottom' };
+  if (m === dl) return { x: bounds.x, y, face: 'Left' };
+  return { x: bounds.x + bounds.width, y, face: 'Right' };
+}
+
+/**
  * Reconstructs an AnchorPoint from a stored LockedHandle.
  * Corner anchors are returned with a placeholder face — callers must
  * use resolveLockedAnchors (which assigns dynamic corner faces) instead
@@ -194,6 +294,59 @@ export function resolveLockedAnchors(
 }
 
 /**
+ * Floating anchor: intersection of the ray from `from` (the node center)
+ * toward `to` (the opposing endpoint, usually the other node's center) with this
+ * node's border. Unlike selectAnchors — which snaps to one of 8 fixed handles —
+ * the returned point slides freely along the border so the edge enters radially.
+ *
+ * `shape` picks the outline: 'rect' (bounding box) or 'ellipse' (UseCase ovals).
+ * The returned `face` is the dominant cardinal side the point lands on; it drives
+ * marker retraction fallback and label sidedness (the marker itself can rotate to
+ * the true line direction via directionToAngle).
+ *
+ * Degenerate `from === to` falls back to the Right-face midpoint.
+ */
+export function edgeIntersection(
+  b: NodeBounds,
+  from: Point,
+  to: Point,
+  shape: NodeShape = 'rect',
+): AnchorPoint {
+  const cx = b.x + b.width / 2;
+  const cy = b.y + b.height / 2;
+  const hw = b.width / 2;
+  const hh = b.height / 2;
+
+  const dy = to.y - from.y;
+  // Degenerate from === to: aim Right so we still return a border point.
+  const dx = to.x - from.x === 0 && dy === 0 ? 1 : to.x - from.x;
+
+  let s: number;
+  if (shape === 'ellipse') {
+    // Scale the direction so the point lands on the ellipse (x/a)² + (y/b)² = 1.
+    const nx = dx / (hw || 1);
+    const ny = dy / (hh || 1);
+    s = 1 / Math.hypot(nx, ny);
+  } else {
+    // Rectangle: shortest scale that reaches a vertical or horizontal side.
+    const tx = dx !== 0 ? hw / Math.abs(dx) : Infinity;
+    const ty = dy !== 0 ? hh / Math.abs(dy) : Infinity;
+    s = Math.min(tx, ty);
+  }
+
+  const px = cx + dx * s;
+  const py = cy + dy * s;
+
+  // Dominant face: which border (relative to the node's aspect) the ray exits.
+  const face: AnchorFace =
+    Math.abs(dx) / (hw || 1) >= Math.abs(dy) / (hh || 1)
+      ? dx >= 0 ? 'Right' : 'Left'
+      : dy >= 0 ? 'Bottom' : 'Top';
+
+  return { x: px, y: py, face };
+}
+
+/**
  * Retracts the target anchor inward by `retract` px.
  * The line body terminates at the retracted point; the marker tip stays at the
  * original anchor so it visually touches the node face.
@@ -227,6 +380,36 @@ export function faceToMarkerAngle(face: AnchorFace): number {
 }
 
 /**
+ * Marker rotation (degrees, clockwise) for a freely-angled arrival direction
+ * (floating anchors). `(dx, dy)` is the direction of travel into the target
+ * (source → target). Returns the angle so the marker tip points along it.
+ *
+ * Matches faceToMarkerAngle for the four cardinal directions:
+ *   →(1,0)=0 (enters Left face) · ↓(0,1)=90 (Top) · ←(−1,0)=180 (Right) · ↑(0,−1)=−90 (Bottom).
+ */
+export function directionToAngle(dx: number, dy: number): number {
+  if (dx === 0 && dy === 0) return 0;
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+}
+
+/**
+ * Marker rotation (degrees) for an edge whose final body segment arrives at
+ * `tgt` coming from `from` (the last waypoint, or the source anchor when the
+ * edge has no bends). Used to align the arrowhead with the real last segment of
+ * straight / polyline edges instead of snapping it to the target face's cardinal
+ * angle — which visibly distorts the head on diagonal and bent edges.
+ *
+ * Returns undefined when the two points coincide so the caller can fall back to
+ * the face-based angle.
+ */
+export function arrivalAngle(from: Point, tgt: Point): number | undefined {
+  const dx = tgt.x - from.x;
+  const dy = tgt.y - from.y;
+  if (dx === 0 && dy === 0) return undefined;
+  return directionToAngle(dx, dy);
+}
+
+/**
  * Orthogonal route: two right-angle bends through a midpoint elbow.
  * Returns a flat Konva `points` array.
  *
@@ -255,6 +438,82 @@ export function orthogonalRoute(src: AnchorPoint, tgt: Point): number[] {
 /** Straight two-point route (source → target, no bends). */
 export function straightRoute(src: Point, tgt: Point): number[] {
   return [src.x, src.y, tgt.x, tgt.y];
+}
+
+/**
+ * Polyline route through explicit user waypoints.
+ * Returns a flat Konva points array: [src, ...waypoints, tgt].
+ *
+ * Used when an edge carries manual waypoints — it overrides automatic routing
+ * (orthogonal / curved) so the user's bends are respected verbatim. Reconciling
+ * manual waypoints with orthogonal auto-routing (keeping 90° on the auto
+ * segments) is a separate concern.
+ */
+export function polylineRoute(src: Point, waypoints: Point[], tgt: Point): number[] {
+  const pts: number[] = [src.x, src.y];
+  for (const w of waypoints) pts.push(w.x, w.y);
+  pts.push(tgt.x, tgt.y);
+  return pts;
+}
+
+/**
+ * True when the axis-aligned segment (x1,y1)-(x2,y2) overlaps any obstacle rect.
+ * Bounding-box overlap with strict edges (matches obstacleAvoidance's hit tests).
+ */
+function axisSegHits(x1: number, y1: number, x2: number, y2: number, obstacles: NodeBounds[]): boolean {
+  const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+  const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+  return obstacles.some(
+    (o) => maxX > o.x && minX < o.x + o.width && maxY > o.y && minY < o.y + o.height,
+  );
+}
+
+/**
+ * Orthogonal route through explicit user waypoints.
+ *
+ * Reconciles auto-orthogonal routing with manual bends: the waypoints stay fixed
+ * (the user "pins" them), but each leg between two consecutive control points is
+ * connected with a single right-angle elbow instead of a diagonal. The elbow leads
+ * with the dominant axis (horizontal-first when |dx| ≥ |dy|, else vertical-first)
+ * so the path reads naturally; when `obstacles` are supplied and the dominant
+ * orientation would clip a node, the other orientation is used if it is clean.
+ * Legs that are already axis-aligned add no elbow.
+ *
+ * Because the endpoints come from the live node bounds, the elbows recompute on
+ * every move while the waypoints remain user-fixed — "the lines settle themselves".
+ */
+export function orthogonalPolylineRoute(
+  src: Point,
+  waypoints: Point[],
+  tgt: Point,
+  obstacles: NodeBounds[] = [],
+): number[] {
+  const ctrl: Point[] = [src, ...waypoints, tgt];
+  const out: number[] = [src.x, src.y];
+  for (let i = 0; i < ctrl.length - 1; i++) {
+    const a = ctrl[i];
+    const b = ctrl[i + 1];
+    if (a.x !== b.x && a.y !== b.y) {
+      // Two possible elbows. Prefer the dominant-axis one; if it clips an obstacle
+      // and the alternative is clean, take the alternative.
+      let horizontalFirst = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+      if (obstacles.length > 0) {
+        // horizontal-first elbow corner (b.x, a.y); vertical-first corner (a.x, b.y)
+        const hvHits = axisSegHits(a.x, a.y, b.x, a.y, obstacles) || axisSegHits(b.x, a.y, b.x, b.y, obstacles);
+        const vhHits = axisSegHits(a.x, a.y, a.x, b.y, obstacles) || axisSegHits(a.x, b.y, b.x, b.y, obstacles);
+        const preferredHits = horizontalFirst ? hvHits : vhHits;
+        const altHits = horizontalFirst ? vhHits : hvHits;
+        if (preferredHits && !altHits) horizontalFirst = !horizontalFirst;
+      }
+      if (horizontalFirst) {
+        out.push(b.x, a.y); // horizontal then vertical
+      } else {
+        out.push(a.x, b.y); // vertical then horizontal
+      }
+    }
+    out.push(b.x, b.y);
+  }
+  return out;
 }
 
 /** Outward unit direction for each face (away from the node body). */
@@ -335,5 +594,128 @@ export function selfLoopPath(bounds: NodeBounds, retract: number): SelfLoopResul
     markerX: entryX,
     markerY: entryY,
     markerFace: 'Top',
+  };
+}
+
+// ─── Label position helpers ────────────────────────────────────────────────────
+
+export const LABEL_ALONG = 16; // px along edge from anchor — ensures pill clears node boundary
+const LABEL_PERP  = 10; // px perpendicular from the edge line
+export const ROLE_STACK = 28; // px along edge direction from multiplicity to role
+
+/**
+ * Returns the geometric midpoint of a flat polyline.
+ * For bezier arrays (8-element control-point form) falls back to segment midpoint.
+ */
+function pathMidpoint(pts: number[], isBezier: boolean): { x: number; y: number } {
+  const n = pts.length;
+  if (n < 4) return { x: pts[0] ?? 0, y: pts[1] ?? 0 };
+
+  if (isBezier) {
+    return { x: (pts[0] + pts[n - 2]) / 2, y: (pts[1] + pts[n - 1]) / 2 };
+  }
+  if (n === 4) return { x: (pts[0] + pts[2]) / 2, y: (pts[1] + pts[3]) / 2 };
+
+  let total = 0;
+  const lens: number[] = [];
+  for (let i = 0; i < n - 2; i += 2) {
+    const len = Math.hypot(pts[i + 2] - pts[i], pts[i + 3] - pts[i + 1]);
+    lens.push(len);
+    total += len;
+  }
+  let acc = 0;
+  const half = total / 2;
+  for (let i = 0; i < lens.length; i++) {
+    const next = acc + lens[i];
+    if (next >= half) {
+      const t = lens[i] > 0 ? (half - acc) / lens[i] : 0;
+      return {
+        x: pts[i * 2]     + t * (pts[i * 2 + 2] - pts[i * 2]),
+        y: pts[i * 2 + 1] + t * (pts[i * 2 + 3] - pts[i * 2 + 1]),
+      };
+    }
+    acc = next;
+  }
+  return { x: pts[n - 2], y: pts[n - 1] };
+}
+
+export interface LabelPositions {
+  sourceMultX: number;
+  sourceMultY: number;
+  sourceRoleX: number;
+  sourceRoleY: number;
+  targetMultX: number;
+  targetMultY: number;
+  targetRoleX: number;
+  targetRoleY: number;
+  centerX: number;
+  centerY: number;
+}
+
+/**
+ * Computes label anchor positions using the actual first/last edge segment
+ * direction vectors so labels are always pushed outside the node boundary.
+ *
+ * srcX/srcY     — source anchor (ON node boundary)
+ * tgtX/tgtY     — target marker position (ON node boundary)
+ * pts           — flat points array from the routing function
+ * targetAlong   — override for the along-edge offset at the target end;
+ *                 should be max(LABEL_ALONG, markerDepth + 10) to clear the marker
+ * isBezier      — true for cubic bezier arrays (control-point form)
+ */
+export function computeLabelPositions(
+  pts: number[],
+  srcX: number,
+  srcY: number,
+  tgtX: number,
+  tgtY: number,
+  targetAlong: number,
+  isBezier: boolean,
+): LabelPositions {
+  const n = pts.length;
+  const hasMid = n > 4;
+
+  // Direction at source: from anchor toward first segment (or toward target for 2-pt lines)
+  const sDirX = (hasMid ? pts[2] : pts[n - 2]) - srcX;
+  const sDirY = (hasMid ? pts[3] : pts[n - 1]) - srcY;
+  const sLen  = Math.sqrt(sDirX * sDirX + sDirY * sDirY) || 1;
+  const sNX   = sDirX / sLen;
+  const sNY   = sDirY / sLen;
+  // CW 90° rotation = right side of travel direction
+  const sPerpX =  sNY;
+  const sPerpY = -sNX;
+
+  // Direction at target: backward from marker along last segment
+  const tDirX = (hasMid ? pts[n - 4] : pts[0]) - tgtX;
+  const tDirY = (hasMid ? pts[n - 3] : pts[1]) - tgtY;
+  const tLen  = Math.sqrt(tDirX * tDirX + tDirY * tDirY) || 1;
+  const tNX   = tDirX / tLen;
+  const tNY   = tDirY / tLen;
+  // CCW of backward = CW of forward = right side of travel at target end
+  const tPerpX = -tNY;
+  const tPerpY =  tNX;
+
+  // Multiplicity anchor positions
+  const srcMultX = srcX + sNX * LABEL_ALONG + sPerpX * LABEL_PERP;
+  const srcMultY = srcY + sNY * LABEL_ALONG + sPerpY * LABEL_PERP;
+  const tgtMultX = tgtX + tNX * targetAlong + tPerpX * LABEL_PERP;
+  const tgtMultY = tgtY + tNY * targetAlong + tPerpY * LABEL_PERP;
+
+  const mid = pathMidpoint(pts, isBezier);
+
+  return {
+    sourceMultX: srcMultX,
+    sourceMultY: srcMultY,
+    // Role stacks along the edge direction (away from the node) so it never
+    // overlaps the class box when the edge exits from the top face going upward.
+    sourceRoleX: srcMultX + sNX * ROLE_STACK,
+    sourceRoleY: srcMultY + sNY * ROLE_STACK,
+    targetMultX: tgtMultX,
+    targetMultY: tgtMultY,
+    targetRoleX: tgtMultX + tNX * ROLE_STACK,
+    targetRoleY: tgtMultY + tNY * ROLE_STACK,
+    // Geometric midpoint of the actual path for kind badge / stereotype label
+    centerX: mid.x,
+    centerY: mid.y - 14,
   };
 }

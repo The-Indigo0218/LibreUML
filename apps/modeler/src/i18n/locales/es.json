@@ -86,7 +86,8 @@
       "downloadProject": "Descargar Proyecto",
       "importJava": "Importar Código Java...",
       "exportConfig": "Exportar Código Fuente...",
-      "livePreview": "Vista Previa en Vivo"
+      "livePreview": "Vista Previa en Vivo",
+      "generateStubs": "Generar Stubs de Operaciones"
     },
     "edu": {
       "title": "Edu",
@@ -133,7 +134,8 @@
       "useCase": "Caso de Uso",
       "systemBoundary": "Límite de Sistema",
       "ucModule": "Módulo",
-      "domainEntity": "Entidad"
+      "domainEntity": "Entidad",
+      "lifeline": "Línea de Vida"
     },
     "connections": {
       "title": "Conexiones",
@@ -145,8 +147,14 @@
       "composition": "Composición",
       "include": "«include»",
       "extend": "«extend»",
-      "generalization": "Generalización"
-    }
+      "generalization": "Generalización",
+      "messageSync": "Mensaje Sincrónico",
+      "messageAsync": "Mensaje Asincrónico",
+      "messageReply": "Respuesta",
+      "messageCreate": "Mensaje de Creación",
+      "messageDestroy": "Mensaje de Destrucción"
+    },
+    "otherDiagram": "de otro diagrama"
   },
   "contextMenu": {
     "pane": {
@@ -159,7 +167,11 @@
       "addUseCase": "Agregar Caso de Uso",
       "addSystemBoundary": "Agregar Límite de Sistema",
       "addModule": "Agregar Módulo",
-      "addDomainEntity": "Agregar Entidad"
+      "addDomainEntity": "Agregar Entidad",
+      "insertAltFragment": "Insertar Fragmento ALT",
+      "insertOptFragment": "Insertar Fragmento OPT",
+      "insertLoopFragment": "Insertar Fragmento LOOP",
+      "insertInteractionUse": "Insertar Referencia (ref)"
     },
     "node": {
       "duplicate": "Duplicar",
@@ -174,7 +186,10 @@
       "deleteFromModel": "Eliminar del Modelo",
       "editNote": "Editar Nota",
       "editSpecification": "Editar Especificación",
-      "editActorProperties": "Editar Propiedades"
+      "editActorProperties": "Editar Propiedades",
+      "addStateInvariant": "Añadir Invariante de Estado",
+      "addFoundMessage": "Añadir Mensaje Encontrado",
+      "addLostMessage": "Añadir Mensaje Perdido"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",
@@ -370,7 +385,7 @@
     },
     "packageHierarchy": {
       "title": "Colocar Jerarquía de Paquetes",
-      "parentContains": "El paquete padre '{{parentPath}}' contiene {{content}}. ¿Cómo deseas colocarlo?",
+      "parentContains": "El paquete '{{parentPath}}' contiene {{content}}. ¿Cómo deseas colocarlo?",
       "class_one": "1 clase",
       "class_other": "{{count}} clases",
       "subPackage_one": "1 sub-paquete",
@@ -378,9 +393,16 @@
       "and": "y",
       "placeOnlyTitle": "Colocar solo '{{packagePath}}'",
       "placeOnlyDesc": "Colocar este paquete de forma independiente con nombre completo",
-      "placeHierarchyTitle": "Colocar jerarquía completa de '{{parentPath}}'",
-      "placeHierarchyDesc": "Colocar paquete padre con todas las clases, sub-paquetes y relaciones",
+      "placeHierarchyTitle": "Colocar '{{parentPath}}' con todo su contenido",
+      "placeHierarchyDesc": "Colocar el paquete con todas sus clases, sub-paquetes y relaciones",
       "cancel": "Cancelar"
+    },
+    "crossDiagram": {
+      "title": "Herramienta de otro diagrama",
+      "description": "'{{tool}}' no es un elemento nativo del {{diagram}}. Puedes agregarlo de todas formas (best-effort — puede no exportar ni generar código correctamente) o abstenerte.",
+      "addAnywayTitle": "Agregar de todas formas",
+      "addAnywayDesc": "Coloca el elemento en este diagrama en modo libre (best-effort para exportar y generar código).",
+      "abstain": "No agregar"
     }
   },
   "alerts": {
@@ -780,7 +802,9 @@
     "cancel": "Cancelar",
     "createFile": "Crear Archivo",
     "saveChanges": "Guardar Cambios",
-    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación"
+    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación",
+    "standaloneLabel": "Archivo Independiente",
+    "standaloneDescription": "Aísla este diagrama del modelo compartido. El Explorador de Modelo global se ocultará mientras este archivo esté activo."
   },
   "createFolderModal": {
     "title": "Crear Nueva Carpeta",
@@ -971,10 +995,12 @@
     "footerNote": "Presiona ESC para cerrar este diálogo en cualquier momento",
     "categories": {
       "general": "General",
+      "relations": "Relaciones",
       "canvas": "Lienzo",
       "terminal": "Terminal"
     },
     "shortcuts": {
+      "showShortcuts": "Mostrar Atajos de Teclado",
       "newDiagram": "Nuevo Diagrama (Electron)",
       "newDiagramWeb": "Nuevo Diagrama (Web / Chromium)",
       "openFile": "Abrir Archivo",
@@ -998,6 +1024,137 @@
     "actions": {
       "close": "¡Entendido!"
     }
+  },
+  "selectionToolbar": {
+    "edit": "Editar",
+    "editSpec": "Editar especificación",
+    "editProps": "Editar propiedades",
+    "duplicate": "Duplicar",
+    "delete": "Borrar",
+    "reverse": "Invertir dirección",
+    "properties": "Propiedades",
+    "color": "Color",
+    "border": "Borde",
+    "font": "Fuente",
+    "stroke": "Trazo",
+    "borderSolid": "Sólido",
+    "borderDashed": "Discontinuo",
+    "borderDotted": "Punteado",
+    "copyStyle": "Copiar estilo",
+    "pasteStyle": "Pegar estilo (Ctrl+Shift+V)",
+    "routing": "Estilo de línea",
+    "routingStraight": "Recta",
+    "routingOrthogonal": "Ortogonal",
+    "routingCurved": "Curva"
+  },
+  "inlineEdgePanel": {
+    "title": "Relación",
+    "close": "Cerrar",
+    "rolePlaceholder": "Rol (ej: empleado)",
+    "reverse": "Invertir",
+    "advanced": "Avanzado…"
+  },
+  "inlineClassPanel": {
+    "name": "Nombre de clase",
+    "close": "Cerrar",
+    "attributes": "Atributos",
+    "operations": "Operaciones",
+    "addAttribute": "Añadir atributo…",
+    "addOperation": "Añadir operación…",
+    "literals": "Literales",
+    "addLiteral": "Añadir literal…",
+    "stereotypes": "Estereotipos",
+    "addStereotype": "Añadir estereotipo…",
+    "parameters": "Parámetros",
+    "addParameter": "Añadir parámetro…",
+    "paramName": "parám",
+    "abstract": "Alternar abstracta",
+    "remove": "Quitar",
+    "advanced": "Avanzado…"
+  },
+  "inlineUseCasePanel": {
+    "name": "Nombre del caso de uso",
+    "close": "Cerrar",
+    "brief": "Descripción breve",
+    "briefPlaceholder": "Qué hace este caso de uso…",
+    "extensionPoints": "Puntos de extensión",
+    "addExtensionPoint": "Añadir punto de extensión…",
+    "remove": "Quitar",
+    "advanced": "Avanzado…"
+  },
+  "inlineDomainPanel": {
+    "name": "Nombre de entidad",
+    "close": "Cerrar",
+    "attributes": "Atributos",
+    "addAttribute": "Añadir atributo…",
+    "remove": "Quitar",
+    "advanced": "Avanzado…"
+  },
+  "inlineActorPanel": {
+    "name": "Nombre del actor",
+    "close": "Cerrar",
+    "type": "Tipo",
+    "type_human": "Humano",
+    "type_system": "Sistema",
+    "type_timer": "Temporizador",
+    "abstract": "Abstracto",
+    "advanced": "Avanzado…"
+  },
+  "inlineMessagePanel": {
+    "name": "Nombre del mensaje",
+    "kind": "Tipo",
+    "arguments": "Argumentos",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "inlineFragmentPanel": {
+    "kind": "Tipo",
+    "operands": "Operandos",
+    "guard": "Guarda",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "inlineStateInvariantPanel": {
+    "constraint": "Restricción",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "inlineInteractionUsePanel": {
+    "name": "Nombre",
+    "referencedName": "Interacción referenciada",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "inlineGatePanel": {
+    "name": "Nombre de la puerta",
+    "side": "Lado",
+    "advanced": "Avanzado…",
+    "close": "Cerrar"
+  },
+  "relationPicker": {
+    "title": "Tipo de relación"
+  },
+  "relationTypes": {
+    "association": "Asociación",
+    "inheritance": "Generalización",
+    "implementation": "Realización",
+    "dependency": "Dependencia",
+    "aggregation": "Agregación",
+    "composition": "Composición"
+  },
+  "nodeTypePicker": {
+    "title": "Crear y conectar"
+  },
+  "nodeTypes": {
+    "class": "Clase",
+    "interface": "Interfaz",
+    "abstract": "Clase abstracta",
+    "enum": "Enumeración",
+    "note": "Nota",
+    "actor": "Actor",
+    "use_case": "Caso de uso",
+    "domain_entity": "Entidad",
+    "package": "Paquete"
   },
   "singleClassGenerator": {
     "title": "Generar Código de Clase",
@@ -1382,5 +1539,23 @@
     "extensionPoint.none": "— ninguno —",
     "extensionPoint.placeholder": "Nombre del punto de extensión",
     "extensionPoint.hint": "Define puntos de extensión en «{{name}}» para seleccionar uno aquí"
+  },
+  "fragment": {
+    "title": "Propiedades del Fragmento Combinado",
+    "kind": "Tipo",
+    "operands": "Operandos",
+    "guard": "Guarda",
+    "guard.placeholder": "ej. x > 0",
+    "addOperand": "Agregar operando",
+    "removeOperand": "Eliminar operando",
+    "messageCount": "{{count}} mensaje",
+    "messageCount_plural": "{{count}} mensajes",
+    "warning.lastOperand": "No se puede eliminar el último operando",
+    "warning.singleOperandOnly": "Solo los fragmentos ALT y PAR admiten múltiples operandos",
+    "gates": "Compuertas",
+    "gateUnnamed": "(compuerta sin nombre)",
+    "removeGate": "Eliminar compuerta",
+    "addGateLeft": "Compuerta izq.",
+    "addGateRight": "Compuerta der."
   }
 }

@@ -13,20 +13,24 @@
  *     cleared on dragEnd). KonvaCanvas renders these at opacity 0.3 on the Interaction layer.
  *   - Position persistence: `positionOverrides` (React state Map) is updated ONLY on
  *     dragEnd (one re-render per drag). During drag, zero React state updates occur.
+ *     On dragEnd the final positions are also persisted to VFSStore (via
+ *     onDragComplete). The override is a one-frame bridge until the store render
+ *     catches up; a useLayoutEffect prunes any override that diverges from the
+ *     store (e.g. after undo/redo) so the store stays authoritative.
  *   - Real-time edge routing: `dragPositions` (React state Map | null) is updated via a
  *     50 ms debounce in onDragMove. This triggers ~20 fps React re-renders so edges
  *     re-route during drag without re-rendering every pointer event.
  *
- * Known limitation (MAG-01.5):
- *   Positions are visual-only. They are not written to VFSStore until MAG-01.9.
- *   `positionOverrides` resets when the component unmounts.
+ * Note:
+ *   `positionOverrides` resets when the component unmounts; the persisted
+ *   positions live in VFSStore, which is the single source of truth.
  *
  * Multi-drag behaviour:
  *   - If the dragged node IS in selectedIds → all selected nodes drag together.
  *   - If the dragged node is NOT in selectedIds → only that node drags (no selection change).
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import type { RefObject } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -95,6 +99,28 @@ function snapToGrid(v: number): number {
   return Math.round(v / GRID) * GRID;
 }
 
+/**
+ * Drop any drag override whose value no longer matches the authoritative store
+ * position (e.g. after undo/redo). Returns the same reference when nothing
+ * changes so callers can skip a state update / re-render.
+ */
+export function reconcileOverrides(
+  prev: Map<string, { x: number; y: number }>,
+  nodes: ReadonlyArray<{ id: string; position: { x: number; y: number } }>,
+): Map<string, { x: number; y: number }> {
+  if (prev.size === 0) return prev;
+  let changed = false;
+  const next = new Map(prev);
+  for (const node of nodes) {
+    const ov = next.get(node.id);
+    if (ov && (ov.x !== node.position.x || ov.y !== node.position.y)) {
+      next.delete(node.id);
+      changed = true;
+    }
+  }
+  return changed ? next : prev;
+}
+
 function expandDragGroupWithChildren(
   initialIds: string[],
   shapes: ShapeDescriptor[],
@@ -156,6 +182,22 @@ export function useDragHandler({
 
   // 50 ms debounce for dragPositions state update (edge re-routing)
   const edgeDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Reconcile overrides with the store ──────────────────────────────────────
+  // `positionOverrides` shadows the store position (rendered as
+  // `positionOverrides.get(id) ?? store position`). After a drag we persist the
+  // dropped position to the store, so the override becomes redundant. But when
+  // the store position changes *externally* — undo/redo, programmatic layout,
+  // import — the stale override would keep the node pinned at the dragged spot
+  // and the change would never show. Drop any override that no longer matches the
+  // authoritative store position so the store wins.
+  //
+  // useLayoutEffect (not useEffect) so the prune runs before the browser paints:
+  // the node is never drawn for a frame at the stale override position.
+  useLayoutEffect(() => {
+    if (isDragging.current) return;
+    setPositionOverrides((prev) => reconcileOverrides(prev, nodes));
+  }, [nodes]);
 
   // ── dragStart ─────────────────────────────────────────────────────────────
 

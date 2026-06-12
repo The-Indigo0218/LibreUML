@@ -5,7 +5,7 @@
  */
 
 import type { AnyNodeViewModel } from '../../adapters/view-models/node.view-model';
-import type { RelationKind } from '../../core/domain/vfs/vfs.types';
+import type { RelationKind, EdgeRoutingMode, NodeBorderStyle } from '../../core/domain/vfs/vfs.types';
 
 // ─── Shape / Edge descriptors ─────────────────────────────────────────────────
 
@@ -38,9 +38,23 @@ export interface EdgeDescriptor {
   anchorLocked?: boolean;
   sourceHandle?: string;
   targetHandle?: string;
+  // P4 — free continuous border anchors (nx, ny ∈ [0,1] relative to bounds).
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
   // «extend» specific
   condition?: string;
   extensionPoint?: string;
+  /** Manual user waypoints — when present, the edge routes through them. */
+  waypoints?: { x: number; y: number }[];
+  /** Line routing style. Undefined = 'straight' (free-form). */
+  routingMode?: EdgeRoutingMode;
+  /** Per-edge style overrides: color / line width / line style. */
+  color?: string;
+  lineWidth?: number;
+  lineStyle?: NodeBorderStyle;
+  /** Per-edge label font overrides. */
+  fontFamily?: string;
+  fontSize?: number;
 }
 
 // ─── Change types ─────────────────────────────────────────────────────────────
@@ -61,4 +75,16 @@ export interface KonvaConnection {
   target: string | null;
   sourceHandle: string | null;
   targetHandle: string | null;
+  /**
+   * True when the user dropped precisely on one of the 8 connection points →
+   * the new edge locks to sourceHandle/targetHandle. Absent/false → floating
+   * connection (endpoints slide along the border, the draw.io default).
+   */
+  anchorLocked?: boolean;
+  /**
+   * P4 — free continuous border anchors (nx, ny ∈ [0,1]) captured at draw time.
+   * When present they supersede the handle/lock fields on the new edge.
+   */
+  sourceAnchor?: { nx: number; ny: number };
+  targetAnchor?: { nx: number; ny: number };
 }

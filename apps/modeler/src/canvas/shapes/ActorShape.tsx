@@ -3,8 +3,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { ActorViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveActorColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
-
-// ─── Layout constants ──────────────────────────────────────────────────────────
+import { borderDash } from './borderStyle';
 
 const HEAD_R = 12;
 const HEAD_CY = HEAD_R + 2;
@@ -21,11 +20,18 @@ const STROKE_W = 1.5;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const H_PAD = 8;
 
+export function actorFont(vm: ActorViewModel): { fontSans: string; nameFont: number; nameH: number } {
+  const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
+  const scale = (vm.fontSizeOverride ?? NAME_FONT) / NAME_FONT;
+  return { fontSans, nameFont: NAME_FONT * scale, nameH: NAME_H * scale };
+}
+
 export function getActorShapeSize(vm: ActorViewModel): { width: number; height: number } {
   const minW = ARM_HALF * 2 + HEAD_R * 2;
-  const textW = measureTextWidth(vm.name, `${NAME_FONT}px ${FONT_SANS}`) + H_PAD * 2;
+  const { fontSans, nameFont, nameH } = actorFont(vm);
+  const textW = measureTextWidth(vm.name, `${nameFont}px ${fontSans}`) + H_PAD * 2;
   const width = Math.max(minW, textW);
-  const height = BODY_BOT + LEG_DY + NAME_GAP + NAME_H + 4;
+  const height = BODY_BOT + LEG_DY + NAME_GAP + nameH + 4;
   return { width, height };
 }
 
@@ -61,6 +67,10 @@ export default function ActorShape({
   onDragEnd,
 }: ActorShapeProps) {
   const colors = resolveActorColors();
+  const stroke = vm.colorOverride ?? colors.stroke;
+  const strokeW = vm.borderWidthOverride ?? STROKE_W;
+  const dash = borderDash(vm.borderStyleOverride, strokeW);
+  const { fontSans, nameFont } = actorFont(vm);
   const { width: W, height: H } = getActorShapeSize(vm);
   const cx = W / 2;
 
@@ -90,58 +100,56 @@ export default function ActorShape({
         onContextMenu?.(e, vm.id);
       }}
     >
-      {/* ── Transparent hit-target covering the whole bounding box ────────── */}
       <Rect width={W} height={H} listening={true} />
 
-      {/* ── Head ────────────────────────────────────────────────────────────── */}
       <Circle
         x={cx}
         y={HEAD_CY}
         radius={HEAD_R}
-        stroke={colors.stroke}
-        strokeWidth={STROKE_W}
+        stroke={stroke}
+        strokeWidth={strokeW}
+        dash={dash}
         fill={colors.fill}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Body ────────────────────────────────────────────────────────────── */}
       <Line
         points={[cx, BODY_TOP, cx, BODY_BOT]}
-        stroke={colors.stroke}
-        strokeWidth={STROKE_W}
+        stroke={stroke}
+        strokeWidth={strokeW}
+        dash={dash}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Arms ────────────────────────────────────────────────────────────── */}
       <Line
         points={[cx - ARM_HALF, ARM_Y, cx + ARM_HALF, ARM_Y]}
-        stroke={colors.stroke}
-        strokeWidth={STROKE_W}
+        stroke={stroke}
+        strokeWidth={strokeW}
+        dash={dash}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Left leg ────────────────────────────────────────────────────────── */}
       <Line
         points={[cx, BODY_BOT, cx - LEG_DX, BODY_BOT + LEG_DY]}
-        stroke={colors.stroke}
-        strokeWidth={STROKE_W}
+        stroke={stroke}
+        strokeWidth={strokeW}
+        dash={dash}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Right leg ───────────────────────────────────────────────────────── */}
       <Line
         points={[cx, BODY_BOT, cx + LEG_DX, BODY_BOT + LEG_DY]}
-        stroke={colors.stroke}
-        strokeWidth={STROKE_W}
+        stroke={stroke}
+        strokeWidth={strokeW}
+        dash={dash}
         listening={false}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Stereotype label «system»/«timer» ────────────────────────────── */}
       {vm.actorType && vm.actorType !== 'human' && (
         <Text
           x={0}
@@ -158,14 +166,13 @@ export default function ActorShape({
         />
       )}
 
-      {/* ── Name ────────────────────────────────────────────────────────────── */}
       <Text
         x={0}
         y={BODY_BOT + LEG_DY + NAME_GAP}
         width={W}
         text={vm.name}
-        fontSize={NAME_FONT}
-        fontFamily={FONT_SANS}
+        fontSize={nameFont}
+        fontFamily={fontSans}
         fontStyle={vm.isAbstract ? 'italic' : 'normal'}
         fill={colors.text}
         align="center"
@@ -173,7 +180,6 @@ export default function ActorShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Selection outline ───────────────────────────────────────────────── */}
       {selected && (
         <Rect
           x={-2}

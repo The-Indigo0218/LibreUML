@@ -173,20 +173,21 @@ export function usePackageDrop({
               const viewNode = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
               if (viewNode) {
                 viewNode.parentPackageId = targetPackageId;
-                // When assigning to a UC module, convert stored position to relative
-                // so that dragging the module brings its children along.
-                if (targetPackageId && targetIsModule) {
+                // When assigning to a UC module or system boundary, convert the
+                // stored position to relative so the child sits inside the container
+                // and is carried along when the container is dragged.
+                if (targetPackageId && (targetIsModule || targetIsBoundary)) {
                   const parentVN = file.content.nodes.find((vn: any) => vn.id === targetPackageId);
                   if (parentVN) {
                     viewNode.x = (viewNode.x ?? 0) - (parentVN.x ?? 0);
                     viewNode.y = (viewNode.y ?? 0) - (parentVN.y ?? 0);
                   }
                 }
-                // When removing from a UC module, convert back to absolute
+                // When removing from a UC module or system boundary, convert back to absolute
                 if (!targetPackageId && currentParentId) {
                   const prevParent = file.content.nodes.find((vn: any) => vn.id === currentParentId);
                   const prevParentData = shapes.find((s) => s.id === currentParentId)?.data;
-                  if (prevParent && prevParentData && isUCModuleViewModel(prevParentData)) {
+                  if (prevParent && prevParentData && (isUCModuleViewModel(prevParentData) || isSystemBoundaryViewModel(prevParentData))) {
                     viewNode.x = (viewNode.x ?? 0) + (prevParent.x ?? 0);
                     viewNode.y = (viewNode.y ?? 0) + (prevParent.y ?? 0);
                   }
@@ -217,7 +218,7 @@ export function usePackageDrop({
               const viewNode = file.content.nodes.find((vn: any) => vn.id === droppedNodeId);
               if (viewNode) {
                 viewNode.parentPackageId = targetPackageId;
-                if (targetPackageId && targetIsModule) {
+                if (targetPackageId && (targetIsModule || targetIsBoundary)) {
                   const parentVN = file.content.nodes.find((vn: any) => vn.id === targetPackageId);
                   if (parentVN) {
                     viewNode.x = (viewNode.x ?? 0) - (parentVN.x ?? 0);
@@ -227,7 +228,7 @@ export function usePackageDrop({
                 if (!targetPackageId && currentParentId) {
                   const prevParent = file.content.nodes.find((vn: any) => vn.id === currentParentId);
                   const prevParentData = shapes.find((s) => s.id === currentParentId)?.data;
-                  if (prevParent && prevParentData && isUCModuleViewModel(prevParentData)) {
+                  if (prevParent && prevParentData && (isUCModuleViewModel(prevParentData) || isSystemBoundaryViewModel(prevParentData))) {
                     viewNode.x = (viewNode.x ?? 0) + (prevParent.x ?? 0);
                     viewNode.y = (viewNode.y ?? 0) + (prevParent.y ?? 0);
                   }

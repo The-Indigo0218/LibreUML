@@ -39,6 +39,11 @@ function makeActorNode(
     name: actor.name,
     isAbstract: actor.isAbstract ?? false,
     actorType: actor.actorType,
+    colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
     onRename,
     onOpenProps,
   };
@@ -72,6 +77,11 @@ function makeUseCaseNode(
     name: uc.name,
     extensionPoints: uc.extensionPoints ?? [],
     hasSpec,
+    colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
     onRename,
     onOpenSpec,
   };

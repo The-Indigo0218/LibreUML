@@ -1,49 +1,17 @@
 import type {
   SemanticModel,
-  IRClass,
-  IRInterface,
-  IREnum,
-  IRPackage,
-  IRActor,
-  IRUseCase,
-  IRSystemBoundary,
-  IRUCModule,
-  IRDomainEntity,
   ViewNode,
   DiagramView,
 } from '../../../../core/domain/vfs/vfs.types';
 import type { NoteViewModel } from '../../../../adapters/view-models/node.view-model';
+import { diagramRegistry } from '../../../../core/registry/diagram-registry';
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
-export type SemanticKind =
-  | 'CLASS'
-  | 'ABSTRACT_CLASS'
-  | 'INTERFACE'
-  | 'ENUM'
-  | 'PACKAGE'
-  | 'NOTE'
-  | 'ACTOR'
-  | 'USECASE'
-  | 'SYSTEM_BOUNDARY'
-  | 'UC_MODULE'
-  | 'DOMAIN_ENTITY'
-  | 'UNKNOWN';
-
-export interface ResolvedElement {
-  element:
-    | IRClass
-    | IRInterface
-    | IREnum
-    | IRPackage
-    | IRActor
-    | IRUseCase
-    | IRSystemBoundary
-    | IRUCModule
-    | IRDomainEntity
-    | null;
-  kind: SemanticKind;
-}
+// SemanticKind and ResolvedElement live in vfs.types.ts (canonical location).
+// Re-exported here so existing importers don't break.
+export type { SemanticKind, ResolvedElement } from '../../../../core/domain/vfs/vfs.types';
+import type { ResolvedElement } from '../../../../core/domain/vfs/vfs.types';
 
 export interface NodeBuilderContext {
   diagramView: DiagramView;
@@ -55,35 +23,18 @@ export interface NodeBuilderContext {
 
 // ─── Semantic resolution ──────────────────────────────────────────────────────
 
+/**
+ * Resolves an elementId to its IR element and kind by iterating the registered
+ * diagram-type lookup functions. Adding a new diagram type only requires
+ * adding its semanticLookup to the registry — this function never changes.
+ */
 export function resolveSemanticElement(model: SemanticModel, elementId: string): ResolvedElement {
   if (!elementId) return { element: null, kind: 'NOTE' };
 
-  const cls = model.classes[elementId];
-  if (cls) return { element: cls, kind: cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS' };
-
-  const iface = model.interfaces[elementId];
-  if (iface) return { element: iface, kind: 'INTERFACE' };
-
-  const enm = model.enums[elementId];
-  if (enm) return { element: enm, kind: 'ENUM' };
-
-  const pkg = model.packages[elementId];
-  if (pkg) return { element: pkg, kind: 'PACKAGE' };
-
-  const actor = model.actors?.[elementId];
-  if (actor) return { element: actor, kind: 'ACTOR' };
-
-  const uc = model.useCases?.[elementId];
-  if (uc) return { element: uc, kind: 'USECASE' };
-
-  const sb = model.systemBoundaries?.[elementId];
-  if (sb) return { element: sb, kind: 'SYSTEM_BOUNDARY' };
-
-  const ucm = model.ucModules?.[elementId];
-  if (ucm) return { element: ucm, kind: 'UC_MODULE' };
-
-  const de = model.domainEntities?.[elementId];
-  if (de) return { element: de, kind: 'DOMAIN_ENTITY' };
+  for (const entry of Object.values(diagramRegistry)) {
+    const result = entry.semanticLookup(model, elementId);
+    if (result) return result;
+  }
 
   return { element: null, kind: 'UNKNOWN' };
 }
@@ -111,6 +62,11 @@ export function makeNoteNode(
     domainId: viewNode.id,
     title: viewNode.noteTitle ?? 'Note',
     content: viewNode.content ?? '',
+    colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
     onSave: (update) => onSave(viewNode.id, update),
   };
   return {

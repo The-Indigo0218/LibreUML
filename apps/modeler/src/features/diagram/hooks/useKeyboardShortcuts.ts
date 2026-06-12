@@ -14,6 +14,7 @@ export const useKeyboardShortcuts = () => {
   const openExportModal = useUiStore((s) => s.openExportModal);
   const openWiki = useUiStore((s) => s.openWiki);
   const openFeedback = useUiStore((s) => s.openFeedback);
+  const openKeyboardShortcuts = useUiStore((s) => s.openKeyboardShortcuts);
   const { createNewDiagram, saveDiagram } = useFileLifecycle();
   const showToast = useToastStore((s) => s.show);
   const hasVFSProject = useVFSStore((s) => !!s.project);
@@ -37,6 +38,13 @@ export const useKeyboardShortcuts = () => {
         e.target instanceof HTMLTextAreaElement
       )
         return;
+
+      // "?" (Shift+/) opens the keyboard-shortcuts help overlay.
+      if (e.key === '?') {
+        e.preventDefault();
+        openKeyboardShortcuts();
+        return;
+      }
 
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "z") {
         e.preventDefault();
@@ -105,5 +113,5 @@ export const useKeyboardShortcuts = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [runLayout, openOpenFileModal, openExportModal, openWiki, openFeedback, createNewDiagram, saveDiagram, showToast, hasVFSProject]);
+  }, [runLayout, openOpenFileModal, openExportModal, openWiki, openFeedback, openKeyboardShortcuts, createNewDiagram, saveDiagram, showToast, hasVFSProject]);
 };

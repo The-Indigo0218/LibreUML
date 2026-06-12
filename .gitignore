@@ -78,3 +78,9 @@ docs/tracking
 docs/V1_ARCHITECTURAL_AUDIT.md
 docs/frontend-class-diagram-models.md
 docs/v1-completion-checklist.md
+
+# Playwright (e2e drag harness)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

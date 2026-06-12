@@ -86,7 +86,8 @@
       "downloadProject": "Download Project",
       "importJava": "Import Java Code...",
       "exportConfig": "Export Source Code...",
-      "livePreview": "Live Code Preview"
+      "livePreview": "Live Code Preview",
+      "generateStubs": "Generate Operation Stubs"
     },
     "edu": {
       "title": "Edu",
@@ -125,7 +126,8 @@
       "useCase": "Use Case",
       "systemBoundary": "System Boundary",
       "ucModule": "Module",
-      "domainEntity": "Entity"
+      "domainEntity": "Entity",
+      "lifeline": "Lifeline"
     },
     "connections": {
       "title": "Connections",
@@ -137,8 +139,14 @@
       "composition": "Composition",
       "include": "«include»",
       "extend": "«extend»",
-      "generalization": "Generalization"
-    }
+      "generalization": "Generalization",
+      "messageSync": "Sync Message",
+      "messageAsync": "Async Message",
+      "messageReply": "Reply",
+      "messageCreate": "Create Message",
+      "messageDestroy": "Destroy Message"
+    },
+    "otherDiagram": "from another diagram"
   },
   "contextMenu": {
     "pane": {
@@ -151,7 +159,11 @@
       "addUseCase": "Add Use Case",
       "addSystemBoundary": "Add System Boundary",
       "addModule": "Add Module",
-      "addDomainEntity": "Add Entity"
+      "addDomainEntity": "Add Entity",
+      "insertAltFragment": "Insert ALT Fragment",
+      "insertOptFragment": "Insert OPT Fragment",
+      "insertLoopFragment": "Insert LOOP Fragment",
+      "insertInteractionUse": "Insert Reference (ref)"
     },
     "node": {
       "duplicate": "Duplicate",
@@ -166,7 +178,10 @@
       "deleteFromModel": "Delete from Model",
       "editNote": "Edit Note",
       "editSpecification": "Edit Specification",
-      "editActorProperties": "Edit Properties"
+      "editActorProperties": "Edit Properties",
+      "addStateInvariant": "Add State Invariant",
+      "addFoundMessage": "Add Found Message",
+      "addLostMessage": "Add Lost Message"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",
@@ -361,7 +376,7 @@
     },
     "packageHierarchy": {
       "title": "Place Package Hierarchy",
-      "parentContains": "The parent package '{{parentPath}}' contains {{content}}. How would you like to place it?",
+      "parentContains": "The package '{{parentPath}}' contains {{content}}. How would you like to place it?",
       "class_one": "1 class",
       "class_other": "{{count}} classes",
       "subPackage_one": "1 sub-package",
@@ -369,9 +384,16 @@
       "and": "and",
       "placeOnlyTitle": "Place only '{{packagePath}}'",
       "placeOnlyDesc": "Place this package independently with full qualified name",
-      "placeHierarchyTitle": "Place complete '{{parentPath}}' hierarchy",
-      "placeHierarchyDesc": "Place parent package with all classes, sub-packages, and relationships",
+      "placeHierarchyTitle": "Place '{{parentPath}}' with all its content",
+      "placeHierarchyDesc": "Place the package with all its classes, sub-packages, and relationships",
       "cancel": "Cancel"
+    },
+    "crossDiagram": {
+      "title": "Tool from another diagram",
+      "description": "'{{tool}}' is not a native element of the {{diagram}}. You can add it anyway (best-effort — it may not export or generate code cleanly) or skip it.",
+      "addAnywayTitle": "Add it anyway",
+      "addAnywayDesc": "Place the element in this diagram in free mode (best-effort for export and code generation).",
+      "abstain": "Don't add"
     }
   },
   "alerts": {
@@ -771,7 +793,9 @@
     "cancel": "Cancel",
     "createFile": "Create File",
     "saveChanges": "Save Changes",
-    "fileNameExists": "A file with this name already exists in this location"
+    "fileNameExists": "A file with this name already exists in this location",
+    "standaloneLabel": "Standalone File",
+    "standaloneDescription": "Isolates this diagram from the shared workspace model. The global Model Explorer will be hidden while this file is active."
   },
   "createFolderModal": {
     "title": "Create New Folder",
@@ -962,10 +986,12 @@
     "footerNote": "Press ESC to close this dialog at any time",
     "categories": {
       "general": "General",
+      "relations": "Relations",
       "canvas": "Canvas",
       "terminal": "Terminal"
     },
     "shortcuts": {
+      "showShortcuts": "Show Keyboard Shortcuts",
       "newDiagram": "New Diagram (Electron)",
       "newDiagramWeb": "New Diagram (Web / Chromium)",
       "openFile": "Open File",
@@ -989,6 +1015,137 @@
     "actions": {
       "close": "Got it!"
     }
+  },
+  "selectionToolbar": {
+    "edit": "Edit",
+    "editSpec": "Edit specification",
+    "editProps": "Edit properties",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "reverse": "Reverse direction",
+    "properties": "Properties",
+    "color": "Color",
+    "border": "Border",
+    "font": "Font",
+    "stroke": "Stroke",
+    "borderSolid": "Solid",
+    "borderDashed": "Dashed",
+    "borderDotted": "Dotted",
+    "copyStyle": "Copy style",
+    "pasteStyle": "Paste style (Ctrl+Shift+V)",
+    "routing": "Line style",
+    "routingStraight": "Straight",
+    "routingOrthogonal": "Orthogonal",
+    "routingCurved": "Curved"
+  },
+  "inlineEdgePanel": {
+    "title": "Relation",
+    "close": "Close",
+    "rolePlaceholder": "Role (e.g. employee)",
+    "reverse": "Reverse",
+    "advanced": "Advanced…"
+  },
+  "inlineClassPanel": {
+    "name": "Class name",
+    "close": "Close",
+    "attributes": "Attributes",
+    "operations": "Operations",
+    "addAttribute": "Add attribute…",
+    "addOperation": "Add operation…",
+    "literals": "Literals",
+    "addLiteral": "Add literal…",
+    "stereotypes": "Stereotypes",
+    "addStereotype": "Add stereotype…",
+    "parameters": "Parameters",
+    "addParameter": "Add parameter…",
+    "paramName": "param",
+    "abstract": "Toggle abstract",
+    "remove": "Remove",
+    "advanced": "Advanced…"
+  },
+  "inlineUseCasePanel": {
+    "name": "Use case name",
+    "close": "Close",
+    "brief": "Brief description",
+    "briefPlaceholder": "What this use case does…",
+    "extensionPoints": "Extension points",
+    "addExtensionPoint": "Add extension point…",
+    "remove": "Remove",
+    "advanced": "Advanced…"
+  },
+  "inlineDomainPanel": {
+    "name": "Entity name",
+    "close": "Close",
+    "attributes": "Attributes",
+    "addAttribute": "Add attribute…",
+    "remove": "Remove",
+    "advanced": "Advanced…"
+  },
+  "inlineActorPanel": {
+    "name": "Actor name",
+    "close": "Close",
+    "type": "Type",
+    "type_human": "Human",
+    "type_system": "System",
+    "type_timer": "Timer",
+    "abstract": "Abstract",
+    "advanced": "Advanced…"
+  },
+  "inlineMessagePanel": {
+    "name": "Message name",
+    "kind": "Kind",
+    "arguments": "Arguments",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
+  "inlineFragmentPanel": {
+    "kind": "Kind",
+    "operands": "Operands",
+    "guard": "Guard",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
+  "inlineStateInvariantPanel": {
+    "constraint": "Constraint",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
+  "inlineInteractionUsePanel": {
+    "name": "Name",
+    "referencedName": "Referenced interaction",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
+  "inlineGatePanel": {
+    "name": "Gate name",
+    "side": "Side",
+    "advanced": "Advanced…",
+    "close": "Close"
+  },
+  "relationPicker": {
+    "title": "Relation type"
+  },
+  "relationTypes": {
+    "association": "Association",
+    "inheritance": "Generalization",
+    "implementation": "Realization",
+    "dependency": "Dependency",
+    "aggregation": "Aggregation",
+    "composition": "Composition"
+  },
+  "nodeTypePicker": {
+    "title": "Create and connect"
+  },
+  "nodeTypes": {
+    "class": "Class",
+    "interface": "Interface",
+    "abstract": "Abstract class",
+    "enum": "Enumeration",
+    "note": "Note",
+    "actor": "Actor",
+    "use_case": "Use case",
+    "domain_entity": "Entity",
+    "package": "Package"
   },
   "singleClassGenerator": {
     "title": "Generate Class Code",
@@ -1373,5 +1530,23 @@
     "extensionPoint.none": "— none —",
     "extensionPoint.placeholder": "Extension point name",
     "extensionPoint.hint": "Define extension points in «{{name}}» to select one here"
+  },
+  "fragment": {
+    "title": "Combined Fragment Properties",
+    "kind": "Kind",
+    "operands": "Operands",
+    "guard": "Guard",
+    "guard.placeholder": "e.g. x > 0",
+    "addOperand": "Add operand",
+    "removeOperand": "Remove operand",
+    "messageCount": "{{count}} message",
+    "messageCount_plural": "{{count}} messages",
+    "warning.lastOperand": "Cannot remove the last operand",
+    "warning.singleOperandOnly": "Only ALT and PAR fragments support multiple operands",
+    "gates": "Gates",
+    "gateUnnamed": "(unnamed gate)",
+    "removeGate": "Remove gate",
+    "addGateLeft": "Gate left",
+    "addGateRight": "Gate right"
   }
 }

@@ -1,0 +1,180 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`FragmentShape > renders a LOOP fragment with no guard (warning expected) 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"fr1","x":40,"y":60,"visible":true,"draggable":false}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":300,"height":180,"stroke":"#818cf8","strokeWidth":1,"fill":"transparent"}"
+  />
+  <div
+    data-konva="Rect"
+    data-props="{"width":40,"height":17,"fill":"#312e81","stroke":"#818cf8","strokeWidth":1}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":6,"y":3,"text":"loop","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fontStyle":"bold","fill":"#e0e7ff"}"
+  />
+</div>
+`;
+
+exports[`FragmentShape > renders a fragment with a single operand and no guard 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"fr1","x":40,"y":60,"visible":true,"draggable":false}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":300,"height":180,"stroke":"#818cf8","strokeWidth":1,"fill":"transparent"}"
+  />
+  <div
+    data-konva="Rect"
+    data-props="{"width":33,"height":17,"fill":"#312e81","stroke":"#818cf8","strokeWidth":1}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":6,"y":3,"text":"alt","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fontStyle":"bold","fill":"#e0e7ff"}"
+  />
+</div>
+`;
+
+exports[`FragmentShape > renders a nested fragment with depth offset 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"fr1","x":48,"y":60,"visible":true,"draggable":false}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":300,"height":180,"stroke":"#818cf8","strokeWidth":1,"fill":"transparent"}"
+  />
+  <div
+    data-konva="Rect"
+    data-props="{"width":33,"height":17,"fill":"#312e81","stroke":"#818cf8","strokeWidth":1}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":6,"y":3,"text":"alt","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fontStyle":"bold","fill":"#e0e7ff"}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":41,"y":3,"text":"[x > 0]","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#94a3b8"}"
+  />
+  <div
+    data-konva="Group"
+    data-props="{}"
+  >
+    <div
+      data-konva="Line"
+      data-props="{"points":[0,100,300,100],"stroke":"#64748b","strokeWidth":1,"dash":[5,4]}"
+    />
+    <div
+      data-konva="Text"
+      data-props="{"x":6,"y":104,"text":"[else]","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#94a3b8"}"
+    />
+  </div>
+</div>
+`;
+
+exports[`FragmentShape > renders an ALT fragment with two operands and guards 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"fr1","x":40,"y":60,"visible":true,"draggable":false}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":300,"height":180,"stroke":"#818cf8","strokeWidth":1,"fill":"transparent"}"
+  />
+  <div
+    data-konva="Rect"
+    data-props="{"width":33,"height":17,"fill":"#312e81","stroke":"#818cf8","strokeWidth":1}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":6,"y":3,"text":"alt","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fontStyle":"bold","fill":"#e0e7ff"}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":41,"y":3,"text":"[x > 0]","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#94a3b8"}"
+  />
+  <div
+    data-konva="Group"
+    data-props="{}"
+  >
+    <div
+      data-konva="Line"
+      data-props="{"points":[0,100,300,100],"stroke":"#64748b","strokeWidth":1,"dash":[5,4]}"
+    />
+    <div
+      data-konva="Text"
+      data-props="{"x":6,"y":104,"text":"[else]","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#94a3b8"}"
+    />
+  </div>
+</div>
+`;
+
+exports[`FragmentShape > renders an OPT fragment with a single operand and guard 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"fr1","x":40,"y":60,"visible":true,"draggable":false}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":300,"height":180,"stroke":"#818cf8","strokeWidth":1,"fill":"transparent"}"
+  />
+  <div
+    data-konva="Rect"
+    data-props="{"width":33,"height":17,"fill":"#312e81","stroke":"#818cf8","strokeWidth":1}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":6,"y":3,"text":"opt","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fontStyle":"bold","fill":"#e0e7ff"}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":41,"y":3,"text":"[isReady]","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#94a3b8"}"
+  />
+</div>
+`;
+
+exports[`FragmentShape > renders selected state with cyan outline 1`] = `
+<div
+  data-konva="Group"
+  data-props="{"id":"fr1","x":40,"y":60,"visible":true,"draggable":false}"
+>
+  <div
+    data-konva="Rect"
+    data-props="{"width":300,"height":180,"stroke":"#818cf8","strokeWidth":1,"fill":"transparent"}"
+  />
+  <div
+    data-konva="Rect"
+    data-props="{"width":33,"height":17,"fill":"#312e81","stroke":"#818cf8","strokeWidth":1}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":6,"y":3,"text":"alt","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fontStyle":"bold","fill":"#e0e7ff"}"
+  />
+  <div
+    data-konva="Text"
+    data-props="{"x":41,"y":3,"text":"[x > 0]","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#94a3b8"}"
+  />
+  <div
+    data-konva="Group"
+    data-props="{}"
+  >
+    <div
+      data-konva="Line"
+      data-props="{"points":[0,100,300,100],"stroke":"#64748b","strokeWidth":1,"dash":[5,4]}"
+    />
+    <div
+      data-konva="Text"
+      data-props="{"x":6,"y":104,"text":"[else]","fontSize":11,"fontFamily":"Inter, ui-sans-serif, system-ui, sans-serif","fill":"#94a3b8"}"
+    />
+  </div>
+  <div
+    data-konva="Rect"
+    data-props="{"x":-2,"y":-2,"width":304,"height":184,"stroke":"#22d3ee","strokeWidth":2,"dash":[4,3]}"
+  />
+</div>
+`;

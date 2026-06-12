@@ -78,10 +78,10 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
 
   // ── VFS project export ────────────────────────────────────────────────────
 
-  const standaloneFileNames: string[] = activeProject
+  const standaloneFiles: { id: string; name: string }[] = activeProject
     ? Object.values(activeProject.nodes)
         .filter((n) => n.type === "FILE" && (n as VFSFile).standalone === true)
-        .map((n) => n.name)
+        .map((n) => ({ id: n.id, name: n.name }))
     : [];
 
   const executeProjectSave = async () => {
@@ -93,7 +93,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
   };
 
   const handleSaveProject = () => {
-    if (standaloneFileNames.length > 0) {
+    if (standaloneFiles.length > 0) {
       setIsSaveProjectWarningOpen(true);
     } else {
       executeProjectSave();
@@ -246,7 +246,7 @@ export function FileMenu({ actions, onOpenProjectProperties }: FileMenuProps) {
 
       <SaveProjectWarningModal
         isOpen={isSaveProjectWarningOpen}
-        standaloneFileNames={standaloneFileNames}
+        standaloneFiles={standaloneFiles}
         onClose={() => setIsSaveProjectWarningOpen(false)}
         onConfirm={executeProjectSave}
       />

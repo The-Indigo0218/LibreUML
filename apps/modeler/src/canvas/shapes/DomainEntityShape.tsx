@@ -1,26 +1,10 @@
-/**
- * DomainEntityShape — Konva shape for Domain Model entity nodes.
- *
- * Layout:
- *   ┌─────────────────────────┐  ← amber border (3 px), rounded corners
- *   │  EntityName             │  ← header: name bold 14px, amber bg
- *   ├─────────────────────────┤
- *   │  attributeName          │  ← one row per attribute, name-only (no type)
- *   │  otherAttribute         │
- *   └─────────────────────────┘
- *
- * Intentionally simpler than ClassShape: no stereotype, no badge, no visibility
- * markers — emphasising the conceptual (OOAD analysis) level of abstraction.
- */
-
 import { useMemo } from 'react';
 import { Group, Rect, Text, Line } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { DomainEntityViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveDomainEntityColors } from '../tokens/colors';
 import { measureTextWidth } from './measureText';
-
-// ─── Layout constants ──────────────────────────────────────────────────────────
+import { borderDash } from './borderStyle';
 
 const BORDER_W = 3;
 const RADIUS = 4;
@@ -43,40 +27,53 @@ interface DomainEntityLayout {
   nameY: number;
   separatorY: number;
   attrItemsY: number;
+  fontSans: string;
+  nameFont: number;
+  attrFont: number;
+  attrRowH: number;
 }
 
 function computeLayout(vm: DomainEntityViewModel): DomainEntityLayout {
+  const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
+  const scale = (vm.fontSizeOverride ?? NAME_FONT) / NAME_FONT;
+  const nameFont = NAME_FONT * scale;
+  const attrFont = ATTR_FONT * scale;
+  const nameH = NAME_H * scale;
+  const attrRowH = ATTR_ROW_H * scale;
+  const minAttrH = MIN_ATTR_H * scale;
+
   const candidates = [
-    measureTextWidth(vm.name, `bold ${NAME_FONT}px ${FONT_SANS}`) + 2 * H_PAD + 16,
+    measureTextWidth(vm.name, `bold ${nameFont}px ${fontSans}`) + 2 * H_PAD + 16,
     ...vm.attributes.map(
-      (a) => measureTextWidth(a.name, `${ATTR_FONT}px ${FONT_SANS}`) + 2 * H_PAD,
+      (a) => measureTextWidth(a.name, `${attrFont}px ${fontSans}`) + 2 * H_PAD,
     ),
   ];
   const width = Math.min(MAX_W, Math.max(MIN_W, Math.max(...candidates, 0)));
 
   let y = HEADER_V_PAD;
   const nameY = y;
-  y += NAME_H + HEADER_V_PAD;
+  y += nameH + HEADER_V_PAD;
   const headerH = y;
   const separatorY = y;
 
   y += ATTR_V_PAD;
   const attrItemsY = y;
   const attrsH = vm.attributes.length > 0
-    ? vm.attributes.length * ATTR_ROW_H
-    : MIN_ATTR_H;
+    ? vm.attributes.length * attrRowH
+    : minAttrH;
   y += attrsH + ATTR_V_PAD;
 
-  return { width, height: y, headerH, nameY, separatorY, attrItemsY };
+  return { width, height: y, headerH, nameY, separatorY, attrItemsY, fontSans, nameFont, attrFont, attrRowH };
 }
 
-/** Returns pixel size that DomainEntityShape will occupy for a given view model. */
 export function getDomainEntityShapeSize(vm: DomainEntityViewModel): { width: number; height: number } {
   const { width, height } = computeLayout(vm);
   return { width, height };
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+export function computeDomainEntityLayout(vm: DomainEntityViewModel): DomainEntityLayout {
+  return computeLayout(vm);
+}
 
 interface DomainEntityShapeProps {
   viewModel: DomainEntityViewModel;
@@ -110,8 +107,12 @@ export default function DomainEntityShape({
   onDragEnd,
 }: DomainEntityShapeProps) {
   const colors = resolveDomainEntityColors();
+  const headerBg = vm.colorOverride ?? colors.headerBg;
+  const border = vm.colorOverride ?? colors.border;
+  const borderW = vm.borderWidthOverride ?? BORDER_W;
+  const borderDashArr = borderDash(vm.borderStyleOverride, borderW);
   const layout = useMemo(() => computeLayout(vm), [vm]);
-  const { width: W, height: H } = layout;
+  const { width: W, height: H, fontSans, nameFont, attrFont, attrRowH } = layout;
 
   return (
     <Group
@@ -139,34 +140,32 @@ export default function DomainEntityShape({
         onContextMenu?.(e, vm.id);
       }}
     >
-      {/* ── Outer rect ──────────────────────────────────────────────────────── */}
       <Rect
         width={W}
         height={H}
         fill={colors.bg}
-        stroke={colors.border}
-        strokeWidth={BORDER_W}
+        stroke={border}
+        strokeWidth={borderW}
+        dash={borderDashArr}
         cornerRadius={RADIUS}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Header background ────────────────────────────────────────────────── */}
       <Rect
         width={W}
         height={layout.headerH}
-        fill={colors.headerBg}
+        fill={headerBg}
         cornerRadius={[RADIUS, RADIUS, 0, 0]}
         perfectDrawEnabled={false}
       />
 
-      {/* ── Entity name ──────────────────────────────────────────────────────── */}
       <Text
         x={H_PAD}
         y={layout.nameY + 3}
         width={W - 2 * H_PAD}
         text={vm.name}
-        fontSize={NAME_FONT}
-        fontFamily={FONT_SANS}
+        fontSize={nameFont}
+        fontFamily={fontSans}
         fontStyle="bold"
         fill={colors.text}
         align="center"
@@ -174,31 +173,28 @@ export default function DomainEntityShape({
         perfectDrawEnabled={false}
       />
 
-      {/* ── Header / attributes separator ───────────────────────────────────── */}
       <Line
         points={[0, layout.separatorY, W, layout.separatorY]}
-        stroke={colors.border}
+        stroke={border}
         strokeWidth={BORDER_W}
         listening={false}
       />
 
-      {/* ── Attribute rows ───────────────────────────────────────────────────── */}
       {vm.attributes.map((attr, i) => (
         <Text
           key={attr.id}
           x={H_PAD}
-          y={layout.attrItemsY + i * ATTR_ROW_H + 2}
+          y={layout.attrItemsY + i * attrRowH + 2}
           width={W - 2 * H_PAD}
           text={attr.name}
-          fontSize={ATTR_FONT}
-          fontFamily={FONT_SANS}
+          fontSize={attrFont}
+          fontFamily={fontSans}
           fill={colors.textMuted}
           listening={false}
           perfectDrawEnabled={false}
         />
       ))}
 
-      {/* ── Selection outline ────────────────────────────────────────────────── */}
       {selected && (
         <Rect
           x={-1}

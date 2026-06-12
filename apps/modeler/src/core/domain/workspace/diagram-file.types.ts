@@ -1,11 +1,7 @@
-/**
- * Supported diagram types in the workspace
- */
-export type DiagramType =
-  | 'CLASS_DIAGRAM'
-  | 'USE_CASE_DIAGRAM'
-  | 'DOMAIN_MODEL_DIAGRAM';
-  // Future: 'SEQUENCE_DIAGRAM' | 'ACTIVITY_DIAGRAM' | 'STATE_DIAGRAM'
+// DiagramType is defined once in vfs.types.ts (the full 12-type union) and
+// re-exported here so workspace code always uses the same source of truth.
+import type { DiagramType } from '../vfs/vfs.types';
+export type { DiagramType };
 
 /**
  * Viewport state (camera position and zoom)
@@ -49,6 +45,7 @@ export type DiagramFileMetadata<TDiagramType extends DiagramType> =
   TDiagramType extends 'CLASS_DIAGRAM' ? ClassDiagramMetadata :
   TDiagramType extends 'USE_CASE_DIAGRAM' ? UseCaseDiagramMetadata :
   TDiagramType extends 'DOMAIN_MODEL_DIAGRAM' ? DomainModelDiagramMetadata :
+  TDiagramType extends 'SEQUENCE_DIAGRAM' ? SequenceDiagramMetadata :
   Record<string, unknown>;
 
 /**
@@ -78,4 +75,18 @@ export interface UseCaseDiagramMetadata {
 export interface DomainModelDiagramMetadata {
   activeConnectionMode?: 'ASSOCIATION';
   positionMap?: Record<string, { x: number; y: number }>;
+}
+
+/**
+ * Sequence Diagram specific metadata
+ */
+export interface SequenceDiagramMetadata {
+  activeConnectionMode?:
+    | 'MESSAGE_SYNC'
+    | 'MESSAGE_ASYNC'
+    | 'MESSAGE_REPLY'
+    | 'MESSAGE_CREATE'
+    | 'MESSAGE_DESTROY';
+  /** Persisted X position per lifelineId (Y is always 0 — lifelines sit at the top). */
+  lifelineXMap?: Record<string, number>;
 }

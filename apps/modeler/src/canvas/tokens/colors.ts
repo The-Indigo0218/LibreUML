@@ -163,3 +163,124 @@ export function resolveDomainEntityColors(): KonvaDomainEntityColors {
     textMuted: getCSSVar('--text-secondary'),
   };
 }
+
+export interface KonvaLifelineColors {
+  headBg: string;
+  border: string;
+  text: string;
+  timeline: string;
+}
+
+/** Indigo palette for Sequence Diagram lifelines. */
+export function resolveLifelineColors(): KonvaLifelineColors {
+  const dark = isDark();
+  return {
+    headBg:   dark ? '#1e1b4b' : '#eef2ff',  // indigo-950 / indigo-50
+    border:   dark ? '#818cf8' : '#4f46e5',  // indigo-400 / indigo-600
+    text:     getCSSVar('--text-primary'),
+    timeline: dark ? '#64748b' : '#94a3b8',  // slate-500 / slate-400
+  };
+}
+
+export interface KonvaMessageColors {
+  stroke: string;
+  text: string;
+  fill: string;
+}
+
+/** Colors for sequence-diagram messages (arrows + label). */
+export function resolveMessageColors(): KonvaMessageColors {
+  const dark = isDark();
+  const stroke = dark ? '#e2e8f0' : '#1e293b'; // slate-200 / slate-800
+  return {
+    stroke,
+    text: stroke,
+    fill: stroke,
+  };
+}
+
+export interface KonvaActivationColors {
+  fill: string;
+  border: string;
+}
+
+/** Activation bar palette — slightly stronger indigo than the lifeline head to stand out. */
+export function resolveActivationColors(): KonvaActivationColors {
+  const dark = isDark();
+  return {
+    fill:   dark ? '#a5b4fc' : '#c7d2fe', // indigo-300 / indigo-200
+    border: dark ? '#6366f1' : '#4338ca', // indigo-500 / indigo-700
+  };
+}
+
+export interface KonvaFragmentColors {
+  border: string;
+  labelBg: string;
+  labelText: string;
+  separator: string;
+  guardText: string;
+}
+
+/** Combined-fragment palette — translucent border + tab label. */
+export function resolveFragmentColors(): KonvaFragmentColors {
+  const dark = isDark();
+  return {
+    border:    dark ? '#94a3b8' : '#475569', // slate-400 / slate-600
+    labelBg:   dark ? '#1e293b' : '#e2e8f0', // slate-800 / slate-200
+    labelText: dark ? '#e2e8f0' : '#1e293b',
+    separator: dark ? '#64748b' : '#94a3b8', // slate-500 / slate-400 (dashed)
+    guardText: dark ? '#cbd5e1' : '#334155',
+  };
+}
+
+export interface KonvaInteractionUseColors {
+  border: string;
+  fill: string;
+  labelBg: string;
+  labelText: string;
+  refText: string;
+}
+
+/** Interaction-use (`ref`) palette — slate box with a tinted corner tab. */
+export function resolveInteractionUseColors(): KonvaInteractionUseColors {
+  const dark = isDark();
+  return {
+    border:    dark ? '#94a3b8' : '#475569', // slate-400 / slate-600
+    fill:      dark ? 'rgba(148,163,184,0.07)' : 'rgba(71,85,105,0.05)',
+    labelBg:   dark ? '#1e293b' : '#e2e8f0', // slate-800 / slate-200
+    labelText: dark ? '#e2e8f0' : '#1e293b',
+    refText:   getCSSVar('--text-primary'),
+  };
+}
+
+export interface KonvaGateColors {
+  fill: string;
+  border: string;
+  text: string;
+}
+
+/** Gate marker palette — small square on a fragment boundary. */
+export function resolveGateColors(): KonvaGateColors {
+  const dark = isDark();
+  return {
+    fill:   dark ? '#0f172a' : '#ffffff', // slate-900 / white
+    border: dark ? '#94a3b8' : '#475569', // slate-400 / slate-600
+    text:   getCSSVar('--text-primary'),
+  };
+}
+
+export interface KonvaStateInvariantColors {
+  fill: string;
+  border: string;
+  text: string;
+}
+
+/** State-invariant symbol palette — teal-tinted stadium on the lifeline. */
+export function resolveStateInvariantColors(): KonvaStateInvariantColors {
+  const dark = isDark();
+  return {
+    fill:   dark ? '#0f3d38' : '#ccfbf1', // teal-900/40 / teal-100
+    border: dark ? '#2dd4bf' : '#0d9488', // teal-400 / teal-600
+    text:   dark ? '#99f6e4' : '#0f766e', // teal-200 / teal-700
+  };
+}

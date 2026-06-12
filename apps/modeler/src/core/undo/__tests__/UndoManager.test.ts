@@ -362,25 +362,146 @@ describe('UndoManager', () => {
       expect(stack[0].scope).toBe('global');
     });
 
-    it('getRedoStack filters by scope', () => {
+    it('getRedoStack only exposes the queried file plus the global axis', () => {
+      // Pure-view (vfs-only) edits stay on their own file timeline; a model
+      // change is global by design and is visible from any diagram.
       const { stores } = makeStores();
       const manager = makeManager(stores);
 
       undoTransaction(
-        { label: 'global', scope: 'global', mutations: [{ store: 'model', mutate: (d: ModelState) => { d.model!.value = 1; } }] },
+        { label: 'global model op', scope: 'global', mutations: [{ store: 'model', mutate: (d: ModelState) => { d.model!.value = 1; } }] },
         manager, stores,
       );
       undoTransaction(
-        { label: 'diagram-B op', scope: 'diagram-B', mutations: [{ store: 'model', mutate: (d: ModelState) => { d.model!.value = 2; } }] },
+        { label: 'diagram-B view op', scope: 'diagram-B', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['b'] = { label: 'B' }; } }] },
         manager, stores,
       );
 
-      manager.undo(); // undo diagram-B op (cursor at 0)
-      manager.undo(); // undo global op (cursor at -1)
+      manager.undo('diagram-B'); // undo B's view op
+      manager.undo('diagram-B'); // undo the global model op (visible from B)
 
       const redoStack = manager.getRedoStack('diagram-A');
+      // diagram-A sees the global axis but never diagram-B's private view edit.
       expect(redoStack.some((e) => e.scope === 'global')).toBe(true);
       expect(redoStack.some((e) => e.scope === 'diagram-B')).toBe(false);
+    });
+  });
+
+  describe('independent per-file timelines (Option A)', () => {
+    it('Bug 2 regression — editing A then B, undo in A does not touch B', () => {
+      const { stores, getVFS } = makeStores();
+      const manager = makeManager(stores);
+
+      undoTransaction(
+        { label: 'A: add node', scope: 'file-A', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['a'] = { label: 'A' }; } }] },
+        manager, stores,
+      );
+      undoTransaction(
+        { label: 'B: add node', scope: 'file-B', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['b'] = { label: 'B' }; } }] },
+        manager, stores,
+      );
+
+      manager.undo('file-A');
+
+      // A's node is gone, B's node survives untouched.
+      expect(getVFS().project!.nodes['a']).toBeUndefined();
+      expect(getVFS().project!.nodes['b']).toEqual({ label: 'B' });
+    });
+
+    it('Bug 1 regression — redo in A survives a new edit in B', () => {
+      const { stores, getVFS } = makeStores();
+      const manager = makeManager(stores);
+
+      // A creates a node, then undoes it (A now has a pending redo).
+      undoTransaction(
+        { label: 'A: add node', scope: 'file-A', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['a'] = { label: 'A' }; } }] },
+        manager, stores,
+      );
+      manager.undo('file-A');
+      expect(manager.canRedo('file-A')).toBe(true);
+
+      // A brand-new edit in B must NOT wipe A's redo stack.
+      undoTransaction(
+        { label: 'B: add node', scope: 'file-B', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['b'] = { label: 'B' }; } }] },
+        manager, stores,
+      );
+
+      expect(manager.canRedo('file-A')).toBe(true);
+      manager.redo('file-A');
+      expect(getVFS().project!.nodes['a']).toEqual({ label: 'A' });
+      expect(getVFS().project!.nodes['b']).toEqual({ label: 'B' });
+    });
+
+    it('Bug 3 — shared model change is on the global axis, undoable from any diagram', () => {
+      const { stores, getModel } = makeStores();
+      const manager = makeManager(stores);
+
+      // A model edit triggered while file-A is active.
+      undoTransaction(
+        { label: 'rename shared class', scope: 'file-A', mutations: [{ store: 'model', mutate: (d: ModelState) => { d.model!.name = 'Shared'; } }] },
+        manager, stores,
+      );
+
+      // file-A's *view* timeline holds nothing (the change is global, not per-file)...
+      expect(manager.getUndoStack('file-A').every((e) => e.patchSets.some((p) => p.store === 'model'))).toBe(true);
+      // ...and it is undoable from a completely different diagram.
+      expect(manager.canUndo('file-B')).toBe(true);
+      manager.undo('file-B');
+      expect(getModel().model!.name).toBe('initial');
+    });
+
+    it('Bug 2 — interleaved undos/redos across files keep each cursor intact', () => {
+      const { stores, getVFS } = makeStores();
+      const manager = makeManager(stores);
+
+      // A1, B1, A2 interleaved.
+      undoTransaction(
+        { label: 'A1', scope: 'file-A', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['a1'] = { label: 'A1' }; } }] },
+        manager, stores,
+      );
+      undoTransaction(
+        { label: 'B1', scope: 'file-B', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['b1'] = { label: 'B1' }; } }] },
+        manager, stores,
+      );
+      undoTransaction(
+        { label: 'A2', scope: 'file-A', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['a2'] = { label: 'A2' }; } }] },
+        manager, stores,
+      );
+
+      // Undo in A removes A2 (skipping B1 entirely — it lives on B's timeline).
+      manager.undo('file-A');
+      expect(getVFS().project!.nodes['a2']).toBeUndefined();
+      expect(getVFS().project!.nodes['b1']).toEqual({ label: 'B1' });
+
+      // B's timeline is still fully intact: B1 is undoable, nothing to redo.
+      expect(manager.canUndo('file-B')).toBe(true);
+      expect(manager.canRedo('file-B')).toBe(false);
+      manager.undo('file-B');
+      expect(getVFS().project!.nodes['b1']).toBeUndefined();
+
+      // A still has A1 to undo and A2 to redo.
+      expect(manager.canRedo('file-A')).toBe(true);
+      manager.redo('file-A');
+      expect(getVFS().project!.nodes['a2']).toEqual({ label: 'A2' });
+    });
+
+    it('clearScope drops a single file timeline without touching others', () => {
+      const { stores } = makeStores();
+      const manager = makeManager(stores);
+
+      undoTransaction(
+        { label: 'A1', scope: 'file-A', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['a1'] = { label: 'A1' }; } }] },
+        manager, stores,
+      );
+      undoTransaction(
+        { label: 'B1', scope: 'file-B', mutations: [{ store: 'vfs', mutate: (d: VFSState) => { d.project!.nodes['b1'] = { label: 'B1' }; } }] },
+        manager, stores,
+      );
+
+      manager.clearScope('file-A');
+
+      expect(manager.canUndo('file-A')).toBe(false);
+      expect(manager.canUndo('file-B')).toBe(true);
     });
   });
 

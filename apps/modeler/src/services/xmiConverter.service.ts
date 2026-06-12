@@ -6,6 +6,7 @@ import type {
   ClassMethod,
 } from "../core/domain/models/nodes/class-diagram.types";
 import type { IRClass, IRInterface, IREnum } from "../core/domain/vfs/vfs.types";
+import { readGenerics } from "../util/classifierGenerics";
 
 /**
  * Service responsible for serializing LibreUML diagram state into a
@@ -157,9 +158,8 @@ export class XmiConverterService {
     for (const [id, element] of classMap.entries()) {
       if (!nodeIdSet.has(id)) continue;
       
-      // Only IRClass can have stereotypes (used for generics)
-      if ('stereotypes' in element && element.stereotypes && element.stereotypes.length > 0) {
-        const genericTypes = element.stereotypes.join(', ');
+      const genericTypes = readGenerics(element);
+      if (genericTypes) {
         extensions.push([
           `  <xmi:Extension extender="gvUML">`,
           `    <eAnnotations xmi:id="${id}_generics" source="gvUML" references="${id}">`,

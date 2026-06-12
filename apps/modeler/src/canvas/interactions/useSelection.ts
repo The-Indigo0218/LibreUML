@@ -54,8 +54,12 @@ export interface UseSelectionOptions {
 
 export interface UseSelectionReturn {
   selectedIds: Set<string>;
+  /** Currently selected edge (single-select), or null. Used for waypoint editing. */
+  selectedEdgeId: string | null;
   lassoRect: LassoRect | null;
   onNodeClick: (id: string, ctrl: boolean) => void;
+  /** Selects a single edge, clearing any node selection. */
+  onEdgeClick: (id: string) => void;
   /** Replaces the entire selection with the given IDs. Used by Ctrl+A. */
   selectAll: (ids: string[]) => void;
   stageHandlers: {
@@ -89,9 +93,10 @@ const LASSO_THRESHOLD = 4;
 
 export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSelectionOptions): UseSelectionReturn {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [lassoRect, setLassoRect] = useState<LassoRect | null>(null);
 
-  const { setSelectedNodes, clear } = useSelectionStore();
+  const { setSelection, clear } = useSelectionStore();
 
   // Lasso drag state in refs — immune to stale closures across event handlers.
   const isLassoing = useRef(false);
@@ -99,16 +104,17 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
   // Prevents onStageClick from clearing selection right after a lasso commit.
   const lassoCommitted = useRef(false);
 
-  // ── Sync selectedIds → SelectionStore ──────────────────────────────────
+  // ── Sync selection → SelectionStore (nodes + edge) ─────────────────────
   useEffect(() => {
-    setSelectedNodes([...selectedIds]);
-  }, [selectedIds, setSelectedNodes]);
+    setSelection([...selectedIds], selectedEdgeId ? [selectedEdgeId] : []);
+  }, [selectedIds, selectedEdgeId, setSelection]);
 
   // ── Escape key ──────────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setSelectedIds(new Set());
+        setSelectedEdgeId(null);
         clear();
       }
     };
@@ -118,6 +124,7 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
 
   // ── Node click (single / Ctrl+click) ───────────────────────────────────
   const onNodeClick = useCallback((id: string, ctrl: boolean) => {
+    setSelectedEdgeId(null); // selecting a node clears edge selection
     setSelectedIds((prev) => {
       if (ctrl) {
         const next = new Set(prev);
@@ -132,8 +139,15 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
     });
   }, []);
 
+  // ── Edge click (single-select) ──────────────────────────────────────────
+  const onEdgeClick = useCallback((id: string) => {
+    setSelectedIds(new Set()); // selecting an edge clears node selection
+    setSelectedEdgeId(id);
+  }, []);
+
   // ── Select all (Ctrl+A) ─────────────────────────────────────────────────
   const selectAll = useCallback((ids: string[]) => {
+    setSelectedEdgeId(null);
     setSelectedIds(new Set(ids));
   }, []);
 
@@ -205,6 +219,7 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
                 enclosed.push(id);
               }
             }
+            setSelectedEdgeId(null);
             setSelectedIds(new Set(enclosed));
             lassoCommitted.current = true;
           }
@@ -228,8 +243,12 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
         return;
       }
       const stage = stageRef.current;
-      if (e.target === (stage as unknown)) {
+      const isBackground =
+        e.target === (stage as unknown) ||
+        (e.target as Konva.Node).name() === 'bg-rect';
+      if (isBackground) {
         setSelectedIds(new Set());
+        setSelectedEdgeId(null);
         clear();
       }
     },
@@ -238,8 +257,10 @@ export function useSelection({ stageRef, boundsMapRef, isSpacePressed }: UseSele
 
   return {
     selectedIds,
+    selectedEdgeId,
     lassoRect,
     onNodeClick,
+    onEdgeClick,
     selectAll,
     stageHandlers: {
       onMouseDown: onStageMouseDown,

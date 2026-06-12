@@ -1,6 +1,6 @@
-import { X } from "lucide-react";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
+import { X } from "lucide-react";
 
 export default function TabBar() {
   const { openTabs, activeTabId, setActiveTab, closeTab } = useWorkspaceStore();
@@ -17,14 +17,13 @@ export default function TabBar() {
         if (!node || node.type !== "FILE") return null;
 
         const isActive = tabId === activeTabId;
-        const fileName = node.name;
 
         return (
           <div
             key={tabId}
             onClick={() => setActiveTab(tabId)}
             className={`
-              flex items-center gap-2 px-4 py-2 cursor-pointer transition-colors shrink-0 border-t-2
+              flex items-center gap-1.5 px-3 py-2 cursor-pointer transition-colors shrink-0 border-t-2
               ${
                 isActive
                   ? "bg-surface-secondary border-blue-500 text-text-primary"
@@ -32,7 +31,8 @@ export default function TabBar() {
               }
             `}
           >
-            <span className="text-sm">{fileName}</span>
+            <span className="text-sm px-1">{node.name}</span>
+
             <button
               onClick={(e) => {
                 e.stopPropagation();

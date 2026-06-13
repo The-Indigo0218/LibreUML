@@ -127,7 +127,8 @@
       "systemBoundary": "System Boundary",
       "ucModule": "Module",
       "domainEntity": "Entity",
-      "lifeline": "Lifeline"
+      "lifeline": "Lifeline",
+      "actorLifeline": "Actor"
     },
     "connections": {
       "title": "Connections",
@@ -148,8 +149,15 @@
     },
     "otherDiagram": "from another diagram",
     "fragments": {
-      "title": "Fragments",
-      "advanced": "Advanced"
+      "title": "Fragments"
+    },
+    "structure": {
+      "title": "Structure"
+    },
+    "density": {
+      "basic": "Basic",
+      "advanced": "Advanced",
+      "all": "All"
     }
   },
   "contextMenu": {

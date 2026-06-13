@@ -5,9 +5,10 @@ import type { SemanticModel, ResolvedElement, FragmentKind } from '../domain/vfs
 
 /**
  * Tool type for UI rendering. NODE/EDGE are drag-to-canvas / connection-mode
- * tools; FRAGMENT is a click-to-insert combined fragment (sequence diagrams).
+ * tools; FRAGMENT and STRUCTURE are click-to-insert tools (sequence diagrams) —
+ * FRAGMENT inserts a combined fragment, STRUCTURE inserts a ref / found / lost.
  */
-export type ToolType = 'NODE' | 'EDGE' | 'FRAGMENT';
+export type ToolType = 'NODE' | 'EDGE' | 'FRAGMENT' | 'STRUCTURE';
 
 /** Palette grouping for the common-vs-advanced split (defaults to 'common'). */
 export type ToolCategory = 'common' | 'advanced';
@@ -77,6 +78,8 @@ export interface DiagramTypeRegistry {
     edges: ToolConfig[];
     /** Click-to-insert FRAGMENT tools (sequence operators). Optional. */
     fragments?: ToolConfig[];
+    /** Click-to-insert STRUCTURE tools (ref / found / lost). Optional. */
+    structure?: ToolConfig[];
   };
 
   /**

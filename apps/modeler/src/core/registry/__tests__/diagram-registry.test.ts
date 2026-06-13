@@ -313,6 +313,19 @@ describe('Diagram Registry', () => {
       const ids = [...nodes, ...edges].map((t) => t.id);
       expect(ids.some((id) => id.startsWith('frag-'))).toBe(false);
     });
+
+    it('offers a native Actor participant tool (an ACTOR-kind lifeline)', () => {
+      expect(registry.tools.nodes.map((t) => t.id)).toEqual(['lifeline', 'actor_lifeline', 'note']);
+      expect(getNativeNodeToolIds('SEQUENCE_DIAGRAM').has('actor_lifeline')).toBe(true);
+    });
+
+    it('declares ref / found / lost as click-to-insert STRUCTURE tools', () => {
+      const structure = registry.tools.structure ?? [];
+      expect(structure.map((t) => t.id)).toEqual(['ref', 'msg-found', 'msg-lost']);
+      expect(structure.every((t) => t.type === 'STRUCTURE')).toBe(true);
+      // ref is common; the endpoint messages sit under the advanced disclosure.
+      expect(structure.filter((t) => t.category !== 'advanced').map((t) => t.id)).toEqual(['ref']);
+    });
   });
 
   describe('Domain Model Diagram Registry', () => {

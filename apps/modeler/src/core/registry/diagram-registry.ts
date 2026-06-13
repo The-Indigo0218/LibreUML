@@ -840,6 +840,14 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
         translationKey: 'sidebar.nodes.lifeline',
       },
       {
+        id: 'actor_lifeline',
+        type: 'NODE',
+        label: 'Actor',
+        icon: 'PersonStanding',
+        color: '#6366F1',
+        translationKey: 'sidebar.nodes.actorLifeline',
+      },
+      {
         id: 'note',
         type: 'NODE',
         label: 'Note',
@@ -901,6 +909,14 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
       { id: 'frag-assert',   type: 'FRAGMENT', fragmentKind: 'ASSERT',   category: 'advanced', label: 'assert',   icon: 'BadgeCheck',          color: '#818CF8' },
       { id: 'frag-ignore',   type: 'FRAGMENT', fragmentKind: 'IGNORE',   category: 'advanced', label: 'ignore',   icon: 'EyeOff',              color: '#818CF8' },
       { id: 'frag-consider', type: 'FRAGMENT', fragmentKind: 'CONSIDER', category: 'advanced', label: 'consider', icon: 'Eye',                 color: '#818CF8' },
+    ],
+    // Click-to-insert structural extras. `ref` reuses another interaction;
+    // found/lost are endpoint messages (open outside the interaction) and sit
+    // under "advanced" since they default to the first lifeline.
+    structure: [
+      { id: 'ref',       type: 'STRUCTURE', category: 'common',   label: 'ref',   icon: 'Frame',  color: '#6366F1' },
+      { id: 'msg-found', type: 'STRUCTURE', category: 'advanced', label: 'found', icon: 'LogIn',  color: '#818CF8' },
+      { id: 'msg-lost',  type: 'STRUCTURE', category: 'advanced', label: 'lost',  icon: 'LogOut', color: '#818CF8' },
     ],
   },
 

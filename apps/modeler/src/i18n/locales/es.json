@@ -135,7 +135,8 @@
       "systemBoundary": "Límite de Sistema",
       "ucModule": "Módulo",
       "domainEntity": "Entidad",
-      "lifeline": "Línea de Vida"
+      "lifeline": "Línea de Vida",
+      "actorLifeline": "Actor"
     },
     "connections": {
       "title": "Conexiones",
@@ -156,8 +157,15 @@
     },
     "otherDiagram": "de otro diagrama",
     "fragments": {
-      "title": "Fragmentos",
-      "advanced": "Avanzados"
+      "title": "Fragmentos"
+    },
+    "structure": {
+      "title": "Estructura"
+    },
+    "density": {
+      "basic": "Básico",
+      "advanced": "Avanzado",
+      "all": "Todo"
     }
   },
   "contextMenu": {

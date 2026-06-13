@@ -1,0 +1,143 @@
+import { useWorkspaceStore } from "../../../store/workspace.store";
+import { useVFSStore } from "../../../store/project-vfs.store";
+import { useModelStore } from "../../../store/model.store";
+import { useToastStore } from "../../../store/toast.store";
+import { useUiStore } from "../../../store/uiStore";
+import { standaloneModelOps, getLocalModel } from "../../../store/standaloneModelOps";
+import { isDiagramView } from "../hooks/useVFSCanvasController";
+import { defaultOperandCount } from "../../../core/domain/vfs/vfs.types";
+import type { DiagramView, VFSFile, FragmentKind, SemanticModel } from "../../../core/domain/vfs/vfs.types";
+
+interface ActiveSequence {
+  tabId: string;
+  isStandaloneFile: boolean;
+  activeModel: SemanticModel;
+  /** elementIds of every lifeline currently placed on the canvas. */
+  lifelineIds: string[];
+}
+
+/**
+ * Resolves the active tab to its sequence model and the lifelines on its canvas,
+ * or null when the active tab isn't a sequence diagram. Shared by every
+ * click-to-insert helper below so they reach the same store ops as the menus.
+ */
+function resolveActiveSequence(): ActiveSequence | null {
+  const tabId = useWorkspaceStore.getState().activeTabId;
+  if (!tabId) return null;
+
+  const project = useVFSStore.getState().project;
+  if (!project) return null;
+  const fileNode = project.nodes[tabId];
+  if (!fileNode || fileNode.type !== 'FILE') return null;
+  const content = (fileNode as VFSFile).content;
+  if (!isDiagramView(content)) return null;
+
+  const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+  const activeModel = isStandaloneFile ? getLocalModel(tabId) : useModelStore.getState().model;
+  if (!activeModel) return null;
+
+  const lifelineIds = (content as DiagramView).nodes
+    .map((vn) => vn.elementId)
+    .filter((id): id is string => !!id && !!activeModel.lifelines?.[id]);
+
+  return { tabId, isStandaloneFile, activeModel, lifelineIds };
+}
+
+/**
+ * Inserts a combined fragment of the given kind into the active sequence diagram.
+ * Covers every lifeline on the canvas (MVP policy) and seeds the operand count
+ * the kind requires (alt/par/seq/strict → 2, the rest → 1).
+ */
+export function insertFragmentIntoActiveDiagram(fragmentKind: FragmentKind): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+
+  if (lifelineIds.length === 0) {
+    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un fragmento');
+    return;
+  }
+
+  const operands = Array.from({ length: defaultOperandCount(fragmentKind) }, (_, i) => ({
+    id: crypto.randomUUID(),
+    guard: fragmentKind === 'ALT' && i === 1 ? 'else' : '',
+    messageIds: [] as string[],
+    fragmentIds: [] as string[],
+  }));
+
+  const name = `${fragmentKind.toLowerCase()}-${
+    Object.keys(activeModel.interactionFragments ?? {}).length + 1
+  }`;
+
+  const payload = { name, fragmentKind, coveredLifelineIds: lifelineIds, operands };
+  if (isStandaloneFile) standaloneModelOps(tabId).createFragment(payload);
+  else useModelStore.getState().createFragment(payload);
+}
+
+/**
+ * Inserts an InteractionUse (`ref`) covering every lifeline on the canvas, then
+ * opens its properties so the user names the referenced interaction.
+ */
+export function insertInteractionUseIntoActiveDiagram(): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+
+  if (lifelineIds.length === 0) {
+    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un ref');
+    return;
+  }
+
+  const payload = {
+    name: '',
+    coveredLifelineIds: lifelineIds,
+    afterSequenceNumber: Object.keys(activeModel.messages ?? {}).length,
+  };
+
+  const newId = isStandaloneFile
+    ? standaloneModelOps(tabId).createInteractionUse(payload)
+    : useModelStore.getState().createInteractionUse(payload);
+
+  useUiStore.getState().openInteractionUseProps(newId);
+}
+
+/**
+ * Inserts a found (incoming from outside) or lost (outgoing to outside) message,
+ * then opens its properties. `lifelineId` pins the real endpoint; when omitted
+ * (palette insertion with no selection) it defaults to the first lifeline.
+ */
+export function insertEndpointMessageIntoActiveDiagram(
+  variant: 'found' | 'lost',
+  lifelineId?: string,
+): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+
+  const endpoint = lifelineId ?? lifelineIds[0];
+  if (!endpoint || !activeModel.lifelines?.[endpoint]) {
+    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un mensaje');
+    return;
+  }
+
+  const sequenceNumber =
+    Object.values(activeModel.messages ?? {}).reduce(
+      (acc, m) => (m.sequenceNumber > acc ? m.sequenceNumber : acc),
+      0,
+    ) + 1;
+
+  const payload = {
+    name: '',
+    messageKind: 'ASYNC' as const,
+    sourceLifelineId: variant === 'lost' ? endpoint : '',
+    targetLifelineId: variant === 'found' ? endpoint : '',
+    sequenceNumber,
+    ...(variant === 'found' ? { isFound: true } : { isLost: true }),
+  };
+
+  const newId = isStandaloneFile
+    ? standaloneModelOps(tabId).createMessage(payload)
+    : useModelStore.getState().createMessage(payload);
+
+  useUiStore.getState().openMessageProps(newId);
+}

@@ -33,6 +33,10 @@ import {
   BadgeCheck,
   EyeOff,
   Eye,
+  PersonStanding,
+  LogIn,
+  LogOut,
+  Frame,
 } from "lucide-react";
 
 /**
@@ -74,6 +78,10 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   BadgeCheck,
   EyeOff,
   Eye,
+  PersonStanding,
+  LogIn,
+  LogOut,
+  Frame,
 };
 
 /**

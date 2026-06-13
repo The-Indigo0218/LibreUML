@@ -4,7 +4,6 @@ import { useUiStore } from "../../../store/uiStore";
 import { useWorkspaceStore } from "../../../store/workspace.store";
 import { useVFSStore } from "../../../store/project-vfs.store";
 import { useModelStore } from "../../../store/model.store";
-import { useToastStore } from "../../../store/toast.store";
 import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../store/standaloneModelOps";
 import { isDiagramView } from "./useVFSCanvasController";
 import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
@@ -12,7 +11,11 @@ import { undoTransaction } from "../../../core/undo/undoBridge";
 import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from "../../../canvas/shapes/UCModuleShape";
 import type { DiagramView, ViewNode, VFSFile, FragmentKind } from "../../../core/domain/vfs/vfs.types";
-import { insertFragmentIntoActiveDiagram } from "../services/insertFragment";
+import {
+  insertFragmentIntoActiveDiagram,
+  insertInteractionUseIntoActiveDiagram,
+  insertEndpointMessageIntoActiveDiagram,
+} from "../services/sequenceInserts";
 
 export type ContextMenuType = "pane" | "node" | "edge";
 
@@ -261,45 +264,7 @@ export const useDiagramMenus = ({
 
   // ── Interaction use (`ref`) insertion (sequence diagrams) ─────────────────
 
-  const addInteractionUse = useCallback(() => {
-    const tabId = useWorkspaceStore.getState().activeTabId;
-    if (!tabId) return;
-
-    const project = useVFSStore.getState().project;
-    if (!project) return;
-    const fileNode = project.nodes[tabId];
-    if (!fileNode || fileNode.type !== 'FILE') return;
-    const content = (fileNode as VFSFile).content;
-    if (!isDiagramView(content)) return;
-
-    const isStandaloneFile = (fileNode as VFSFile).standalone === true;
-    const activeModel = isStandaloneFile
-      ? getLocalModel(tabId)
-      : useModelStore.getState().model;
-    if (!activeModel) return;
-
-    const lifelineIds = (content as DiagramView).nodes
-      .map((vn) => vn.elementId)
-      .filter((id): id is string => !!id && !!activeModel.lifelines?.[id]);
-
-    if (lifelineIds.length === 0) {
-      useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un ref');
-      return;
-    }
-
-    const afterSequenceNumber = Object.keys(activeModel.messages ?? {}).length;
-    const payload = {
-      name: '',
-      coveredLifelineIds: lifelineIds,
-      afterSequenceNumber,
-    };
-
-    const newId = isStandaloneFile
-      ? standaloneModelOps(tabId).createInteractionUse(payload)
-      : useModelStore.getState().createInteractionUse(payload);
-
-    useUiStore.getState().openInteractionUseProps(newId);
-  }, []);
+  const addInteractionUse = useCallback(() => insertInteractionUseIntoActiveDiagram(), []);
 
   // ── State invariant insertion (sequence diagrams) ─────────────────────────
 
@@ -345,45 +310,8 @@ export const useDiagramMenus = ({
   // ── Found / Lost message insertion (sequence diagrams) ────────────────────
 
   const addEndpointMessage = useCallback(
-    (lifelineNodeId: string, variant: 'found' | 'lost') => {
-      const tabId = useWorkspaceStore.getState().activeTabId;
-      if (!tabId) return;
-
-      const lifelineId = getElementId(lifelineNodeId);
-      if (!lifelineId) return;
-
-      const project = useVFSStore.getState().project;
-      if (!project) return;
-      const fileNode = project.nodes[tabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-
-      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
-      const activeModel = isStandaloneFile
-        ? getLocalModel(tabId)
-        : useModelStore.getState().model;
-      if (!activeModel?.lifelines?.[lifelineId]) return;
-
-      const sequenceNumber =
-        Object.values(activeModel.messages ?? {}).reduce(
-          (acc, m) => (m.sequenceNumber > acc ? m.sequenceNumber : acc),
-          0,
-        ) + 1;
-
-      const payload = {
-        name: '',
-        messageKind: 'ASYNC' as const,
-        sourceLifelineId: variant === 'lost' ? lifelineId : '',
-        targetLifelineId: variant === 'found' ? lifelineId : '',
-        sequenceNumber,
-        ...(variant === 'found' ? { isFound: true } : { isLost: true }),
-      };
-
-      const newId = isStandaloneFile
-        ? standaloneModelOps(tabId).createMessage(payload)
-        : useModelStore.getState().createMessage(payload);
-
-      useUiStore.getState().openMessageProps(newId);
-    },
+    (lifelineNodeId: string, variant: 'found' | 'lost') =>
+      insertEndpointMessageIntoActiveDiagram(variant, getElementId(lifelineNodeId)),
     [getElementId],
   );
 

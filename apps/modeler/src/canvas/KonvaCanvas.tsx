@@ -106,7 +106,7 @@ import {
 import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, ratioFromPoint, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
-import { yToMessageSlot, yToInvariantSlot, messageYForIndex } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
+import { yToMessageSlot, yToInvariantSlot, messageYForIndex, computeSlotLayout } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
 import { standaloneModelOps } from '../store/standaloneModelOps';
 
 const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
@@ -676,7 +676,12 @@ export default function KonvaCanvas() {
         return;
       }
 
-      const targetSlot = yToMessageSlot(newY, totalMessages);
+      // P4 — map the drop Y to a slot through the same variable layout the
+      // builder used, so reordering lands correctly when fragment headers widen
+      // bands. (Falls back to the uniform grid when the model is unavailable.)
+      const dragModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+      const slotLayout = dragModel ? computeSlotLayout(dragModel) : undefined;
+      const targetSlot = yToMessageSlot(newY, totalMessages, slotLayout);
       const currentSlot = draggedEntry.vm.sequenceNumber;
 
       if (currentSlot === targetSlot && !draggedEntry.vm.isManualY) {
@@ -708,7 +713,7 @@ export default function KonvaCanvas() {
 
       node.position({ x: draggedEntry.shape.x, y: newY });
     },
-    [shapes, vfsController.isStandalone, activeTabId],
+    [shapes, vfsController.isStandalone, vfsController.localModel, activeTabId],
   );
 
   // Drag handler for state invariants, interaction uses, and gates.
@@ -724,7 +729,10 @@ export default function KonvaCanvas() {
       const vm = shapeEntry.data;
       if (!isStateInvariantViewModel(vm) && !isInteractionUseViewModel(vm) && !isGateViewModel(vm)) return;
 
-      const newSlot = yToInvariantSlot(newY, vm.totalMessages);
+      // P4 — invert against the builder's variable slot layout.
+      const derivedModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+      const derivedLayout = derivedModel ? computeSlotLayout(derivedModel) : undefined;
+      const newSlot = yToInvariantSlot(newY, vm.totalMessages, derivedLayout);
       if (newSlot === vm.afterSequenceNumber) {
         node.position({ x: shapeEntry.x, y: shapeEntry.y });
         return;
@@ -746,7 +754,7 @@ export default function KonvaCanvas() {
       // Reset visual position — the store update will re-derive the canonical Y.
       node.position({ x: shapeEntry.x, y: shapeEntry.y });
     },
-    [shapes, vfsController.isStandalone, activeTabId],
+    [shapes, vfsController.isStandalone, vfsController.localModel, activeTabId],
   );
 
   // ── Activation bars: hybrid manual override (P3) ──────────────────────────
@@ -1723,9 +1731,13 @@ export default function KonvaCanvas() {
 
     const messageCount = shapes.filter((s) => isMessageViewModel(s.data)).length;
     const cursorY = connectionDraw.tempLine.y2;
+    // P4 — preview the insert slot through the builder's variable layout so the
+    // guide sits at the real boundary even when fragment headers widen bands.
+    const guideModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+    const guideLayout = guideModel ? computeSlotLayout(guideModel) : undefined;
     // +1 slot so a drop below the last message previews as an append.
-    const slot = yToMessageSlot(cursorY, messageCount + 1);
-    const y = messageYForIndex(slot);
+    const slot = yToMessageSlot(cursorY, messageCount + 1, guideLayout);
+    const y = messageYForIndex(slot, guideLayout);
 
     // Span the guide across all lifeline heads (left edge of leftmost → right of rightmost).
     let left = Infinity;
@@ -1739,6 +1751,8 @@ export default function KonvaCanvas() {
     return { y, left: left - PAD, right: right + PAD, slot };
   }, [
     vfsController.vfsFile?.diagramType,
+    vfsController.isStandalone,
+    vfsController.localModel,
     connectionDraw.isConnecting,
     connectionDraw.tempLine,
     shapes,

@@ -9,6 +9,7 @@ import type {
   IRInteractionUse,
   IRGate,
   ViewNode,
+  SemanticModel,
 } from '../../../../core/domain/vfs/vfs.types';
 import type {
   LifelineViewModel,
@@ -71,14 +72,93 @@ function participantKindFromIR(k: IRLifeline['participantKind']): LifelinePartic
   return k;
 }
 
-function computeTimelineLength(messageCount: number): number {
-  const need = TIMELINE_TOP_PAD + messageCount * MESSAGE_BAND_H + TIMELINE_BOTTOM_PAD;
-  return Math.max(MIN_TIMELINE, need);
+// ─── Variable slot layout (P4) ──────────────────────────────────────────────
+//
+// Slots are MESSAGE_BAND_H tall by default, but a message that *opens* one or
+// more combined fragments needs extra room above it so the fragment header(s)
+// don't compress into the message above — nested/stacked fragments each add a
+// header band. The layout is a cumulative array of boundary offsets; absent a
+// layout every helper degrades to the original uniform grid (backward compat).
+
+/** Extra room reserved above the first message of each fragment for its header. */
+const FRAGMENT_HEADER_ROOM = 26;
+
+export interface SlotLayout {
+  /**
+   * tops[s] = cumulative px offset (from HEAD + TOP_PAD) of the boundary *after*
+   * s messages. tops[0] = 0; length = count + 1. Band i (1-based) is centred at
+   * tops[i] - MESSAGE_BAND_H / 2.
+   */
+  tops: number[];
+  /** Number of ordered messages (= tops.length - 1). */
+  count: number;
 }
 
-export function messageYForIndex(index1Based: number): number {
-  // index 1 → first band centred at TIMELINE_TOP_PAD + 0.5 * MESSAGE_BAND_H
-  return TIMELINE_TOP_PAD + (index1Based - 0.5) * MESSAGE_BAND_H + LIFELINE_HEAD_H;
+type SlotLayoutModel = Pick<SemanticModel, 'messages' | 'interactionFragments'>;
+
+/**
+ * Build the slot layout for a model: a cumulative boundary offset per message,
+ * widening the band before any message that starts a fragment so nested/stacked
+ * fragment headers each get their own room (P4). With no fragments this is the
+ * uniform grid (tops[i] = i * MESSAGE_BAND_H).
+ */
+export function computeSlotLayoutFor(
+  orderedMessages: IRMessage[],
+  fragments: IRInteractionFragment[],
+): SlotLayout {
+  const slotOf = new Map<string, number>();
+  orderedMessages.forEach((m, i) => slotOf.set(m.id, i + 1));
+
+  // How many fragments begin at each 1-based message slot (earliest covered msg).
+  const fragmentStartsAt = new Map<number, number>();
+  for (const frag of fragments) {
+    const slots = frag.operands
+      .flatMap((op) => op.messageIds)
+      .map((id) => slotOf.get(id))
+      .filter((s): s is number => s !== undefined);
+    if (slots.length === 0) continue;
+    const start = Math.min(...slots);
+    fragmentStartsAt.set(start, (fragmentStartsAt.get(start) ?? 0) + 1);
+  }
+
+  const tops = [0];
+  for (let i = 1; i <= orderedMessages.length; i++) {
+    const headerExtra = (fragmentStartsAt.get(i) ?? 0) * FRAGMENT_HEADER_ROOM;
+    tops.push(tops[i - 1] + headerExtra + MESSAGE_BAND_H);
+  }
+  return { tops, count: orderedMessages.length };
+}
+
+/** Model-level convenience wrapper (orders messages by sequenceNumber). */
+export function computeSlotLayout(model: SlotLayoutModel): SlotLayout {
+  const ordered = Object.values(model.messages ?? {}).sort(
+    (a, b) => a.sequenceNumber - b.sequenceNumber,
+  );
+  return computeSlotLayoutFor(ordered, Object.values(model.interactionFragments ?? {}));
+}
+
+/** Offset (from HEAD + TOP_PAD) of band `i`'s centre. */
+function slotCenterOffset(i: number, layout?: SlotLayout): number {
+  if (!layout) return (i - 0.5) * MESSAGE_BAND_H;
+  if (i <= layout.count) return layout.tops[i] - MESSAGE_BAND_H / 2;
+  // Beyond the last message (insertion append) — extrapolate on the uniform grid.
+  return layout.tops[layout.count] + (i - layout.count - 0.5) * MESSAGE_BAND_H;
+}
+
+/** Offset (from HEAD + TOP_PAD) of the boundary *after* `slot` messages. */
+function boundaryOffset(slot: number, layout?: SlotLayout): number {
+  if (!layout) return slot * MESSAGE_BAND_H;
+  if (slot <= layout.count) return layout.tops[slot];
+  return layout.tops[layout.count] + (slot - layout.count) * MESSAGE_BAND_H;
+}
+
+function computeTimelineLength(messageCount: number, layout?: SlotLayout): number {
+  const span = layout ? layout.tops[layout.count] : messageCount * MESSAGE_BAND_H;
+  return Math.max(MIN_TIMELINE, TIMELINE_TOP_PAD + span + TIMELINE_BOTTOM_PAD);
+}
+
+export function messageYForIndex(index1Based: number, layout?: SlotLayout): number {
+  return LIFELINE_HEAD_H + TIMELINE_TOP_PAD + slotCenterOffset(index1Based, layout);
 }
 
 /**
@@ -88,8 +168,8 @@ export function messageYForIndex(index1Based: number): number {
  *
  * Exported for unit tests and for the StateInvariant layout below.
  */
-export function stateInvariantSlotY(slot: number): number {
-  return LIFELINE_HEAD_H + TIMELINE_TOP_PAD + slot * MESSAGE_BAND_H;
+export function stateInvariantSlotY(slot: number, layout?: SlotLayout): number {
+  return LIFELINE_HEAD_H + TIMELINE_TOP_PAD + boundaryOffset(slot, layout);
 }
 
 /** Estimated stadium width for a state-invariant constraint string. */
@@ -162,7 +242,14 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     })
     .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
 
-  const timelineLength = computeTimelineLength(allMessages.length);
+  // Variable slot layout (P4): widen bands that open fragments so headers don't
+  // compress. Shared by every Y derivation below and by the drag/insert inverses.
+  const slotLayout = computeSlotLayoutFor(
+    allMessages,
+    Object.values(model.interactionFragments ?? {}),
+  );
+
+  const timelineLength = computeTimelineLength(allMessages.length, slotLayout);
 
   // 3b. Build a lookup from messageId → 1-based slot (used by activations,
   //     fragments, state invariants and the create/destroy geometry below).
@@ -204,10 +291,10 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     const createSlot = createSlotByLifeline.get(viewNode.elementId);
     const destroySlot = destroySlotByLifeline.get(viewNode.elementId);
     const headTopOffset = createSlot !== undefined
-      ? Math.max(0, messageYForIndex(createSlot) - LIFELINE_HEAD_H / 2)
+      ? Math.max(0, messageYForIndex(createSlot, slotLayout) - LIFELINE_HEAD_H / 2)
       : 0;
     const headBottomY = headTopOffset + LIFELINE_HEAD_H;
-    const endY = destroySlot !== undefined ? messageYForIndex(destroySlot) : normalBottomY;
+    const endY = destroySlot !== undefined ? messageYForIndex(destroySlot, slotLayout) : normalBottomY;
     const llTimelineLength = Math.max(MESSAGE_BAND_H * 0.5, endY - headBottomY);
 
     const viewModel: LifelineViewModel = {
@@ -260,9 +347,9 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     const endIdx = act.endMessageId
       ? messageIndex.get(act.endMessageId) ?? null
       : null;
-    const autoTopY = messageYForIndex(startIdx);
+    const autoTopY = messageYForIndex(startIdx, slotLayout);
     const autoBottomY = endIdx
-      ? messageYForIndex(endIdx)
+      ? messageYForIndex(endIdx, slotLayout)
       : autoTopY + MESSAGE_BAND_H + ACTIVATION_END_PAD;
     const autoHeight = Math.max(MESSAGE_BAND_H * 0.6, autoBottomY - autoTopY);
 
@@ -316,7 +403,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     // Hybrid layout (B2): a manual override pins the glyph Y; otherwise it sits on
     // the computed slot. Ordering/numbering still come from `sequenceNumber`.
     const isManualY = msg.manualY !== undefined;
-    const y = msg.manualY ?? messageYForIndex(idx + 1);
+    const y = msg.manualY ?? messageYForIndex(idx + 1, slotLayout);
 
     let posX: number;
     let length: number;
@@ -381,7 +468,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     .map((si: IRStateInvariant) => {
       const centerX = lifelineCenterX.get(si.lifelineId)!;
       const slot = Math.max(0, Math.min(allMessages.length, si.afterSequenceNumber));
-      const cy = stateInvariantSlotY(slot);
+      const cy = stateInvariantSlotY(slot, slotLayout);
       const width = estimateStateInvariantWidth(si.constraint);
       const height = STATE_INVARIANT_H;
 
@@ -412,7 +499,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     .map((g: IRGate) => {
       const edgeX = gateEdgeX.get(g.id)!;
       const slot = Math.max(0, Math.min(allMessages.length, g.afterSequenceNumber));
-      const cy = stateInvariantSlotY(slot);
+      const cy = stateInvariantSlotY(slot, slotLayout);
 
       const viewModel: GateViewModel = {
         __brand: 'gate',
@@ -447,6 +534,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     lifelineCenterX,
     messageIndex,
     allMessages.length,
+    slotLayout,
   );
 
   // 8. Emit Interaction Uses (`ref`). Rendered with fragments at the back.
@@ -454,6 +542,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     Object.values(model.interactionUses ?? {}),
     lifelineCenterX,
     allMessages.length,
+    slotLayout,
   );
 
   return [
@@ -476,6 +565,7 @@ function buildFragmentNodes(
   lifelineCenterX: Map<string, number>,
   messageIndex: Map<string, number>,
   totalMessages: number,
+  slotLayout?: SlotLayout,
 ) {
   // Compute nesting depth = number of ancestors.
   const depthFor = (frag: IRInteractionFragment): number => {
@@ -505,7 +595,7 @@ function buildFragmentNodes(
       const messageYs = allMsgIds
         .map((mid) => messageIndex.get(mid))
         .filter((idx): idx is number => idx !== undefined)
-        .map((idx) => messageYForIndex(idx));
+        .map((idx) => messageYForIndex(idx, slotLayout));
 
       let top: number;
       let bottom: number;
@@ -565,6 +655,7 @@ function buildInteractionUseNodes(
   uses: IRInteractionUse[],
   lifelineCenterX: Map<string, number>,
   totalMessages: number,
+  slotLayout?: SlotLayout,
 ) {
   return uses
     .map((use) => {
@@ -577,7 +668,7 @@ function buildInteractionUseNodes(
       const width = Math.max(FRAGMENT_MIN_W, right - left);
 
       const slot = Math.max(0, Math.min(totalMessages, use.afterSequenceNumber));
-      const top = stateInvariantSlotY(slot);
+      const top = stateInvariantSlotY(slot, slotLayout);
 
       const viewModel: InteractionUseViewModel = {
         __brand: 'interactionUse',
@@ -607,9 +698,21 @@ function buildInteractionUseNodes(
  *
  * Inverse of `messageYForIndex`.
  */
-export function yToMessageSlot(y: number, totalMessages: number): number {
-  const raw = (y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD) / MESSAGE_BAND_H + 0.5;
-  return Math.max(1, Math.min(totalMessages, Math.round(raw)));
+export function yToMessageSlot(y: number, totalMessages: number, layout?: SlotLayout): number {
+  const localY = y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD;
+  if (!layout) {
+    const raw = localY / MESSAGE_BAND_H + 0.5;
+    return Math.max(1, Math.min(totalMessages, Math.round(raw)));
+  }
+  // Nearest band centre over [1, totalMessages]; totalMessages may be count + 1
+  // for insertion (the extra slot extrapolates below the last message).
+  let best = 1;
+  let bestDist = Infinity;
+  for (let i = 1; i <= totalMessages; i++) {
+    const d = Math.abs(localY - slotCenterOffset(i, layout));
+    if (d < bestDist) { bestDist = d; best = i; }
+  }
+  return best;
 }
 
 /**
@@ -618,9 +721,20 @@ export function yToMessageSlot(y: number, totalMessages: number): number {
  *
  * Inverse of `stateInvariantSlotY`.
  */
-export function yToInvariantSlot(y: number, totalMessages: number): number {
-  const raw = (y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD) / MESSAGE_BAND_H;
-  return Math.max(0, Math.min(totalMessages, Math.round(raw)));
+export function yToInvariantSlot(y: number, totalMessages: number, layout?: SlotLayout): number {
+  const localY = y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD;
+  if (!layout) {
+    const raw = localY / MESSAGE_BAND_H;
+    return Math.max(0, Math.min(totalMessages, Math.round(raw)));
+  }
+  // Nearest message boundary over [0, totalMessages].
+  let best = 0;
+  let bestDist = Infinity;
+  for (let s = 0; s <= totalMessages; s++) {
+    const d = Math.abs(localY - boundaryOffset(s, layout));
+    if (d < bestDist) { bestDist = d; best = s; }
+  }
+  return best;
 }
 
 /**

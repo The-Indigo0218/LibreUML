@@ -16,7 +16,7 @@ import type {
 } from '../../core/domain/vfs/vfs.types';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 import { getAbsolutePosition } from '../../features/diagram/hooks/controllers/sharedNodeBuilders';
-import { yToMessageSlot } from '../../features/diagram/hooks/controllers/sequenceDiagramNodes';
+import { yToMessageSlot, computeSlotLayout } from '../../features/diagram/hooks/controllers/sequenceDiagramNodes';
 import { standaloneModelOps } from '../../store/standaloneModelOps';
 import {
   TOOL_TO_MESSAGE_KIND,
@@ -257,9 +257,10 @@ export function useCanvasEventHandlers({
         // P1 — insert at the slot under the drop point. yToMessageSlot clamps to
         // [1, messageCount + 1]; the +1 lets a drop below the last message append.
         // No drop point (programmatic/fallback) → append at the end as before.
+        // P4 — invert through the same variable slot layout the builder renders.
         const sequenceNumber =
           connection.dropY != null
-            ? yToMessageSlot(connection.dropY, messageCount + 1)
+            ? yToMessageSlot(connection.dropY, messageCount + 1, computeSlotLayout(activeModel))
             : nextMessageSequenceNumber(existingMessages);
 
         const inReplyTo =

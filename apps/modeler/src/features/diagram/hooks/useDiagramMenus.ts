@@ -11,7 +11,8 @@ import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
 import { undoTransaction } from "../../../core/undo/undoBridge";
 import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from "../../../canvas/shapes/UCModuleShape";
-import type { DiagramView, ViewNode, VFSFile } from "../../../core/domain/vfs/vfs.types";
+import type { DiagramView, ViewNode, VFSFile, FragmentKind } from "../../../core/domain/vfs/vfs.types";
+import { defaultOperandCount } from "../../../core/domain/vfs/vfs.types";
 
 export type ContextMenuType = "pane" | "node" | "edge";
 
@@ -254,7 +255,7 @@ export const useDiagramMenus = ({
   // ── Fragment insertion (sequence diagrams) ────────────────────────────────
 
   const addFragmentToDiagram = useCallback(
-    (fragmentKind: 'ALT' | 'OPT' | 'LOOP') => {
+    (fragmentKind: FragmentKind) => {
       const tabId = useWorkspaceStore.getState().activeTabId;
       if (!tabId) return;
 
@@ -283,7 +284,7 @@ export const useDiagramMenus = ({
         return;
       }
 
-      const operandCount = fragmentKind === 'ALT' ? 2 : 1;
+      const operandCount = defaultOperandCount(fragmentKind);
       const operands = Array.from({ length: operandCount }, (_, i) => ({
         id: crypto.randomUUID(),
         guard: fragmentKind === 'ALT' && i === 1 ? 'else' : '',
@@ -469,10 +470,14 @@ export const useDiagramMenus = ({
         }
         if (isSequenceDiagram) {
           return [
-            { label: t("contextMenu.pane.insertAltFragment"),  onClick: () => addFragmentToDiagram("ALT") },
-            { label: t("contextMenu.pane.insertOptFragment"),  onClick: () => addFragmentToDiagram("OPT") },
-            { label: t("contextMenu.pane.insertLoopFragment"), onClick: () => addFragmentToDiagram("LOOP") },
-            { label: t("contextMenu.pane.insertInteractionUse"), onClick: () => addInteractionUse() },
+            { label: t("contextMenu.pane.insertAltFragment"),      onClick: () => addFragmentToDiagram("ALT") },
+            { label: t("contextMenu.pane.insertOptFragment"),      onClick: () => addFragmentToDiagram("OPT") },
+            { label: t("contextMenu.pane.insertLoopFragment"),     onClick: () => addFragmentToDiagram("LOOP") },
+            { label: t("contextMenu.pane.insertParFragment"),      onClick: () => addFragmentToDiagram("PAR") },
+            { label: t("contextMenu.pane.insertSeqFragment"),      onClick: () => addFragmentToDiagram("SEQ") },
+            { label: t("contextMenu.pane.insertBreakFragment"),    onClick: () => addFragmentToDiagram("BREAK") },
+            { label: t("contextMenu.pane.insertCriticalFragment"), onClick: () => addFragmentToDiagram("CRITICAL") },
+            { label: t("contextMenu.pane.insertInteractionUse"),   onClick: () => addInteractionUse() },
             { label: t("contextMenu.pane.addNote"),            onClick: () => addVFSNode("NOTE", pos()) },
             { label: t("contextMenu.pane.cleanCanvas"),        onClick: onClearCanvas, danger: true },
           ];

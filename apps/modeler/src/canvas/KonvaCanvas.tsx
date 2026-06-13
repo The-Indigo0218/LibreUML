@@ -95,6 +95,7 @@ import {
   isLifelineViewModel,
   isFragmentViewModel,
   isMessageViewModel,
+  isActivationViewModel,
   isStateInvariantViewModel,
   isInteractionUseViewModel,
   isGateViewModel,
@@ -730,6 +731,59 @@ export default function KonvaCanvas() {
       node.position({ x: shapeEntry.x, y: shapeEntry.y });
     },
     [shapes, vfsController.isStandalone, activeTabId],
+  );
+
+  // ── Activation bars: hybrid manual override (P3) ──────────────────────────
+  // Dragging the bar vertically pins its top Y (manualTopY); resizing the
+  // bottom handle pins its height. Double-click clears both → back to auto.
+  const activationOps = useCallback(() =>
+    vfsController.isStandalone && activeTabId
+      ? standaloneModelOps(activeTabId)
+      : useModelStore.getState(),
+    [vfsController.isStandalone, activeTabId],
+  );
+
+  const handleActivationDragEnd = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      const node = e.target;
+      const shapeEntry = shapes.find((s) => s.id === node.id());
+      if (!shapeEntry || !isActivationViewModel(shapeEntry.data)) return;
+      const vm = shapeEntry.data;
+      activationOps().updateActivation(vm.domainId, {
+        manualTopY: Math.round(node.y()),
+        manualHeight: Math.round(vm.height),
+      });
+      // Re-derive will reposition; reset the transient drag position.
+      node.position({ x: shapeEntry.x, y: shapeEntry.y });
+    },
+    [shapes, activationOps],
+  );
+
+  const handleActivationResizeEnd = useCallback(
+    (id: string, _width: number, newHeight: number) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isActivationViewModel(shapeEntry.data)) return;
+      const vm = shapeEntry.data;
+      activationOps().updateActivation(vm.domainId, {
+        manualTopY: Math.round(shapeEntry.y),
+        manualHeight: Math.max(20, Math.round(newHeight)),
+      });
+    },
+    [shapes, activationOps],
+  );
+
+  const handleActivationResetOverride = useCallback(
+    (id: string) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isActivationViewModel(shapeEntry.data)) return;
+      const vm = shapeEntry.data;
+      if (!vm.isManual) return;
+      activationOps().updateActivation(vm.domainId, {
+        manualTopY: undefined,
+        manualHeight: undefined,
+      });
+    },
+    [shapes, activationOps],
   );
 
   const handleToggleCollapse = useCallback(
@@ -2258,6 +2312,8 @@ export default function KonvaCanvas() {
                   ? () => openInlineInteractionUsePanel(vm.domainId)
                   : isGateViewModel(vm)
                   ? () => openInlineGatePanel(vm.domainId)
+                  : isActivationViewModel(vm)
+                  ? () => handleActivationResetOverride(shape.id)
                   : isNodeViewModel(vm)
                   ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
                   : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
@@ -2272,7 +2328,11 @@ export default function KonvaCanvas() {
 
                 const isMsg = isMessageViewModel(vm);
                 const isLifeline = isLifelineViewModel(vm);
+                const isActivation = isActivationViewModel(vm);
                 const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm);
+                // Vertical-only, store-backed drag: messages, activations, and
+                // the slot-anchored derived elements all lock X and persist Y.
+                const isVerticalDrag = isMsg || isDerived || isActivation;
                 // Strong highlight: while connecting, dim nodes that are illegal
                 // targets for the active relation so legal ones stand out.
                 const connectDimmed = connectionDraw.candidateValidity?.get(shape.id) === false;
@@ -2284,14 +2344,16 @@ export default function KonvaCanvas() {
                   opacity: connectDimmed ? 0.3 : undefined,
                   draggable: true,
                   visible: isVisible && !isDescendantOfCollapsed,
-                  onDragStart: isMsg || isDerived ? undefined : guardedDragStart,
-                  onDragMove: isMsg || isDerived ? undefined : handleDragMove,
+                  onDragStart: isVerticalDrag ? undefined : guardedDragStart,
+                  onDragMove: isVerticalDrag ? undefined : handleDragMove,
                   onDragEnd: isMsg
                     ? handleMessageDragEnd
                     : isDerived
                     ? handleDerivedDragEnd
+                    : isActivation
+                    ? handleActivationDragEnd
                     : handleDragEnd,
-                  dragBoundFunc: isMsg || isDerived
+                  dragBoundFunc: isVerticalDrag
                     ? (p: { x: number; y: number }) => ({ x: pos.x, y: p.y })
                     : isLifeline
                     ? (p: { x: number; y: number }) => {
@@ -2306,7 +2368,9 @@ export default function KonvaCanvas() {
                   onContextMenu,
                   onMouseEnter: handleUseCaseMouseEnter,
                   onMouseLeave: handleUseCaseMouseLeave,
-                  onResizeEnd: isUCModuleViewModel(vm)
+                  onResizeEnd: isActivation
+                    ? handleActivationResizeEnd
+                    : isUCModuleViewModel(vm)
                     ? handleUCModuleResizeEnd
                     : handleSystemBoundaryResizeEnd,
                   isDropTarget: hoveredPackageId === shape.id,

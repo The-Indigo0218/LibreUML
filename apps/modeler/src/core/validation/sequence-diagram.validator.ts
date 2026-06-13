@@ -13,6 +13,7 @@ import type {
   IRInteractionUse,
   IRGate,
 } from '../domain/vfs/vfs.types';
+import { MULTI_OPERAND_FRAGMENT_KINDS } from '../domain/vfs/vfs.types';
 
 export class SequenceDiagramValidator implements BaseValidator {
   validateConnection(
@@ -171,15 +172,20 @@ export class SequenceDiagramValidator implements BaseValidator {
       }
     }
 
+    // Operand-count sanity per kind (UML 2.5 §17.6): opt/loop/break/critical
+    // take exactly one operand; alt/par/seq may carry many (one is legal).
+    if (
+      !MULTI_OPERAND_FRAGMENT_KINDS.has(fragment.fragmentKind) &&
+      fragment.operands.length !== 1
+    ) {
+      warnings.push(`${fragment.fragmentKind} fragment should have exactly one operand`);
+    }
+
     if (fragment.fragmentKind === 'LOOP') {
       const op = fragment.operands[0];
       if (!op || !op.guard || op.guard.trim() === '') {
         warnings.push('LOOP fragment without a guard will be ambiguous (defaults to true)');
       }
-    }
-
-    if (fragment.fragmentKind === 'OPT' && fragment.operands.length !== 1) {
-      warnings.push('OPT fragment should have exactly one operand');
     }
 
     if (fragment.parentFragmentId) {

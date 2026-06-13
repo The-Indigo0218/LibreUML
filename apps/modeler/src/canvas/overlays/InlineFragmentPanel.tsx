@@ -25,6 +25,7 @@ import type {
   IRInteractionFragment,
   IRInteractionOperand,
 } from '../../core/domain/vfs/vfs.types';
+import { FRAGMENT_KINDS } from '../../core/domain/vfs/vfs.types';
 
 export interface InlineFragmentPanelProps {
   /** Element id of the interaction fragment being edited. */
@@ -34,16 +35,6 @@ export interface InlineFragmentPanelProps {
   /** Close the panel. */
   onClose: () => void;
 }
-
-const FRAGMENT_KINDS: ReadonlyArray<IRInteractionFragment['fragmentKind']> = [
-  'ALT',
-  'OPT',
-  'LOOP',
-  'PAR',
-  'SEQ',
-  'BREAK',
-  'CRITICAL',
-];
 
 export default function InlineFragmentPanel({ elementId, onAdvanced, onClose }: InlineFragmentPanelProps) {
   const { t } = useTranslation();

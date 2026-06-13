@@ -171,6 +171,10 @@
       "insertAltFragment": "Insertar Fragmento ALT",
       "insertOptFragment": "Insertar Fragmento OPT",
       "insertLoopFragment": "Insertar Fragmento LOOP",
+      "insertParFragment": "Insertar Fragmento PAR",
+      "insertSeqFragment": "Insertar Fragmento SEQ",
+      "insertBreakFragment": "Insertar Fragmento BREAK",
+      "insertCriticalFragment": "Insertar Fragmento CRITICAL",
       "insertInteractionUse": "Insertar Referencia (ref)"
     },
     "node": {

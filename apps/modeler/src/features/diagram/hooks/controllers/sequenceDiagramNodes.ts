@@ -260,11 +260,19 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     const endIdx = act.endMessageId
       ? messageIndex.get(act.endMessageId) ?? null
       : null;
-    const topY = messageYForIndex(startIdx);
-    const bottomY = endIdx
+    const autoTopY = messageYForIndex(startIdx);
+    const autoBottomY = endIdx
       ? messageYForIndex(endIdx)
-      : topY + MESSAGE_BAND_H + ACTIVATION_END_PAD;
-    const height = Math.max(MESSAGE_BAND_H * 0.6, bottomY - topY);
+      : autoTopY + MESSAGE_BAND_H + ACTIVATION_END_PAD;
+    const autoHeight = Math.max(MESSAGE_BAND_H * 0.6, autoBottomY - autoTopY);
+
+    // Hybrid layout: a manual override wins over the message-derived geometry.
+    const isManual = act.manualTopY !== undefined || act.manualHeight !== undefined;
+    const topY = act.manualTopY ?? autoTopY;
+    const height = Math.max(
+      MESSAGE_BAND_H * 0.4,
+      act.manualHeight ?? autoHeight,
+    );
     const centerX = lifelineCenterX.get(act.lifelineId) ?? 0;
 
     const viewModel: ActivationViewModel = {
@@ -275,6 +283,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       height,
       isOpen: !act.endMessageId,
       nestingDepth: nestingDepthFor(act),
+      isManual,
     };
 
     return {

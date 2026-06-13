@@ -209,6 +209,42 @@ describe('buildSequenceDiagramNodes', () => {
     }
   });
 
+  it('honours a manual activation override (P3 hybrid layout)', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const msg = makeMessage('m1', 'll1', 'll2', 1);
+    const activation: IRActivation = {
+      id: 'act1',
+      kind: 'ACTIVATION',
+      name: '',
+      lifelineId: 'll2',
+      startMessageId: 'm1',
+      manualTopY: 333,
+      manualHeight: 88,
+    };
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: msg },
+      activations: { act1: activation },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const node = result.find((n) => n.type === 'umlActivation');
+    expect(node).toBeDefined();
+    if (node && isActivationViewModel(node.data)) {
+      expect(node.position.y).toBe(333);   // manualTopY wins over derived Y
+      expect(node.data.height).toBe(88);   // manualHeight wins over derived height
+      expect(node.data.isManual).toBe(true);
+    }
+  });
+
   it('skips activations whose lifeline is not present in the diagram', () => {
     const ll1 = makeLifeline('ll1');
     const orphanAct: IRActivation = {

@@ -189,6 +189,8 @@ export interface ActivationViewModel {
   height: number;
   isOpen: boolean;
   nestingDepth: number;
+  /** True when the bar's geometry comes from a manual drag/resize override. */
+  isManual?: boolean;
 }
 
 export type FragmentKindVM =

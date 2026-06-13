@@ -427,6 +427,15 @@ export interface IRActivation extends IRElement {
   endMessageId?: string;
   /** When set, nests this activation inside a parent (re-entrancy). */
   parentActivationId?: string;
+  /**
+   * Manual layout override (hybrid model): absolute canvas Y of the bar's top.
+   * When set, the builder uses it instead of the message-derived top. Cleared
+   * (double-click) restores the auto-calculated position. Paired with
+   * `manualHeight` so a dragged bar keeps its size.
+   */
+  manualTopY?: number;
+  /** Manual layout override: bar height in px. See `manualTopY`. */
+  manualHeight?: number;
 }
 
 export type FragmentKind =
@@ -437,6 +446,26 @@ export type FragmentKind =
   | 'SEQ'      // weak sequencing
   | 'BREAK'    // break
   | 'CRITICAL'; // critical region
+
+/** All combined-fragment kinds, in canonical UI order. */
+export const FRAGMENT_KINDS: readonly FragmentKind[] = [
+  'ALT', 'OPT', 'LOOP', 'PAR', 'SEQ', 'BREAK', 'CRITICAL',
+];
+
+/**
+ * Fragment kinds whose semantics allow more than one operand: alternatives,
+ * parallel regions and weak sequencing. The rest (opt/loop/break/critical)
+ * are single-operand by definition (UML 2.5 §17.6). Single source of truth for
+ * both the creation defaults and the operand add/remove UI.
+ */
+export const MULTI_OPERAND_FRAGMENT_KINDS: ReadonlySet<FragmentKind> = new Set([
+  'ALT', 'PAR', 'SEQ',
+]);
+
+/** Default number of operands to seed when a fragment of this kind is created. */
+export function defaultOperandCount(kind: FragmentKind): number {
+  return MULTI_OPERAND_FRAGMENT_KINDS.has(kind) ? 2 : 1;
+}
 
 export interface IRInteractionOperand {
   id: string;

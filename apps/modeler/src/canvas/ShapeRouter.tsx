@@ -118,7 +118,7 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
     return <MessageShape key={key} viewModel={vm} {...common} />;
 
   if (isActivationViewModel(vm))
-    return <ActivationShape key={key} viewModel={vm} {...common} />;
+    return <ActivationShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isFragmentViewModel(vm))
     return <FragmentShape key={key} viewModel={vm} {...common} />;

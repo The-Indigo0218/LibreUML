@@ -826,6 +826,9 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
   defaultNodeType: 'LIFELINE',
   defaultEdgeType: 'MESSAGE_SYNC',
 
+  // Class/use-case/domain tools are never meaningful inside an interaction.
+  hideForeignTools: true,
+
   tools: {
     nodes: [
       {
@@ -881,6 +884,23 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
         icon: 'XCircle',
         translationKey: 'sidebar.connections.messageDestroy',
       },
+    ],
+    // Combined-fragment operators (UML 2.5 §17.6). Click-to-insert; the common
+    // three lead, the remaining nine sit under the "advanced" disclosure. The
+    // label is the canonical operator keyword (language-neutral, as in EA/StarUML).
+    fragments: [
+      { id: 'frag-alt',      type: 'FRAGMENT', fragmentKind: 'ALT',      category: 'common',   label: 'alt',      icon: 'GitBranch',           color: '#6366F1' },
+      { id: 'frag-opt',      type: 'FRAGMENT', fragmentKind: 'OPT',      category: 'common',   label: 'opt',      icon: 'CircleHelp',          color: '#6366F1' },
+      { id: 'frag-loop',     type: 'FRAGMENT', fragmentKind: 'LOOP',     category: 'common',   label: 'loop',     icon: 'Repeat',              color: '#6366F1' },
+      { id: 'frag-par',      type: 'FRAGMENT', fragmentKind: 'PAR',      category: 'advanced', label: 'par',      icon: 'Columns2',            color: '#818CF8' },
+      { id: 'frag-seq',      type: 'FRAGMENT', fragmentKind: 'SEQ',      category: 'advanced', label: 'seq',      icon: 'ListOrdered',         color: '#818CF8' },
+      { id: 'frag-strict',   type: 'FRAGMENT', fragmentKind: 'STRICT',   category: 'advanced', label: 'strict',   icon: 'ArrowDownNarrowWide', color: '#818CF8' },
+      { id: 'frag-break',    type: 'FRAGMENT', fragmentKind: 'BREAK',    category: 'advanced', label: 'break',    icon: 'Scissors',            color: '#818CF8' },
+      { id: 'frag-critical', type: 'FRAGMENT', fragmentKind: 'CRITICAL', category: 'advanced', label: 'critical', icon: 'ShieldAlert',         color: '#818CF8' },
+      { id: 'frag-neg',      type: 'FRAGMENT', fragmentKind: 'NEG',      category: 'advanced', label: 'neg',      icon: 'Ban',                 color: '#818CF8' },
+      { id: 'frag-assert',   type: 'FRAGMENT', fragmentKind: 'ASSERT',   category: 'advanced', label: 'assert',   icon: 'BadgeCheck',          color: '#818CF8' },
+      { id: 'frag-ignore',   type: 'FRAGMENT', fragmentKind: 'IGNORE',   category: 'advanced', label: 'ignore',   icon: 'EyeOff',              color: '#818CF8' },
+      { id: 'frag-consider', type: 'FRAGMENT', fragmentKind: 'CONSIDER', category: 'advanced', label: 'consider', icon: 'Eye',                 color: '#818CF8' },
     ],
   },
 

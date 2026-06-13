@@ -6,12 +6,14 @@ import type { stereotype, UmlRelationType } from "../../types/diagram.types";
 import { edgeConfig } from "../../../../config/theme.config";
 import { useTranslation } from "react-i18next";
 import { getDiagramRegistry, getAllTools } from "../../../../core/registry/diagram-registry";
+import type { ToolConfig } from "../../../../core/registry/diagram-registry.types";
 import { getIconComponent } from "../../../../core/registry/icon-map";
 import { useKonvaAutoLayout } from "../../../../canvas/hooks/useKonvaAutoLayout";
 import { DRAG_TYPE_NEW } from "../../../../canvas/hooks/useKonvaDnD";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import type { VFSFile } from "../../../../core/domain/vfs/vfs.types";
 import { getRelationShortcutKey } from "../../../../canvas/interactions/relationShortcuts";
+import { insertFragmentIntoActiveDiagram } from "../../services/insertFragment";
 
 export default function ToolPalette() {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
@@ -42,21 +44,30 @@ export default function ToolPalette() {
     }
   }, [diagramType]);
 
-  // The palette lists every node tool across all diagram types (#1). Tools the
-  // active diagram doesn't own are marked "foreign" and sorted after the native
-  // ones; dropping one triggers the cross-diagram guard in useKonvaDnD.
+  const hideForeign = !!registry.hideForeignTools;
+
   const nativeNodeIds = useMemo(
     () => new Set(registry.tools.nodes.map((tool) => tool.id)),
     [registry],
   );
-  const allNodeTools = useMemo(() => {
+
+  // Diagrams that opt out (sequence) show only their own node tools. Otherwise
+  // the palette lists every node tool across all diagram types (#1): foreign
+  // ones are dimmed, sorted last, and dropping one triggers the cross-diagram
+  // guard in useKonvaDnD.
+  const nodeTools = useMemo(() => {
+    if (hideForeign) return registry.tools.nodes;
     const tools = getAllTools().nodes;
     return [...tools].sort((a, b) => {
       const aForeign = nativeNodeIds.has(a.id) ? 0 : 1;
       const bForeign = nativeNodeIds.has(b.id) ? 0 : 1;
       return aForeign - bForeign;
     });
-  }, [nativeNodeIds]);
+  }, [hideForeign, registry, nativeNodeIds]);
+
+  const fragmentTools = registry.tools.fragments ?? [];
+  const commonFragments = fragmentTools.filter((tool) => tool.category !== 'advanced');
+  const advancedFragments = fragmentTools.filter((tool) => tool.category === 'advanced');
 
   const setTabConnectionMode = useWorkspaceStore((s) => s.setTabConnectionMode);
 
@@ -74,6 +85,8 @@ export default function ToolPalette() {
 
   const [isNodesOpen, setIsNodesOpen] = useState(true);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(true);
+  const [isFragmentsOpen, setIsFragmentsOpen] = useState(true);
+  const [showAdvancedFragments, setShowAdvancedFragments] = useState(false);
 
   const { t } = useTranslation();
 
@@ -107,7 +120,7 @@ export default function ToolPalette() {
           setIsOpen={setIsNodesOpen}
         >
           <div className="flex flex-col gap-2 px-3">
-            {allNodeTools.map((tool) => (
+            {nodeTools.map((tool) => (
               <DraggableItem
                 key={tool.id}
                 type={tool.id as stereotype}
@@ -151,8 +164,90 @@ export default function ToolPalette() {
           </div>
 
         </CollapsibleSection>
+
+        {fragmentTools.length > 0 && (
+          <>
+            <div className="mx-4 my-2 h-px bg-surface-border/30" />
+            <CollapsibleSection
+              title={t("sidebar.fragments.title")}
+              isOpen={isFragmentsOpen}
+              setIsOpen={setIsFragmentsOpen}
+            >
+              <div className="flex flex-col gap-2 px-3">
+                {commonFragments.map((tool) => (
+                  <FragmentItem
+                    key={tool.id}
+                    tool={tool}
+                    onInsert={() => insertFragmentIntoActiveDiagram(tool.fragmentKind!)}
+                  />
+                ))}
+
+                {advancedFragments.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setShowAdvancedFragments((v) => !v)}
+                      className="flex items-center gap-1 mt-1 px-1 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted hover:text-text-primary transition-colors"
+                    >
+                      {showAdvancedFragments ? (
+                        <ChevronDown className="w-3 h-3" />
+                      ) : (
+                        <ChevronRight className="w-3 h-3" />
+                      )}
+                      {t("sidebar.fragments.advanced")}
+                    </button>
+
+                    {showAdvancedFragments &&
+                      advancedFragments.map((tool) => (
+                        <FragmentItem
+                          key={tool.id}
+                          tool={tool}
+                          onInsert={() => insertFragmentIntoActiveDiagram(tool.fragmentKind!)}
+                        />
+                      ))}
+                  </>
+                )}
+              </div>
+            </CollapsibleSection>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+interface FragmentItemProps {
+  tool: ToolConfig;
+  onInsert: () => void;
+}
+
+/** Click-to-insert palette row for a combined-fragment operator. */
+function FragmentItem({ tool, onInsert }: FragmentItemProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  const color = tool.color || '#6366F1';
+  const IconComponent = getIconComponent(tool.icon);
+
+  return (
+    <button
+      title={tool.label}
+      onClick={onInsert}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="group flex items-center cursor-pointer rounded-lg transition-all duration-200 border flex-row gap-3 px-3 py-2 justify-start"
+      style={{
+        borderColor: isHovered ? color : "transparent",
+        backgroundColor: isHovered ? `color-mix(in srgb, ${color} 15%, transparent)` : "transparent",
+      }}
+    >
+      <span style={{ color }} className="group-hover:brightness-125 transition-all shrink-0">
+        {IconComponent && <IconComponent className="w-4 h-4" />}
+      </span>
+      <span
+        className="font-mono font-semibold text-sm"
+        style={{ color: isHovered ? "var(--color-text-primary)" : "var(--color-text-muted)" }}
+      >
+        {tool.label}
+      </span>
+    </button>
   );
 }
 

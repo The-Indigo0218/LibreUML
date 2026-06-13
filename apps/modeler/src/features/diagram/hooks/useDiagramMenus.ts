@@ -12,7 +12,7 @@ import { undoTransaction } from "../../../core/undo/undoBridge";
 import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from "../../../canvas/shapes/UCModuleShape";
 import type { DiagramView, ViewNode, VFSFile, FragmentKind } from "../../../core/domain/vfs/vfs.types";
-import { defaultOperandCount } from "../../../core/domain/vfs/vfs.types";
+import { insertFragmentIntoActiveDiagram } from "../services/insertFragment";
 
 export type ContextMenuType = "pane" | "node" | "edge";
 
@@ -255,63 +255,7 @@ export const useDiagramMenus = ({
   // ── Fragment insertion (sequence diagrams) ────────────────────────────────
 
   const addFragmentToDiagram = useCallback(
-    (fragmentKind: FragmentKind) => {
-      const tabId = useWorkspaceStore.getState().activeTabId;
-      if (!tabId) return;
-
-      const project = useVFSStore.getState().project;
-      if (!project) return;
-      const fileNode = project.nodes[tabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      const content = (fileNode as VFSFile).content;
-      if (!isDiagramView(content)) return;
-
-      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
-      const activeModel = isStandaloneFile
-        ? getLocalModel(tabId)
-        : useModelStore.getState().model;
-      if (!activeModel) return;
-
-      // Gather covered lifelines: every ViewNode whose elementId resolves to a
-      // lifeline in the active model. This is the MVP "cover everything"
-      // policy; later phases can refine to clicked-X-range only.
-      const lifelineIds = (content as DiagramView).nodes
-        .map((vn) => vn.elementId)
-        .filter((id): id is string => !!id && !!activeModel.lifelines?.[id]);
-
-      if (lifelineIds.length === 0) {
-        useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un fragmento');
-        return;
-      }
-
-      const operandCount = defaultOperandCount(fragmentKind);
-      const operands = Array.from({ length: operandCount }, (_, i) => ({
-        id: crypto.randomUUID(),
-        guard: fragmentKind === 'ALT' && i === 1 ? 'else' : '',
-        messageIds: [] as string[],
-        fragmentIds: [] as string[],
-      }));
-
-      const name = `${fragmentKind.toLowerCase()}-${
-        Object.keys(activeModel.interactionFragments ?? {}).length + 1
-      }`;
-
-      if (isStandaloneFile) {
-        standaloneModelOps(tabId).createFragment({
-          name,
-          fragmentKind,
-          coveredLifelineIds: lifelineIds,
-          operands,
-        });
-      } else {
-        useModelStore.getState().createFragment({
-          name,
-          fragmentKind,
-          coveredLifelineIds: lifelineIds,
-          operands,
-        });
-      }
-    },
+    (fragmentKind: FragmentKind) => insertFragmentIntoActiveDiagram(fragmentKind),
     [],
   );
 

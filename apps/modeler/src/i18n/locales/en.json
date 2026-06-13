@@ -146,7 +146,11 @@
       "messageCreate": "Create Message",
       "messageDestroy": "Destroy Message"
     },
-    "otherDiagram": "from another diagram"
+    "otherDiagram": "from another diagram",
+    "fragments": {
+      "title": "Fragments",
+      "advanced": "Advanced"
+    }
   },
   "contextMenu": {
     "pane": {

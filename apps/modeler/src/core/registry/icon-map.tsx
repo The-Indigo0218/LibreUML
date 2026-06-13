@@ -21,6 +21,18 @@ import {
   CornerDownLeft,
   PlusCircle,
   XCircle,
+  GitBranch,
+  CircleHelp,
+  Repeat,
+  Columns2,
+  ListOrdered,
+  ArrowDownNarrowWide,
+  Scissors,
+  ShieldAlert,
+  Ban,
+  BadgeCheck,
+  EyeOff,
+  Eye,
 } from "lucide-react";
 
 /**
@@ -50,6 +62,18 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   CornerDownLeft,
   PlusCircle,
   XCircle,
+  GitBranch,
+  CircleHelp,
+  Repeat,
+  Columns2,
+  ListOrdered,
+  ArrowDownNarrowWide,
+  Scissors,
+  ShieldAlert,
+  Ban,
+  BadgeCheck,
+  EyeOff,
+  Eye,
 };
 
 /**

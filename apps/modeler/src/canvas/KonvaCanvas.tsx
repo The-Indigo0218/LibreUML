@@ -666,12 +666,28 @@ export default function KonvaCanvas() {
       const draggedEntry = msgShapes.find((e) => e.shape.id === draggedId);
       if (!draggedEntry) return;
 
+      // Hybrid layout (B2): Alt-drag pins the message at a manual Y (override)
+      // instead of reordering. Plain drag keeps the reorder gesture below and
+      // clears any prior override so the message snaps back onto the auto grid.
+      const ops = vfsController.isStandalone && activeTabId ? standaloneModelOps(activeTabId) : useModelStore.getState();
+      if (e.evt.altKey) {
+        ops.updateMessage(draggedEntry.vm.domainId, { manualY: Math.round(newY) });
+        node.position({ x: draggedEntry.shape.x, y: newY });
+        return;
+      }
+
       const targetSlot = yToMessageSlot(newY, totalMessages);
       const currentSlot = draggedEntry.vm.sequenceNumber;
 
-      if (currentSlot === targetSlot) {
+      if (currentSlot === targetSlot && !draggedEntry.vm.isManualY) {
         node.position({ x: draggedEntry.shape.x, y: draggedEntry.shape.y });
         return;
+      }
+
+      // A plain reorder drag also releases any manual-Y override on the dragged
+      // message, returning it to the computed slot grid.
+      if (draggedEntry.vm.isManualY) {
+        ops.updateMessage(draggedEntry.vm.domainId, { manualY: undefined });
       }
 
       // Sort by current sequenceNumber, then move dragged item to targetSlot.

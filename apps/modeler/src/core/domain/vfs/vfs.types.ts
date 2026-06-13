@@ -391,6 +391,13 @@ export interface IRMessage extends IRElement {
   /** For REPLY messages, references the invoking message. */
   inReplyTo?: string;
   /**
+   * Hybrid layout override (B2): when set, the message is pinned at this absolute
+   * Y (world px) instead of its computed slot Y, mirroring an activation's
+   * `manualTopY`. The `sequenceNumber` still drives ordering/numbering; only the
+   * glyph's vertical position floats. Cleared on a plain drag-reorder or reset.
+   */
+  manualY?: number;
+  /**
    * UML 2.5 found message: the source is an unknown participant outside the
    * interaction. `sourceLifelineId` is empty; the target is a real lifeline.
    */

@@ -1130,6 +1130,7 @@
     "kind": "Tipo",
     "arguments": "Argumentos",
     "guard": "Guarda",
+    "resetPosition": "Restablecer posición",
     "advanced": "Avanzado…",
     "close": "Cerrar"
   },

@@ -4,6 +4,7 @@ import {
   computeHierarchicalNumbers,
   stateInvariantSlotY,
   estimateStateInvariantWidth,
+  messageYForIndex,
 } from '../sequenceDiagramNodes';
 import type {
   SemanticModel,
@@ -155,6 +156,43 @@ describe('buildSequenceDiagramNodes', () => {
       expect(messageNode.data.isSelfMessage).toBe(true);
       expect(messageNode.data.length).toBe(0);
     }
+  });
+
+  it('positions a message on its computed slot when no manual override (B2)', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlMessage');
+    expect(node!.position.y).toBe(messageYForIndex(1));
+    expect(isMessageViewModel(node!.data) && node!.data.isManualY).toBeFalsy();
+  });
+
+  it('honors a manual-Y override over the computed slot (B2)', () => {
+    const msg: IRMessage = { ...makeMessage('m1', 'll1', 'll2', 1), manualY: 333 };
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: msg },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlMessage');
+    expect(node!.position.y).toBe(333); // manualY wins over the derived slot Y
+    expect(isMessageViewModel(node!.data) && node!.data.isManualY).toBe(true);
   });
 
   it('skips messages whose endpoints are not present in the diagram', () => {

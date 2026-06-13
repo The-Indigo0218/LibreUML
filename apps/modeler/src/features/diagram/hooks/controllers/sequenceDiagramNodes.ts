@@ -313,7 +313,10 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     // Found/lost/gate messages are never self-loops.
     const isSelf =
       !isFound && !isLost && !hasGate && msg.sourceLifelineId === msg.targetLifelineId;
-    const y = messageYForIndex(idx + 1);
+    // Hybrid layout (B2): a manual override pins the glyph Y; otherwise it sits on
+    // the computed slot. Ordering/numbering still come from `sequenceNumber`.
+    const isManualY = msg.manualY !== undefined;
+    const y = msg.manualY ?? messageYForIndex(idx + 1);
 
     let posX: number;
     let length: number;
@@ -351,6 +354,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       isFound,
       isLost,
       guard: msg.guard,
+      isManualY,
       onRename: (name: string) => {
         if (isStandalone && activeTabId) {
           standaloneModelOps(activeTabId).updateMessage(msg.id, { name });

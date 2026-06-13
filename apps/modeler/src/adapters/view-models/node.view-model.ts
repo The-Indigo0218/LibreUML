@@ -180,6 +180,8 @@ export interface MessageViewModel {
   isLost?: boolean;
   /** Message-level guard ([guard]) rendered before the name (C8). */
   guard?: string;
+  /** True when the glyph's Y comes from a manual override (B2 — `manualY`). */
+  isManualY?: boolean;
   onRename?: (name: string) => void;
 }
 

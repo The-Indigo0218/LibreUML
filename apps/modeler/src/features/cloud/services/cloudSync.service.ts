@@ -219,10 +219,12 @@ class CloudSyncService {
 
       const projectId = created.id;
 
-      // Step 2: Upload semantic model
+      // Step 2: Upload semantic model.
+      // The backend creates the project's semantic model empty at version 0, so the first
+      // update must send version 0 (optimistic-lock guard); it bumps the model to version 1.
       const modelResp = await cloudAdapter.updateModelInCloud(projectId, {
         data:    model as unknown as Record<string, unknown>,
-        version: 1,
+        version: 0,
       });
 
       // Step 3: Create each VFSFile diagram

@@ -167,7 +167,7 @@ describe('CloudSyncService.saveToCloud()', () => {
     expect(req.vfsSnapshot).toBeDefined();
   });
 
-  it('uploads the semantic model with version 1 on first save', async () => {
+  it('uploads the semantic model with version 0 on first save', async () => {
     vi.mocked(cloudAdapter.createProjectInCloud).mockResolvedValueOnce({
       id: 'cloud-proj-1', modelId: 'cloud-model-1', version: 1, createdAt: isoNow(),
     });
@@ -179,7 +179,8 @@ describe('CloudSyncService.saveToCloud()', () => {
 
     const [projectId, req] = vi.mocked(cloudAdapter.updateModelInCloud).mock.calls[0];
     expect(projectId).toBe('cloud-proj-1');
-    expect(req.version).toBe(1);
+    // The backend creates the empty model at version 0; the first update must send 0.
+    expect(req.version).toBe(0);
     expect(req.data).toBeDefined();
   });
 

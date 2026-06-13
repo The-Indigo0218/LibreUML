@@ -178,6 +178,8 @@ export interface MessageViewModel {
   isSelfMessage: boolean;
   isFound?: boolean;
   isLost?: boolean;
+  /** Message-level guard ([guard]) rendered before the name (C8). */
+  guard?: string;
   onRename?: (name: string) => void;
 }
 

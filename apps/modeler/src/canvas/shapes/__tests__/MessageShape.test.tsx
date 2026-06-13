@@ -88,4 +88,28 @@ describe('MessageShape', () => {
     const { container } = render(<MessageShape viewModel={vm} x={120} y={100} />);
     expect(container.firstChild).toMatchSnapshot();
   });
+
+  // C8 — message-level guard rendered as [guard] before the name.
+  const labelTextOf = (container: HTMLElement): string =>
+    Array.from(container.querySelectorAll('[data-konva="Text"]'))
+      .map((el) => (JSON.parse(el.getAttribute('data-props') ?? '{}') as { text?: string }).text ?? '')
+      .find((t) => t.includes(':')) ?? '';
+
+  it('prefixes the label with [guard] when a guard is set', () => {
+    const vm = baseMsg({ guard: 'balance > 0' });
+    const { container } = render(<MessageShape viewModel={vm} x={120} y={100} />);
+    expect(labelTextOf(container)).toBe('1: [balance > 0] doSomething');
+  });
+
+  it('shows just the guard when the message has no name', () => {
+    const vm = baseMsg({ name: '', guard: 'ok' });
+    const { container } = render(<MessageShape viewModel={vm} x={120} y={100} />);
+    expect(labelTextOf(container)).toBe('1: [ok]');
+  });
+
+  it('omits the brackets when no guard is set', () => {
+    const vm = baseMsg();
+    const { container } = render(<MessageShape viewModel={vm} x={120} y={100} />);
+    expect(labelTextOf(container)).toBe('1: doSomething');
+  });
 });

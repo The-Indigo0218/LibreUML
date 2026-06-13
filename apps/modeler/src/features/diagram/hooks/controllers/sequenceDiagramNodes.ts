@@ -350,6 +350,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       isSelfMessage: isSelf,
       isFound,
       isLost,
+      guard: msg.guard,
       onRename: (name: string) => {
         if (isStandalone && activeTabId) {
           standaloneModelOps(activeTabId).updateMessage(msg.id, { name });

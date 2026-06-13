@@ -2473,6 +2473,24 @@ export default function KonvaCanvas() {
               />
             ))}
 
+            {/* C7 — free-border affordance: a lifeline's grabbable timeline. Shown
+                instead of the 8 dots so a message can start/land anywhere along it. */}
+            {connectionDraw.hoveredFreeBorder && (
+              <Line
+                points={[
+                  connectionDraw.hoveredFreeBorder.x,
+                  connectionDraw.hoveredFreeBorder.y1,
+                  connectionDraw.hoveredFreeBorder.x,
+                  connectionDraw.hoveredFreeBorder.y2,
+                ]}
+                stroke="#22d3ee"
+                strokeWidth={3}
+                opacity={0.55}
+                lineCap="round"
+                listening={false}
+              />
+            )}
+
             {/* Landing indicator: green = the endpoint will anchor to this border
                 point; red = the relation is invalid for the stereotypes. */}
             {connectionDraw.isConnecting && connectionDraw.snapTargetDot && (

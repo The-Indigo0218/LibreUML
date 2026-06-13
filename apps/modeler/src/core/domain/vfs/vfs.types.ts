@@ -381,6 +381,13 @@ export interface IRMessage extends IRElement {
   operationId?: string;
   /** Free-form argument string (e.g. "id, name") for MVP. */
   arguments?: string;
+  /**
+   * UML 2.5 InteractionConstraint at the message level — a guard condition that
+   * must hold for this message to occur (rendered as `[guard]` before the name).
+   * Distinct from an operand's guard (`IRInteractionOperand.guard`): this scopes
+   * the condition to a single message rather than a whole fragment operand (C8).
+   */
+  guard?: string;
   /** For REPLY messages, references the invoking message. */
   inReplyTo?: string;
   /**

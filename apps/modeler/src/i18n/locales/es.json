@@ -1129,6 +1129,7 @@
     "name": "Nombre del mensaje",
     "kind": "Tipo",
     "arguments": "Argumentos",
+    "guard": "Guarda",
     "advanced": "Avanzado…",
     "close": "Cerrar"
   },

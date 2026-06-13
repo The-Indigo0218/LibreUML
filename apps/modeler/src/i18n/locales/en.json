@@ -1120,6 +1120,7 @@
     "name": "Message name",
     "kind": "Kind",
     "arguments": "Arguments",
+    "guard": "Guard",
     "advanced": "Advanced…",
     "close": "Close"
   },

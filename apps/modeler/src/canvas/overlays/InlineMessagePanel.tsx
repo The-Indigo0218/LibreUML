@@ -6,6 +6,7 @@
  *   · name
  *   · kind (messageKind)
  *   · arguments
+ *   · guard (message-level [guard] condition, C8)
  *
  * Self-contained: resolves the active model (standalone localModel vs global) and
  * applies through the same ops the modal uses, so it needs only an element id.
@@ -109,6 +110,19 @@ export default function InlineMessagePanel({ elementId, onAdvanced, onClose }: I
             onBlur={(e) => ops.updateMessage(elementId, { arguments: e.target.value.trim() || undefined })}
             className={`${fieldCls} w-full`}
             aria-label={t('inlineMessagePanel.arguments')}
+          />
+        </section>
+
+        <section className="space-y-1.5">
+          <div className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">{t('inlineMessagePanel.guard')}</div>
+          <input
+            key={message.guard ?? ''}
+            defaultValue={message.guard ?? ''}
+            onBlur={(e) => ops.updateMessage(elementId, { guard: e.target.value.trim() || undefined })}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            placeholder="balance > 0"
+            className={`${fieldCls} w-full`}
+            aria-label={t('inlineMessagePanel.guard')}
           />
         </section>
 

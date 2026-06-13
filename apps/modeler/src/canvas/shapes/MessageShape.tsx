@@ -56,9 +56,11 @@ export default function MessageShape({
   const dashed = vm.messageKind === 'REPLY' || vm.messageKind === 'CREATE';
   const openHead =
     vm.messageKind === 'ASYNC' || vm.messageKind === 'REPLY' || vm.messageKind === 'CREATE';
+  // UML 2.5: a message-level guard renders as `[guard]` before the name (C8).
+  const guardSegment = vm.guard ? `[${vm.guard}] ` : '';
   const labelText = vm.name
-    ? `${vm.displayNumber}: ${vm.name}`
-    : `${vm.displayNumber}:`;
+    ? `${vm.displayNumber}: ${guardSegment}${vm.name}`
+    : `${vm.displayNumber}: ${guardSegment}`.trimEnd();
 
   const labelY = -LABEL_H - 2;
   const labelW = Math.max(40, Math.abs(vm.length));

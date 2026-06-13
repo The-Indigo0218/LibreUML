@@ -172,8 +172,9 @@ export class SequenceDiagramValidator implements BaseValidator {
       }
     }
 
-    // Operand-count sanity per kind (UML 2.5 §17.6): opt/loop/break/critical
-    // take exactly one operand; alt/par/seq may carry many (one is legal).
+    // Operand-count sanity per kind (UML 2.5 §17.6): opt/loop/break/critical/
+    // neg/assert/ignore/consider take exactly one operand; alt/par/seq/strict
+    // may carry many (one is legal).
     if (
       !MULTI_OPERAND_FRAGMENT_KINDS.has(fragment.fragmentKind) &&
       fragment.operands.length !== 1

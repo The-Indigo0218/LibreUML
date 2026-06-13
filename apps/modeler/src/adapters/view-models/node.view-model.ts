@@ -193,8 +193,10 @@ export interface ActivationViewModel {
   isManual?: boolean;
 }
 
+// Mirror of FragmentKind (vfs.types.ts) — the 12 UML 2.5 InteractionOperatorKind.
 export type FragmentKindVM =
-  | 'ALT' | 'OPT' | 'LOOP' | 'PAR' | 'SEQ' | 'BREAK' | 'CRITICAL';
+  | 'ALT' | 'OPT' | 'LOOP' | 'PAR' | 'SEQ' | 'STRICT' | 'BREAK' | 'CRITICAL'
+  | 'NEG' | 'ASSERT' | 'IGNORE' | 'CONSIDER';
 
 export interface FragmentOperandVM {
   id: string;

@@ -438,28 +438,38 @@ export interface IRActivation extends IRElement {
   manualHeight?: number;
 }
 
+/**
+ * The 12 UML 2.5 §17.6 InteractionOperatorKind values. `interactionOperator`
+ * in XMI is the lowercased form of each (`alt`, `strict`, `consider`, …).
+ */
 export type FragmentKind =
   | 'ALT'      // alternative (if/else) with multiple guarded operands
   | 'OPT'      // optional (single guarded operand)
   | 'LOOP'     // iteration with guard
   | 'PAR'      // parallel
   | 'SEQ'      // weak sequencing
+  | 'STRICT'   // strict sequencing (order across operands is significant)
   | 'BREAK'    // break
-  | 'CRITICAL'; // critical region
+  | 'CRITICAL' // critical region
+  | 'NEG'      // negative (invalid traces)
+  | 'ASSERT'   // assertion (only valid continuation)
+  | 'IGNORE'   // ignore the listed message types
+  | 'CONSIDER'; // consider only the listed message types
 
 /** All combined-fragment kinds, in canonical UI order. */
 export const FRAGMENT_KINDS: readonly FragmentKind[] = [
-  'ALT', 'OPT', 'LOOP', 'PAR', 'SEQ', 'BREAK', 'CRITICAL',
+  'ALT', 'OPT', 'LOOP', 'PAR', 'SEQ', 'STRICT', 'BREAK', 'CRITICAL',
+  'NEG', 'ASSERT', 'IGNORE', 'CONSIDER',
 ];
 
 /**
  * Fragment kinds whose semantics allow more than one operand: alternatives,
- * parallel regions and weak sequencing. The rest (opt/loop/break/critical)
- * are single-operand by definition (UML 2.5 §17.6). Single source of truth for
- * both the creation defaults and the operand add/remove UI.
+ * parallel regions, weak and strict sequencing. The rest are single-operand by
+ * definition (UML 2.5 §17.6). Single source of truth for both the creation
+ * defaults and the operand add/remove UI.
  */
 export const MULTI_OPERAND_FRAGMENT_KINDS: ReadonlySet<FragmentKind> = new Set([
-  'ALT', 'PAR', 'SEQ',
+  'ALT', 'PAR', 'SEQ', 'STRICT',
 ]);
 
 /** Default number of operands to seed when a fragment of this kind is created. */

@@ -129,8 +129,11 @@ describe('Sequence Diagram — all fragment kinds (B1)', () => {
     useModelStore.getState().initModel('test-model');
   });
 
-  it('exposes all seven UML 2.5 combined-fragment kinds', () => {
-    expect(FRAGMENT_KINDS).toEqual(['ALT', 'OPT', 'LOOP', 'PAR', 'SEQ', 'BREAK', 'CRITICAL']);
+  it('exposes all twelve UML 2.5 InteractionOperatorKind values', () => {
+    expect(FRAGMENT_KINDS).toEqual([
+      'ALT', 'OPT', 'LOOP', 'PAR', 'SEQ', 'STRICT', 'BREAK', 'CRITICAL',
+      'NEG', 'ASSERT', 'IGNORE', 'CONSIDER',
+    ]);
   });
 
   it('defaultOperandCount seeds 2 for multi-operand kinds, 1 otherwise', () => {
@@ -138,9 +141,11 @@ describe('Sequence Diagram — all fragment kinds (B1)', () => {
       const expected = MULTI_OPERAND_FRAGMENT_KINDS.has(k) ? 2 : 1;
       expect(defaultOperandCount(k)).toBe(expected);
     }
-    // Explicit: alt/par/seq multi, opt/loop/break/critical single.
+    // Explicit: alt/par/seq/strict multi, the rest single.
     expect(MULTI_OPERAND_FRAGMENT_KINDS.has('SEQ')).toBe(true);
+    expect(MULTI_OPERAND_FRAGMENT_KINDS.has('STRICT')).toBe(true);
     expect(MULTI_OPERAND_FRAGMENT_KINDS.has('CRITICAL')).toBe(false);
+    expect(MULTI_OPERAND_FRAGMENT_KINDS.has('NEG')).toBe(false);
   });
 
   it('persists a fragment of every kind through the store', () => {

@@ -27,7 +27,9 @@ export interface ActivationNode extends BaseDomainNode {
 
 export interface FragmentNode extends BaseDomainNode, Documentable {
   type: 'FRAGMENT';
-  fragmentKind: 'ALT' | 'OPT' | 'LOOP' | 'PAR' | 'SEQ' | 'BREAK' | 'CRITICAL';
+  fragmentKind:
+    | 'ALT' | 'OPT' | 'LOOP' | 'PAR' | 'SEQ' | 'STRICT' | 'BREAK' | 'CRITICAL'
+    | 'NEG' | 'ASSERT' | 'IGNORE' | 'CONSIDER';
   coveredLifelineIds: string[];
 }
 

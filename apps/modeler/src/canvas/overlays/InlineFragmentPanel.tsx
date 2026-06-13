@@ -3,7 +3,8 @@
  * combined FRAGMENT: the inline counterpart of FragmentPropertiesModal.
  *
  * Edits live, one undo per commit (change / blur):
- *   · fragmentKind (ALT / OPT / LOOP / PAR / SEQ / BREAK / CRITICAL)
+ *   · fragmentKind (12 UML 2.5 InteractionOperatorKind: ALT / OPT / LOOP /
+ *     PAR / SEQ / STRICT / BREAK / CRITICAL / NEG / ASSERT / IGNORE / CONSIDER)
  *   · operand guards (rename in place)
  *
  * Self-contained: resolves the active model (standalone localModel vs global) and

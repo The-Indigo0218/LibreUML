@@ -223,6 +223,7 @@
       "editNote": "Editar Nota",
       "editSpecification": "Editar Especificación",
       "editActorProperties": "Editar Propiedades",
+      "createSelfMessage": "Crear Mensaje Propio",
       "addStateInvariant": "Añadir Invariante de Estado",
       "addFoundMessage": "Añadir Mensaje Encontrado",
       "addLostMessage": "Añadir Mensaje Perdido",

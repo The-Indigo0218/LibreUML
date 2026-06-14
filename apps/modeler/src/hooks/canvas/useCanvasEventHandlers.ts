@@ -246,6 +246,13 @@ export function useCanvasEventHandlers({
           useToastStore.getState().show('⚠️ Los mensajes deben conectar dos lifelines');
           return;
         }
+        // Self-messages are created via the lifeline's "Create Self Message"
+        // context action (which seeds the nested activation) — not by drawing a
+        // connection back onto the same lifeline.
+        if (srcLifelineId === tgtLifelineId) {
+          useToastStore.getState().show('⚠️ Usa «Create Self Message» (clic derecho en la lifeline)');
+          return;
+        }
 
         const wsState = useWorkspaceStore.getState();
         const rawMode = wsState.connectionModes?.[activeTabId ?? ''] as string | undefined;

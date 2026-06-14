@@ -98,11 +98,13 @@ export const SEQUENCE_STEREOTYPES = new Set<stereotype>(['lifeline']);
 
 /**
  * Node kinds for which a self-loop (src === tgt) is a meaningful UI gesture.
- * Self-message in sequence diagrams renders as a U-loop on the lifeline.
+ * No kind qualifies: a sequence self-message must be created from the lifeline's
+ * "Create Self Message" context-menu action (which also seeds the nested
+ * activation), so drawing a manual connection back onto the same lifeline is
+ * disallowed to avoid invalid/inconsistent diagrams.
  */
-export function nodeAllowsSelfLoop(vm: AnyNodeViewModel | undefined): boolean {
-  if (!vm) return false;
-  return isLifelineViewModel(vm);
+export function nodeAllowsSelfLoop(_vm: AnyNodeViewModel | undefined): boolean {
+  return false;
 }
 
 /**

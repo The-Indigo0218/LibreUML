@@ -215,6 +215,7 @@
       "editNote": "Edit Note",
       "editSpecification": "Edit Specification",
       "editActorProperties": "Edit Properties",
+      "createSelfMessage": "Create Self Message",
       "addStateInvariant": "Add State Invariant",
       "addFoundMessage": "Add Found Message",
       "addLostMessage": "Add Lost Message",

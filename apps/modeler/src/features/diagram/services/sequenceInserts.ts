@@ -190,6 +190,44 @@ export function insertEndpointMessageIntoActiveDiagram(
 }
 
 /**
+ * Creates a self-message on a single lifeline (source === target). It is a SYNC
+ * message, so the store auto-creates the paired nested Activation on that same
+ * lifeline (re-entrant execution). This is the only sanctioned way to make a
+ * self-message — drawing a manual connection back onto a lifeline is blocked.
+ */
+export function insertSelfMessageIntoActiveDiagram(lifelineId?: string): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+
+  const target = lifelineId ?? lifelineIds[0];
+  if (!target || !activeModel.lifelines?.[target]) {
+    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un mensaje');
+    return;
+  }
+
+  const sequenceNumber =
+    Object.values(activeModel.messages ?? {}).reduce(
+      (acc, m) => (m.sequenceNumber > acc ? m.sequenceNumber : acc),
+      0,
+    ) + 1;
+
+  const payload = {
+    name: '',
+    messageKind: 'SYNC' as const,
+    sourceLifelineId: target,
+    targetLifelineId: target,
+    sequenceNumber,
+  };
+
+  const newId = isStandaloneFile
+    ? standaloneModelOps(tabId).createMessage(payload)
+    : useModelStore.getState().createMessage(payload);
+
+  useUiStore.getState().openMessageProps(newId);
+}
+
+/**
  * Inserts a general ordering (UML 2.5 §17.2) between the two earliest messages,
  * then opens its properties so the user can re-pick the endpoints. Requires at
  * least two messages — a temporal order needs two occurrences to relate.

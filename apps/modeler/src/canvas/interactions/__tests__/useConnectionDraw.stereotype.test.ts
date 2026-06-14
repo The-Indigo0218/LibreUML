@@ -82,8 +82,8 @@ describe('SEQUENCE_STEREOTYPES', () => {
 });
 
 describe('nodeAllowsSelfLoop', () => {
-  it('returns true for lifelines (sequence diagram self-message)', () => {
-    expect(nodeAllowsSelfLoop(makeLifelineVM() as AnyNodeViewModel)).toBe(true);
+  it('returns false for lifelines (self-message uses the context-menu action, not a manual loop)', () => {
+    expect(nodeAllowsSelfLoop(makeLifelineVM() as AnyNodeViewModel)).toBe(false);
   });
 
   it('returns false for actors (no self-loop semantics in use-case)', () => {

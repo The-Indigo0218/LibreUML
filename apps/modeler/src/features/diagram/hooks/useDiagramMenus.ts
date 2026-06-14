@@ -15,6 +15,7 @@ import {
   insertFragmentIntoActiveDiagram,
   insertInteractionUseIntoActiveDiagram,
   insertEndpointMessageIntoActiveDiagram,
+  insertSelfMessageIntoActiveDiagram,
 } from "../services/sequenceInserts";
 
 export type ContextMenuType = "pane" | "node" | "edge";
@@ -315,6 +316,12 @@ export const useDiagramMenus = ({
     [getElementId],
   );
 
+  const addSelfMessage = useCallback(
+    (lifelineNodeId: string) =>
+      insertSelfMessageIntoActiveDiagram(getElementId(lifelineNodeId)),
+    [getElementId],
+  );
+
   // ── getMenuOptions ────────────────────────────────────────────────────────
 
   const getMenuOptions = useCallback(
@@ -440,6 +447,10 @@ export const useDiagramMenus = ({
           baseOptions.push({
             label: t("contextMenu.node.rename"),
             onClick: () => onEditNode(nodeId),
+          });
+          baseOptions.push({
+            label: t("contextMenu.node.createSelfMessage"),
+            onClick: () => addSelfMessage(nodeId),
           });
           baseOptions.push({
             label: t("contextMenu.node.addStateInvariant"),
@@ -592,6 +603,7 @@ export const useDiagramMenus = ({
       addStateInvariant,
       addInteractionUse,
       addEndpointMessage,
+      addSelfMessage,
       isStandalone,
       t,
     ]

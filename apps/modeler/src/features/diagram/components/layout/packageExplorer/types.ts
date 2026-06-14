@@ -74,5 +74,4 @@ export interface ClassItemProps {
   onCancelRename: () => void;
   viewNodeId?: string;
   onDragStart?: (e: React.DragEvent, elementId: string, viewNodeId: string | undefined) => void;
-  t: TranslationFunction;
 }

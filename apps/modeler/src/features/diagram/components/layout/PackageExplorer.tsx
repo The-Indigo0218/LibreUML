@@ -967,7 +967,6 @@ export default function PackageExplorer() {
                       onCancelRename={handleCancelRename}
                       viewNodeId={getViewNodeId(classNode.id)}
                       onDragStart={handleClassDragStart}
-                      t={t}
                     />
                   ))}
               </div>

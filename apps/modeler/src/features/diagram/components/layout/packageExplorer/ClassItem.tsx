@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronRight, ChevronDown, Hash, FunctionSquare, Settings } from "lucide-react";
 import type { UmlAttribute, UmlMethod } from "../../../types/diagram.types";
 import type { ClassItemProps } from "./types";
@@ -16,8 +17,8 @@ export function ClassItem({
   onCancelRename,
   viewNodeId,
   onDragStart,
-  t,
 }: ClassItemProps) {
+  const { t } = useTranslation();
   const hasMembers = classNode.data.attributes.length > 0 || classNode.data.methods.length > 0;
   const [editValue, setEditValue] = useState(classNode.data.label);
   const inputRef = useRef<HTMLInputElement>(null);

@@ -174,6 +174,7 @@ interface PackageFolderProps {
 
 function PackageFolder({ name, count, isDefault = false, onCreate, children }: PackageFolderProps) {
   const [open, setOpen] = useState(true);
+  const { t } = useTranslation();
 
   return (
     <div>

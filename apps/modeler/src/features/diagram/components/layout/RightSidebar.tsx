@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Network,
   PanelRightClose,
@@ -202,7 +203,7 @@ function PackageFolder({ name, count, isDefault = false, onCreate, children }: P
           <button
             onClick={(e) => { e.stopPropagation(); onCreate(); }}
             className="px-1.5 py-1 hover:bg-surface-hover rounded transition-colors mr-1"
-            title="New Class"
+            title={t("sidebar.newPackage")}
           >
             <Plus className="w-3 h-3 text-text-muted hover:text-text-primary" />
           </button>
@@ -224,6 +225,7 @@ function PackageFolder({ name, count, isDefault = false, onCreate, children }: P
 type ElementKind = "class" | "abstract" | "interface" | "enum";
 
 export default function RightSidebar() {
+  const { t } = useTranslation();
   const { toggleRightPanel } = useLayoutStore();
   const model = useModelStore((s) => s.model);
   const initModel = useModelStore((s) => s.initModel);
@@ -402,29 +404,29 @@ export default function RightSidebar() {
   // ── New package ────────────────────────────────────────────────────────────
 
   const handleNewPackage = useCallback(() => {
-    const raw = window.prompt("Package name (e.g. com.example.models):");
+    const raw = window.prompt(t("sidebar.newPackagePrompt"));
     if (!raw?.trim()) return;
     const name = raw.trim();
     if ((model?.packageNames ?? []).includes(name)) {
-      useToastStore.getState().show(`Package "${name}" already exists`);
+      useToastStore.getState().show(t("sidebar.packageNameExists"));
       return;
     }
     ensureModel();
     addPackageName(name);
-    useToastStore.getState().show(`Package "${name}" created`);
+    useToastStore.getState().show(t("sidebar.packageCreated"));
   }, [model, ensureModel, addPackageName]);
 
   const handleStandaloneNewPackage = useCallback(() => {
     if (!activeTabId) return;
-    const raw = window.prompt("Package name (e.g. com.example.models):");
+    const raw = window.prompt(t("sidebar.newPackagePrompt"));
     if (!raw?.trim()) return;
     const name = raw.trim();
     if ((localModel?.packageNames ?? []).includes(name)) {
-      useToastStore.getState().show(`Package "${name}" already exists`);
+      useToastStore.getState().show(t("sidebar.packageNameExists"));
       return;
     }
     standaloneModelOps(activeTabId).addPackageName(name);
-    useToastStore.getState().show(`Package "${name}" created`);
+    useToastStore.getState().show(t("sidebar.packageCreated"));
   }, [activeTabId, localModel]);
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -501,7 +503,7 @@ export default function RightSidebar() {
         <div className="flex items-center gap-2">
           <Network className={`w-4 h-4 ${isStandalone ? "text-text-muted/30" : "text-text-muted"}`} />
           <h3 className={`text-xs font-semibold uppercase tracking-wider ${isStandalone ? "text-text-muted/30" : "text-text-muted"}`}>
-            Model Explorer
+            {t("sidebar.modelExplorer")}
           </h3>
         </div>
         <div className="flex items-center gap-0.5">
@@ -512,7 +514,7 @@ export default function RightSidebar() {
               else handleNewPackage();
             }}
             className="p-1 hover:bg-surface-hover rounded transition-colors opacity-0 group-hover:opacity-100"
-            title="New Package"
+            title={t("sidebar.newPackage")}
           >
             <FolderPlus className={`w-3.5 h-3.5 ${isStandalone ? "text-amber-400/60" : "text-text-muted"}`} />
           </button>
@@ -538,10 +540,10 @@ export default function RightSidebar() {
               </div>
               <div className="text-center">
                 <p className="text-xs font-medium text-amber-400/60 mb-1">
-                  Standalone File
+                  {t("sidebar.standaloneFile")}
                 </p>
                 <p className="text-[11px] text-text-muted/30 leading-relaxed">
-                  Drop elements onto the canvas to populate this diagram.
+                  {t("sidebar.dropElementsHint")}
                 </p>
               </div>
             </div>
@@ -618,10 +620,10 @@ export default function RightSidebar() {
             });
           })()}
         </div>
-      ) : !model && !project ? (
+       ) : !model && !project ? (
         <div className="flex-1 flex items-center justify-center p-4">
           <p className="text-xs text-text-muted/40 text-center leading-relaxed">
-            Open a .luml diagram and drop elements to populate the model.
+            {t("sidebar.openDiagramHint")}
           </p>
         </div>
       ) : (
@@ -643,7 +645,7 @@ export default function RightSidebar() {
             onClick={() => { openSSoTClassEditor(ctxMenu.id); dismissCtxMenu(); }}
           >
             <Pencil className="w-3.5 h-3.5 text-slate-400" />
-            Edit...
+            {t("sidebar.edit")}
           </button>
 
           <button
@@ -654,7 +656,7 @@ export default function RightSidebar() {
             }}
           >
             <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" />
-            Move to Package...
+            {t("sidebar.moveToPackage")}
           </button>
 
           <button
@@ -673,7 +675,7 @@ export default function RightSidebar() {
             }}
           >
             <EyeOff className="w-3.5 h-3.5" />
-            Untrack from Project
+            {t("sidebar.untrackFromProject")}
           </button>
 
           <div className="border-t border-[#2d3f5c] my-1" />
@@ -683,7 +685,7 @@ export default function RightSidebar() {
             onClick={() => { openGlobalDelete(ctxMenu.id); dismissCtxMenu(); }}
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Delete from Project
+            {t("sidebar.deleteFromProject")}
           </button>
         </div>
       )}
@@ -699,7 +701,7 @@ export default function RightSidebar() {
             onClick={() => { openSSoTClassEditor(standaloneCtxMenu.id); dismissStandaloneCtxMenu(); }}
           >
             <Pencil className="w-3.5 h-3.5 text-slate-400" />
-            Edit...
+            {t("sidebar.edit")}
           </button>
 
           <button
@@ -710,7 +712,7 @@ export default function RightSidebar() {
             }}
           >
             <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" />
-            Move to Package...
+            {t("sidebar.moveToPackage")}
           </button>
 
           <div className="border-t border-[#2d3f5c] my-1" />
@@ -735,7 +737,7 @@ export default function RightSidebar() {
             }}
           >
             <Trash2 className="w-3.5 h-3.5" />
-            Delete from Diagram
+            {t("sidebar.deleteFromDiagram")}
           </button>
         </div>
       )}
@@ -750,7 +752,7 @@ export default function RightSidebar() {
           onMouseDown={(e) => e.stopPropagation()}
         >
           <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 px-3 pt-1 pb-0.5">
-            Move to package
+            {t("sidebar.moveToPackageTitle")}
           </p>
           <button
             className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-400 hover:bg-white/5 transition-colors italic"
@@ -764,7 +766,7 @@ export default function RightSidebar() {
             }}
           >
             <Folder className="w-3.5 h-3.5 text-slate-500" />
-            (default)
+            {t("sidebar.defaultPackage")}
           </button>
           {(pkgPicker.isStandalone ? (localModel?.packageNames ?? []) : (model?.packageNames ?? [])).map((pkgName) => (
             <button

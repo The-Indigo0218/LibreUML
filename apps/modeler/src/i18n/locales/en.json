@@ -1575,5 +1575,122 @@
     "removeGate": "Remove gate",
     "addGateLeft": "Gate left",
     "addGateRight": "Gate right"
+  },
+  "sidebar": {
+    "modelExplorer": "Model Explorer",
+    "newPackage": "New Package",
+    "edit": "Edit...",
+    "moveToPackage": "Move to Package...",
+    "untrackFromProject": "Untrack from Project",
+    "deleteFromProject": "Delete from Project",
+    "deleteFromDiagram": "Delete from Diagram",
+    "moveToPackageTitle": "Move to package",
+    "defaultPackage": "(default)",
+    "standaloneFile": "Standalone File",
+    "dropElementsHint": "Drop elements onto the canvas to populate this diagram.",
+    "openDiagramHint": "Open a .luml diagram and drop elements to populate the model.",
+    "packageNameExists": "Package name already exists at this level",
+    "packageCreated": "Package created",
+    "newPackagePrompt": "Package name (e.g. com.example.models):",
+    "expandAll": "Expand All",
+    "collapseAll": "Collapse All",
+    "emptyPackage": "empty",
+    "noPackage": "(No Package)"
+  },
+  "createFileModal": {
+    "createTitle": "Create New Diagram",
+    "editTitle": "Edit Diagram",
+    "fileName": "File Name",
+    "fileNameRequired": "File Name is required",
+    "fileNamePlaceholder": "MyDiagram",
+    "location": "Location",
+    "locationRequired": "Location is required",
+    "diagramType": "Diagram Type",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional diagram description",
+    "cancel": "Cancel",
+    "createDiagram": "Create Diagram",
+    "saveChanges": "Save Changes",
+    "fileNameExists": "A file with this name already exists in this location",
+    "soon": "Soon"
+  },
+  "createFolderModal": {
+    "createTitle": "Create New Folder",
+    "editTitle": "Edit Folder",
+    "folderName": "Folder Name",
+    "folderNameRequired": "Folder Name is required",
+    "folderNamePlaceholder": "My Folder",
+    "location": "Location",
+    "locationRequired": "Location is required",
+    "description": "Description",
+    "descriptionPlaceholder": "Optional folder description",
+    "cancel": "Cancel",
+    "createFolder": "Create Folder",
+    "saveChanges": "Save Changes",
+    "folderNameExists": "A folder with this name already exists in this location"
+  },
+  "autoLayoutWarning": {
+    "title": "Locked Edges Detected",
+    "message": "This diagram has locked edges. Auto Layout will reposition all nodes but will not move locked connections, which may result in an uneven layout. Do you want to proceed?",
+    "dontShowAgain": "Don't show this warning again",
+    "cancel": "Cancel",
+    "proceed": "Proceed"
+  },
+  "noteEditorModal": {
+    "title": "Edit Note",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Note title...",
+    "contentLabel": "Content",
+    "contentPlaceholder": "Write here more details...",
+    "shortcutHint": "Ctrl+Enter to save",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "projectPropertiesModal": {
+    "title": "Project Properties",
+    "projectName": "Project Name",
+    "version": "Version",
+    "versionPlaceholder": "1.0.0",
+    "author": "Author",
+    "authorPlaceholder": "Your name",
+    "description": "Description",
+    "descriptionPlaceholder": "Short project description",
+    "targetLanguage": "Target Language",
+    "basePackage": "Base Package",
+    "basePackagePlaceholder": "com.example.model",
+    "created": "Created",
+    "lastModified": "Last Modified",
+    "cancel": "Cancel",
+    "saveChanges": "Save Changes"
+  },
+  "unsavedChangesModal": {
+    "title": "Save Changes?",
+    "message": "You have unsaved changes in <strong class=\"text-text-primary\">{{fileName}}</strong>.",
+    "discardHint": "If you discard, you will lose recent changes.",
+    "save": "Save",
+    "discard": "Discard Changes",
+    "cancel": "Cancel"
+  },
+  "tabBar": {
+    "closeTab": "Close tab"
+  },
+  "selectionToolbar": {
+    "edit": "Edit",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "reverse": "Reverse direction",
+    "properties": "Properties",
+    "color": "Color",
+    "copyStyle": "Copy style",
+    "pasteStyle": "Paste style",
+    "routing": "Line style",
+    "border": "Border",
+    "font": "Font",
+    "clearColor": "Clear color",
+    "clearBorder": "Clear border",
+    "clearFont": "Clear font"
+  },
+  "packageExplorer": {
+    "main": "MAIN"
   }
 }

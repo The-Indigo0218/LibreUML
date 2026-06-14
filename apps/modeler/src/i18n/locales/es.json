@@ -1584,5 +1584,122 @@
     "removeGate": "Eliminar compuerta",
     "addGateLeft": "Compuerta izq.",
     "addGateRight": "Compuerta der."
+  },
+  "sidebar": {
+    "modelExplorer": "Explorador de Modelo",
+    "newPackage": "Nuevo Paquete",
+    "edit": "Editar...",
+    "moveToPackage": "Mover a Paquete...",
+    "untrackFromProject": "Desvincular del Proyecto",
+    "deleteFromProject": "Eliminar del Proyecto",
+    "deleteFromDiagram": "Eliminar del Diagrama",
+    "moveToPackageTitle": "Mover a paquete",
+    "defaultPackage": "(predeterminado)",
+    "standaloneFile": "Archivo Independiente",
+    "dropElementsHint": "Arrastra elementos al lienzo para poblar este diagrama.",
+    "openDiagramHint": "Abre un diagrama .luml y arrastra elementos para poblar el modelo.",
+    "packageNameExists": "El nombre del paquete ya existe en este nivel",
+    "packageCreated": "Paquete creado",
+    "newPackagePrompt": "Nombre del paquete (ej. com.example.models):",
+    "expandAll": "Expandir Todo",
+    "collapseAll": "Contraer Todo",
+    "emptyPackage": "vacío",
+    "noPackage": "(Sin Paquete)"
+  },
+  "createFileModal": {
+    "createTitle": "Crear Nuevo Diagrama",
+    "editTitle": "Editar Diagrama",
+    "fileName": "Nombre del Archivo",
+    "fileNameRequired": "El nombre del archivo es obligatorio",
+    "fileNamePlaceholder": "MiDiagrama",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "diagramType": "Tipo de Diagrama",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional del diagrama",
+    "cancel": "Cancelar",
+    "createDiagram": "Crear Diagrama",
+    "saveChanges": "Guardar Cambios",
+    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación",
+    "soon": "Pronto"
+  },
+  "createFolderModal": {
+    "createTitle": "Crear Nueva Carpeta",
+    "editTitle": "Editar Carpeta",
+    "folderName": "Nombre de la Carpeta",
+    "folderNameRequired": "El nombre de la carpeta es obligatorio",
+    "folderNamePlaceholder": "Mi Carpeta",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional de la carpeta",
+    "cancel": "Cancelar",
+    "createFolder": "Crear Carpeta",
+    "saveChanges": "Guardar Cambios",
+    "folderNameExists": "Ya existe una carpeta con este nombre en esta ubicación"
+  },
+  "autoLayoutWarning": {
+    "title": "Bordes Bloqueados Detectados",
+    "message": "Este diagrama tiene bordes bloqueados. El Diseño Automático reposicionará todos los nodos pero no moverá las conexiones bloqueadas, lo que puede resultar en un diseño irregular. ¿Deseas continuar?",
+    "dontShowAgain": "No mostrar esta advertencia de nuevo",
+    "cancel": "Cancelar",
+    "proceed": "Continuar"
+  },
+  "noteEditorModal": {
+    "title": "Editar Nota",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Título de la nota...",
+    "contentLabel": "Contenido",
+    "contentPlaceholder": "Escribe aquí más detalles...",
+    "shortcutHint": "Ctrl+Enter para guardar",
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  },
+  "projectPropertiesModal": {
+    "title": "Propiedades del Proyecto",
+    "projectName": "Nombre del Proyecto",
+    "version": "Versión",
+    "versionPlaceholder": "1.0.0",
+    "author": "Autor",
+    "authorPlaceholder": "Tu nombre",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción breve del proyecto",
+    "targetLanguage": "Lenguaje Objetivo",
+    "basePackage": "Paquete Base",
+    "basePackagePlaceholder": "com.example.model",
+    "created": "Creado",
+    "lastModified": "Última Modificación",
+    "cancel": "Cancelar",
+    "saveChanges": "Guardar Cambios"
+  },
+  "unsavedChangesModal": {
+    "title": "¿Guardar Cambios?",
+    "message": "Tienes cambios sin guardar en <strong class=\"text-text-primary\">{{fileName}}</strong>.",
+    "discardHint": "Si descartas, perderás los cambios recientes.",
+    "save": "Guardar",
+    "discard": "Descartar Cambios",
+    "cancel": "Cancelar"
+  },
+  "tabBar": {
+    "closeTab": "Cerrar pestaña"
+  },
+  "selectionToolbar": {
+    "edit": "Editar",
+    "duplicate": "Duplicar",
+    "delete": "Eliminar",
+    "reverse": "Invertir dirección",
+    "properties": "Propiedades",
+    "color": "Color",
+    "copyStyle": "Copiar estilo",
+    "pasteStyle": "Pegar estilo",
+    "routing": "Estilo de línea",
+    "border": "Borde",
+    "font": "Fuente",
+    "clearColor": "Limpiar color",
+    "clearBorder": "Limpiar borde",
+    "clearFont": "Limpiar fuente"
+  },
+  "packageExplorer": {
+    "main": "PRINCIPAL"
   }
 }

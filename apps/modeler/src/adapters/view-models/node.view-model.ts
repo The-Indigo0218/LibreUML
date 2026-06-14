@@ -247,6 +247,8 @@ export interface InteractionUseViewModel {
   height: number;
   afterSequenceNumber: number;
   totalMessages: number;
+  /** True when width/height come from a manual override (G-d) → cyan stroke. */
+  isManual?: boolean;
 }
 
 export interface GateViewModel {

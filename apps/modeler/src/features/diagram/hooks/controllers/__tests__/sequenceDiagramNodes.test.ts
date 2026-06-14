@@ -132,8 +132,11 @@ describe('buildSequenceDiagramNodes', () => {
       edges: [],
     };
     const result = buildSequenceDiagramNodes(makeCtx(model, view));
-    const derivedVM = result.find((n) => n.domainId === 'll1')!.data as LifelineViewModel;
-    const manualVM = result.find((n) => n.domainId === 'll2')!.data as LifelineViewModel;
+    const lifelineVMs = result
+      .filter((n) => isLifelineViewModel(n.data))
+      .map((n) => n.data as LifelineViewModel);
+    const derivedVM = lifelineVMs.find((vm) => vm.domainId === 'll1')!;
+    const manualVM = lifelineVMs.find((vm) => vm.domainId === 'll2')!;
 
     expect(manualVM.timelineLength).toBe(600);
     expect(manualVM.isManualTimeline).toBe(true);
@@ -635,6 +638,30 @@ describe('buildSequenceDiagramNodes — interaction use', () => {
       const ll1CenterX = 50 + 70;
       const ll2CenterX = 250 + 70;
       expect(useNode.data.width).toBeGreaterThanOrEqual(ll2CenterX - ll1CenterX);
+    }
+  });
+
+  it('honors a manual width/height on a ref and flags it (G-d)', () => {
+    const u1 = { ...makeInteractionUse('u1', ['ll1', 'll2'], 0, 'Login'), manualWidth: 320, manualHeight: 90 };
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      interactionUses: { u1 },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const useNode = result.find((n) => n.type === 'umlInteractionUse');
+    expect(useNode && isInteractionUseViewModel(useNode.data)).toBe(true);
+    if (useNode && isInteractionUseViewModel(useNode.data)) {
+      expect(useNode.data.width).toBe(320);
+      expect(useNode.data.height).toBe(90);
+      expect(useNode.data.isManual).toBe(true);
     }
   });
 

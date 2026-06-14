@@ -558,6 +558,9 @@ export interface IRInteractionUse extends IRElement {
    * this number. 0 = at the top, before the first message.
    */
   afterSequenceNumber: number;
+  /** Hybrid layout overrides (G-d): manual box width/height in px. */
+  manualWidth?: number;
+  manualHeight?: number;
 }
 
 /**

@@ -60,6 +60,10 @@ export default function InlineInteractionUsePanel({ elementId, onAdvanced, onClo
   const commitReferencedName = (value: string) => {
     ops.updateInteractionUse(elementId, { referencedName: value.trim() || undefined });
   };
+  const isManualSize = use.manualWidth !== undefined || use.manualHeight !== undefined;
+  const resetSize = () => {
+    ops.updateInteractionUse(elementId, { manualWidth: undefined, manualHeight: undefined });
+  };
 
   const fieldCls =
     'bg-surface-secondary border border-surface-border rounded px-1.5 py-1 text-xs text-text-primary outline-none focus:border-indigo-500 font-mono';
@@ -99,6 +103,15 @@ export default function InlineInteractionUsePanel({ elementId, onAdvanced, onClo
             aria-label={t('inlineInteractionUsePanel.referencedName')}
           />
         </section>
+
+        {isManualSize && (
+          <button
+            onClick={resetSize}
+            className="w-full px-2.5 py-1.5 rounded border border-cyan-600/50 bg-cyan-500/10 text-xs text-cyan-300 hover:bg-cyan-500/20 transition-all"
+          >
+            {t('inlineInteractionUsePanel.resetSize')}
+          </button>
+        )}
 
         <div className="border-t border-surface-border/50 pt-3">
           <button

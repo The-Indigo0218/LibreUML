@@ -903,6 +903,19 @@ export default function KonvaCanvas() {
     [shapes, activationOps],
   );
 
+  // ── Interaction-use (ref): manual width/height (G-d) ──────────────────────
+  const handleInteractionUseResizeEnd = useCallback(
+    (id: string, newWidth: number, newHeight: number) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isInteractionUseViewModel(shapeEntry.data)) return;
+      activationOps().updateInteractionUse(shapeEntry.data.domainId, {
+        manualWidth: Math.max(40, Math.round(newWidth)),
+        manualHeight: Math.max(24, Math.round(newHeight)),
+      });
+    },
+    [shapes, activationOps],
+  );
+
   // ── Combined fragments: movable + resizable container (G-a/G-b) ──────────
   // Dragging the box vertically pins manualTop and shifts every contained
   // message (manualY) by the same delta so the contents follow the container.
@@ -2545,6 +2558,7 @@ export default function KonvaCanvas() {
                 const isLifeline = isLifelineViewModel(vm);
                 const isActivation = isActivationViewModel(vm);
                 const isFragment = isFragmentViewModel(vm);
+                const isInteractionUse = isInteractionUseViewModel(vm);
                 const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm) || isContinuationViewModel(vm);
                 // General orderings, timing constraints and coregions have
                 // fully-derived geometry (anchored to occurrences) → not draggable.
@@ -2599,6 +2613,8 @@ export default function KonvaCanvas() {
                     ? handleFragmentResizeEnd
                     : isLifeline
                     ? handleLifelineTimelineResizeEnd
+                    : isInteractionUse
+                    ? handleInteractionUseResizeEnd
                     : isUCModuleViewModel(vm)
                     ? handleUCModuleResizeEnd
                     : handleSystemBoundaryResizeEnd,

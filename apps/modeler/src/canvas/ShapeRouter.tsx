@@ -147,7 +147,7 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
     return <StateInvariantShape key={key} viewModel={vm} {...common} />;
 
   if (isInteractionUseViewModel(vm))
-    return <InteractionUseShape key={key} viewModel={vm} {...common} />;
+    return <InteractionUseShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isGateViewModel(vm))
     return <GateShape key={key} viewModel={vm} {...common} />;

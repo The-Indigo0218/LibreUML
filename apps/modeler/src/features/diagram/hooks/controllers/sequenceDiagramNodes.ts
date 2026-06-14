@@ -847,7 +847,11 @@ function buildInteractionUseNodes(
       const xs = liveIds.map((id) => lifelineCenterX.get(id)!).sort((a, b) => a - b);
       const left = xs[0] - FRAGMENT_X_PAD;
       const right = xs[xs.length - 1] + FRAGMENT_X_PAD;
-      const width = Math.max(FRAGMENT_MIN_W, right - left);
+      const derivedWidth = Math.max(FRAGMENT_MIN_W, right - left);
+      // G-d: manual width/height override the derived box.
+      const isManual = use.manualWidth !== undefined || use.manualHeight !== undefined;
+      const width = use.manualWidth ?? derivedWidth;
+      const height = use.manualHeight ?? INTERACTION_USE_H;
 
       const slot = Math.max(0, Math.min(totalMessages, use.afterSequenceNumber));
       const top = stateInvariantSlotY(slot, slotLayout);
@@ -858,9 +862,10 @@ function buildInteractionUseNodes(
         domainId: use.id,
         label: use.referencedName || use.name || 'ref',
         width,
-        height: INTERACTION_USE_H,
+        height,
         afterSequenceNumber: slot,
         totalMessages,
+        isManual,
       };
 
       return {

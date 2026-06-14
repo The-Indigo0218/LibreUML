@@ -1152,6 +1152,7 @@
   "inlineInteractionUsePanel": {
     "name": "Nombre",
     "referencedName": "Interacción referenciada",
+    "resetSize": "Restablecer tamaño",
     "advanced": "Avanzado…",
     "close": "Cerrar"
   },

@@ -3,6 +3,7 @@ import { Group, Rect, Line, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { FragmentViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveFragmentColors } from '../tokens/colors';
+import ResizeHandles from './ResizeHandles';
 
 const NESTING_OFFSET = 8;
 const LABEL_PAD_X = 6;
@@ -10,7 +11,6 @@ const LABEL_PAD_Y = 3;
 const LABEL_FONT = 11;
 const GUARD_FONT = 11;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
-const HANDLE = 7;
 const MIN_W = 60;
 const MIN_H = 36;
 const MANUAL_STROKE = '#22d3ee';
@@ -169,6 +169,8 @@ export default function FragmentShape({
         <ResizeHandles
           w={w}
           h={h}
+          minW={MIN_W}
+          minH={MIN_H}
           onResize={(nw, nh) => setLive({ w: nw, h: nh })}
           onCommit={(nw, nh) => {
             setLive(null);
@@ -191,101 +193,5 @@ export default function FragmentShape({
         />
       )}
     </Group>
-  );
-}
-
-interface ResizeHandlesProps {
-  w: number;
-  h: number;
-  onResize: (w: number, h: number) => void;
-  onCommit: (w: number, h: number) => void;
-}
-
-/** Three transparent drag handles that resize the fragment from its top-left anchor. */
-function ResizeHandles({ w, h, onResize, onCommit }: ResizeHandlesProps) {
-  const cursor = (e: KonvaEventObject<MouseEvent>, c: string) => {
-    const stage = e.target.getStage();
-    if (stage) stage.container().style.cursor = c;
-  };
-  return (
-    <>
-      {/* Right edge → width */}
-      <Rect
-        x={w - HANDLE / 2}
-        y={HANDLE}
-        width={HANDLE}
-        height={Math.max(0, h - 2 * HANDLE)}
-        fill="transparent"
-        draggable
-        onMouseEnter={(e) => cursor(e, 'ew-resize')}
-        onMouseLeave={(e) => cursor(e, 'default')}
-        dragBoundFunc={function (pos) {
-          return { x: pos.x, y: this.getAbsolutePosition().y };
-        }}
-        onDragStart={(e) => { e.cancelBubble = true; }}
-        onDragMove={(e) => {
-          e.cancelBubble = true;
-          onResize(Math.max(MIN_W, e.target.x() + HANDLE / 2), h);
-        }}
-        onDragEnd={(e) => {
-          e.cancelBubble = true;
-          const nw = Math.max(MIN_W, e.target.x() + HANDLE / 2);
-          e.target.position({ x: w - HANDLE / 2, y: HANDLE });
-          onCommit(nw, h);
-        }}
-      />
-      {/* Bottom edge → height */}
-      <Rect
-        x={HANDLE}
-        y={h - HANDLE / 2}
-        width={Math.max(0, w - 2 * HANDLE)}
-        height={HANDLE}
-        fill="transparent"
-        draggable
-        onMouseEnter={(e) => cursor(e, 'ns-resize')}
-        onMouseLeave={(e) => cursor(e, 'default')}
-        dragBoundFunc={function (pos) {
-          return { x: this.getAbsolutePosition().x, y: pos.y };
-        }}
-        onDragStart={(e) => { e.cancelBubble = true; }}
-        onDragMove={(e) => {
-          e.cancelBubble = true;
-          onResize(w, Math.max(MIN_H, e.target.y() + HANDLE / 2));
-        }}
-        onDragEnd={(e) => {
-          e.cancelBubble = true;
-          const nh = Math.max(MIN_H, e.target.y() + HANDLE / 2);
-          e.target.position({ x: HANDLE, y: h - HANDLE / 2 });
-          onCommit(w, nh);
-        }}
-      />
-      {/* Bottom-right corner → both */}
-      <Rect
-        x={w - HANDLE / 2}
-        y={h - HANDLE / 2}
-        width={HANDLE}
-        height={HANDLE}
-        fill={MANUAL_STROKE}
-        opacity={0.5}
-        draggable
-        onMouseEnter={(e) => cursor(e, 'nwse-resize')}
-        onMouseLeave={(e) => cursor(e, 'default')}
-        onDragStart={(e) => { e.cancelBubble = true; }}
-        onDragMove={(e) => {
-          e.cancelBubble = true;
-          onResize(
-            Math.max(MIN_W, e.target.x() + HANDLE / 2),
-            Math.max(MIN_H, e.target.y() + HANDLE / 2),
-          );
-        }}
-        onDragEnd={(e) => {
-          e.cancelBubble = true;
-          const nw = Math.max(MIN_W, e.target.x() + HANDLE / 2);
-          const nh = Math.max(MIN_H, e.target.y() + HANDLE / 2);
-          e.target.position({ x: w - HANDLE / 2, y: h - HANDLE / 2 });
-          onCommit(nw, nh);
-        }}
-      />
-    </>
   );
 }

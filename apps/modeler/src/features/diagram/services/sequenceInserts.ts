@@ -253,3 +253,30 @@ export function insertCoregionIntoActiveDiagram(lifelineId?: string): void {
 
   useUiStore.getState().openCoregionProps(newId);
 }
+
+/**
+ * Inserts a continuation (UML 2.5 §17.3) covering every lifeline on the canvas,
+ * then opens its properties so the user names it. Requires at least one lifeline.
+ */
+export function insertContinuationIntoActiveDiagram(): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+
+  if (lifelineIds.length === 0) {
+    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar una continuación');
+    return;
+  }
+
+  const payload = {
+    name: '',
+    coveredLifelineIds: lifelineIds,
+    afterSequenceNumber: Object.keys(activeModel.messages ?? {}).length,
+  };
+
+  const newId = isStandaloneFile
+    ? standaloneModelOps(tabId).createContinuation(payload)
+    : useModelStore.getState().createContinuation(payload);
+
+  useUiStore.getState().openContinuationProps(newId);
+}

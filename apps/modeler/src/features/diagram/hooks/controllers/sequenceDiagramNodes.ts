@@ -8,6 +8,7 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRContinuation,
   ViewNode,
   SemanticModel,
 } from '../../../../core/domain/vfs/vfs.types';
@@ -23,6 +24,7 @@ import type {
   GeneralOrderingViewModel,
   TimeConstraintViewModel,
   CoregionViewModel,
+  ContinuationViewModel,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -693,6 +695,15 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     slotLayout,
   );
 
+  // 8b. Emit Continuations (UML 2.5 §17.3) — named stadium boxes spanning the
+  //     covered lifelines at a temporal slot. Slot-anchored & draggable like refs.
+  const continuationNodes = buildContinuationNodes(
+    Object.values(model.continuations ?? {}),
+    lifelineCenterX,
+    allMessages.length,
+    slotLayout,
+  );
+
   return [
     ...fragmentNodes,
     ...interactionUseNodes,
@@ -704,6 +715,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     ...gateNodes,
     ...generalOrderingNodes,
     ...timeConstraintNodes,
+    ...continuationNodes,
     ...noteNodes,
   ];
 }
@@ -838,6 +850,51 @@ function buildInteractionUseNodes(
         position: { x: left, y: top },
         data: viewModel,
         domainId: use.id,
+      };
+    })
+    .filter(<T>(n: T | null): n is T => n !== null);
+}
+
+// ─── Continuation geometry ──────────────────────────────────────────────────────
+
+const CONTINUATION_H = 28;
+
+function buildContinuationNodes(
+  continuations: IRContinuation[],
+  lifelineCenterX: Map<string, number>,
+  totalMessages: number,
+  slotLayout?: SlotLayout,
+) {
+  return continuations
+    .map((cont) => {
+      const liveIds = cont.coveredLifelineIds.filter((id) => lifelineCenterX.has(id));
+      if (liveIds.length === 0) return null;
+
+      const xs = liveIds.map((id) => lifelineCenterX.get(id)!).sort((a, b) => a - b);
+      const left = xs[0] - FRAGMENT_X_PAD;
+      const right = xs[xs.length - 1] + FRAGMENT_X_PAD;
+      const width = Math.max(FRAGMENT_MIN_W, right - left);
+
+      const slot = Math.max(0, Math.min(totalMessages, cont.afterSequenceNumber));
+      const cy = stateInvariantSlotY(slot, slotLayout);
+
+      const viewModel: ContinuationViewModel = {
+        __brand: 'continuation',
+        id: cont.id,
+        domainId: cont.id,
+        label: cont.name || 'continuation',
+        width,
+        height: CONTINUATION_H,
+        afterSequenceNumber: slot,
+        totalMessages,
+      };
+
+      return {
+        id: `cont-${cont.id}`,
+        type: 'umlContinuation',
+        position: { x: left, y: cy - CONTINUATION_H / 2 },
+        data: viewModel,
+        domainId: cont.id,
       };
     })
     .filter(<T>(n: T | null): n is T => n !== null);

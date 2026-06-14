@@ -25,6 +25,7 @@ import type {
   IRGeneralOrdering,
   IRTimeConstraint,
   IRCoregion,
+  IRContinuation,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -102,6 +103,16 @@ function cascadeDeleteMessages(model: SemanticModel, lifelineId: string) {
     Object.keys(model.coregions).forEach((cid) => {
       if (model.coregions![cid].lifelineId === lifelineId) {
         delete model.coregions![cid];
+      }
+    });
+  }
+  // Continuations span lifelines too → strip, drop if it covered none else.
+  if (model.continuations) {
+    Object.keys(model.continuations).forEach((cid) => {
+      const cont = model.continuations![cid];
+      cont.coveredLifelineIds = cont.coveredLifelineIds.filter((id) => id !== lifelineId);
+      if (cont.coveredLifelineIds.length === 0) {
+        delete model.continuations![cid];
       }
     });
   }
@@ -314,6 +325,10 @@ interface ModelStoreState {
   updateCoregion: (id: string, patch: Partial<IRCoregion>) => void;
   deleteCoregion: (id: string) => void;
 
+  createContinuation: (data: Omit<IRContinuation, 'id' | 'kind'>) => string;
+  updateContinuation: (id: string, patch: Partial<IRContinuation>) => void;
+  deleteContinuation: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -370,6 +385,7 @@ export const useModelStore = create<ModelStoreState>()(
           generalOrderings: {},
           timeConstraints: {},
           coregions: {},
+          continuations: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -980,6 +996,33 @@ export const useModelStore = create<ModelStoreState>()(
       withUndo('model', 'Delete Coregion', 'global', (draft) => {
         if (!draft.model?.coregions?.[id]) return;
         delete draft.model.coregions[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createContinuation: (data) => {
+      const id = newId();
+      withUndo('model', 'Create Continuation', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.continuations = draft.model.continuations ?? {};
+        draft.model.continuations[id] = { ...data, id, kind: 'CONTINUATION' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateContinuation: (id, patch) => {
+      withUndo('model', 'Update Continuation', 'global', (draft) => {
+        if (!draft.model?.continuations?.[id]) return;
+        draft.model.continuations[id] = { ...draft.model.continuations[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteContinuation: (id) => {
+      withUndo('model', 'Delete Continuation', 'global', (draft) => {
+        if (!draft.model?.continuations?.[id]) return;
+        delete draft.model.continuations[id];
         draft.model.updatedAt = Date.now();
       });
     },

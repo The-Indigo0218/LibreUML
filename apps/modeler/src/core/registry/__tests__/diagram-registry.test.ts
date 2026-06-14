@@ -319,10 +319,10 @@ describe('Diagram Registry', () => {
       expect(getNativeNodeToolIds('SEQUENCE_DIAGRAM').has('actor_lifeline')).toBe(true);
     });
 
-    it('declares ref / found / lost / order / duration / time / coregion as click-to-insert STRUCTURE tools', () => {
+    it('declares ref / found / lost / order / duration / time / coregion / continuation as click-to-insert STRUCTURE tools', () => {
       const structure = registry.tools.structure ?? [];
       expect(structure.map((t) => t.id)).toEqual([
-        'ref', 'msg-found', 'msg-lost', 'gen-ordering', 'duration', 'time', 'coregion',
+        'ref', 'msg-found', 'msg-lost', 'gen-ordering', 'duration', 'time', 'coregion', 'continuation',
       ]);
       expect(structure.every((t) => t.type === 'STRUCTURE')).toBe(true);
       // ref is common; the rest sit under the advanced disclosure.

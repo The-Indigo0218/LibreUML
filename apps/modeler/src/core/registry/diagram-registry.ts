@@ -921,6 +921,7 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
       { id: 'duration',     type: 'STRUCTURE', category: 'advanced', label: 'duration', icon: 'Timer',       color: '#818CF8' },
       { id: 'time',         type: 'STRUCTURE', category: 'advanced', label: 'time',     icon: 'Clock',       color: '#818CF8' },
       { id: 'coregion',     type: 'STRUCTURE', category: 'advanced', label: 'coregion', icon: 'Brackets',    color: '#818CF8' },
+      { id: 'continuation', type: 'STRUCTURE', category: 'advanced', label: 'continuation', icon: 'Flag',    color: '#818CF8' },
     ],
   },
 

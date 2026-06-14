@@ -19,6 +19,7 @@ import type {
   IRGeneralOrdering,
   IRTimeConstraint,
   IRCoregion,
+  IRContinuation,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
@@ -32,6 +33,7 @@ import {
   isGeneralOrderingViewModel,
   isTimeConstraintViewModel,
   isCoregionViewModel,
+  isContinuationViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
@@ -1230,5 +1232,52 @@ describe('buildSequenceDiagramNodes — decomposed lifeline (C5)', () => {
       expect(node.data.decomposedRef).toBeUndefined();
       expect(node.data.decomposedDiagramId).toBeUndefined();
     }
+  });
+});
+
+function makeContinuation(
+  id: string,
+  name: string,
+  coveredLifelineIds: string[],
+  afterSequenceNumber: number,
+): IRContinuation {
+  return { id, kind: 'CONTINUATION', name, coveredLifelineIds, afterSequenceNumber };
+}
+
+describe('buildSequenceDiagramNodes — continuations (C3)', () => {
+  const view: DiagramView = {
+    diagramId: 'd1',
+    nodes: [
+      { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+      { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+    ],
+    edges: [],
+  };
+
+  it('emits a continuation stadium spanning the covered lifelines', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+      continuations: { c1: makeContinuation('c1', 'loggedIn', ['ll1', 'll2'], 1) },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlContinuation');
+    expect(node).toBeDefined();
+    expect(node && isContinuationViewModel(node.data)).toBe(true);
+    if (node && isContinuationViewModel(node.data)) {
+      expect(node.data.label).toBe('loggedIn');
+      expect(node.data.afterSequenceNumber).toBe(1);
+      expect(node.data.totalMessages).toBe(1);
+      // centred on slot-1 boundary
+      expect(node.position.y).toBeCloseTo(stateInvariantSlotY(1) - node.data.height / 2, 0);
+    }
+  });
+
+  it('omits a continuation whose lifelines are all absent', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      continuations: { c1: makeContinuation('c1', 'x', ['ghost'], 0) },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlContinuation');
+    expect(node).toBeUndefined();
   });
 });

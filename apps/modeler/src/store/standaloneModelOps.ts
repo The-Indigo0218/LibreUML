@@ -39,6 +39,7 @@ import type {
   IRGeneralOrdering,
   IRTimeConstraint,
   IRCoregion,
+  IRContinuation,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -99,6 +100,15 @@ function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: strin
     for (const cid of Object.keys(model.coregions)) {
       if (model.coregions[cid].lifelineId === lifelineId) {
         delete model.coregions[cid];
+      }
+    }
+  }
+  if (model.continuations) {
+    for (const cid of Object.keys(model.continuations)) {
+      const cont = model.continuations[cid];
+      cont.coveredLifelineIds = cont.coveredLifelineIds.filter((id) => id !== lifelineId);
+      if (cont.coveredLifelineIds.length === 0) {
+        delete model.continuations[cid];
       }
     }
   }
@@ -848,6 +858,34 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.coregions?.[id]) return;
         delete m.coregions[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Continuations (UML 2.5 §17.3) ─────────────────────────────────────────
+
+    createContinuation: (data: Omit<IRContinuation, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.continuations = m.continuations ?? {};
+        m.continuations[id] = { ...data, id, kind: 'CONTINUATION' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateContinuation: (id: string, patch: Partial<IRContinuation>) => {
+      update((m) => {
+        if (!m.continuations?.[id]) return;
+        m.continuations[id] = { ...m.continuations[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteContinuation: (id: string) => {
+      update((m) => {
+        if (!m.continuations?.[id]) return;
+        delete m.continuations[id];
         m.updatedAt = Date.now();
       });
     },

@@ -37,6 +37,7 @@ export type ActiveModal =
   | "time-constraint-props"
   | "coregion-props"
   | "lifeline-props"
+  | "continuation-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -107,6 +108,7 @@ interface UiStoreState {
   openTimeConstraintProps: (constraintId: string) => void;
   openCoregionProps: (coregionId: string) => void;
   openLifelineProps: (lifelineId: string) => void;
+  openContinuationProps: (continuationId: string) => void;
   closeModals: () => void;
   openInlineEdgePanel: (edgeId: string) => void;
   closeInlineEdgePanel: () => void;
@@ -230,6 +232,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openTimeConstraintProps: (constraintId) => set({ activeModal: "time-constraint-props", editingId: constraintId }),
   openCoregionProps: (coregionId) => set({ activeModal: "coregion-props", editingId: coregionId }),
   openLifelineProps: (lifelineId) => set({ activeModal: "lifeline-props", editingId: lifelineId }),
+  openContinuationProps: (continuationId) => set({ activeModal: "continuation-props", editingId: continuationId }),
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 

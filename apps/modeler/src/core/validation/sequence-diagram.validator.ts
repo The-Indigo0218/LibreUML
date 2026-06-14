@@ -15,6 +15,7 @@ import type {
   IRGeneralOrdering,
   IRTimeConstraint,
   IRCoregion,
+  IRContinuation,
 } from '../domain/vfs/vfs.types';
 import { MULTI_OPERAND_FRAGMENT_KINDS } from '../domain/vfs/vfs.types';
 
@@ -357,6 +358,34 @@ export class SequenceDiagramValidator implements BaseValidator {
     }
     if (coregion.fromSequence === coregion.toSequence) {
       warnings.push('Coregion spans no message occurrences');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific continuation validation (UML 2.5 §17.3). Error when
+   * it covers no lifeline or references missing ones; warning when it has no name
+   * (continuations are matched by name, so an unnamed one can't pair).
+   */
+  validateContinuation(continuation: IRContinuation, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!continuation.coveredLifelineIds || continuation.coveredLifelineIds.length === 0) {
+      errors.push('Continuation must cover at least one lifeline');
+    } else {
+      const orphans = continuation.coveredLifelineIds.filter((id) => !model.lifelines?.[id]);
+      if (orphans.length > 0) {
+        errors.push(`Continuation references missing lifelines: ${orphans.join(', ')}`);
+      }
+    }
+    if (!continuation.name || continuation.name.trim() === '') {
+      warnings.push('Continuation has no name (cannot pair with another)');
     }
 
     return {

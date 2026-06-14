@@ -72,6 +72,7 @@ import GeneralOrderingPropertiesModal from '../features/diagram/components/modal
 import TimeConstraintPropertiesModal from '../features/diagram/components/modals/TimeConstraintPropertiesModal';
 import CoregionPropertiesModal from '../features/diagram/components/modals/CoregionPropertiesModal';
 import LifelinePropertiesModal from '../features/diagram/components/modals/LifelinePropertiesModal';
+import ContinuationPropertiesModal from '../features/diagram/components/modals/ContinuationPropertiesModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -107,6 +108,7 @@ import {
   isGeneralOrderingViewModel,
   isTimeConstraintViewModel,
   isCoregionViewModel,
+  isContinuationViewModel,
   type AnyNodeViewModel,
   type NodeViewModel,
   type PackageViewModel,
@@ -735,7 +737,7 @@ export default function KonvaCanvas() {
       if (!shapeEntry) return;
 
       const vm = shapeEntry.data;
-      if (!isStateInvariantViewModel(vm) && !isInteractionUseViewModel(vm) && !isGateViewModel(vm)) return;
+      if (!isStateInvariantViewModel(vm) && !isInteractionUseViewModel(vm) && !isGateViewModel(vm) && !isContinuationViewModel(vm)) return;
 
       // P4 — invert against the builder's variable slot layout.
       const derivedModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
@@ -757,6 +759,9 @@ export default function KonvaCanvas() {
       } else if (isGateViewModel(vm)) {
         if (ops) ops.updateGate(vm.domainId, { afterSequenceNumber: newSlot });
         else useModelStore.getState().updateGate(vm.domainId, { afterSequenceNumber: newSlot });
+      } else if (isContinuationViewModel(vm)) {
+        if (ops) ops.updateContinuation(vm.domainId, { afterSequenceNumber: newSlot });
+        else useModelStore.getState().updateContinuation(vm.domainId, { afterSequenceNumber: newSlot });
       }
 
       // Reset visual position — the store update will re-derive the canonical Y.
@@ -2367,6 +2372,8 @@ export default function KonvaCanvas() {
                   ? () => useUiStore.getState().openTimeConstraintProps(vm.domainId)
                   : isCoregionViewModel(vm)
                   ? () => useUiStore.getState().openCoregionProps(vm.domainId)
+                  : isContinuationViewModel(vm)
+                  ? () => useUiStore.getState().openContinuationProps(vm.domainId)
                   : isActivationViewModel(vm)
                   ? () => handleActivationResetOverride(shape.id)
                   : isNodeViewModel(vm)
@@ -2384,7 +2391,7 @@ export default function KonvaCanvas() {
                 const isMsg = isMessageViewModel(vm);
                 const isLifeline = isLifelineViewModel(vm);
                 const isActivation = isActivationViewModel(vm);
-                const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm);
+                const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm) || isContinuationViewModel(vm);
                 // General orderings, timing constraints and coregions have
                 // fully-derived geometry (anchored to occurrences) → not draggable.
                 const isGeneralOrdering =
@@ -2778,6 +2785,7 @@ export default function KonvaCanvas() {
       <TimeConstraintPropertiesModal />
       <CoregionPropertiesModal />
       <LifelinePropertiesModal />
+      <ContinuationPropertiesModal />
     </div>
   );
 }

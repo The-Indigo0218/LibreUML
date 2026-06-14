@@ -295,6 +295,17 @@ export interface CoregionViewModel {
   height: number;
 }
 
+export interface ContinuationViewModel {
+  __brand: 'continuation';
+  id: string;
+  domainId: string;
+  label: string;
+  width: number;
+  height: number;
+  afterSequenceNumber: number;
+  totalMessages: number;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -313,7 +324,8 @@ export type AnyNodeViewModel =
   | GateViewModel
   | GeneralOrderingViewModel
   | TimeConstraintViewModel
-  | CoregionViewModel;
+  | CoregionViewModel
+  | ContinuationViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -386,4 +398,8 @@ export function isTimeConstraintViewModel(vm: AnyNodeViewModel): vm is TimeConst
 
 export function isCoregionViewModel(vm: AnyNodeViewModel): vm is CoregionViewModel {
   return '__brand' in vm && vm.__brand === 'coregion';
+}
+
+export function isContinuationViewModel(vm: AnyNodeViewModel): vm is ContinuationViewModel {
+  return '__brand' in vm && vm.__brand === 'continuation';
 }

@@ -41,6 +41,7 @@ import {
   Timer,
   Clock,
   Brackets,
+  Flag,
 } from "lucide-react";
 
 /**
@@ -90,6 +91,7 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   Timer,
   Clock,
   Brackets,
+  Flag,
 };
 
 /**

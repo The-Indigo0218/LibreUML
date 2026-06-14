@@ -611,6 +611,20 @@ export interface IRCoregion extends IRElement {
   toSequence: number;
 }
 
+/**
+ * UML 2.5 §17.3 Continuation — a named continuation point spanning one or more
+ * lifelines, used to split and rejoin alternative flows (typically with ALT/SEQ).
+ * Two continuations with the SAME name denote a jump: control reaching one
+ * continues at the other. Drawn as a stadium (rounded-end) box with the name.
+ */
+export interface IRContinuation extends IRElement {
+  kind: 'CONTINUATION';
+  /** Lifelines this continuation spans horizontally. */
+  coveredLifelineIds: string[];
+  /** Temporal anchor: sits in the band below this message slot (0 = top). */
+  afterSequenceNumber: number;
+}
+
 export type RelationKind =
   | 'ASSOCIATION'
   | 'AGGREGATION'
@@ -685,6 +699,7 @@ export interface SemanticModel {
   generalOrderings?: Record<string, IRGeneralOrdering>;
   timeConstraints?: Record<string, IRTimeConstraint>;
   coregions?: Record<string, IRCoregion>;
+  continuations?: Record<string, IRContinuation>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

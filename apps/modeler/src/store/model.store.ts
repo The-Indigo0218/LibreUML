@@ -22,6 +22,10 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRGeneralOrdering,
+  IRTimeConstraint,
+  IRCoregion,
+  IRContinuation,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -91,6 +95,24 @@ function cascadeDeleteMessages(model: SemanticModel, lifelineId: string) {
     Object.keys(model.stateInvariants).forEach((sid) => {
       if (model.stateInvariants![sid].lifelineId === lifelineId) {
         delete model.stateInvariants![sid];
+      }
+    });
+  }
+  // Coregions bracket a single lifeline → drop with it.
+  if (model.coregions) {
+    Object.keys(model.coregions).forEach((cid) => {
+      if (model.coregions![cid].lifelineId === lifelineId) {
+        delete model.coregions![cid];
+      }
+    });
+  }
+  // Continuations span lifelines too → strip, drop if it covered none else.
+  if (model.continuations) {
+    Object.keys(model.continuations).forEach((cid) => {
+      const cont = model.continuations![cid];
+      cont.coveredLifelineIds = cont.coveredLifelineIds.filter((id) => id !== lifelineId);
+      if (cont.coveredLifelineIds.length === 0) {
+        delete model.continuations![cid];
       }
     });
   }
@@ -174,6 +196,31 @@ function clearGateRefsOnMessages(model: SemanticModel, gateIds: Set<string>) {
     if (m.sourceGateId && gateIds.has(m.sourceGateId)) delete (m as { sourceGateId?: string }).sourceGateId;
     if (m.targetGateId && gateIds.has(m.targetGateId)) delete (m as { targetGateId?: string }).targetGateId;
   });
+}
+
+/** Deletes general orderings that reference any of the given (deleted) message ids. */
+function clearGeneralOrderingsForMessages(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.generalOrderings || messageIds.size === 0) return;
+  for (const oid of Object.keys(model.generalOrderings)) {
+    const go = model.generalOrderings[oid];
+    if (messageIds.has(go.beforeMessageId) || messageIds.has(go.afterMessageId)) {
+      delete model.generalOrderings[oid];
+    }
+  }
+}
+
+/** Deletes time/duration constraints anchored to any of the given (deleted) message ids. */
+function clearTimeConstraintsForMessages(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.timeConstraints || messageIds.size === 0) return;
+  for (const tid of Object.keys(model.timeConstraints)) {
+    const tc = model.timeConstraints[tid];
+    if (
+      messageIds.has(tc.fromMessageId) ||
+      (tc.toMessageId !== undefined && messageIds.has(tc.toMessageId))
+    ) {
+      delete model.timeConstraints[tid];
+    }
+  }
 }
 
 /** Deletes all gates owned by a fragment and clears their message references. */
@@ -266,6 +313,22 @@ interface ModelStoreState {
   updateGate: (id: string, patch: Partial<IRGate>) => void;
   deleteGate: (id: string) => void;
 
+  createGeneralOrdering: (data: Omit<IRGeneralOrdering, 'id' | 'kind'>) => string;
+  updateGeneralOrdering: (id: string, patch: Partial<IRGeneralOrdering>) => void;
+  deleteGeneralOrdering: (id: string) => void;
+
+  createTimeConstraint: (data: Omit<IRTimeConstraint, 'id' | 'kind'>) => string;
+  updateTimeConstraint: (id: string, patch: Partial<IRTimeConstraint>) => void;
+  deleteTimeConstraint: (id: string) => void;
+
+  createCoregion: (data: Omit<IRCoregion, 'id' | 'kind'>) => string;
+  updateCoregion: (id: string, patch: Partial<IRCoregion>) => void;
+  deleteCoregion: (id: string) => void;
+
+  createContinuation: (data: Omit<IRContinuation, 'id' | 'kind'>) => string;
+  updateContinuation: (id: string, patch: Partial<IRContinuation>) => void;
+  deleteContinuation: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -319,6 +382,10 @@ export const useModelStore = create<ModelStoreState>()(
           stateInvariants: {},
           interactionUses: {},
           gates: {},
+          generalOrderings: {},
+          timeConstraints: {},
+          coregions: {},
+          continuations: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -662,16 +729,20 @@ export const useModelStore = create<ModelStoreState>()(
       const name = useModelStore.getState().model?.messages?.[id]?.name ?? id;
       withUndo('model', `Delete Message: ${name}`, 'global', (draft) => {
         if (!draft.model?.messages?.[id]) return;
+        const removedMsgIds = new Set<string>([id]);
         delete draft.model.messages[id];
         // Cascade: REPLY messages that reference this one.
         Object.keys(draft.model.messages).forEach((mid) => {
           if (draft.model.messages![mid].inReplyTo === id) {
+            removedMsgIds.add(mid);
             delete draft.model.messages![mid];
             stripMessageFromFragments(draft.model, mid);
           }
         });
         cascadeDeleteActivationsForMessage(draft.model, id);
         stripMessageFromFragments(draft.model, id);
+        clearGeneralOrderingsForMessages(draft.model, removedMsgIds);
+        clearTimeConstraintsForMessages(draft.model, removedMsgIds);
         draft.model.updatedAt = Date.now();
       });
     },
@@ -844,6 +915,114 @@ export const useModelStore = create<ModelStoreState>()(
         if (!draft.model?.gates?.[id]) return;
         delete draft.model.gates[id];
         clearGateRefsOnMessages(draft.model, new Set([id]));
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createGeneralOrdering: (data) => {
+      const id = newId();
+      withUndo('model', 'Create General Ordering', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.generalOrderings = draft.model.generalOrderings ?? {};
+        draft.model.generalOrderings[id] = { ...data, id, kind: 'GENERAL_ORDERING' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateGeneralOrdering: (id, patch) => {
+      withUndo('model', 'Update General Ordering', 'global', (draft) => {
+        if (!draft.model?.generalOrderings?.[id]) return;
+        draft.model.generalOrderings[id] = { ...draft.model.generalOrderings[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteGeneralOrdering: (id) => {
+      withUndo('model', 'Delete General Ordering', 'global', (draft) => {
+        if (!draft.model?.generalOrderings?.[id]) return;
+        delete draft.model.generalOrderings[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createTimeConstraint: (data) => {
+      const id = newId();
+      withUndo('model', 'Create Time Constraint', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.timeConstraints = draft.model.timeConstraints ?? {};
+        draft.model.timeConstraints[id] = { ...data, id, kind: 'TIME_CONSTRAINT' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateTimeConstraint: (id, patch) => {
+      withUndo('model', 'Update Time Constraint', 'global', (draft) => {
+        if (!draft.model?.timeConstraints?.[id]) return;
+        draft.model.timeConstraints[id] = { ...draft.model.timeConstraints[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteTimeConstraint: (id) => {
+      withUndo('model', 'Delete Time Constraint', 'global', (draft) => {
+        if (!draft.model?.timeConstraints?.[id]) return;
+        delete draft.model.timeConstraints[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createCoregion: (data) => {
+      const id = newId();
+      withUndo('model', 'Create Coregion', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.coregions = draft.model.coregions ?? {};
+        draft.model.coregions[id] = { ...data, id, kind: 'COREGION' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateCoregion: (id, patch) => {
+      withUndo('model', 'Update Coregion', 'global', (draft) => {
+        if (!draft.model?.coregions?.[id]) return;
+        draft.model.coregions[id] = { ...draft.model.coregions[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteCoregion: (id) => {
+      withUndo('model', 'Delete Coregion', 'global', (draft) => {
+        if (!draft.model?.coregions?.[id]) return;
+        delete draft.model.coregions[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createContinuation: (data) => {
+      const id = newId();
+      withUndo('model', 'Create Continuation', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.continuations = draft.model.continuations ?? {};
+        draft.model.continuations[id] = { ...data, id, kind: 'CONTINUATION' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateContinuation: (id, patch) => {
+      withUndo('model', 'Update Continuation', 'global', (draft) => {
+        if (!draft.model?.continuations?.[id]) return;
+        draft.model.continuations[id] = { ...draft.model.continuations[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteContinuation: (id) => {
+      withUndo('model', 'Delete Continuation', 'global', (draft) => {
+        if (!draft.model?.continuations?.[id]) return;
+        delete draft.model.continuations[id];
         draft.model.updatedAt = Date.now();
       });
     },

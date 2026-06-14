@@ -12,8 +12,7 @@ import type {
   IRInteractionOperand,
   IRGate,
 } from '../../../../core/domain/vfs/vfs.types';
-
-const ALLOW_MULTI_OPERAND: ReadonlySet<IRInteractionFragment['fragmentKind']> = new Set(['ALT', 'PAR']);
+import { MULTI_OPERAND_FRAGMENT_KINDS } from '../../../../core/domain/vfs/vfs.types';
 
 export default function FragmentPropertiesModal() {
   const { t } = useTranslation();
@@ -72,7 +71,7 @@ export default function FragmentPropertiesModal() {
   const fragment = getFragment();
   if (!fragment) return null;
 
-  const allowMulti = ALLOW_MULTI_OPERAND.has(fragmentKind);
+  const allowMulti = MULTI_OPERAND_FRAGMENT_KINDS.has(fragmentKind);
 
   const handleAddOperand = () => {
     if (!allowMulti) return;

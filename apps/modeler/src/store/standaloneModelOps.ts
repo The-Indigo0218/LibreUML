@@ -36,6 +36,10 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRGeneralOrdering,
+  IRTimeConstraint,
+  IRCoregion,
+  IRContinuation,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -92,6 +96,22 @@ function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: strin
       }
     }
   }
+  if (model.coregions) {
+    for (const cid of Object.keys(model.coregions)) {
+      if (model.coregions[cid].lifelineId === lifelineId) {
+        delete model.coregions[cid];
+      }
+    }
+  }
+  if (model.continuations) {
+    for (const cid of Object.keys(model.continuations)) {
+      const cont = model.continuations[cid];
+      cont.coveredLifelineIds = cont.coveredLifelineIds.filter((id) => id !== lifelineId);
+      if (cont.coveredLifelineIds.length === 0) {
+        delete model.continuations[cid];
+      }
+    }
+  }
   if (model.interactionUses) {
     for (const uid of Object.keys(model.interactionUses)) {
       const use = model.interactionUses[uid];
@@ -129,6 +149,29 @@ function clearGateRefsOnMessagesLocal(model: SemanticModel, gateIds: Set<string>
   for (const m of Object.values(model.messages)) {
     if (m.sourceGateId && gateIds.has(m.sourceGateId)) delete (m as { sourceGateId?: string }).sourceGateId;
     if (m.targetGateId && gateIds.has(m.targetGateId)) delete (m as { targetGateId?: string }).targetGateId;
+  }
+}
+
+function clearGeneralOrderingsForMessagesLocal(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.generalOrderings || messageIds.size === 0) return;
+  for (const oid of Object.keys(model.generalOrderings)) {
+    const go = model.generalOrderings[oid];
+    if (messageIds.has(go.beforeMessageId) || messageIds.has(go.afterMessageId)) {
+      delete model.generalOrderings[oid];
+    }
+  }
+}
+
+function clearTimeConstraintsForMessagesLocal(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.timeConstraints || messageIds.size === 0) return;
+  for (const tid of Object.keys(model.timeConstraints)) {
+    const tc = model.timeConstraints[tid];
+    if (
+      messageIds.has(tc.fromMessageId) ||
+      (tc.toMessageId !== undefined && messageIds.has(tc.toMessageId))
+    ) {
+      delete model.timeConstraints[tid];
+    }
   }
 }
 
@@ -551,15 +594,19 @@ export function standaloneModelOps(fileId: string) {
     deleteMessage: (id: string) => {
       update((m) => {
         if (!m.messages?.[id]) return;
+        const removedMsgIds = new Set<string>([id]);
         delete m.messages[id];
         for (const mid of Object.keys(m.messages)) {
           if (m.messages[mid].inReplyTo === id) {
+            removedMsgIds.add(mid);
             delete m.messages[mid];
             stripMessageFromFragmentsLocal(m, mid);
           }
         }
         cascadeDeleteActivationsForMessageLocal(m, id);
         stripMessageFromFragmentsLocal(m, id);
+        clearGeneralOrderingsForMessagesLocal(m, removedMsgIds);
+        clearTimeConstraintsForMessagesLocal(m, removedMsgIds);
         m.updatedAt = Date.now();
       });
     },
@@ -727,6 +774,118 @@ export function standaloneModelOps(fileId: string) {
         if (!m.gates?.[id]) return;
         delete m.gates[id];
         clearGateRefsOnMessagesLocal(m, new Set([id]));
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── General Orderings (UML 2.5 §17.2) ─────────────────────────────────────
+
+    createGeneralOrdering: (data: Omit<IRGeneralOrdering, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.generalOrderings = m.generalOrderings ?? {};
+        m.generalOrderings[id] = { ...data, id, kind: 'GENERAL_ORDERING' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateGeneralOrdering: (id: string, patch: Partial<IRGeneralOrdering>) => {
+      update((m) => {
+        if (!m.generalOrderings?.[id]) return;
+        m.generalOrderings[id] = { ...m.generalOrderings[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteGeneralOrdering: (id: string) => {
+      update((m) => {
+        if (!m.generalOrderings?.[id]) return;
+        delete m.generalOrderings[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Time / Duration Constraints (UML 2.5 §17.2) ───────────────────────────
+
+    createTimeConstraint: (data: Omit<IRTimeConstraint, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.timeConstraints = m.timeConstraints ?? {};
+        m.timeConstraints[id] = { ...data, id, kind: 'TIME_CONSTRAINT' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateTimeConstraint: (id: string, patch: Partial<IRTimeConstraint>) => {
+      update((m) => {
+        if (!m.timeConstraints?.[id]) return;
+        m.timeConstraints[id] = { ...m.timeConstraints[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteTimeConstraint: (id: string) => {
+      update((m) => {
+        if (!m.timeConstraints?.[id]) return;
+        delete m.timeConstraints[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Coregions (UML 2.5 §17.4) ─────────────────────────────────────────────
+
+    createCoregion: (data: Omit<IRCoregion, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.coregions = m.coregions ?? {};
+        m.coregions[id] = { ...data, id, kind: 'COREGION' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateCoregion: (id: string, patch: Partial<IRCoregion>) => {
+      update((m) => {
+        if (!m.coregions?.[id]) return;
+        m.coregions[id] = { ...m.coregions[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteCoregion: (id: string) => {
+      update((m) => {
+        if (!m.coregions?.[id]) return;
+        delete m.coregions[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Continuations (UML 2.5 §17.3) ─────────────────────────────────────────
+
+    createContinuation: (data: Omit<IRContinuation, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.continuations = m.continuations ?? {};
+        m.continuations[id] = { ...data, id, kind: 'CONTINUATION' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateContinuation: (id: string, patch: Partial<IRContinuation>) => {
+      update((m) => {
+        if (!m.continuations?.[id]) return;
+        m.continuations[id] = { ...m.continuations[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteContinuation: (id: string) => {
+      update((m) => {
+        if (!m.continuations?.[id]) return;
+        delete m.continuations[id];
         m.updatedAt = Date.now();
       });
     },

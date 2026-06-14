@@ -33,6 +33,11 @@ export type ActiveModal =
   | "state-invariant-props"
   | "interaction-use-props"
   | "gate-props"
+  | "general-ordering-props"
+  | "time-constraint-props"
+  | "coregion-props"
+  | "lifeline-props"
+  | "continuation-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -99,6 +104,11 @@ interface UiStoreState {
   openStateInvariantProps: (invariantId: string) => void;
   openInteractionUseProps: (useId: string) => void;
   openGateProps: (gateId: string) => void;
+  openGeneralOrderingProps: (orderingId: string) => void;
+  openTimeConstraintProps: (constraintId: string) => void;
+  openCoregionProps: (coregionId: string) => void;
+  openLifelineProps: (lifelineId: string) => void;
+  openContinuationProps: (continuationId: string) => void;
   closeModals: () => void;
   openInlineEdgePanel: (edgeId: string) => void;
   closeInlineEdgePanel: () => void;
@@ -218,6 +228,11 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openStateInvariantProps: (invariantId) => set({ activeModal: "state-invariant-props", editingId: invariantId }),
   openInteractionUseProps: (useId) => set({ activeModal: "interaction-use-props", editingId: useId }),
   openGateProps: (gateId) => set({ activeModal: "gate-props", editingId: gateId }),
+  openGeneralOrderingProps: (orderingId) => set({ activeModal: "general-ordering-props", editingId: orderingId }),
+  openTimeConstraintProps: (constraintId) => set({ activeModal: "time-constraint-props", editingId: constraintId }),
+  openCoregionProps: (coregionId) => set({ activeModal: "coregion-props", editingId: coregionId }),
+  openLifelineProps: (lifelineId) => set({ activeModal: "lifeline-props", editingId: lifelineId }),
+  openContinuationProps: (continuationId) => set({ activeModal: "continuation-props", editingId: continuationId }),
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 

@@ -55,4 +55,20 @@ describe('ActivationShape', () => {
     const { container } = render(<ActivationShape viewModel={vm} x={60} y={80} selected />);
     expect(container.firstChild).toMatchSnapshot();
   });
+
+  // data-props is HTML-attribute encoded; getAttribute returns decoded JSON.
+  const rectProps = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll('[data-konva="Rect"]')).map((el) =>
+      JSON.parse(el.getAttribute('data-props') ?? '{}'),
+    );
+
+  it('is system-managed: no draggable handle and a plain (non-cyan) body stroke', () => {
+    const vm = baseAct();
+    const { container } = render(<ActivationShape viewModel={vm} x={60} y={80} />);
+    const rects = rectProps(container);
+    // No resize handle → no draggable child rect.
+    expect(rects.some((p) => p.draggable === true)).toBe(false);
+    // Body uses the default border, never the manual-override cyan.
+    expect(rects[0].stroke).not.toBe('#22d3ee');
+  });
 });

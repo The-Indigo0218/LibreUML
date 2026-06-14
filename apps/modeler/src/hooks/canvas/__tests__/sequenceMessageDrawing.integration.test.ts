@@ -23,6 +23,9 @@ function simulateConnect(
   tool: 'MESSAGE_SYNC' | 'MESSAGE_ASYNC' | 'MESSAGE_REPLY',
 ): string {
   const model = useModelStore.getState().model!;
+  // Manual self-connections are rejected by onConnect — self-messages must be
+  // created from the lifeline's "Create Self Message" action instead.
+  if (srcLifelineId === tgtLifelineId) return '';
   const messageKind = TOOL_TO_MESSAGE_KIND[tool];
   const sequenceNumber = nextMessageSequenceNumber(model.messages ?? {});
   const inReplyTo =
@@ -135,14 +138,24 @@ describe('onConnect simulation — SEQUENCE_DIAGRAM creates IRMessage', () => {
     expect(seqs).toEqual([1, 2, 3]);
   });
 
-  it('allows self-message (src===tgt) and renders auto-activation on the same lifeline', () => {
+  it('blocks a manual self-connection; the sanctioned self-message seeds a nested activation', () => {
     const { ll1 } = setup();
-    const msgId = simulateConnect(ll1, ll1, 'MESSAGE_SYNC');
+    // Drawing a connection back onto the same lifeline is rejected.
+    expect(simulateConnect(ll1, ll1, 'MESSAGE_SYNC')).toBe('');
+    expect(Object.keys(useModelStore.getState().model!.messages!)).toHaveLength(0);
 
+    // The "Create Self Message" action creates a SYNC self-message, which the
+    // store auto-pairs with a nested activation on the same lifeline.
+    const msgId = useModelStore.getState().createMessage({
+      name: '',
+      messageKind: 'SYNC',
+      sourceLifelineId: ll1,
+      targetLifelineId: ll1,
+      sequenceNumber: 1,
+    });
     const state = useModelStore.getState().model!;
     expect(state.messages![msgId].sourceLifelineId).toBe(ll1);
     expect(state.messages![msgId].targetLifelineId).toBe(ll1);
-
     const activations = Object.values(state.activations!);
     expect(activations).toHaveLength(1);
     expect(activations[0].lifelineId).toBe(ll1);
@@ -230,5 +243,34 @@ describe('onConnect simulation — SEQUENCE_DIAGRAM creates IRMessage', () => {
     const newMsgId = simulateConnect(ll1, ll3, 'MESSAGE_ASYNC');
     const state = useModelStore.getState().model!;
     expect(state.messages![newMsgId].fragmentId).toBeUndefined();
+  });
+
+  // ─── Message interactivity: reverse + delete (context-menu actions) ──────────
+
+  it('reverses a message by swapping its source/target lifelines', () => {
+    const { ll1, ll2 } = setup();
+    const msgId = simulateConnect(ll1, ll2, 'MESSAGE_ASYNC');
+    // The "Reverse Direction" action swaps the endpoints.
+    const msg = useModelStore.getState().model!.messages![msgId];
+    useModelStore.getState().updateMessage(msgId, {
+      sourceLifelineId: msg.targetLifelineId,
+      targetLifelineId: msg.sourceLifelineId,
+    });
+    const after = useModelStore.getState().model!.messages![msgId];
+    expect(after.sourceLifelineId).toBe(ll2);
+    expect(after.targetLifelineId).toBe(ll1);
+  });
+
+  it('deletes a message and cascades its paired activation', () => {
+    const { ll1, ll2 } = setup();
+    const msgId = simulateConnect(ll1, ll2, 'MESSAGE_SYNC'); // creates an activation on ll2
+    expect(Object.keys(useModelStore.getState().model!.activations!)).toHaveLength(1);
+
+    useModelStore.getState().deleteMessage(msgId);
+
+    const state = useModelStore.getState().model!;
+    expect(state.messages![msgId]).toBeUndefined();
+    // The activation opened by the deleted SYNC is cascaded away.
+    expect(Object.keys(state.activations!)).toHaveLength(0);
   });
 });

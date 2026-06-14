@@ -135,7 +135,8 @@
       "systemBoundary": "Límite de Sistema",
       "ucModule": "Módulo",
       "domainEntity": "Entidad",
-      "lifeline": "Línea de Vida"
+      "lifeline": "Línea de Vida",
+      "actorLifeline": "Actor"
     },
     "connections": {
       "title": "Conexiones",
@@ -154,7 +155,38 @@
       "messageCreate": "Mensaje de Creación",
       "messageDestroy": "Mensaje de Destrucción"
     },
-    "otherDiagram": "de otro diagrama"
+    "otherDiagram": "de otro diagrama",
+    "fragments": {
+      "title": "Fragmentos",
+      "drawHint": "Dibujá un recuadro sobre los mensajes a envolver en {{kind}} — clic para todas, Esc para cancelar"
+    },
+    "structure": {
+      "title": "Estructura"
+    },
+    "density": {
+      "basic": "Básico",
+      "advanced": "Avanzado",
+      "all": "Todo"
+    },
+    "modelExplorer": "Explorador de Modelo",
+    "newPackage": "Nuevo Paquete",
+    "edit": "Editar...",
+    "moveToPackage": "Mover a Paquete...",
+    "untrackFromProject": "Desvincular del Proyecto",
+    "deleteFromProject": "Eliminar del Proyecto",
+    "deleteFromDiagram": "Eliminar del Diagrama",
+    "moveToPackageTitle": "Mover a paquete",
+    "defaultPackage": "(predeterminado)",
+    "standaloneFile": "Archivo Independiente",
+    "dropElementsHint": "Arrastra elementos al lienzo para poblar este diagrama.",
+    "openDiagramHint": "Abre un diagrama .luml y arrastra elementos para poblar el modelo.",
+    "packageNameExists": "El nombre del paquete ya existe en este nivel",
+    "packageCreated": "Paquete creado",
+    "newPackagePrompt": "Nombre del paquete (ej. com.example.models):",
+    "expandAll": "Expandir Todo",
+    "collapseAll": "Contraer Todo",
+    "emptyPackage": "vacío",
+    "noPackage": "(Sin Paquete)"
   },
   "contextMenu": {
     "pane": {
@@ -171,6 +203,10 @@
       "insertAltFragment": "Insertar Fragmento ALT",
       "insertOptFragment": "Insertar Fragmento OPT",
       "insertLoopFragment": "Insertar Fragmento LOOP",
+      "insertParFragment": "Insertar Fragmento PAR",
+      "insertSeqFragment": "Insertar Fragmento SEQ",
+      "insertBreakFragment": "Insertar Fragmento BREAK",
+      "insertCriticalFragment": "Insertar Fragmento CRITICAL",
       "insertInteractionUse": "Insertar Referencia (ref)"
     },
     "node": {
@@ -187,9 +223,11 @@
       "editNote": "Editar Nota",
       "editSpecification": "Editar Especificación",
       "editActorProperties": "Editar Propiedades",
+      "createSelfMessage": "Crear Mensaje Propio",
       "addStateInvariant": "Añadir Invariante de Estado",
       "addFoundMessage": "Añadir Mensaje Encontrado",
-      "addLostMessage": "Añadir Mensaje Perdido"
+      "addLostMessage": "Añadir Mensaje Perdido",
+      "decomposeLifeline": "Descomponer…"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",
@@ -744,17 +782,6 @@
     "githubIntegration": "Integración con GitHub próximamente",
     "bugReport": "Reporte de errores próximamente"
   },
-  "packageExplorer": {
-    "title": "Paquetes",
-    "newPackage": "Nuevo Paquete",
-    "noPackages": "No hay paquetes o clases todavía",
-    "addClasses": "Añade clases a tu diagrama",
-    "expandAll": "Expandir Todo",
-    "collapseAll": "Contraer Todo",
-    "packageNameExists": "El nombre del paquete ya existe en este nivel",
-    "emptyPackage": "vacío",
-    "noPackage": "(Sin Paquete)"
-  },
   "projectStructure": {
     "title": "Archivos del Proyecto",
     "newFile": "Nuevo Archivo",
@@ -796,39 +823,6 @@
     "closeTooltip": "× cerrar",
     "cancel": "Cancelar",
     "createProject": "Crear Proyecto"
-  },
-  "createFileModal": {
-    "title": "Crear Nuevo Archivo",
-    "editTitle": "Editar Archivo",
-    "fileName": "Nombre del Archivo",
-    "fileNameRequired": "El nombre del archivo es obligatorio",
-    "fileNamePlaceholder": "MiDiagrama",
-    "diagramType": "Tipo de Diagrama",
-    "location": "Ubicación",
-    "locationRequired": "La ubicación es obligatoria",
-    "description": "Descripción",
-    "descriptionPlaceholder": "Descripción opcional del archivo",
-    "cancel": "Cancelar",
-    "createFile": "Crear Archivo",
-    "saveChanges": "Guardar Cambios",
-    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación",
-    "standaloneLabel": "Archivo Independiente",
-    "standaloneDescription": "Aísla este diagrama del modelo compartido. El Explorador de Modelo global se ocultará mientras este archivo esté activo."
-  },
-  "createFolderModal": {
-    "title": "Crear Nueva Carpeta",
-    "editTitle": "Editar Carpeta",
-    "folderName": "Nombre de la Carpeta",
-    "folderNameRequired": "El nombre de la carpeta es obligatorio",
-    "folderNamePlaceholder": "Mi Carpeta",
-    "location": "Ubicación",
-    "locationRequired": "La ubicación es obligatoria",
-    "description": "Descripción",
-    "descriptionPlaceholder": "Descripción opcional de la carpeta",
-    "cancel": "Cancelar",
-    "createFolder": "Crear Carpeta",
-    "saveChanges": "Guardar Cambios",
-    "folderNameExists": "Ya existe una carpeta con este nombre en esta ubicación"
   },
   "viewDescriptionModal": {
     "description": "Descripción",
@@ -889,13 +883,6 @@
     "cannotUndo": "Esta acción no se puede deshacer.",
     "cancel": "Cancelar",
     "deleteFromProject": "Eliminar del Proyecto"
-  },
-  "autoLayoutWarning": {
-    "title": "Diseño Automático Bloqueado",
-    "message": "Algunos bordes tienen anclajes bloqueados. El diseño automático omitirá estas conexiones para preservar tu posicionamiento manual.",
-    "tip": "Para desbloquear: clic derecho en un borde → desmarcar \"Bloquear puntos de conexión\"",
-    "dontShowAgain": "No mostrar esto de nuevo",
-    "continue": "Continuar"
   },
   "openFileModal": {
     "title": "Abrir Archivo",
@@ -1034,28 +1021,6 @@
       "close": "¡Entendido!"
     }
   },
-  "selectionToolbar": {
-    "edit": "Editar",
-    "editSpec": "Editar especificación",
-    "editProps": "Editar propiedades",
-    "duplicate": "Duplicar",
-    "delete": "Borrar",
-    "reverse": "Invertir dirección",
-    "properties": "Propiedades",
-    "color": "Color",
-    "border": "Borde",
-    "font": "Fuente",
-    "stroke": "Trazo",
-    "borderSolid": "Sólido",
-    "borderDashed": "Discontinuo",
-    "borderDotted": "Punteado",
-    "copyStyle": "Copiar estilo",
-    "pasteStyle": "Pegar estilo (Ctrl+Shift+V)",
-    "routing": "Estilo de línea",
-    "routingStraight": "Recta",
-    "routingOrthogonal": "Ortogonal",
-    "routingCurved": "Curva"
-  },
   "inlineEdgePanel": {
     "title": "Relación",
     "close": "Cerrar",
@@ -1113,6 +1078,8 @@
     "name": "Nombre del mensaje",
     "kind": "Tipo",
     "arguments": "Argumentos",
+    "guard": "Guarda",
+    "resetPosition": "Restablecer posición",
     "advanced": "Avanzado…",
     "close": "Cerrar"
   },
@@ -1120,17 +1087,22 @@
     "kind": "Tipo",
     "operands": "Operandos",
     "guard": "Guarda",
+    "messageSet": "Conjunto de mensajes",
+    "messageSetPlaceholder": "ej. login, logout",
+    "resetLayout": "Restablecer disposición",
     "advanced": "Avanzado…",
     "close": "Cerrar"
   },
   "inlineStateInvariantPanel": {
     "constraint": "Restricción",
+    "resetSize": "Restablecer tamaño",
     "advanced": "Avanzado…",
     "close": "Cerrar"
   },
   "inlineInteractionUsePanel": {
     "name": "Nombre",
     "referencedName": "Interacción referenciada",
+    "resetSize": "Restablecer tamaño",
     "advanced": "Avanzado…",
     "close": "Cerrar"
   },
@@ -1566,5 +1538,126 @@
     "removeGate": "Eliminar compuerta",
     "addGateLeft": "Compuerta izq.",
     "addGateRight": "Compuerta der."
+  },
+  "createFileModal": {
+    "title": "Crear Nuevo Archivo",
+    "createFile": "Crear Archivo",
+    "standaloneLabel": "Archivo Independiente",
+    "standaloneDescription": "Aísla este diagrama del modelo compartido. El Explorador de Modelo global se ocultará mientras este archivo esté activo.",
+    "createTitle": "Crear Nuevo Diagrama",
+    "editTitle": "Editar Diagrama",
+    "fileName": "Nombre del Archivo",
+    "fileNameRequired": "El nombre del archivo es obligatorio",
+    "fileNamePlaceholder": "MiDiagrama",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "diagramType": "Tipo de Diagrama",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional del diagrama",
+    "cancel": "Cancelar",
+    "createDiagram": "Crear Diagrama",
+    "saveChanges": "Guardar Cambios",
+    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación",
+    "soon": "Pronto"
+  },
+  "createFolderModal": {
+    "title": "Crear Nueva Carpeta",
+    "createTitle": "Crear Nueva Carpeta",
+    "editTitle": "Editar Carpeta",
+    "folderName": "Nombre de la Carpeta",
+    "folderNameRequired": "El nombre de la carpeta es obligatorio",
+    "folderNamePlaceholder": "Mi Carpeta",
+    "location": "Ubicación",
+    "locationRequired": "La ubicación es obligatoria",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción opcional de la carpeta",
+    "cancel": "Cancelar",
+    "createFolder": "Crear Carpeta",
+    "saveChanges": "Guardar Cambios",
+    "folderNameExists": "Ya existe una carpeta con este nombre en esta ubicación"
+  },
+  "autoLayoutWarning": {
+    "title": "Bordes Bloqueados Detectados",
+    "message": "Este diagrama tiene bordes bloqueados. El Diseño Automático reposicionará todos los nodos pero no moverá las conexiones bloqueadas, lo que puede resultar en un diseño irregular. ¿Deseas continuar?",
+    "tip": "Para desbloquear: clic derecho en un borde → desmarcar \"Bloquear puntos de conexión\"",
+    "dontShowAgain": "No mostrar esta advertencia de nuevo",
+    "cancel": "Cancelar",
+    "proceed": "Continuar",
+    "continue": "Continuar"
+  },
+  "noteEditorModal": {
+    "title": "Editar Nota",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Título de la nota...",
+    "contentLabel": "Contenido",
+    "contentPlaceholder": "Escribe aquí más detalles...",
+    "shortcutHint": "Ctrl+Enter para guardar",
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  },
+  "projectPropertiesModal": {
+    "title": "Propiedades del Proyecto",
+    "projectName": "Nombre del Proyecto",
+    "version": "Versión",
+    "versionPlaceholder": "1.0.0",
+    "author": "Autor",
+    "authorPlaceholder": "Tu nombre",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Descripción breve del proyecto",
+    "targetLanguage": "Lenguaje Objetivo",
+    "basePackage": "Paquete Base",
+    "basePackagePlaceholder": "com.example.model",
+    "created": "Creado",
+    "lastModified": "Última Modificación",
+    "cancel": "Cancelar",
+    "saveChanges": "Guardar Cambios"
+  },
+  "unsavedChangesModal": {
+    "title": "¿Guardar Cambios?",
+    "message": "Tienes cambios sin guardar en <strong class=\"text-text-primary\">{{fileName}}</strong>.",
+    "discardHint": "Si descartas, perderás los cambios recientes.",
+    "save": "Guardar",
+    "discard": "Descartar Cambios",
+    "cancel": "Cancelar"
+  },
+  "tabBar": {
+    "closeTab": "Cerrar pestaña"
+  },
+  "selectionToolbar": {
+    "edit": "Editar",
+    "editSpec": "Editar especificación",
+    "editProps": "Editar propiedades",
+    "duplicate": "Duplicar",
+    "delete": "Eliminar",
+    "reverse": "Invertir dirección",
+    "properties": "Propiedades",
+    "color": "Color",
+    "copyStyle": "Copiar estilo",
+    "pasteStyle": "Pegar estilo",
+    "routing": "Estilo de línea",
+    "routingStraight": "Recta",
+    "routingOrthogonal": "Ortogonal",
+    "routingCurved": "Curva",
+    "border": "Borde",
+    "borderSolid": "Sólido",
+    "borderDashed": "Discontinuo",
+    "borderDotted": "Punteado",
+    "stroke": "Trazo",
+    "font": "Fuente",
+    "clearColor": "Limpiar color",
+    "clearBorder": "Limpiar borde",
+    "clearFont": "Limpiar fuente"
+  },
+  "packageExplorer": {
+    "main": "PRINCIPAL",
+    "title": "Paquetes",
+    "newPackage": "Nuevo Paquete",
+    "noPackages": "No hay paquetes o clases todavía",
+    "addClasses": "Añade clases a tu diagrama",
+    "expandAll": "Expandir Todo",
+    "collapseAll": "Contraer Todo",
+    "packageNameExists": "El nombre del paquete ya existe en este nivel",
+    "emptyPackage": "vacío",
+    "noPackage": "(Sin Paquete)"
   }
 }

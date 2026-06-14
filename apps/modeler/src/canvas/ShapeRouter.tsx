@@ -18,6 +18,10 @@ import {
   isStateInvariantViewModel,
   isInteractionUseViewModel,
   isGateViewModel,
+  isGeneralOrderingViewModel,
+  isTimeConstraintViewModel,
+  isCoregionViewModel,
+  isContinuationViewModel,
 } from '../adapters/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
@@ -33,6 +37,10 @@ import FragmentShape, { getFragmentShapeSize } from './shapes/FragmentShape';
 import StateInvariantShape, { getStateInvariantShapeSize } from './shapes/StateInvariantShape';
 import InteractionUseShape, { getInteractionUseShapeSize } from './shapes/InteractionUseShape';
 import GateShape, { getGateShapeSize } from './shapes/GateShape';
+import GeneralOrderingShape, { getGeneralOrderingShapeSize } from './shapes/GeneralOrderingShape';
+import TimeConstraintShape, { getTimeConstraintShapeSize } from './shapes/TimeConstraintShape';
+import CoregionShape, { getCoregionShapeSize } from './shapes/CoregionShape';
+import ContinuationShape, { getContinuationShapeSize } from './shapes/ContinuationShape';
 
 export interface NodeShapeRenderProps {
   key: string;
@@ -52,6 +60,8 @@ export interface NodeShapeRenderProps {
   onMouseEnter?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   onMouseLeave?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   onResizeEnd?: (id: string, width: number, height: number) => void;
+  /** Clears a lifeline's manual timeline length (G-c foot-handle double-click). */
+  onResetTimeline?: (id: string) => void;
   isDropTarget?: boolean;
 }
 
@@ -69,14 +79,18 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
   if (isStateInvariantViewModel(vm)) return getStateInvariantShapeSize(vm);
   if (isInteractionUseViewModel(vm)) return getInteractionUseShapeSize(vm);
   if (isGateViewModel(vm))           return getGateShapeSize(vm);
+  if (isGeneralOrderingViewModel(vm)) return getGeneralOrderingShapeSize(vm);
+  if (isTimeConstraintViewModel(vm)) return getTimeConstraintShapeSize(vm);
+  if (isCoregionViewModel(vm))       return getCoregionShapeSize(vm);
+  if (isContinuationViewModel(vm))   return getContinuationShapeSize(vm);
   return getClassShapeSize(vm as NodeViewModel);
 }
 
 export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): React.ReactNode {
-  const { key, onMouseEnter, onMouseLeave, onResizeEnd, isDropTarget, ...common } = props;
+  const { key, onMouseEnter, onMouseLeave, onResizeEnd, onResetTimeline, isDropTarget, ...common } = props;
 
   if (isNoteViewModel(vm))
-    return <NoteShape key={key} viewModel={vm} {...common} />;
+    return <NoteShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isActorViewModel(vm))
     return <ActorShape key={key} viewModel={vm} {...common} />;
@@ -112,25 +126,57 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
     return <DomainEntityShape key={key} viewModel={vm} {...common} />;
 
   if (isLifelineViewModel(vm))
-    return <LifelineShape key={key} viewModel={vm} {...common} />;
+    return (
+      <LifelineShape
+        key={key} viewModel={vm} {...common}
+        onResizeEnd={onResizeEnd}
+        onResetTimeline={onResetTimeline}
+      />
+    );
 
   if (isMessageViewModel(vm))
     return <MessageShape key={key} viewModel={vm} {...common} />;
 
   if (isActivationViewModel(vm))
-    return <ActivationShape key={key} viewModel={vm} {...common} />;
+    // Activations are system-managed (no drag/resize): pass only the props the
+    // lean shape uses rather than the full draggable `common` bundle.
+    return (
+      <ActivationShape
+        key={key}
+        viewModel={vm}
+        x={common.x}
+        y={common.y}
+        selected={common.selected}
+        opacity={common.opacity}
+        visible={common.visible}
+        onNodeClick={common.onNodeClick}
+        onContextMenu={common.onContextMenu}
+      />
+    );
 
   if (isFragmentViewModel(vm))
-    return <FragmentShape key={key} viewModel={vm} {...common} />;
+    return <FragmentShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isStateInvariantViewModel(vm))
-    return <StateInvariantShape key={key} viewModel={vm} {...common} />;
+    return <StateInvariantShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isInteractionUseViewModel(vm))
-    return <InteractionUseShape key={key} viewModel={vm} {...common} />;
+    return <InteractionUseShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isGateViewModel(vm))
     return <GateShape key={key} viewModel={vm} {...common} />;
+
+  if (isGeneralOrderingViewModel(vm))
+    return <GeneralOrderingShape key={key} viewModel={vm} {...common} />;
+
+  if (isTimeConstraintViewModel(vm))
+    return <TimeConstraintShape key={key} viewModel={vm} {...common} />;
+
+  if (isCoregionViewModel(vm))
+    return <CoregionShape key={key} viewModel={vm} {...common} />;
+
+  if (isContinuationViewModel(vm))
+    return <ContinuationShape key={key} viewModel={vm} {...common} />;
 
   return <ClassShape key={key} viewModel={vm as NodeViewModel} {...common} />;
 }

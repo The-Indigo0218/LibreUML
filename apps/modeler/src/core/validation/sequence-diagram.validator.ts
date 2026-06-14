@@ -12,7 +12,12 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRGeneralOrdering,
+  IRTimeConstraint,
+  IRCoregion,
+  IRContinuation,
 } from '../domain/vfs/vfs.types';
+import { MULTI_OPERAND_FRAGMENT_KINDS } from '../domain/vfs/vfs.types';
 
 export class SequenceDiagramValidator implements BaseValidator {
   validateConnection(
@@ -171,15 +176,21 @@ export class SequenceDiagramValidator implements BaseValidator {
       }
     }
 
+    // Operand-count sanity per kind (UML 2.5 §17.6): opt/loop/break/critical/
+    // neg/assert/ignore/consider take exactly one operand; alt/par/seq/strict
+    // may carry many (one is legal).
+    if (
+      !MULTI_OPERAND_FRAGMENT_KINDS.has(fragment.fragmentKind) &&
+      fragment.operands.length !== 1
+    ) {
+      warnings.push(`${fragment.fragmentKind} fragment should have exactly one operand`);
+    }
+
     if (fragment.fragmentKind === 'LOOP') {
       const op = fragment.operands[0];
       if (!op || !op.guard || op.guard.trim() === '') {
         warnings.push('LOOP fragment without a guard will be ambiguous (defaults to true)');
       }
-    }
-
-    if (fragment.fragmentKind === 'OPT' && fragment.operands.length !== 1) {
-      warnings.push('OPT fragment should have exactly one operand');
     }
 
     if (fragment.parentFragmentId) {
@@ -266,6 +277,115 @@ export class SequenceDiagramValidator implements BaseValidator {
     }
     if (!gate.name || gate.name.trim() === '') {
       warnings.push('Gate has no name');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific general-ordering validation (UML 2.5 §17.2). Error
+   * when either endpoint message is missing or the two endpoints coincide
+   * (a self-ordering is meaningless).
+   */
+  validateGeneralOrdering(ordering: IRGeneralOrdering, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!model.messages?.[ordering.beforeMessageId]) {
+      errors.push(`General ordering references missing message "${ordering.beforeMessageId}"`);
+    }
+    if (!model.messages?.[ordering.afterMessageId]) {
+      errors.push(`General ordering references missing message "${ordering.afterMessageId}"`);
+    }
+    if (
+      ordering.beforeMessageId === ordering.afterMessageId &&
+      ordering.beforeEnd === ordering.afterEnd
+    ) {
+      warnings.push('General ordering relates a message occurrence to itself');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific timing-constraint validation (UML 2.5 §17.2).
+   * Error when an anchor message is missing or a DURATION lacks its second
+   * anchor; warning when the expression is empty.
+   */
+  validateTimeConstraint(tc: IRTimeConstraint, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!model.messages?.[tc.fromMessageId]) {
+      errors.push(`Time constraint references missing message "${tc.fromMessageId}"`);
+    }
+    if (tc.constraintKind === 'DURATION') {
+      if (!tc.toMessageId || !tc.toEnd) {
+        errors.push('Duration constraint needs a second occurrence anchor');
+      } else if (!model.messages?.[tc.toMessageId]) {
+        errors.push(`Duration constraint references missing message "${tc.toMessageId}"`);
+      }
+    }
+    if (!tc.expression || tc.expression.trim() === '') {
+      warnings.push('Timing constraint has no expression');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific coregion validation (UML 2.5 §17.4). Error when the
+   * bracketed lifeline is missing; warning when the span is empty (from === to).
+   */
+  validateCoregion(coregion: IRCoregion, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!model.lifelines?.[coregion.lifelineId]) {
+      errors.push(`Coregion references missing lifeline "${coregion.lifelineId}"`);
+    }
+    if (coregion.fromSequence === coregion.toSequence) {
+      warnings.push('Coregion spans no message occurrences');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific continuation validation (UML 2.5 §17.3). Error when
+   * it covers no lifeline or references missing ones; warning when it has no name
+   * (continuations are matched by name, so an unnamed one can't pair).
+   */
+  validateContinuation(continuation: IRContinuation, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!continuation.coveredLifelineIds || continuation.coveredLifelineIds.length === 0) {
+      errors.push('Continuation must cover at least one lifeline');
+    } else {
+      const orphans = continuation.coveredLifelineIds.filter((id) => !model.lifelines?.[id]);
+      if (orphans.length > 0) {
+        errors.push(`Continuation references missing lifelines: ${orphans.join(', ')}`);
+      }
+    }
+    if (!continuation.name || continuation.name.trim() === '') {
+      warnings.push('Continuation has no name (cannot pair with another)');
     }
 
     return {

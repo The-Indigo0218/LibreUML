@@ -24,6 +24,12 @@ interface ActivationShapeProps {
   onContextMenu?: (e: KonvaEventObject<PointerEvent>, nodeId: string) => void;
 }
 
+/**
+ * Execution Specification (activation bar). Geometry is fully system-managed —
+ * the bar is anchored to its lifeline (X auto, fixed width) and its height is
+ * the derived execution span, so it is neither draggable nor resizable. It is
+ * still selectable for inspection / deletion via context menu.
+ */
 export default function ActivationShape({
   viewModel: vm,
   x,
@@ -36,8 +42,8 @@ export default function ActivationShape({
 }: ActivationShapeProps) {
   const colors = resolveActivationColors();
   const W = vm.width || DEFAULT_WIDTH;
-  const H = vm.height;
   const nestingX = vm.nestingDepth * NESTING_OFFSET;
+  const H = vm.height;
 
   return (
     <Group

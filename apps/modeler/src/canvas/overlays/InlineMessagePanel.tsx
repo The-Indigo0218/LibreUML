@@ -6,6 +6,8 @@
  *   · name
  *   · kind (messageKind)
  *   · arguments
+ *   · guard (message-level [guard] condition, C8)
+ *   · reset position (clears a manual-Y override, B2 — shown only when pinned)
  *
  * Self-contained: resolves the active model (standalone localModel vs global) and
  * applies through the same ops the modal uses, so it needs only an element id.
@@ -14,7 +16,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { useDismissOnOutsideClick } from '../../hooks/useDismissOnOutsideClick';
-import { X, Settings2 } from 'lucide-react';
+import { X, Settings2, RotateCcw } from 'lucide-react';
 import { useModelStore } from '../../store/model.store';
 import { useVFSStore } from '../../store/project-vfs.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
@@ -112,7 +114,31 @@ export default function InlineMessagePanel({ elementId, onAdvanced, onClose }: I
           />
         </section>
 
-        <div className="border-t border-surface-border/50 pt-3">
+        <section className="space-y-1.5">
+          <div className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">{t('inlineMessagePanel.guard')}</div>
+          <input
+            key={message.guard ?? ''}
+            defaultValue={message.guard ?? ''}
+            onBlur={(e) => ops.updateMessage(elementId, { guard: e.target.value.trim() || undefined })}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            placeholder="balance > 0"
+            className={`${fieldCls} w-full`}
+            aria-label={t('inlineMessagePanel.guard')}
+          />
+        </section>
+
+        <div className="border-t border-surface-border/50 pt-3 flex items-center gap-2">
+          {/* Hybrid layout (B2): clear a manual-Y override → back to the auto grid. */}
+          {message.manualY !== undefined && (
+            <button
+              onClick={() => ops.updateMessage(elementId, { manualY: undefined })}
+              title={t('inlineMessagePanel.resetPosition')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-surface-border bg-surface-secondary text-xs text-cyan-400 hover:border-cyan-500 transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {t('inlineMessagePanel.resetPosition')}
+            </button>
+          )}
           <button
             onClick={onAdvanced}
             title={t('inlineMessagePanel.advanced')}

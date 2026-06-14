@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { Lock } from 'lucide-react';
 import { useUiStore } from '../../../../store/uiStore';
 import { useKonvaAutoLayout, LOCKED_WARNING_KEY } from '../../../../canvas/hooks/useKonvaAutoLayout';
 
 export function AutoLayoutLockedWarningModal() {
+  const { t } = useTranslation();
   const activeModal = useUiStore((s) => s.activeModal);
   const closeModals = useUiStore((s) => s.closeModals);
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -34,12 +36,10 @@ export function AutoLayoutLockedWarningModal() {
           </div>
           <div>
             <h2 className="text-base font-semibold text-text-primary mb-1">
-              Locked Edges Detected
+              {t("autoLayoutWarning.title")}
             </h2>
             <p className="text-sm text-text-secondary leading-relaxed">
-              This diagram has locked edges. Auto Layout will reposition all nodes but
-              will not move locked connections, which may result in an uneven layout.
-              Do you want to proceed?
+              {t("autoLayoutWarning.message")}
             </p>
           </div>
         </div>
@@ -52,7 +52,7 @@ export function AutoLayoutLockedWarningModal() {
             className="w-4 h-4 rounded border-surface-border bg-surface-secondary accent-indigo-500 cursor-pointer"
           />
           <span className="text-xs text-text-muted group-hover:text-text-secondary transition-colors select-none">
-            Don't show this warning again
+            {t("autoLayoutWarning.dontShowAgain")}
           </span>
         </label>
 
@@ -61,13 +61,13 @@ export function AutoLayoutLockedWarningModal() {
             onClick={handleCancel}
             className="px-4 py-2 text-sm font-medium text-text-secondary bg-surface-secondary hover:bg-surface-border rounded-lg transition-colors"
           >
-            Cancel
+            {t("autoLayoutWarning.cancel")}
           </button>
           <button
             onClick={handleProceed}
             className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors"
           >
-            Proceed
+            {t("autoLayoutWarning.proceed")}
           </button>
         </div>
       </div>

@@ -3,7 +3,8 @@
  * combined FRAGMENT: the inline counterpart of FragmentPropertiesModal.
  *
  * Edits live, one undo per commit (change / blur):
- *   · fragmentKind (ALT / OPT / LOOP / PAR / SEQ / BREAK / CRITICAL)
+ *   · fragmentKind (12 UML 2.5 InteractionOperatorKind: ALT / OPT / LOOP /
+ *     PAR / SEQ / STRICT / BREAK / CRITICAL / NEG / ASSERT / IGNORE / CONSIDER)
  *   · operand guards (rename in place)
  *
  * Self-contained: resolves the active model (standalone localModel vs global) and
@@ -14,7 +15,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { useDismissOnOutsideClick } from '../../hooks/useDismissOnOutsideClick';
-import { X, Settings2 } from 'lucide-react';
+import { X, Settings2, RotateCcw } from 'lucide-react';
 import { useModelStore } from '../../store/model.store';
 import { useVFSStore } from '../../store/project-vfs.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
@@ -25,6 +26,7 @@ import type {
   IRInteractionFragment,
   IRInteractionOperand,
 } from '../../core/domain/vfs/vfs.types';
+import { FRAGMENT_KINDS } from '../../core/domain/vfs/vfs.types';
 
 export interface InlineFragmentPanelProps {
   /** Element id of the interaction fragment being edited. */
@@ -34,16 +36,6 @@ export interface InlineFragmentPanelProps {
   /** Close the panel. */
   onClose: () => void;
 }
-
-const FRAGMENT_KINDS: ReadonlyArray<IRInteractionFragment['fragmentKind']> = [
-  'ALT',
-  'OPT',
-  'LOOP',
-  'PAR',
-  'SEQ',
-  'BREAK',
-  'CRITICAL',
-];
 
 export default function InlineFragmentPanel({ elementId, onAdvanced, onClose }: InlineFragmentPanelProps) {
   const { t } = useTranslation();
@@ -79,6 +71,36 @@ export default function InlineFragmentPanel({ elementId, onAdvanced, onClose }: 
 
   const setKind = (kind: IRInteractionFragment['fragmentKind']) =>
     ops.updateFragment(elementId, { fragmentKind: kind });
+
+  // IGNORE/CONSIDER (UML 2.5 §17.6) carry an explicit message set.
+  const showsMessageSet =
+    fragment.fragmentKind === 'IGNORE' || fragment.fragmentKind === 'CONSIDER';
+  const setMessageSet = (value: string) =>
+    ops.updateFragment(elementId, {
+      messageSet: value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    });
+
+  const isManual =
+    fragment.manualLeft !== undefined ||
+    fragment.manualTop !== undefined ||
+    fragment.manualWidth !== undefined ||
+    fragment.manualHeight !== undefined;
+
+  // Hybrid reset: clear the box overrides AND release the contained messages'
+  // manual-Y so the whole container snaps back to the auto layout.
+  const resetLayout = () => {
+    ops.updateFragment(elementId, {
+      manualLeft: undefined,
+      manualTop: undefined,
+      manualWidth: undefined,
+      manualHeight: undefined,
+    });
+    const msgIds = readOperands().flatMap((o) => o.messageIds);
+    for (const mid of msgIds) ops.updateMessage(mid, { manualY: undefined });
+  };
 
   const fieldCls =
     'bg-surface-secondary border border-surface-border rounded px-1.5 py-1 text-xs text-text-primary outline-none focus:border-indigo-500 font-mono';
@@ -126,7 +148,33 @@ export default function InlineFragmentPanel({ elementId, onAdvanced, onClose }: 
           ))}
         </section>
 
-        <div className="border-t border-surface-border/50 pt-3">
+        {showsMessageSet && (
+          <section className="space-y-1.5">
+            <div className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+              {t('inlineFragmentPanel.messageSet')}
+            </div>
+            <input
+              key={fragment.messageSet?.join(', ') ?? ''}
+              defaultValue={fragment.messageSet?.join(', ') ?? ''}
+              onBlur={(e) => setMessageSet(e.target.value)}
+              placeholder={t('inlineFragmentPanel.messageSetPlaceholder')}
+              className={`${fieldCls} w-full`}
+            />
+          </section>
+        )}
+
+        <div className="border-t border-surface-border/50 pt-3 flex items-center gap-2">
+          {/* Hybrid layout (G-a/G-b): clear the box override → back to auto. */}
+          {isManual && (
+            <button
+              onClick={resetLayout}
+              title={t('inlineFragmentPanel.resetLayout')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-surface-border bg-surface-secondary text-xs text-cyan-400 hover:border-cyan-500 transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {t('inlineFragmentPanel.resetLayout')}
+            </button>
+          )}
           <button
             onClick={onAdvanced}
             title={t('inlineFragmentPanel.advanced')}

@@ -45,6 +45,22 @@ export interface E2EEdgeSpec {
   routingMode?: 'straight' | 'orthogonal' | 'curved';
 }
 
+/** Minimal sequence-diagram seed (verification harness). Lifelines become
+ *  ViewNodes; messages/activations/fragments are derived (no ViewNode). */
+export interface E2ESequenceSpec {
+  diagramType: 'SEQUENCE_DIAGRAM';
+  lifelines: { id: string; vnId: string; name: string; x: number; y: number }[];
+  messages?: {
+    id: string; name?: string; messageKind: string;
+    sourceLifelineId: string; targetLifelineId: string; sequenceNumber: number;
+  }[];
+  activations?: { id: string; lifelineId: string; startMessageId: string; endMessageId?: string }[];
+  fragments?: {
+    id: string; fragmentKind: string; coveredLifelineIds: string[];
+    messageIds?: string[]; messageSet?: string[];
+  }[];
+}
+
 export interface E2EDiagramSpec {
   nodes: E2ENodeSpec[];
   edges?: E2EEdgeSpec[];
@@ -102,10 +118,67 @@ function buildProject(spec: E2EDiagramSpec): LibreUMLProject {
   } as unknown as LibreUMLProject;
 }
 
+/** Builds a SEQUENCE_DIAGRAM project from a sequence seed spec. */
+function buildSequenceProject(spec: E2ESequenceSpec): LibreUMLProject {
+  const now = Date.now();
+  const model = emptyModel() as unknown as Record<string, unknown>;
+  model.lifelines = {};
+  model.messages = {};
+  model.activations = {};
+  model.interactionFragments = {};
+  for (const ll of spec.lifelines) {
+    (model.lifelines as Record<string, unknown>)[ll.id] = {
+      id: ll.id, kind: 'LIFELINE', name: ll.name, participantKind: 'ANONYMOUS', alias: ll.name,
+    };
+  }
+  for (const m of spec.messages ?? []) {
+    (model.messages as Record<string, unknown>)[m.id] = {
+      id: m.id, kind: 'MESSAGE', name: m.name ?? '', messageKind: m.messageKind,
+      sourceLifelineId: m.sourceLifelineId, targetLifelineId: m.targetLifelineId,
+      sequenceNumber: m.sequenceNumber,
+    };
+  }
+  for (const a of spec.activations ?? []) {
+    (model.activations as Record<string, unknown>)[a.id] = {
+      id: a.id, kind: 'ACTIVATION', name: '', lifelineId: a.lifelineId,
+      startMessageId: a.startMessageId, endMessageId: a.endMessageId,
+    };
+  }
+  for (const f of spec.fragments ?? []) {
+    (model.interactionFragments as Record<string, unknown>)[f.id] = {
+      id: f.id, kind: 'FRAGMENT', name: f.id, fragmentKind: f.fragmentKind,
+      coveredLifelineIds: f.coveredLifelineIds,
+      operands: [{ id: `${f.id}-op1`, messageIds: f.messageIds ?? [], fragmentIds: [] }],
+      messageSet: f.messageSet,
+    };
+  }
+  const viewNodes: ViewNode[] = spec.lifelines.map((ll) => ({ id: ll.vnId, elementId: ll.id, x: ll.x, y: ll.y }));
+  const content: DiagramView = { diagramId: FILE_ID, nodes: viewNodes, edges: [] };
+
+  return {
+    id: 'e2e-project', projectName: 'E2E', version: '1.0.0', domainModelId: 'e2e-dm',
+    nodes: {
+      [FILE_ID]: {
+        id: FILE_ID, name: 'E2E.luml', type: 'FILE', parentId: null,
+        diagramType: 'SEQUENCE_DIAGRAM', extension: '.luml', isExternal: false,
+        standalone: true, content, localModel: model,
+        createdAt: now, updatedAt: now,
+      },
+    },
+    createdAt: now, updatedAt: now,
+  } as unknown as LibreUMLProject;
+}
+
 export interface E2ENodeRect { x: number; y: number; width: number; height: number; }
 
 export interface E2EApi {
   seed: (spec?: E2EDiagramSpec) => void;
+  /** Seed a sequence diagram (verification harness). */
+  seedSequence: (spec: E2ESequenceSpec) => void;
+  /** Read a collection of the active file's localModel back (lifelines/messages/…). */
+  modelDump: (collection: string) => Record<string, unknown> | null;
+  /** All Konva Text strings currently painted on the stage (render assertions). */
+  stageTexts: () => string[];
   getView: () => DiagramView | null;
   /** Page-space bounding rect of a rendered shape (group id = view node id). */
   nodeRect: (id: string) => E2ENodeRect | null;
@@ -126,8 +199,24 @@ export default function E2EHarness() {
       useWorkspaceStore.getState().openTab(FILE_ID);
     };
 
+    const seedSequence = (spec: E2ESequenceSpec) => {
+      useVFSStore.getState().loadProject(buildSequenceProject(spec));
+      useWorkspaceStore.getState().openTab(FILE_ID);
+    };
+
     const api: E2EApi = {
       seed,
+      seedSequence,
+      modelDump: (collection) => {
+        const node = useVFSStore.getState().project?.nodes[FILE_ID];
+        const lm = node && node.type === 'FILE' ? (node as { localModel?: Record<string, unknown> }).localModel : null;
+        return (lm?.[collection] as Record<string, unknown>) ?? null;
+      },
+      stageTexts: () => {
+        const stage = Konva.stages[Konva.stages.length - 1];
+        if (!stage) return [];
+        return stage.find('Text').map((t) => (t as unknown as { text: () => string }).text());
+      },
       getView: () => {
         const node = useVFSStore.getState().project?.nodes[FILE_ID];
         return node && node.type === 'FILE' ? ((node as { content?: DiagramView }).content ?? null) : null;

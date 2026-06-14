@@ -9,6 +9,13 @@
  *    with its gates serialized as cfragmentGate)
  *  - uml:StateInvariant fragments
  *  - uml:InteractionUse fragments (refersTo the referenced interaction)
+ *  - uml:Continuation fragments (named jump points spanning lifelines, C3)
+ *  - uml:Coregion → a single-lifeline `par` CombinedFragment (the standard
+ *    UML 2.5 shorthand the `[ ]` notation abbreviates, C4)
+ *  - uml:PartDecomposition fragments + Lifeline.decomposedAs (C5)
+ *  - uml:GeneralOrdering edges between two message occurrences (C6)
+ *  - uml:DurationConstraint / uml:TimeConstraint ownedRules over occurrences (C1/C2)
+ *  - per-message guards folded into the message name as `[guard] name` (C8)
  *
  * Only elements whose lifelines are present in the DiagramView are exported.
  */
@@ -22,10 +29,19 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRContinuation,
+  IRCoregion,
+  IRGeneralOrdering,
+  IRTimeConstraint,
   MessageKind,
   FragmentKind,
 } from '../core/domain/vfs/vfs.types';
 import { esc, xmiId, xmiHeader, xmiFooter, downloadXml } from './xmi/xmiHelpers';
+
+/** XMI id of a lifeline's PartDecomposition fragment (C5). */
+function partDecompositionId(lifelineId: string): string {
+  return `decomp_${xmiId(lifelineId)}`;
+}
 
 const MESSAGE_SORT: Record<MessageKind, string> = {
   SYNC: 'synchCall',
@@ -44,7 +60,9 @@ function interactionOperator(kind: FragmentKind): string {
 function serializeLifeline(ll: IRLifeline): string {
   const name = ll.alias || ll.name || 'lifeline';
   const represents = ll.represents ? ` represents="${xmiId(ll.represents)}"` : '';
-  return `    <lifeline xmi:id="${xmiId(ll.id)}" name="${esc(name)}"${represents}/>`;
+  // C5: a decomposed lifeline points at its PartDecomposition fragment.
+  const decomposed = ll.decomposedAs ? ` decomposedAs="${partDecompositionId(ll.id)}"` : '';
+  return `    <lifeline xmi:id="${xmiId(ll.id)}" name="${esc(name)}"${represents}${decomposed}/>`;
 }
 
 /** Message ends → ids of the occurrence specs (or gate ids) plus the MOS fragments to emit. */
@@ -86,10 +104,16 @@ function messageEnds(msg: IRMessage): {
 
 function serializeMessage(msg: IRMessage, sendEvent?: string, receiveEvent?: string): string {
   const messageKind = msg.isFound ? 'found' : msg.isLost ? 'lost' : 'complete';
+  // C8: a per-message guard has no home on the UML Message metaclass, so we fold
+  // it into the name as `[guard] name` — matching the on-canvas label so the
+  // condition survives a round-trip into EA/StarUML.
+  const guard = msg.guard?.trim();
+  const baseName = msg.name || '';
+  const name = guard ? `[${guard}]${baseName ? ` ${baseName}` : ''}` : baseName;
   const attrs = [
     `xmi:type="uml:Message"`,
     `xmi:id="${xmiId(msg.id)}"`,
-    `name="${esc(msg.name || '')}"`,
+    `name="${esc(name)}"`,
     `messageSort="${MESSAGE_SORT[msg.messageKind]}"`,
     `messageKind="${messageKind}"`,
     sendEvent ? `sendEvent="${sendEvent}"` : '',
@@ -102,10 +126,41 @@ function serializeCombinedFragment(
   frag: IRInteractionFragment,
   gates: IRGate[],
   coveredInScope: (id: string) => boolean,
+  messageIdByName?: Map<string, string>,
 ): string {
   const covered = frag.coveredLifelineIds.filter(coveredInScope).map(xmiId).join(' ');
-  const open = `    <fragment xmi:type="uml:CombinedFragment" xmi:id="${xmiId(frag.id)}" interactionOperator="${interactionOperator(frag.fragmentKind)}"${covered ? ` covered="${covered}"` : ''}>`;
+
+  // UML 2.5: IGNORE/CONSIDER carry a message set → ConsiderIgnoreFragment.
+  // `message` references the matching Messages by name; the literal set is also
+  // kept as an ownedComment so it survives a round-trip even when a name doesn't
+  // resolve to a message in this diagram.
+  const isConsiderIgnore =
+    (frag.fragmentKind === 'IGNORE' || frag.fragmentKind === 'CONSIDER') &&
+    !!frag.messageSet?.length;
+  const xmiType = isConsiderIgnore ? 'uml:ConsiderIgnoreFragment' : 'uml:CombinedFragment';
+  const messageRefs = isConsiderIgnore
+    ? (frag.messageSet ?? [])
+        .map((name) => messageIdByName?.get(name))
+        .filter((id): id is string => !!id)
+    : [];
+
+  const openAttrs = [
+    `xmi:type="${xmiType}"`,
+    `xmi:id="${xmiId(frag.id)}"`,
+    `interactionOperator="${interactionOperator(frag.fragmentKind)}"`,
+    covered ? `covered="${covered}"` : '',
+    messageRefs.length ? `message="${messageRefs.join(' ')}"` : '',
+  ].filter(Boolean).join(' ');
+  const open = `    <fragment ${openAttrs}>`;
   const lines: string[] = [open];
+
+  if (isConsiderIgnore) {
+    lines.push(
+      `      <ownedComment xmi:type="uml:Comment" xmi:id="${xmiId(frag.id)}_set">`,
+      `        <body>{${esc((frag.messageSet ?? []).join(', '))}}</body>`,
+      `      </ownedComment>`,
+    );
+  }
 
   for (const gate of gates) {
     lines.push(`      <cfragmentGate xmi:id="${xmiId(gate.id)}" name="${esc(gate.name || '')}"/>`);
@@ -155,6 +210,62 @@ function serializeInteractionUse(use: IRInteractionUse, coveredInScope: (id: str
   return `    <fragment ${attrs}/>`;
 }
 
+/** C3: named continuation point spanning one or more lifelines. */
+function serializeContinuation(cont: IRContinuation, coveredInScope: (id: string) => boolean): string {
+  const covered = cont.coveredLifelineIds.filter(coveredInScope).map(xmiId).join(' ');
+  const attrs = [
+    `xmi:type="uml:Continuation"`,
+    `xmi:id="${xmiId(cont.id)}"`,
+    `name="${esc(cont.name || 'continuation')}"`,
+    covered ? `covered="${covered}"` : '',
+  ].filter(Boolean).join(' ');
+  return `    <fragment ${attrs}/>`;
+}
+
+/**
+ * C4: a coregion is the UML 2.5 shorthand for a `par` CombinedFragment covering
+ * a single lifeline, so we serialize it as exactly that for round-trip fidelity.
+ */
+function serializeCoregion(co: IRCoregion): string {
+  return [
+    `    <fragment xmi:type="uml:CombinedFragment" xmi:id="${xmiId(co.id)}" interactionOperator="par" covered="${xmiId(co.lifelineId)}">`,
+    `      <operand xmi:type="uml:InteractionOperand" xmi:id="${xmiId(co.id)}_op"/>`,
+    `    </fragment>`,
+  ].join('\n');
+}
+
+/** C5: the PartDecomposition fragment a decomposed lifeline refers to. */
+function serializePartDecomposition(ll: IRLifeline): string {
+  const name = ll.decomposedName || ll.alias || ll.name || 'decomposition';
+  const refersTo = ll.decomposedAs ? ` refersTo="${xmiId(ll.decomposedAs)}"` : '';
+  return `    <fragment xmi:type="uml:PartDecomposition" xmi:id="${partDecompositionId(ll.id)}" name="${esc(name)}"${refersTo}/>`;
+}
+
+/**
+ * C6: a GeneralOrdering edge between two message occurrences. `before`/`after`
+ * reference the occurrence-spec ids resolved from the message ends; callers pass
+ * `undefined` when either occurrence is out of scope so the order is skipped.
+ */
+function serializeGeneralOrdering(go: IRGeneralOrdering, before: string, after: string): string {
+  return `    <generalOrdering xmi:type="uml:GeneralOrdering" xmi:id="${xmiId(go.id)}" before="${before}" after="${after}"/>`;
+}
+
+/**
+ * C1/C2: a timing constraint. DURATION → DurationConstraint over the two anchor
+ * occurrences; TIME → TimeConstraint over the single anchor. The expression is
+ * carried in an OpaqueExpression specification.
+ */
+function serializeTimeConstraint(tc: IRTimeConstraint, constrained: string[]): string {
+  const umlType = tc.constraintKind === 'DURATION' ? 'uml:DurationConstraint' : 'uml:TimeConstraint';
+  return [
+    `    <ownedRule xmi:type="${umlType}" xmi:id="${xmiId(tc.id)}" constrainedElement="${constrained.join(' ')}">`,
+    `      <specification xmi:type="uml:OpaqueExpression" xmi:id="${xmiId(tc.id)}_spec">`,
+    `        <body>${esc(tc.expression || '')}</body>`,
+    `      </specification>`,
+    `    </ownedRule>`,
+  ].join('\n');
+}
+
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 export function buildSequenceDiagramXmi(
@@ -198,6 +309,13 @@ export function buildSequenceDiagramXmi(
   const interactionUses = Object.values(model.interactionUses ?? {}).filter((u) =>
     u.coveredLifelineIds.some((id) => lifelineIds.has(id)),
   );
+  const continuations = Object.values(model.continuations ?? {}).filter((c) =>
+    c.coveredLifelineIds.some((id) => lifelineIds.has(id)),
+  );
+  const coregions = Object.values(model.coregions ?? {}).filter((c) =>
+    lifelineIds.has(c.lifelineId),
+  );
+  const decomposedLifelines = lifelines.filter((ll) => !!ll.decomposedAs);
 
   const lines: string[] = xmiHeader(model.id, diagramName);
   lines.push(
@@ -207,22 +325,64 @@ export function buildSequenceDiagramXmi(
   // Lifelines first.
   for (const ll of lifelines) lines.push(serializeLifeline(ll));
 
-  // Occurrence-spec fragments for message ends, in chronological order.
+  // Occurrence-spec fragments for message ends, in chronological order. The
+  // ends map lets general orderings and timing constraints reference the exact
+  // occurrence ids emitted here.
   const messageElements: string[] = [];
+  const endsByMsg = new Map<string, { sendEvent?: string; receiveEvent?: string }>();
   for (const msg of messages) {
     const { sendEvent, receiveEvent, occurrences } = messageEnds(msg);
+    endsByMsg.set(msg.id, { sendEvent, receiveEvent });
     lines.push(...occurrences);
     messageElements.push(serializeMessage(msg, sendEvent, receiveEvent));
   }
 
+  /** Resolve a message-end to its occurrence-spec (or gate) id, when in scope. */
+  const occRef = (messageId: string, end: 'SEND' | 'RECEIVE'): string | undefined => {
+    const ends = endsByMsg.get(messageId);
+    if (!ends) return undefined;
+    return end === 'SEND' ? ends.sendEvent : ends.receiveEvent;
+  };
+
+  // Name → message id, for ConsiderIgnoreFragment.message references.
+  const messageIdByName = new Map<string, string>();
+  for (const msg of messages) {
+    if (msg.name) messageIdByName.set(msg.name, xmiId(msg.id));
+  }
+
   // Combined fragments (with their gates + operands).
   for (const frag of fragments) {
-    lines.push(serializeCombinedFragment(frag, gatesByFragment.get(frag.id) ?? [], (id) => lifelineIds.has(id)));
+    lines.push(serializeCombinedFragment(frag, gatesByFragment.get(frag.id) ?? [], (id) => lifelineIds.has(id), messageIdByName));
   }
 
   // State invariants + interaction uses.
   for (const si of stateInvariants) lines.push(serializeStateInvariant(si));
   for (const use of interactionUses) lines.push(serializeInteractionUse(use, (id) => lifelineIds.has(id)));
+
+  // Continuations, coregions and part-decompositions (more interaction fragments).
+  for (const cont of continuations) lines.push(serializeContinuation(cont, (id) => lifelineIds.has(id)));
+  for (const co of coregions) lines.push(serializeCoregion(co));
+  for (const ll of decomposedLifelines) lines.push(serializePartDecomposition(ll));
+
+  // General orderings — only when both occurrence ends are in scope.
+  for (const go of Object.values(model.generalOrderings ?? {})) {
+    const before = occRef(go.beforeMessageId, go.beforeEnd);
+    const after = occRef(go.afterMessageId, go.afterEnd);
+    if (before && after) lines.push(serializeGeneralOrdering(go, before, after));
+  }
+
+  // Timing constraints — DURATION needs both anchors, TIME only the first.
+  for (const tc of Object.values(model.timeConstraints ?? {})) {
+    const from = occRef(tc.fromMessageId, tc.fromEnd);
+    if (!from) continue;
+    if (tc.constraintKind === 'DURATION') {
+      const to = tc.toMessageId ? occRef(tc.toMessageId, tc.toEnd ?? 'RECEIVE') : undefined;
+      if (!to) continue;
+      lines.push(serializeTimeConstraint(tc, [from, to]));
+    } else {
+      lines.push(serializeTimeConstraint(tc, [from]));
+    }
+  }
 
   // Messages last (they reference the occurrence specs above).
   lines.push(...messageElements);

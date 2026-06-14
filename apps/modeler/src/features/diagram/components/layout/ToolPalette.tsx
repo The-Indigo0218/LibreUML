@@ -6,12 +6,22 @@ import type { stereotype, UmlRelationType } from "../../types/diagram.types";
 import { edgeConfig } from "../../../../config/theme.config";
 import { useTranslation } from "react-i18next";
 import { getDiagramRegistry, getAllTools } from "../../../../core/registry/diagram-registry";
+import type { ToolConfig } from "../../../../core/registry/diagram-registry.types";
 import { getIconComponent } from "../../../../core/registry/icon-map";
 import { useKonvaAutoLayout } from "../../../../canvas/hooks/useKonvaAutoLayout";
 import { DRAG_TYPE_NEW } from "../../../../canvas/hooks/useKonvaDnD";
 import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import type { VFSFile } from "../../../../core/domain/vfs/vfs.types";
 import { getRelationShortcutKey } from "../../../../canvas/interactions/relationShortcuts";
+import {
+  insertInteractionUseIntoActiveDiagram,
+  insertEndpointMessageIntoActiveDiagram,
+  insertGeneralOrderingIntoActiveDiagram,
+  insertTimeConstraintIntoActiveDiagram,
+  insertCoregionIntoActiveDiagram,
+  insertContinuationIntoActiveDiagram,
+} from "../../services/sequenceInserts";
+import { useSequenceToolStore } from "../../../../store/sequenceToolStore";
 
 export default function ToolPalette() {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
@@ -42,21 +52,55 @@ export default function ToolPalette() {
     }
   }, [diagramType]);
 
-  // The palette lists every node tool across all diagram types (#1). Tools the
-  // active diagram doesn't own are marked "foreign" and sorted after the native
-  // ones; dropping one triggers the cross-diagram guard in useKonvaDnD.
+  const hideForeign = !!registry.hideForeignTools;
+
   const nativeNodeIds = useMemo(
     () => new Set(registry.tools.nodes.map((tool) => tool.id)),
     [registry],
   );
-  const allNodeTools = useMemo(() => {
-    const tools = getAllTools().nodes;
-    return [...tools].sort((a, b) => {
+
+  const fragmentTools = registry.tools.fragments ?? [];
+  const structureTools = registry.tools.structure ?? [];
+
+  // The density pill governs how much of the palette is shown. It appears only
+  // for diagrams that have a common/advanced split to control (sequence today).
+  const [density, setDensity] = useState<Density>('basic');
+  const showDensityPill = fragmentTools.length > 0 || structureTools.length > 0;
+  const showAdvanced = !showDensityPill || density !== 'basic';
+  // Foreign tools from other diagram types: always listed (dimmed) on diagrams
+  // without the pill (#1); on piloted diagrams only at the "all" level, unless
+  // the diagram opts out entirely via hideForeignTools.
+  const showForeign = showDensityPill ? density === 'all' && !hideForeign : !hideForeign;
+
+  // Native node tools first; foreign ones (when shown) are dimmed and sorted
+  // last, and dropping one triggers the cross-diagram guard in useKonvaDnD.
+  const nodeTools = useMemo(() => {
+    if (!showForeign) return registry.tools.nodes;
+    return [...getAllTools().nodes].sort((a, b) => {
       const aForeign = nativeNodeIds.has(a.id) ? 0 : 1;
       const bForeign = nativeNodeIds.has(b.id) ? 0 : 1;
       return aForeign - bForeign;
     });
-  }, [nativeNodeIds]);
+  }, [showForeign, registry, nativeNodeIds]);
+
+  const armedFragmentKind = useSequenceToolStore((s) => s.armedFragmentKind);
+  const toggleArmFragment = useSequenceToolStore((s) => s.toggleArm);
+
+  const commonFragments = fragmentTools.filter((tool) => tool.category !== 'advanced');
+  const advancedFragments = fragmentTools.filter((tool) => tool.category === 'advanced');
+  const commonStructure = structureTools.filter((tool) => tool.category !== 'advanced');
+  const advancedStructure = structureTools.filter((tool) => tool.category === 'advanced');
+
+  const insertStructureTool = (id: string) => {
+    if (id === 'ref') insertInteractionUseIntoActiveDiagram();
+    else if (id === 'msg-found') insertEndpointMessageIntoActiveDiagram('found');
+    else if (id === 'msg-lost') insertEndpointMessageIntoActiveDiagram('lost');
+    else if (id === 'gen-ordering') insertGeneralOrderingIntoActiveDiagram();
+    else if (id === 'duration') insertTimeConstraintIntoActiveDiagram('duration');
+    else if (id === 'time') insertTimeConstraintIntoActiveDiagram('time');
+    else if (id === 'coregion') insertCoregionIntoActiveDiagram();
+    else if (id === 'continuation') insertContinuationIntoActiveDiagram();
+  };
 
   const setTabConnectionMode = useWorkspaceStore((s) => s.setTabConnectionMode);
 
@@ -74,6 +118,8 @@ export default function ToolPalette() {
 
   const [isNodesOpen, setIsNodesOpen] = useState(true);
   const [isConnectionsOpen, setIsConnectionsOpen] = useState(true);
+  const [isFragmentsOpen, setIsFragmentsOpen] = useState(true);
+  const [isStructureOpen, setIsStructureOpen] = useState(true);
 
   const { t } = useTranslation();
 
@@ -101,13 +147,25 @@ export default function ToolPalette() {
       </div>
 
       <div className="flex flex-col py-2 pb-4 overflow-y-auto overflow-x-hidden custom-scrollbar flex-1 select-none">
+        {showDensityPill && (
+          <DensityPill
+            value={density}
+            onChange={setDensity}
+            labels={{
+              basic: t("sidebar.density.basic"),
+              advanced: t("sidebar.density.advanced"),
+              all: t("sidebar.density.all"),
+            }}
+          />
+        )}
+
         <CollapsibleSection
           title="Nodes"
           isOpen={isNodesOpen}
           setIsOpen={setIsNodesOpen}
         >
           <div className="flex flex-col gap-2 px-3">
-            {allNodeTools.map((tool) => (
+            {nodeTools.map((tool) => (
               <DraggableItem
                 key={tool.id}
                 type={tool.id as stereotype}
@@ -151,8 +209,149 @@ export default function ToolPalette() {
           </div>
 
         </CollapsibleSection>
+
+        <InsertSection
+          common={commonFragments}
+          advanced={advancedFragments}
+          showAdvanced={showAdvanced}
+          title={t("sidebar.fragments.title")}
+          isOpen={isFragmentsOpen}
+          setIsOpen={setIsFragmentsOpen}
+          armedKind={armedFragmentKind}
+          onInsert={(tool) => toggleArmFragment(tool.fragmentKind!)}
+        />
+
+        <InsertSection
+          common={commonStructure}
+          advanced={advancedStructure}
+          showAdvanced={showAdvanced}
+          title={t("sidebar.structure.title")}
+          isOpen={isStructureOpen}
+          setIsOpen={setIsStructureOpen}
+          onInsert={(tool) => insertStructureTool(tool.id)}
+        />
       </div>
     </div>
+  );
+}
+
+type Density = 'basic' | 'advanced' | 'all';
+
+interface DensityPillProps {
+  value: Density;
+  onChange: (value: Density) => void;
+  labels: Record<Density, string>;
+}
+
+/** Segmented control governing how much of the palette is shown. */
+function DensityPill({ value, onChange, labels }: DensityPillProps) {
+  const levels: Density[] = ['basic', 'advanced', 'all'];
+  return (
+    <div className="flex items-center gap-0.5 mx-3 mb-2 p-0.5 rounded-md bg-surface-secondary/40 border border-surface-border/40">
+      {levels.map((level) => (
+        <button
+          key={level}
+          onClick={() => onChange(level)}
+          className={`flex-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider rounded transition-colors ${
+            value === level
+              ? "bg-indigo-500/25 text-indigo-200"
+              : "text-text-muted hover:text-text-primary"
+          }`}
+        >
+          {labels[level]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface InsertSectionProps {
+  common: ToolConfig[];
+  advanced: ToolConfig[];
+  /** Whether the advanced tools are visible (driven by the density pill). */
+  showAdvanced: boolean;
+  title: string;
+  isOpen: boolean;
+  setIsOpen: (v: boolean) => void;
+  onInsert: (tool: ToolConfig) => void;
+  /** Fragment kind currently armed for the draw gesture — highlights its row. */
+  armedKind?: string | null;
+}
+
+/**
+ * A collapsible palette section of click-to-insert tools (operators / structure).
+ * Common tools always show; advanced ones appear when the density pill allows it.
+ * Renders nothing when the section has no tools.
+ */
+function InsertSection({
+  common,
+  advanced,
+  showAdvanced,
+  title,
+  isOpen,
+  setIsOpen,
+  onInsert,
+  armedKind,
+}: InsertSectionProps) {
+  if (common.length === 0 && advanced.length === 0) return null;
+
+  const visible = showAdvanced ? [...common, ...advanced] : common;
+
+  return (
+    <>
+      <div className="mx-4 my-2 h-px bg-surface-border/30" />
+      <CollapsibleSection title={title} isOpen={isOpen} setIsOpen={setIsOpen}>
+        <div className="flex flex-col gap-2 px-3">
+          {visible.map((tool) => (
+            <InsertItem
+              key={tool.id}
+              tool={tool}
+              onInsert={() => onInsert(tool)}
+              armed={!!armedKind && tool.fragmentKind === armedKind}
+            />
+          ))}
+        </div>
+      </CollapsibleSection>
+    </>
+  );
+}
+
+interface InsertItemProps {
+  tool: ToolConfig;
+  onInsert: () => void;
+  /** When true the row is shown as armed (toggled on) — used by the draw gesture. */
+  armed?: boolean;
+}
+
+/** Click-to-insert palette row for a fragment operator or structural extra. */
+function InsertItem({ tool, onInsert, armed = false }: InsertItemProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  const color = tool.color || '#6366F1';
+  const IconComponent = getIconComponent(tool.icon);
+  const active = isHovered || armed;
+
+  return (
+    <button
+      title={tool.label}
+      onClick={onInsert}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="group flex items-center cursor-pointer rounded-lg transition-all duration-200 border flex-row gap-3 px-3 py-2 justify-start"
+      style={{
+        borderColor: active ? color : "transparent",
+        backgroundColor: active ? `color-mix(in srgb, ${color} ${armed ? 25 : 15}%, transparent)` : "transparent",
+      }}
+    >
+      <span style={{ color }} className="group-hover:brightness-125 transition-all shrink-0">
+        {IconComponent && <IconComponent className="w-4 h-4" />}
+      </span>
+      <span
+        className="font-mono font-semibold text-sm"
+        style={{ color: active ? "var(--color-text-primary)" : "var(--color-text-muted)" }}
+      >
+        {tool.label}
+      </span>
+    </button>
   );
 }
 

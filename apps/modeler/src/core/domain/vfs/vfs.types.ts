@@ -359,6 +359,25 @@ export interface IRLifeline extends IRElement {
   /** Display name when participantKind === 'ANONYMOUS' (or override for named participants). */
   alias?: string;
   isExternal?: boolean;
+  /**
+   * UML 2.5 §17.4 PartDecomposition — VFS file id of the SEQUENCE_DIAGRAM that
+   * refines this lifeline's internal behaviour. When set, the lifeline shows a
+   * `ref <name>` marker and double-clicking it navigates to that sub-interaction
+   * (C5). Mirrors `IRInteractionUse.referencedDiagramId` but anchored to a
+   * single participant.
+   */
+  decomposedAs?: string;
+  /** Display label of the referenced sub-interaction (falls back to its file name). */
+  decomposedName?: string;
+  /**
+   * Hybrid layout override (G-c): manual vertical length of the lifeline's
+   * timeline, in px. By default the timeline length is derived from the message
+   * count; dragging the foot handle pins this value so the user can stretch the
+   * lifeline past the last message (EA/StarUML style). Ignored for destroyed
+   * lifelines (their timeline ends at the destroy occurrence). Double-clicking
+   * the foot handle clears it.
+   */
+  manualTimelineLength?: number;
 }
 
 export type MessageKind =
@@ -381,8 +400,22 @@ export interface IRMessage extends IRElement {
   operationId?: string;
   /** Free-form argument string (e.g. "id, name") for MVP. */
   arguments?: string;
+  /**
+   * UML 2.5 InteractionConstraint at the message level — a guard condition that
+   * must hold for this message to occur (rendered as `[guard]` before the name).
+   * Distinct from an operand's guard (`IRInteractionOperand.guard`): this scopes
+   * the condition to a single message rather than a whole fragment operand (C8).
+   */
+  guard?: string;
   /** For REPLY messages, references the invoking message. */
   inReplyTo?: string;
+  /**
+   * Hybrid layout override (B2): when set, the message is pinned at this absolute
+   * Y (world px) instead of its computed slot Y, mirroring an activation's
+   * `manualTopY`. The `sequenceNumber` still drives ordering/numbering; only the
+   * glyph's vertical position floats. Cleared on a plain drag-reorder or reset.
+   */
+  manualY?: number;
   /**
    * UML 2.5 found message: the source is an unknown participant outside the
    * interaction. `sourceLifelineId` is empty; the target is a real lifeline.
@@ -427,16 +460,50 @@ export interface IRActivation extends IRElement {
   endMessageId?: string;
   /** When set, nests this activation inside a parent (re-entrancy). */
   parentActivationId?: string;
+  // Activation geometry is fully system-managed (UML convention): the bar is
+  // anchored to its lifeline (X auto, fixed width) and its height is derived
+  // from the execution span — it grows automatically with nested messages,
+  // self-messages and new interactions. There are no manual layout overrides.
 }
 
+/**
+ * The 12 UML 2.5 §17.6 InteractionOperatorKind values. `interactionOperator`
+ * in XMI is the lowercased form of each (`alt`, `strict`, `consider`, …).
+ */
 export type FragmentKind =
   | 'ALT'      // alternative (if/else) with multiple guarded operands
   | 'OPT'      // optional (single guarded operand)
   | 'LOOP'     // iteration with guard
   | 'PAR'      // parallel
   | 'SEQ'      // weak sequencing
+  | 'STRICT'   // strict sequencing (order across operands is significant)
   | 'BREAK'    // break
-  | 'CRITICAL'; // critical region
+  | 'CRITICAL' // critical region
+  | 'NEG'      // negative (invalid traces)
+  | 'ASSERT'   // assertion (only valid continuation)
+  | 'IGNORE'   // ignore the listed message types
+  | 'CONSIDER'; // consider only the listed message types
+
+/** All combined-fragment kinds, in canonical UI order. */
+export const FRAGMENT_KINDS: readonly FragmentKind[] = [
+  'ALT', 'OPT', 'LOOP', 'PAR', 'SEQ', 'STRICT', 'BREAK', 'CRITICAL',
+  'NEG', 'ASSERT', 'IGNORE', 'CONSIDER',
+];
+
+/**
+ * Fragment kinds whose semantics allow more than one operand: alternatives,
+ * parallel regions, weak and strict sequencing. The rest are single-operand by
+ * definition (UML 2.5 §17.6). Single source of truth for both the creation
+ * defaults and the operand add/remove UI.
+ */
+export const MULTI_OPERAND_FRAGMENT_KINDS: ReadonlySet<FragmentKind> = new Set([
+  'ALT', 'PAR', 'SEQ', 'STRICT',
+]);
+
+/** Default number of operands to seed when a fragment of this kind is created. */
+export function defaultOperandCount(kind: FragmentKind): number {
+  return MULTI_OPERAND_FRAGMENT_KINDS.has(kind) ? 2 : 1;
+}
 
 export interface IRInteractionOperand {
   id: string;
@@ -455,6 +522,25 @@ export interface IRInteractionFragment extends IRElement {
   /** Operands. ALT supports many; OPT/LOOP/PAR support one. */
   operands: IRInteractionOperand[];
   parentFragmentId?: string;
+  /**
+   * Hybrid layout overrides (G-a/G-b): by default the box is derived (X from the
+   * covered lifelines, Y from the span of the messages it contains). When any of
+   * these are set the builder uses them instead, letting the user move the
+   * container vertically and resize its width/height like in EA/StarUML. Dragging
+   * the box vertically also shifts the contained messages (`manualY`) so the
+   * contents follow the container; the inline panel's reset clears all four.
+   */
+  manualLeft?: number;
+  manualTop?: number;
+  manualWidth?: number;
+  manualHeight?: number;
+  /**
+   * UML 2.5 §17.6 — the explicit message set for IGNORE / CONSIDER operators.
+   * IGNORE renders `ignore {m1, m2}` (those messages are disregarded inside the
+   * region); CONSIDER renders `consider {m1, m2}` (only those are significant).
+   * Empty/undefined for every other kind, and harmless when present.
+   */
+  messageSet?: string[];
 }
 
 /**
@@ -474,6 +560,9 @@ export interface IRInteractionUse extends IRElement {
    * this number. 0 = at the top, before the first message.
    */
   afterSequenceNumber: number;
+  /** Hybrid layout overrides (G-d): manual box width/height in px. */
+  manualWidth?: number;
+  manualHeight?: number;
 }
 
 /**
@@ -492,6 +581,76 @@ export interface IRStateInvariant extends IRElement {
    * sequenceNumber. 0 = above the first message. Mirrors how messages map
    * sequenceNumber → Y in the layout builder.
    */
+  afterSequenceNumber: number;
+  /** Hybrid layout overrides (G-d): manual box width/height, kept centered. */
+  manualWidth?: number;
+  manualHeight?: number;
+}
+
+/**
+ * UML 2.5 §17.2 GeneralOrdering — a dotted arrow that forces a temporal order
+ * between two OccurrenceSpecifications (message ends) that would otherwise be
+ * unordered (typically on different lifelines). Purely a constraint: it adds no
+ * message, only an ordering edge `before → after`.
+ */
+export interface IRGeneralOrdering extends IRElement {
+  kind: 'GENERAL_ORDERING';
+  /** The earlier message whose occurrence must precede the other. */
+  beforeMessageId: string;
+  /** Which end (occurrence) of the before-message anchors the order's tail. */
+  beforeEnd: 'SEND' | 'RECEIVE';
+  /** The later message whose occurrence must follow the other. */
+  afterMessageId: string;
+  /** Which end (occurrence) of the after-message the arrow points at. */
+  afterEnd: 'SEND' | 'RECEIVE';
+}
+
+/**
+ * UML 2.5 §17.2 timing constraint — covers both DurationConstraint (an interval
+ * `{0..3s}` between two occurrences) and TimeConstraint (`{t=now}` at a single
+ * occurrence). One IR with a `constraintKind` discriminant; DURATION uses both
+ * anchors, TIME only the `from` anchor.
+ */
+export interface IRTimeConstraint extends IRElement {
+  kind: 'TIME_CONSTRAINT';
+  constraintKind: 'DURATION' | 'TIME';
+  /** Primary occurrence anchor (the only one for TIME). */
+  fromMessageId: string;
+  fromEnd: 'SEND' | 'RECEIVE';
+  /** Second occurrence anchor — DURATION only (the interval's other end). */
+  toMessageId?: string;
+  toEnd?: 'SEND' | 'RECEIVE';
+  /** Constraint expression, e.g. "0..3s" (duration) or "t=now" (time). */
+  expression: string;
+}
+
+/**
+ * UML 2.5 §17.4 Coregion — a section of a single lifeline whose contained event
+ * occurrences are NOT ordered (they may happen in any order). Drawn as square
+ * brackets `[ ]` bracketing a vertical span of the lifeline. Lighter-weight than
+ * a full PAR fragment when concurrency is local to one participant.
+ */
+export interface IRCoregion extends IRElement {
+  kind: 'COREGION';
+  /** The single lifeline this coregion brackets. */
+  lifelineId: string;
+  /** Top boundary in message-slot units (0 = top of the timeline). */
+  fromSequence: number;
+  /** Bottom boundary in message-slot units. */
+  toSequence: number;
+}
+
+/**
+ * UML 2.5 §17.3 Continuation — a named continuation point spanning one or more
+ * lifelines, used to split and rejoin alternative flows (typically with ALT/SEQ).
+ * Two continuations with the SAME name denote a jump: control reaching one
+ * continues at the other. Drawn as a stadium (rounded-end) box with the name.
+ */
+export interface IRContinuation extends IRElement {
+  kind: 'CONTINUATION';
+  /** Lifelines this continuation spans horizontally. */
+  coveredLifelineIds: string[];
+  /** Temporal anchor: sits in the band below this message slot (0 = top). */
   afterSequenceNumber: number;
 }
 
@@ -566,6 +725,10 @@ export interface SemanticModel {
   stateInvariants?: Record<string, IRStateInvariant>;
   interactionUses?: Record<string, IRInteractionUse>;
   gates?: Record<string, IRGate>;
+  generalOrderings?: Record<string, IRGeneralOrdering>;
+  timeConstraints?: Record<string, IRTimeConstraint>;
+  coregions?: Record<string, IRCoregion>;
+  continuations?: Record<string, IRContinuation>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

@@ -59,6 +59,7 @@ export default function MessagePropertiesModal() {
 
   const [name, setName] = useState('');
   const [args, setArgs] = useState('');
+  const [guard, setGuard] = useState('');
   const [messageKind, setMessageKind] = useState<MessageKind>('SYNC');
   const [operationId, setOperationId] = useState<string>('');
   const [availableOps, setAvailableOps] = useState<Array<{ id: string; name: string }>>([]);
@@ -73,6 +74,7 @@ export default function MessagePropertiesModal() {
     if (!msg) return;
     setName(msg.name ?? '');
     setArgs(msg.arguments ?? '');
+    setGuard(msg.guard ?? '');
     setMessageKind(msg.messageKind);
     setOperationId(msg.operationId ?? '');
     setSourceGateId(msg.sourceGateId ?? '');
@@ -101,6 +103,7 @@ export default function MessagePropertiesModal() {
     const patch: Partial<IRMessage> = {
       name: name.trim(),
       arguments: args.trim() || undefined,
+      guard: guard.trim() || undefined,
       messageKind,
       operationId: operationId || undefined,
       sourceGateId: sourceGateId || undefined,
@@ -204,6 +207,20 @@ export default function MessagePropertiesModal() {
               placeholder="e.g. userId, name"
               value={args}
               onChange={(e) => setArgs(e.target.value)}
+            />
+          </div>
+
+          {/* Guard — UML 2.5 message-level InteractionConstraint, shown as [guard] */}
+          <div>
+            <label className="block text-xs font-semibold text-[#94a3b8] mb-1">Guard</label>
+            <input
+              type="text"
+              className="w-full bg-[#0f1623] border border-[#2a3358] rounded px-3 py-1.5
+                         text-sm text-[#e2e8f0] placeholder-[#475569]
+                         focus:outline-none focus:ring-1 focus:ring-[#7C83FF]"
+              placeholder="e.g. balance > 0"
+              value={guard}
+              onChange={(e) => setGuard(e.target.value)}
             />
           </div>
 

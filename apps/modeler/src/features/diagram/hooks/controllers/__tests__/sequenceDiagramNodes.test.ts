@@ -4,6 +4,7 @@ import {
   computeHierarchicalNumbers,
   stateInvariantSlotY,
   estimateStateInvariantWidth,
+  messageYForIndex,
 } from '../sequenceDiagramNodes';
 import type {
   SemanticModel,
@@ -15,6 +16,10 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRGeneralOrdering,
+  IRTimeConstraint,
+  IRCoregion,
+  IRContinuation,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
@@ -25,7 +30,12 @@ import {
   isStateInvariantViewModel,
   isInteractionUseViewModel,
   isGateViewModel,
+  isGeneralOrderingViewModel,
+  isTimeConstraintViewModel,
+  isCoregionViewModel,
+  isContinuationViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
+import type { LifelineViewModel } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
   return {
@@ -109,6 +119,31 @@ describe('buildSequenceDiagramNodes', () => {
     expect(isLifelineViewModel(result[0].data)).toBe(true);
   });
 
+  it('honors a manual timeline length and flags it (G-c)', () => {
+    const derived = makeLifeline('ll1');
+    const manual = makeLifeline('ll2', { manualTimelineLength: 600 });
+    const model = makeModel({ lifelines: { ll1: derived, ll2: manual } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const lifelineVMs = result
+      .filter((n) => isLifelineViewModel(n.data))
+      .map((n) => n.data as LifelineViewModel);
+    const derivedVM = lifelineVMs.find((vm) => vm.domainId === 'll1')!;
+    const manualVM = lifelineVMs.find((vm) => vm.domainId === 'll2')!;
+
+    expect(manualVM.timelineLength).toBe(600);
+    expect(manualVM.isManualTimeline).toBe(true);
+    expect(derivedVM.isManualTimeline).toBeFalsy();
+    expect(derivedVM.timelineLength).not.toBe(600);
+  });
+
   it('emits a Message view model for a message between two visible lifelines', () => {
     const ll1 = makeLifeline('ll1');
     const ll2 = makeLifeline('ll2');
@@ -155,6 +190,43 @@ describe('buildSequenceDiagramNodes', () => {
       expect(messageNode.data.isSelfMessage).toBe(true);
       expect(messageNode.data.length).toBe(0);
     }
+  });
+
+  it('positions a message on its computed slot when no manual override (B2)', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlMessage');
+    expect(node!.position.y).toBe(messageYForIndex(1));
+    expect(isMessageViewModel(node!.data) && node!.data.isManualY).toBeFalsy();
+  });
+
+  it('honors a manual-Y override over the computed slot (B2)', () => {
+    const msg: IRMessage = { ...makeMessage('m1', 'll1', 'll2', 1), manualY: 333 };
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: msg },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlMessage');
+    expect(node!.position.y).toBe(333); // manualY wins over the derived slot Y
+    expect(isMessageViewModel(node!.data) && node!.data.isManualY).toBe(true);
   });
 
   it('skips messages whose endpoints are not present in the diagram', () => {
@@ -206,6 +278,52 @@ describe('buildSequenceDiagramNodes', () => {
       // Top of activation should align with the message's Y band.
       const messageNode = result.find((n) => n.type === 'umlMessage');
       expect(activationNode.position.y).toBeCloseTo(messageNode!.position.y, 0);
+    }
+  });
+
+  it('derives activation geometry from its execution span (system-managed, grows with content)', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+
+    // SHORT span: bar opens at m1 and closes at the next message (1 band).
+    const sm1 = makeMessage('m1', 'll1', 'll2', 1);
+    const sm2 = makeMessage('m2', 'll2', 'll1', 2);
+    const shortAct: IRActivation = {
+      id: 'act1', kind: 'ACTIVATION', name: '', lifelineId: 'll2', startMessageId: 'm1', endMessageId: 'm2',
+    };
+    const shortModel = makeModel({ lifelines: { ll1, ll2 }, messages: { m1: sm1, m2: sm2 }, activations: { act1: shortAct } });
+    const shortNode = buildSequenceDiagramNodes(makeCtx(shortModel, view)).find((n) => n.type === 'umlActivation');
+
+    // LONG span: same open, but closes three bands later (more nested content).
+    const lm1 = makeMessage('m1', 'll1', 'll2', 1);
+    const lm2 = makeMessage('m2', 'll1', 'll2', 2);
+    const lm3 = makeMessage('m3', 'll1', 'll2', 3);
+    const lm4 = makeMessage('m4', 'll2', 'll1', 4);
+    const longAct: IRActivation = {
+      id: 'act1', kind: 'ACTIVATION', name: '', lifelineId: 'll2', startMessageId: 'm1', endMessageId: 'm4',
+    };
+    const longModel = makeModel({ lifelines: { ll1, ll2 }, messages: { m1: lm1, m2: lm2, m3: lm3, m4: lm4 }, activations: { act1: longAct } });
+    const longResult = buildSequenceDiagramNodes(makeCtx(longModel, view));
+    const longNode = longResult.find((n) => n.type === 'umlActivation');
+
+    expect(shortNode).toBeDefined();
+    expect(longNode).toBeDefined();
+    if (shortNode && isActivationViewModel(shortNode.data) && longNode && isActivationViewModel(longNode.data)) {
+      // Top aligns with the start message (anchored, not free).
+      const startY = longResult.find((n) => n.type === 'umlMessage')!.position.y;
+      expect(longNode.position.y).toBeCloseTo(startY, 0);
+      // A bar spanning more messages is taller — height grows with content.
+      expect(longNode.data.height).toBeGreaterThan(shortNode.data.height);
+      // No manual-override flag exists anymore.
+      expect('isManual' in longNode.data).toBe(false);
     }
   });
 
@@ -269,6 +387,80 @@ describe('buildSequenceDiagramNodes', () => {
       const ll1CenterX = 50 + 70; // headWidth/2 = 70
       const ll2CenterX = 250 + 70;
       expect(fragNode.data.width).toBeGreaterThanOrEqual(ll2CenterX - ll1CenterX);
+    }
+  });
+
+  it('passes the IGNORE/CONSIDER message set through to the view model', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const msg = makeMessage('m1', 'll1', 'll2', 1);
+    const frag: IRInteractionFragment = {
+      id: 'f1',
+      kind: 'FRAGMENT',
+      name: 'ignore-1',
+      fragmentKind: 'IGNORE',
+      coveredLifelineIds: ['ll1', 'll2'],
+      operands: [{ id: 'op1', guard: '', messageIds: ['m1'], fragmentIds: [] }],
+      messageSet: ['login', 'logout'],
+    };
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: msg },
+      interactionFragments: { f1: frag },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const fragNode = result.find((n) => n.type === 'umlFragment');
+    expect(fragNode).toBeDefined();
+    if (fragNode && isFragmentViewModel(fragNode.data)) {
+      expect(fragNode.data.fragmentKind).toBe('IGNORE');
+      expect(fragNode.data.messageSet).toEqual(['login', 'logout']);
+    }
+  });
+
+  it('honors manual layout overrides on a fragment (G-a/G-b)', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const msg = makeMessage('m1', 'll1', 'll2', 1);
+    const frag: IRInteractionFragment = {
+      id: 'f1',
+      kind: 'FRAGMENT',
+      name: 'opt-1',
+      fragmentKind: 'OPT',
+      coveredLifelineIds: ['ll1', 'll2'],
+      operands: [{ id: 'op1', messageIds: ['m1'], fragmentIds: [] }],
+      manualLeft: 12,
+      manualTop: 345,
+      manualWidth: 222,
+      manualHeight: 88,
+    };
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: msg },
+      interactionFragments: { f1: frag },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const fragNode = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlFragment');
+    expect(fragNode).toBeDefined();
+    expect(fragNode!.position).toEqual({ x: 12, y: 345 });
+    if (fragNode && isFragmentViewModel(fragNode.data)) {
+      expect(fragNode.data.width).toBe(222);
+      expect(fragNode.data.height).toBe(88);
+      expect(fragNode.data.isManual).toBe(true);
     }
   });
 
@@ -425,6 +617,31 @@ describe('buildSequenceDiagramNodes — state invariants', () => {
     }
   });
 
+  it('honors a manual width/height on a state invariant, kept centered (G-d)', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const si = { ...makeStateInvariant('si1', 'll1', 'x>0', 0), manualWidth: 120, manualHeight: 44 };
+    const model = makeModel({ lifelines: { ll1, ll2 }, stateInvariants: { si1: si } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const siNode = result.find((n) => n.type === 'umlStateInvariant');
+    expect(siNode && isStateInvariantViewModel(siNode.data)).toBe(true);
+    if (siNode && isStateInvariantViewModel(siNode.data)) {
+      expect(siNode.data.width).toBe(120);
+      expect(siNode.data.height).toBe(44);
+      expect(siNode.data.isManual).toBe(true);
+      // Still centred on the lifeline (centerX = 50 + 70).
+      expect(siNode.position.x).toBeCloseTo(120 - 120 / 2, 0);
+    }
+  });
+
   it('clamps afterSequenceNumber within [0, messageCount]', () => {
     const ll1 = makeLifeline('ll1');
     const si = makeStateInvariant('si1', 'll1', 'init', 99);
@@ -491,6 +708,30 @@ describe('buildSequenceDiagramNodes — interaction use', () => {
       const ll1CenterX = 50 + 70;
       const ll2CenterX = 250 + 70;
       expect(useNode.data.width).toBeGreaterThanOrEqual(ll2CenterX - ll1CenterX);
+    }
+  });
+
+  it('honors a manual width/height on a ref and flags it (G-d)', () => {
+    const u1 = { ...makeInteractionUse('u1', ['ll1', 'll2'], 0, 'Login'), manualWidth: 320, manualHeight: 90 };
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      interactionUses: { u1 },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const useNode = result.find((n) => n.type === 'umlInteractionUse');
+    expect(useNode && isInteractionUseViewModel(useNode.data)).toBe(true);
+    if (useNode && isInteractionUseViewModel(useNode.data)) {
+      expect(useNode.data.width).toBe(320);
+      expect(useNode.data.height).toBe(90);
+      expect(useNode.data.isManual).toBe(true);
     }
   });
 
@@ -916,5 +1157,286 @@ describe('computeHierarchicalNumbers', () => {
     expect(result.get('a')).toBe('1');
     expect(result.get('b')).toBe('2');
     expect(result.get('c')).toBe('3');
+  });
+});
+
+function makeGeneralOrdering(
+  id: string,
+  beforeMessageId: string,
+  afterMessageId: string,
+  partial: Partial<IRGeneralOrdering> = {},
+): IRGeneralOrdering {
+  return {
+    id,
+    kind: 'GENERAL_ORDERING',
+    name: '',
+    beforeMessageId,
+    beforeEnd: 'RECEIVE',
+    afterMessageId,
+    afterEnd: 'SEND',
+    ...partial,
+  };
+}
+
+describe('buildSequenceDiagramNodes — general orderings', () => {
+  it('emits a general-ordering node anchored to its two message occurrences', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: {
+        m1: makeMessage('m1', 'll1', 'll2', 1),
+        m2: makeMessage('m2', 'll2', 'll1', 2),
+      },
+      generalOrderings: { go1: makeGeneralOrdering('go1', 'm1', 'm2') },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const goNode = result.find((n) => n.type === 'umlGeneralOrdering');
+    expect(goNode).toBeDefined();
+    expect(goNode && isGeneralOrderingViewModel(goNode.data)).toBe(true);
+    if (goNode && isGeneralOrderingViewModel(goNode.data)) {
+      const ll1CenterX = 50 + 70; // headWidth/2 = 70
+      const ll2CenterX = 250 + 70;
+      // before = RECEIVE end of m1 (target ll2, slot 1); after = SEND end of m2 (source ll2, slot 2).
+      const y1 = messageYForIndex(1);
+      const y2 = messageYForIndex(2);
+      // Both occurrences are on ll2 here → node anchored at that X, spanning the two Ys.
+      expect(goNode.position.x).toBeCloseTo(ll2CenterX, 0);
+      expect(goNode.position.y).toBeCloseTo(Math.min(y1, y2), 0);
+      expect(goNode.data.height).toBeCloseTo(Math.abs(y2 - y1), 0);
+      void ll1CenterX;
+    }
+  });
+
+  it('omits a general ordering whose message is missing', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+      generalOrderings: { go1: makeGeneralOrdering('go1', 'm1', 'ghost') },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    expect(result.find((n) => n.type === 'umlGeneralOrdering')).toBeUndefined();
+  });
+});
+
+function makeTimeConstraint(
+  id: string,
+  constraintKind: 'DURATION' | 'TIME',
+  fromMessageId: string,
+  partial: Partial<IRTimeConstraint> = {},
+): IRTimeConstraint {
+  return {
+    id,
+    kind: 'TIME_CONSTRAINT',
+    name: '',
+    constraintKind,
+    fromMessageId,
+    fromEnd: 'RECEIVE',
+    expression: constraintKind === 'DURATION' ? '0..3s' : 't=now',
+    ...partial,
+  };
+}
+
+describe('buildSequenceDiagramNodes — time/duration constraints', () => {
+  const view: DiagramView = {
+    diagramId: 'd1',
+    nodes: [
+      { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+      { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+    ],
+    edges: [],
+  };
+
+  it('emits a single-anchor TIME constraint at its occurrence', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+      timeConstraints: { tc1: makeTimeConstraint('tc1', 'TIME', 'm1') },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlTimeConstraint');
+    expect(node).toBeDefined();
+    expect(node && isTimeConstraintViewModel(node.data)).toBe(true);
+    if (node && isTimeConstraintViewModel(node.data)) {
+      const ll2CenterX = 250 + 70; // RECEIVE end of m1 → target ll2
+      expect(node.position.x).toBeCloseTo(ll2CenterX, 0);
+      expect(node.position.y).toBeCloseTo(messageYForIndex(1), 0);
+      expect(node.data.to).toBeUndefined();
+    }
+  });
+
+  it('emits a DURATION bracket spanning two occurrences', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: {
+        m1: makeMessage('m1', 'll1', 'll2', 1),
+        m2: makeMessage('m2', 'll1', 'll2', 2),
+      },
+      timeConstraints: {
+        tc1: makeTimeConstraint('tc1', 'DURATION', 'm1', { toMessageId: 'm2', toEnd: 'RECEIVE' }),
+      },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlTimeConstraint');
+    expect(node).toBeDefined();
+    if (node && isTimeConstraintViewModel(node.data)) {
+      expect(node.data.constraintKind).toBe('DURATION');
+      expect(node.data.to).toBeDefined();
+      expect(node.data.height).toBeCloseTo(Math.abs(messageYForIndex(2) - messageYForIndex(1)), 0);
+    }
+  });
+
+  it('omits a DURATION constraint missing its second anchor', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+      timeConstraints: { tc1: makeTimeConstraint('tc1', 'DURATION', 'm1') }, // no toMessageId
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlTimeConstraint');
+    expect(node).toBeUndefined();
+  });
+});
+
+function makeCoregion(
+  id: string,
+  lifelineId: string,
+  fromSequence: number,
+  toSequence: number,
+): IRCoregion {
+  return { id, kind: 'COREGION', name: '', lifelineId, fromSequence, toSequence };
+}
+
+describe('buildSequenceDiagramNodes — coregions', () => {
+  const view: DiagramView = {
+    diagramId: 'd1',
+    nodes: [
+      { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+      { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+    ],
+    edges: [],
+  };
+
+  it('emits a coregion centred on its lifeline spanning two boundaries', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: {
+        m1: makeMessage('m1', 'll1', 'll2', 1),
+        m2: makeMessage('m2', 'll1', 'll2', 2),
+      },
+      coregions: { cr1: makeCoregion('cr1', 'll1', 0, 2) },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlCoregion');
+    expect(node).toBeDefined();
+    expect(node && isCoregionViewModel(node.data)).toBe(true);
+    if (node && isCoregionViewModel(node.data)) {
+      const ll1CenterX = 50 + 70;
+      expect(node.position.x).toBeCloseTo(ll1CenterX - node.data.width / 2, 0);
+      expect(node.position.y).toBeCloseTo(stateInvariantSlotY(0), 0);
+      expect(node.data.height).toBeCloseTo(stateInvariantSlotY(2) - stateInvariantSlotY(0), 0);
+    }
+  });
+
+  it('omits a coregion whose lifeline is not on the canvas', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      coregions: { cr1: makeCoregion('cr1', 'ghost', 0, 1) },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlCoregion');
+    expect(node).toBeUndefined();
+  });
+});
+
+describe('buildSequenceDiagramNodes — decomposed lifeline (C5)', () => {
+  it('carries the decomposition ref + target diagram id on the lifeline VM', () => {
+    const ll = makeLifeline('ll1', { decomposedAs: 'diag-sub', decomposedName: 'ProcessOrder' });
+    const model = makeModel({ lifelines: { ll1: ll } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlLifeline');
+    expect(node).toBeDefined();
+    if (node && isLifelineViewModel(node.data)) {
+      expect(node.data.decomposedRef).toBe('ProcessOrder');
+      expect(node.data.decomposedDiagramId).toBe('diag-sub');
+    }
+  });
+
+  it('leaves the ref undefined for a non-decomposed lifeline', () => {
+    const model = makeModel({ lifelines: { ll1: makeLifeline('ll1') } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlLifeline');
+    if (node && isLifelineViewModel(node.data)) {
+      expect(node.data.decomposedRef).toBeUndefined();
+      expect(node.data.decomposedDiagramId).toBeUndefined();
+    }
+  });
+});
+
+function makeContinuation(
+  id: string,
+  name: string,
+  coveredLifelineIds: string[],
+  afterSequenceNumber: number,
+): IRContinuation {
+  return { id, kind: 'CONTINUATION', name, coveredLifelineIds, afterSequenceNumber };
+}
+
+describe('buildSequenceDiagramNodes — continuations (C3)', () => {
+  const view: DiagramView = {
+    diagramId: 'd1',
+    nodes: [
+      { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+      { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+    ],
+    edges: [],
+  };
+
+  it('emits a continuation stadium spanning the covered lifelines', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+      continuations: { c1: makeContinuation('c1', 'loggedIn', ['ll1', 'll2'], 1) },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlContinuation');
+    expect(node).toBeDefined();
+    expect(node && isContinuationViewModel(node.data)).toBe(true);
+    if (node && isContinuationViewModel(node.data)) {
+      expect(node.data.label).toBe('loggedIn');
+      expect(node.data.afterSequenceNumber).toBe(1);
+      expect(node.data.totalMessages).toBe(1);
+      // centred on slot-1 boundary
+      expect(node.position.y).toBeCloseTo(stateInvariantSlotY(1) - node.data.height / 2, 0);
+    }
+  });
+
+  it('omits a continuation whose lifelines are all absent', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      continuations: { c1: makeContinuation('c1', 'x', ['ghost'], 0) },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlContinuation');
+    expect(node).toBeUndefined();
   });
 });

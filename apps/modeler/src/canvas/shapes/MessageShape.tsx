@@ -51,14 +51,19 @@ export default function MessageShape({
   dragBoundFunc,
 }: MessageShapeProps) {
   const colors = resolveMessageColors();
+  // Hybrid layout (B2): a manually-pinned message draws cyan, matching the
+  // activation override affordance, so it reads as "off the auto grid".
+  const strokeColor = vm.isManualY ? '#0891b2' : colors.stroke;
   // CREATE messages are drawn dashed with an open head (UML 2.5); DESTROY uses
   // the solid closed-head style — its target lifeline carries the ✕ marker.
   const dashed = vm.messageKind === 'REPLY' || vm.messageKind === 'CREATE';
   const openHead =
     vm.messageKind === 'ASYNC' || vm.messageKind === 'REPLY' || vm.messageKind === 'CREATE';
+  // UML 2.5: a message-level guard renders as `[guard]` before the name (C8).
+  const guardSegment = vm.guard ? `[${vm.guard}] ` : '';
   const labelText = vm.name
-    ? `${vm.displayNumber}: ${vm.name}`
-    : `${vm.displayNumber}:`;
+    ? `${vm.displayNumber}: ${guardSegment}${vm.name}`
+    : `${vm.displayNumber}: ${guardSegment}`.trimEnd();
 
   const labelY = -LABEL_H - 2;
   const labelW = Math.max(40, Math.abs(vm.length));
@@ -102,7 +107,7 @@ export default function MessageShape({
         {/* Top edge — outbound */}
         <Line
           points={[0, 0, SELF_LOOP_W, 0]}
-          stroke={colors.stroke}
+          stroke={strokeColor}
           strokeWidth={STROKE_W}
           dash={dashed ? [5, 4] : undefined}
           listening={false}
@@ -111,7 +116,7 @@ export default function MessageShape({
         {/* Right edge */}
         <Line
           points={[SELF_LOOP_W, 0, SELF_LOOP_W, SELF_LOOP_H]}
-          stroke={colors.stroke}
+          stroke={strokeColor}
           strokeWidth={STROKE_W}
           dash={dashed ? [5, 4] : undefined}
           listening={false}
@@ -120,7 +125,7 @@ export default function MessageShape({
         {/* Bottom edge — inbound arrow back to lifeline */}
         <Arrow
           points={[SELF_LOOP_W, SELF_LOOP_H, 0, SELF_LOOP_H]}
-          stroke={colors.stroke}
+          stroke={strokeColor}
           fill={openHead ? undefined : colors.fill}
           strokeWidth={STROKE_W}
           dash={dashed ? [5, 4] : undefined}
@@ -199,7 +204,7 @@ export default function MessageShape({
 
       <Arrow
         points={[0, 0, endX, 0]}
-        stroke={colors.stroke}
+        stroke={strokeColor}
         fill={openHead ? undefined : colors.fill}
         strokeWidth={STROKE_W}
         dash={dashed ? [5, 4] : undefined}

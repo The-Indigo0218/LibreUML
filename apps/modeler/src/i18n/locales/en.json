@@ -159,7 +159,26 @@
       "basic": "Basic",
       "advanced": "Advanced",
       "all": "All"
-    }
+    },
+    "modelExplorer": "Model Explorer",
+    "newPackage": "New Package",
+    "edit": "Edit...",
+    "moveToPackage": "Move to Package...",
+    "untrackFromProject": "Untrack from Project",
+    "deleteFromProject": "Delete from Project",
+    "deleteFromDiagram": "Delete from Diagram",
+    "moveToPackageTitle": "Move to package",
+    "defaultPackage": "(default)",
+    "standaloneFile": "Standalone File",
+    "dropElementsHint": "Drop elements onto the canvas to populate this diagram.",
+    "openDiagramHint": "Open a .luml diagram and drop elements to populate the model.",
+    "packageNameExists": "Package name already exists at this level",
+    "packageCreated": "Package created",
+    "newPackagePrompt": "Package name (e.g. com.example.models):",
+    "expandAll": "Expand All",
+    "collapseAll": "Collapse All",
+    "emptyPackage": "empty",
+    "noPackage": "(No Package)"
   },
   "contextMenu": {
     "pane": {
@@ -753,17 +772,6 @@
     "githubIntegration": "GitHub integration coming soon",
     "bugReport": "Bug report coming soon"
   },
-  "packageExplorer": {
-    "title": "Packages",
-    "newPackage": "New Package",
-    "noPackages": "No packages or classes yet",
-    "addClasses": "Add classes to your diagram",
-    "expandAll": "Expand All",
-    "collapseAll": "Collapse All",
-    "packageNameExists": "Package name already exists at this level",
-    "emptyPackage": "empty",
-    "noPackage": "(No Package)"
-  },
   "projectStructure": {
     "title": "Project Files",
     "newFile": "New File",
@@ -805,39 +813,6 @@
     "closeTooltip": "× close",
     "cancel": "Cancel",
     "createProject": "Create Project"
-  },
-  "createFileModal": {
-    "title": "Create New File",
-    "editTitle": "Edit File",
-    "fileName": "File Name",
-    "fileNameRequired": "File Name is required",
-    "fileNamePlaceholder": "MyDiagram",
-    "diagramType": "Diagram Type",
-    "location": "Location",
-    "locationRequired": "Location is required",
-    "description": "Description",
-    "descriptionPlaceholder": "Optional file description",
-    "cancel": "Cancel",
-    "createFile": "Create File",
-    "saveChanges": "Save Changes",
-    "fileNameExists": "A file with this name already exists in this location",
-    "standaloneLabel": "Standalone File",
-    "standaloneDescription": "Isolates this diagram from the shared workspace model. The global Model Explorer will be hidden while this file is active."
-  },
-  "createFolderModal": {
-    "title": "Create New Folder",
-    "editTitle": "Edit Folder",
-    "folderName": "Folder Name",
-    "folderNameRequired": "Folder Name is required",
-    "folderNamePlaceholder": "My Folder",
-    "location": "Location",
-    "locationRequired": "Location is required",
-    "description": "Description",
-    "descriptionPlaceholder": "Optional folder description",
-    "cancel": "Cancel",
-    "createFolder": "Create Folder",
-    "saveChanges": "Save Changes",
-    "folderNameExists": "A folder with this name already exists in this location"
   },
   "viewDescriptionModal": {
     "description": "Description",
@@ -898,13 +873,6 @@
     "cannotUndo": "This action cannot be undone.",
     "cancel": "Cancel",
     "deleteFromProject": "Delete from Project"
-  },
-  "autoLayoutWarning": {
-    "title": "Auto Layout Locked",
-    "message": "Some edges have locked anchors. Auto-layout will skip these connections to preserve your manual positioning.",
-    "tip": "To unlock: right-click an edge → uncheck \"Lock connection points\"",
-    "dontShowAgain": "Don't show this again",
-    "continue": "Continue"
   },
   "openFileModal": {
     "title": "Open File",
@@ -1042,28 +1010,6 @@
     "actions": {
       "close": "Got it!"
     }
-  },
-  "selectionToolbar": {
-    "edit": "Edit",
-    "editSpec": "Edit specification",
-    "editProps": "Edit properties",
-    "duplicate": "Duplicate",
-    "delete": "Delete",
-    "reverse": "Reverse direction",
-    "properties": "Properties",
-    "color": "Color",
-    "border": "Border",
-    "font": "Font",
-    "stroke": "Stroke",
-    "borderSolid": "Solid",
-    "borderDashed": "Dashed",
-    "borderDotted": "Dotted",
-    "copyStyle": "Copy style",
-    "pasteStyle": "Paste style (Ctrl+Shift+V)",
-    "routing": "Line style",
-    "routingStraight": "Straight",
-    "routingOrthogonal": "Orthogonal",
-    "routingCurved": "Curved"
   },
   "inlineEdgePanel": {
     "title": "Relation",
@@ -1581,28 +1527,11 @@
     "addGateLeft": "Gate left",
     "addGateRight": "Gate right"
   },
-  "sidebar": {
-    "modelExplorer": "Model Explorer",
-    "newPackage": "New Package",
-    "edit": "Edit...",
-    "moveToPackage": "Move to Package...",
-    "untrackFromProject": "Untrack from Project",
-    "deleteFromProject": "Delete from Project",
-    "deleteFromDiagram": "Delete from Diagram",
-    "moveToPackageTitle": "Move to package",
-    "defaultPackage": "(default)",
-    "standaloneFile": "Standalone File",
-    "dropElementsHint": "Drop elements onto the canvas to populate this diagram.",
-    "openDiagramHint": "Open a .luml diagram and drop elements to populate the model.",
-    "packageNameExists": "Package name already exists at this level",
-    "packageCreated": "Package created",
-    "newPackagePrompt": "Package name (e.g. com.example.models):",
-    "expandAll": "Expand All",
-    "collapseAll": "Collapse All",
-    "emptyPackage": "empty",
-    "noPackage": "(No Package)"
-  },
   "createFileModal": {
+    "title": "Create New File",
+    "createFile": "Create File",
+    "standaloneLabel": "Standalone File",
+    "standaloneDescription": "Isolates this diagram from the shared workspace model. The global Model Explorer will be hidden while this file is active.",
     "createTitle": "Create New Diagram",
     "editTitle": "Edit Diagram",
     "fileName": "File Name",
@@ -1620,6 +1549,7 @@
     "soon": "Soon"
   },
   "createFolderModal": {
+    "title": "Create New Folder",
     "createTitle": "Create New Folder",
     "editTitle": "Edit Folder",
     "folderName": "Folder Name",
@@ -1637,9 +1567,11 @@
   "autoLayoutWarning": {
     "title": "Locked Edges Detected",
     "message": "This diagram has locked edges. Auto Layout will reposition all nodes but will not move locked connections, which may result in an uneven layout. Do you want to proceed?",
+    "tip": "To unlock: right-click an edge → uncheck \"Lock connection points\"",
     "dontShowAgain": "Don't show this warning again",
     "cancel": "Cancel",
-    "proceed": "Proceed"
+    "proceed": "Proceed",
+    "continue": "Continue"
   },
   "noteEditorModal": {
     "title": "Edit Note",
@@ -1681,6 +1613,8 @@
   },
   "selectionToolbar": {
     "edit": "Edit",
+    "editSpec": "Edit specification",
+    "editProps": "Edit properties",
     "duplicate": "Duplicate",
     "delete": "Delete",
     "reverse": "Reverse direction",
@@ -1689,13 +1623,29 @@
     "copyStyle": "Copy style",
     "pasteStyle": "Paste style",
     "routing": "Line style",
+    "routingStraight": "Straight",
+    "routingOrthogonal": "Orthogonal",
+    "routingCurved": "Curved",
     "border": "Border",
+    "borderSolid": "Solid",
+    "borderDashed": "Dashed",
+    "borderDotted": "Dotted",
+    "stroke": "Stroke",
     "font": "Font",
     "clearColor": "Clear color",
     "clearBorder": "Clear border",
     "clearFont": "Clear font"
   },
   "packageExplorer": {
-    "main": "MAIN"
+    "main": "MAIN",
+    "title": "Packages",
+    "newPackage": "New Package",
+    "noPackages": "No packages or classes yet",
+    "addClasses": "Add classes to your diagram",
+    "expandAll": "Expand All",
+    "collapseAll": "Collapse All",
+    "packageNameExists": "Package name already exists at this level",
+    "emptyPackage": "empty",
+    "noPackage": "(No Package)"
   }
 }

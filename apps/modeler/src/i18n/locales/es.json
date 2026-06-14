@@ -167,7 +167,26 @@
       "basic": "Básico",
       "advanced": "Avanzado",
       "all": "Todo"
-    }
+    },
+    "modelExplorer": "Explorador de Modelo",
+    "newPackage": "Nuevo Paquete",
+    "edit": "Editar...",
+    "moveToPackage": "Mover a Paquete...",
+    "untrackFromProject": "Desvincular del Proyecto",
+    "deleteFromProject": "Eliminar del Proyecto",
+    "deleteFromDiagram": "Eliminar del Diagrama",
+    "moveToPackageTitle": "Mover a paquete",
+    "defaultPackage": "(predeterminado)",
+    "standaloneFile": "Archivo Independiente",
+    "dropElementsHint": "Arrastra elementos al lienzo para poblar este diagrama.",
+    "openDiagramHint": "Abre un diagrama .luml y arrastra elementos para poblar el modelo.",
+    "packageNameExists": "El nombre del paquete ya existe en este nivel",
+    "packageCreated": "Paquete creado",
+    "newPackagePrompt": "Nombre del paquete (ej. com.example.models):",
+    "expandAll": "Expandir Todo",
+    "collapseAll": "Contraer Todo",
+    "emptyPackage": "vacío",
+    "noPackage": "(Sin Paquete)"
   },
   "contextMenu": {
     "pane": {
@@ -762,17 +781,6 @@
     "githubIntegration": "Integración con GitHub próximamente",
     "bugReport": "Reporte de errores próximamente"
   },
-  "packageExplorer": {
-    "title": "Paquetes",
-    "newPackage": "Nuevo Paquete",
-    "noPackages": "No hay paquetes o clases todavía",
-    "addClasses": "Añade clases a tu diagrama",
-    "expandAll": "Expandir Todo",
-    "collapseAll": "Contraer Todo",
-    "packageNameExists": "El nombre del paquete ya existe en este nivel",
-    "emptyPackage": "vacío",
-    "noPackage": "(Sin Paquete)"
-  },
   "projectStructure": {
     "title": "Archivos del Proyecto",
     "newFile": "Nuevo Archivo",
@@ -814,39 +822,6 @@
     "closeTooltip": "× cerrar",
     "cancel": "Cancelar",
     "createProject": "Crear Proyecto"
-  },
-  "createFileModal": {
-    "title": "Crear Nuevo Archivo",
-    "editTitle": "Editar Archivo",
-    "fileName": "Nombre del Archivo",
-    "fileNameRequired": "El nombre del archivo es obligatorio",
-    "fileNamePlaceholder": "MiDiagrama",
-    "diagramType": "Tipo de Diagrama",
-    "location": "Ubicación",
-    "locationRequired": "La ubicación es obligatoria",
-    "description": "Descripción",
-    "descriptionPlaceholder": "Descripción opcional del archivo",
-    "cancel": "Cancelar",
-    "createFile": "Crear Archivo",
-    "saveChanges": "Guardar Cambios",
-    "fileNameExists": "Ya existe un archivo con este nombre en esta ubicación",
-    "standaloneLabel": "Archivo Independiente",
-    "standaloneDescription": "Aísla este diagrama del modelo compartido. El Explorador de Modelo global se ocultará mientras este archivo esté activo."
-  },
-  "createFolderModal": {
-    "title": "Crear Nueva Carpeta",
-    "editTitle": "Editar Carpeta",
-    "folderName": "Nombre de la Carpeta",
-    "folderNameRequired": "El nombre de la carpeta es obligatorio",
-    "folderNamePlaceholder": "Mi Carpeta",
-    "location": "Ubicación",
-    "locationRequired": "La ubicación es obligatoria",
-    "description": "Descripción",
-    "descriptionPlaceholder": "Descripción opcional de la carpeta",
-    "cancel": "Cancelar",
-    "createFolder": "Crear Carpeta",
-    "saveChanges": "Guardar Cambios",
-    "folderNameExists": "Ya existe una carpeta con este nombre en esta ubicación"
   },
   "viewDescriptionModal": {
     "description": "Descripción",
@@ -907,13 +882,6 @@
     "cannotUndo": "Esta acción no se puede deshacer.",
     "cancel": "Cancelar",
     "deleteFromProject": "Eliminar del Proyecto"
-  },
-  "autoLayoutWarning": {
-    "title": "Diseño Automático Bloqueado",
-    "message": "Algunos bordes tienen anclajes bloqueados. El diseño automático omitirá estas conexiones para preservar tu posicionamiento manual.",
-    "tip": "Para desbloquear: clic derecho en un borde → desmarcar \"Bloquear puntos de conexión\"",
-    "dontShowAgain": "No mostrar esto de nuevo",
-    "continue": "Continuar"
   },
   "openFileModal": {
     "title": "Abrir Archivo",
@@ -1051,28 +1019,6 @@
     "actions": {
       "close": "¡Entendido!"
     }
-  },
-  "selectionToolbar": {
-    "edit": "Editar",
-    "editSpec": "Editar especificación",
-    "editProps": "Editar propiedades",
-    "duplicate": "Duplicar",
-    "delete": "Borrar",
-    "reverse": "Invertir dirección",
-    "properties": "Propiedades",
-    "color": "Color",
-    "border": "Borde",
-    "font": "Fuente",
-    "stroke": "Trazo",
-    "borderSolid": "Sólido",
-    "borderDashed": "Discontinuo",
-    "borderDotted": "Punteado",
-    "copyStyle": "Copiar estilo",
-    "pasteStyle": "Pegar estilo (Ctrl+Shift+V)",
-    "routing": "Estilo de línea",
-    "routingStraight": "Recta",
-    "routingOrthogonal": "Ortogonal",
-    "routingCurved": "Curva"
   },
   "inlineEdgePanel": {
     "title": "Relación",
@@ -1590,28 +1536,11 @@
     "addGateLeft": "Compuerta izq.",
     "addGateRight": "Compuerta der."
   },
-  "sidebar": {
-    "modelExplorer": "Explorador de Modelo",
-    "newPackage": "Nuevo Paquete",
-    "edit": "Editar...",
-    "moveToPackage": "Mover a Paquete...",
-    "untrackFromProject": "Desvincular del Proyecto",
-    "deleteFromProject": "Eliminar del Proyecto",
-    "deleteFromDiagram": "Eliminar del Diagrama",
-    "moveToPackageTitle": "Mover a paquete",
-    "defaultPackage": "(predeterminado)",
-    "standaloneFile": "Archivo Independiente",
-    "dropElementsHint": "Arrastra elementos al lienzo para poblar este diagrama.",
-    "openDiagramHint": "Abre un diagrama .luml y arrastra elementos para poblar el modelo.",
-    "packageNameExists": "El nombre del paquete ya existe en este nivel",
-    "packageCreated": "Paquete creado",
-    "newPackagePrompt": "Nombre del paquete (ej. com.example.models):",
-    "expandAll": "Expandir Todo",
-    "collapseAll": "Contraer Todo",
-    "emptyPackage": "vacío",
-    "noPackage": "(Sin Paquete)"
-  },
   "createFileModal": {
+    "title": "Crear Nuevo Archivo",
+    "createFile": "Crear Archivo",
+    "standaloneLabel": "Archivo Independiente",
+    "standaloneDescription": "Aísla este diagrama del modelo compartido. El Explorador de Modelo global se ocultará mientras este archivo esté activo.",
     "createTitle": "Crear Nuevo Diagrama",
     "editTitle": "Editar Diagrama",
     "fileName": "Nombre del Archivo",
@@ -1629,6 +1558,7 @@
     "soon": "Pronto"
   },
   "createFolderModal": {
+    "title": "Crear Nueva Carpeta",
     "createTitle": "Crear Nueva Carpeta",
     "editTitle": "Editar Carpeta",
     "folderName": "Nombre de la Carpeta",
@@ -1646,9 +1576,11 @@
   "autoLayoutWarning": {
     "title": "Bordes Bloqueados Detectados",
     "message": "Este diagrama tiene bordes bloqueados. El Diseño Automático reposicionará todos los nodos pero no moverá las conexiones bloqueadas, lo que puede resultar en un diseño irregular. ¿Deseas continuar?",
+    "tip": "Para desbloquear: clic derecho en un borde → desmarcar \"Bloquear puntos de conexión\"",
     "dontShowAgain": "No mostrar esta advertencia de nuevo",
     "cancel": "Cancelar",
-    "proceed": "Continuar"
+    "proceed": "Continuar",
+    "continue": "Continuar"
   },
   "noteEditorModal": {
     "title": "Editar Nota",
@@ -1690,6 +1622,8 @@
   },
   "selectionToolbar": {
     "edit": "Editar",
+    "editSpec": "Editar especificación",
+    "editProps": "Editar propiedades",
     "duplicate": "Duplicar",
     "delete": "Eliminar",
     "reverse": "Invertir dirección",
@@ -1698,13 +1632,29 @@
     "copyStyle": "Copiar estilo",
     "pasteStyle": "Pegar estilo",
     "routing": "Estilo de línea",
+    "routingStraight": "Recta",
+    "routingOrthogonal": "Ortogonal",
+    "routingCurved": "Curva",
     "border": "Borde",
+    "borderSolid": "Sólido",
+    "borderDashed": "Discontinuo",
+    "borderDotted": "Punteado",
+    "stroke": "Trazo",
     "font": "Fuente",
     "clearColor": "Limpiar color",
     "clearBorder": "Limpiar borde",
     "clearFont": "Limpiar fuente"
   },
   "packageExplorer": {
-    "main": "PRINCIPAL"
+    "main": "PRINCIPAL",
+    "title": "Paquetes",
+    "newPackage": "Nuevo Paquete",
+    "noPackages": "No hay paquetes o clases todavía",
+    "addClasses": "Añade clases a tu diagrama",
+    "expandAll": "Expandir Todo",
+    "collapseAll": "Contraer Todo",
+    "packageNameExists": "El nombre del paquete ya existe en este nivel",
+    "emptyPackage": "vacío",
+    "noPackage": "(Sin Paquete)"
   }
 }

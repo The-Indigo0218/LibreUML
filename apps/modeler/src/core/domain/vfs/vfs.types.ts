@@ -566,6 +566,25 @@ export interface IRGeneralOrdering extends IRElement {
   afterEnd: 'SEND' | 'RECEIVE';
 }
 
+/**
+ * UML 2.5 §17.2 timing constraint — covers both DurationConstraint (an interval
+ * `{0..3s}` between two occurrences) and TimeConstraint (`{t=now}` at a single
+ * occurrence). One IR with a `constraintKind` discriminant; DURATION uses both
+ * anchors, TIME only the `from` anchor.
+ */
+export interface IRTimeConstraint extends IRElement {
+  kind: 'TIME_CONSTRAINT';
+  constraintKind: 'DURATION' | 'TIME';
+  /** Primary occurrence anchor (the only one for TIME). */
+  fromMessageId: string;
+  fromEnd: 'SEND' | 'RECEIVE';
+  /** Second occurrence anchor — DURATION only (the interval's other end). */
+  toMessageId?: string;
+  toEnd?: 'SEND' | 'RECEIVE';
+  /** Constraint expression, e.g. "0..3s" (duration) or "t=now" (time). */
+  expression: string;
+}
+
 export type RelationKind =
   | 'ASSOCIATION'
   | 'AGGREGATION'
@@ -638,6 +657,7 @@ export interface SemanticModel {
   interactionUses?: Record<string, IRInteractionUse>;
   gates?: Record<string, IRGate>;
   generalOrderings?: Record<string, IRGeneralOrdering>;
+  timeConstraints?: Record<string, IRTimeConstraint>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

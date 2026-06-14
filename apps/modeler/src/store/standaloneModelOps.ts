@@ -37,6 +37,7 @@ import type {
   IRInteractionUse,
   IRGate,
   IRGeneralOrdering,
+  IRTimeConstraint,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -139,6 +140,19 @@ function clearGeneralOrderingsForMessagesLocal(model: SemanticModel, messageIds:
     const go = model.generalOrderings[oid];
     if (messageIds.has(go.beforeMessageId) || messageIds.has(go.afterMessageId)) {
       delete model.generalOrderings[oid];
+    }
+  }
+}
+
+function clearTimeConstraintsForMessagesLocal(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.timeConstraints || messageIds.size === 0) return;
+  for (const tid of Object.keys(model.timeConstraints)) {
+    const tc = model.timeConstraints[tid];
+    if (
+      messageIds.has(tc.fromMessageId) ||
+      (tc.toMessageId !== undefined && messageIds.has(tc.toMessageId))
+    ) {
+      delete model.timeConstraints[tid];
     }
   }
 }
@@ -574,6 +588,7 @@ export function standaloneModelOps(fileId: string) {
         cascadeDeleteActivationsForMessageLocal(m, id);
         stripMessageFromFragmentsLocal(m, id);
         clearGeneralOrderingsForMessagesLocal(m, removedMsgIds);
+        clearTimeConstraintsForMessagesLocal(m, removedMsgIds);
         m.updatedAt = Date.now();
       });
     },
@@ -769,6 +784,34 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.generalOrderings?.[id]) return;
         delete m.generalOrderings[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Time / Duration Constraints (UML 2.5 §17.2) ───────────────────────────
+
+    createTimeConstraint: (data: Omit<IRTimeConstraint, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.timeConstraints = m.timeConstraints ?? {};
+        m.timeConstraints[id] = { ...data, id, kind: 'TIME_CONSTRAINT' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateTimeConstraint: (id: string, patch: Partial<IRTimeConstraint>) => {
+      update((m) => {
+        if (!m.timeConstraints?.[id]) return;
+        m.timeConstraints[id] = { ...m.timeConstraints[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteTimeConstraint: (id: string) => {
+      update((m) => {
+        if (!m.timeConstraints?.[id]) return;
+        delete m.timeConstraints[id];
         m.updatedAt = Date.now();
       });
     },

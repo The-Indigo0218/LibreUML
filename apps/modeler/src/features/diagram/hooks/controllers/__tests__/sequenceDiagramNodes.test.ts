@@ -17,6 +17,7 @@ import type {
   IRInteractionUse,
   IRGate,
   IRGeneralOrdering,
+  IRTimeConstraint,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
@@ -28,6 +29,7 @@ import {
   isInteractionUseViewModel,
   isGateViewModel,
   isGeneralOrderingViewModel,
+  isTimeConstraintViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
@@ -1069,5 +1071,81 @@ describe('buildSequenceDiagramNodes — general orderings', () => {
     };
     const result = buildSequenceDiagramNodes(makeCtx(model, view));
     expect(result.find((n) => n.type === 'umlGeneralOrdering')).toBeUndefined();
+  });
+});
+
+function makeTimeConstraint(
+  id: string,
+  constraintKind: 'DURATION' | 'TIME',
+  fromMessageId: string,
+  partial: Partial<IRTimeConstraint> = {},
+): IRTimeConstraint {
+  return {
+    id,
+    kind: 'TIME_CONSTRAINT',
+    name: '',
+    constraintKind,
+    fromMessageId,
+    fromEnd: 'RECEIVE',
+    expression: constraintKind === 'DURATION' ? '0..3s' : 't=now',
+    ...partial,
+  };
+}
+
+describe('buildSequenceDiagramNodes — time/duration constraints', () => {
+  const view: DiagramView = {
+    diagramId: 'd1',
+    nodes: [
+      { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+      { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+    ],
+    edges: [],
+  };
+
+  it('emits a single-anchor TIME constraint at its occurrence', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+      timeConstraints: { tc1: makeTimeConstraint('tc1', 'TIME', 'm1') },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlTimeConstraint');
+    expect(node).toBeDefined();
+    expect(node && isTimeConstraintViewModel(node.data)).toBe(true);
+    if (node && isTimeConstraintViewModel(node.data)) {
+      const ll2CenterX = 250 + 70; // RECEIVE end of m1 → target ll2
+      expect(node.position.x).toBeCloseTo(ll2CenterX, 0);
+      expect(node.position.y).toBeCloseTo(messageYForIndex(1), 0);
+      expect(node.data.to).toBeUndefined();
+    }
+  });
+
+  it('emits a DURATION bracket spanning two occurrences', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: {
+        m1: makeMessage('m1', 'll1', 'll2', 1),
+        m2: makeMessage('m2', 'll1', 'll2', 2),
+      },
+      timeConstraints: {
+        tc1: makeTimeConstraint('tc1', 'DURATION', 'm1', { toMessageId: 'm2', toEnd: 'RECEIVE' }),
+      },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlTimeConstraint');
+    expect(node).toBeDefined();
+    if (node && isTimeConstraintViewModel(node.data)) {
+      expect(node.data.constraintKind).toBe('DURATION');
+      expect(node.data.to).toBeDefined();
+      expect(node.data.height).toBeCloseTo(Math.abs(messageYForIndex(2) - messageYForIndex(1)), 0);
+    }
+  });
+
+  it('omits a DURATION constraint missing its second anchor', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+      timeConstraints: { tc1: makeTimeConstraint('tc1', 'DURATION', 'm1') }, // no toMessageId
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlTimeConstraint');
+    expect(node).toBeUndefined();
   });
 });

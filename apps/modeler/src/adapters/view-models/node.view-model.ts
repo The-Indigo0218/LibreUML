@@ -266,6 +266,21 @@ export interface GeneralOrderingViewModel {
   height: number;
 }
 
+export interface TimeConstraintViewModel {
+  __brand: 'timeConstraint';
+  id: string;
+  domainId: string;
+  constraintKind: 'DURATION' | 'TIME';
+  /** Rendered text (already wrapped in braces by the shape). */
+  expression: string;
+  /** Primary anchor point relative to the node's top-left. */
+  from: { x: number; y: number };
+  /** Second anchor (DURATION only) relative to the node's top-left. */
+  to?: { x: number; y: number };
+  width: number;
+  height: number;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -282,7 +297,8 @@ export type AnyNodeViewModel =
   | StateInvariantViewModel
   | InteractionUseViewModel
   | GateViewModel
-  | GeneralOrderingViewModel;
+  | GeneralOrderingViewModel
+  | TimeConstraintViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -347,4 +363,8 @@ export function isGateViewModel(vm: AnyNodeViewModel): vm is GateViewModel {
 
 export function isGeneralOrderingViewModel(vm: AnyNodeViewModel): vm is GeneralOrderingViewModel {
   return '__brand' in vm && vm.__brand === 'generalOrdering';
+}
+
+export function isTimeConstraintViewModel(vm: AnyNodeViewModel): vm is TimeConstraintViewModel {
+  return '__brand' in vm && vm.__brand === 'timeConstraint';
 }

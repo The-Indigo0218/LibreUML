@@ -13,6 +13,7 @@ import type {
   IRInteractionUse,
   IRGate,
   IRGeneralOrdering,
+  IRTimeConstraint,
 } from '../domain/vfs/vfs.types';
 import { MULTI_OPERAND_FRAGMENT_KINDS } from '../domain/vfs/vfs.types';
 
@@ -303,6 +304,36 @@ export class SequenceDiagramValidator implements BaseValidator {
       ordering.beforeEnd === ordering.afterEnd
     ) {
       warnings.push('General ordering relates a message occurrence to itself');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific timing-constraint validation (UML 2.5 §17.2).
+   * Error when an anchor message is missing or a DURATION lacks its second
+   * anchor; warning when the expression is empty.
+   */
+  validateTimeConstraint(tc: IRTimeConstraint, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!model.messages?.[tc.fromMessageId]) {
+      errors.push(`Time constraint references missing message "${tc.fromMessageId}"`);
+    }
+    if (tc.constraintKind === 'DURATION') {
+      if (!tc.toMessageId || !tc.toEnd) {
+        errors.push('Duration constraint needs a second occurrence anchor');
+      } else if (!model.messages?.[tc.toMessageId]) {
+        errors.push(`Duration constraint references missing message "${tc.toMessageId}"`);
+      }
+    }
+    if (!tc.expression || tc.expression.trim() === '') {
+      warnings.push('Timing constraint has no expression');
     }
 
     return {

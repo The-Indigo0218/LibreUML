@@ -21,6 +21,7 @@ import type {
   InteractionUseViewModel,
   GateViewModel,
   GeneralOrderingViewModel,
+  TimeConstraintViewModel,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -572,6 +573,67 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     })
     .filter(<T>(n: T | null): n is T => n !== null);
 
+  // 5e. Emit Time / Duration Constraints (UML 2.5 §17.2). A TIME constraint is a
+  //     label at one occurrence; a DURATION constraint is a vertical bracket
+  //     between two occurrences with a label. Geometry is fully derived; the
+  //     bracket/label sits just right of the anchoring lifeline.
+  const DURATION_X_OFFSET = 24;
+  const TC_LABEL_CHAR_W = 6;
+  const TC_LABEL_PAD = 20;
+  const tcLabelWidth = (expr: string) => (expr.length + 2) * TC_LABEL_CHAR_W + TC_LABEL_PAD;
+
+  const timeConstraintNodes = Object.values(model.timeConstraints ?? {})
+    .map((tc) => {
+      const fromP = occurrencePoint(tc.fromMessageId, tc.fromEnd);
+      if (!fromP) return null;
+
+      if (tc.constraintKind === 'DURATION') {
+        if (!tc.toMessageId || !tc.toEnd) return null;
+        const toP = occurrencePoint(tc.toMessageId, tc.toEnd);
+        if (!toP) return null;
+        const bracketX = fromP.x + DURATION_X_OFFSET;
+        const minY = Math.min(fromP.y, toP.y);
+        const viewModel: TimeConstraintViewModel = {
+          __brand: 'timeConstraint',
+          id: tc.id,
+          domainId: tc.id,
+          constraintKind: 'DURATION',
+          expression: tc.expression,
+          from: { x: 0, y: fromP.y - minY },
+          to: { x: 0, y: toP.y - minY },
+          width: tcLabelWidth(tc.expression),
+          height: Math.abs(toP.y - fromP.y),
+        };
+        return {
+          id: `tc-${tc.id}`,
+          type: 'umlTimeConstraint',
+          position: { x: bracketX, y: minY },
+          data: viewModel,
+          domainId: tc.id,
+        };
+      }
+
+      // TIME: single-occurrence label with a small tick.
+      const viewModel: TimeConstraintViewModel = {
+        __brand: 'timeConstraint',
+        id: tc.id,
+        domainId: tc.id,
+        constraintKind: 'TIME',
+        expression: tc.expression,
+        from: { x: 0, y: 0 },
+        width: tcLabelWidth(tc.expression),
+        height: 16,
+      };
+      return {
+        id: `tc-${tc.id}`,
+        type: 'umlTimeConstraint',
+        position: { x: fromP.x, y: fromP.y },
+        data: viewModel,
+        domainId: tc.id,
+      };
+    })
+    .filter(<T>(n: T | null): n is T => n !== null);
+
   // 6. Emit Notes (reuse existing makeNoteNode helper).
   const noteNodes = noteViewNodes.map((vn) =>
     makeNoteNode(vn, handleNoteUpdate, diagramView.nodes),
@@ -605,6 +667,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     ...stateInvariantNodes,
     ...gateNodes,
     ...generalOrderingNodes,
+    ...timeConstraintNodes,
     ...noteNodes,
   ];
 }

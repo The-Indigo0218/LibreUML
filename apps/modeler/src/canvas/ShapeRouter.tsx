@@ -19,6 +19,7 @@ import {
   isInteractionUseViewModel,
   isGateViewModel,
   isGeneralOrderingViewModel,
+  isTimeConstraintViewModel,
 } from '../adapters/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
@@ -35,6 +36,7 @@ import StateInvariantShape, { getStateInvariantShapeSize } from './shapes/StateI
 import InteractionUseShape, { getInteractionUseShapeSize } from './shapes/InteractionUseShape';
 import GateShape, { getGateShapeSize } from './shapes/GateShape';
 import GeneralOrderingShape, { getGeneralOrderingShapeSize } from './shapes/GeneralOrderingShape';
+import TimeConstraintShape, { getTimeConstraintShapeSize } from './shapes/TimeConstraintShape';
 
 export interface NodeShapeRenderProps {
   key: string;
@@ -72,6 +74,7 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
   if (isInteractionUseViewModel(vm)) return getInteractionUseShapeSize(vm);
   if (isGateViewModel(vm))           return getGateShapeSize(vm);
   if (isGeneralOrderingViewModel(vm)) return getGeneralOrderingShapeSize(vm);
+  if (isTimeConstraintViewModel(vm)) return getTimeConstraintShapeSize(vm);
   return getClassShapeSize(vm as NodeViewModel);
 }
 
@@ -137,6 +140,9 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
 
   if (isGeneralOrderingViewModel(vm))
     return <GeneralOrderingShape key={key} viewModel={vm} {...common} />;
+
+  if (isTimeConstraintViewModel(vm))
+    return <TimeConstraintShape key={key} viewModel={vm} {...common} />;
 
   return <ClassShape key={key} viewModel={vm as NodeViewModel} {...common} />;
 }

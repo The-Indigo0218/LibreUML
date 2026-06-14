@@ -917,7 +917,9 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
       { id: 'ref',         type: 'STRUCTURE', category: 'common',   label: 'ref',   icon: 'Frame',       color: '#6366F1' },
       { id: 'msg-found',   type: 'STRUCTURE', category: 'advanced', label: 'found', icon: 'LogIn',       color: '#818CF8' },
       { id: 'msg-lost',    type: 'STRUCTURE', category: 'advanced', label: 'lost',  icon: 'LogOut',      color: '#818CF8' },
-      { id: 'gen-ordering', type: 'STRUCTURE', category: 'advanced', label: 'order', icon: 'ArrowDownUp', color: '#818CF8' },
+      { id: 'gen-ordering', type: 'STRUCTURE', category: 'advanced', label: 'order',    icon: 'ArrowDownUp', color: '#818CF8' },
+      { id: 'duration',     type: 'STRUCTURE', category: 'advanced', label: 'duration', icon: 'Timer',       color: '#818CF8' },
+      { id: 'time',         type: 'STRUCTURE', category: 'advanced', label: 'time',     icon: 'Clock',       color: '#818CF8' },
     ],
   },
 

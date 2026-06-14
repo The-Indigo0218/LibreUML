@@ -174,3 +174,52 @@ export function insertGeneralOrderingIntoActiveDiagram(): void {
 
   useUiStore.getState().openGeneralOrderingProps(newId);
 }
+
+/**
+ * Inserts a timing constraint (UML 2.5 §17.2) then opens its properties. DURATION
+ * spans two occurrences (defaults to the first two messages); TIME anchors one
+ * (defaults to the first message).
+ */
+export function insertTimeConstraintIntoActiveDiagram(variant: 'duration' | 'time'): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel } = ctx;
+
+  const ordered = Object.values(activeModel.messages ?? {}).sort(
+    (a, b) => a.sequenceNumber - b.sequenceNumber,
+  );
+  const need = variant === 'duration' ? 2 : 1;
+  if (ordered.length < need) {
+    useToastStore.getState().show(
+      variant === 'duration'
+        ? '⚠️ Crea al menos dos mensajes antes de añadir una duración'
+        : '⚠️ Crea al menos un mensaje antes de añadir una marca de tiempo',
+    );
+    return;
+  }
+
+  const payload =
+    variant === 'duration'
+      ? {
+          name: '',
+          constraintKind: 'DURATION' as const,
+          fromMessageId: ordered[0].id,
+          fromEnd: 'RECEIVE' as const,
+          toMessageId: ordered[1].id,
+          toEnd: 'RECEIVE' as const,
+          expression: '0..1s',
+        }
+      : {
+          name: '',
+          constraintKind: 'TIME' as const,
+          fromMessageId: ordered[0].id,
+          fromEnd: 'RECEIVE' as const,
+          expression: 't=now',
+        };
+
+  const newId = isStandaloneFile
+    ? standaloneModelOps(tabId).createTimeConstraint(payload)
+    : useModelStore.getState().createTimeConstraint(payload);
+
+  useUiStore.getState().openTimeConstraintProps(newId);
+}

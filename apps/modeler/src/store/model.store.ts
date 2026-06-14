@@ -23,6 +23,7 @@ import type {
   IRInteractionUse,
   IRGate,
   IRGeneralOrdering,
+  IRTimeConstraint,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -188,6 +189,20 @@ function clearGeneralOrderingsForMessages(model: SemanticModel, messageIds: Set<
   }
 }
 
+/** Deletes time/duration constraints anchored to any of the given (deleted) message ids. */
+function clearTimeConstraintsForMessages(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.timeConstraints || messageIds.size === 0) return;
+  for (const tid of Object.keys(model.timeConstraints)) {
+    const tc = model.timeConstraints[tid];
+    if (
+      messageIds.has(tc.fromMessageId) ||
+      (tc.toMessageId !== undefined && messageIds.has(tc.toMessageId))
+    ) {
+      delete model.timeConstraints[tid];
+    }
+  }
+}
+
 /** Deletes all gates owned by a fragment and clears their message references. */
 function removeGatesForFragment(model: SemanticModel, fragmentId: string) {
   if (!model.gates) return;
@@ -282,6 +297,10 @@ interface ModelStoreState {
   updateGeneralOrdering: (id: string, patch: Partial<IRGeneralOrdering>) => void;
   deleteGeneralOrdering: (id: string) => void;
 
+  createTimeConstraint: (data: Omit<IRTimeConstraint, 'id' | 'kind'>) => string;
+  updateTimeConstraint: (id: string, patch: Partial<IRTimeConstraint>) => void;
+  deleteTimeConstraint: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -336,6 +355,7 @@ export const useModelStore = create<ModelStoreState>()(
           interactionUses: {},
           gates: {},
           generalOrderings: {},
+          timeConstraints: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -692,6 +712,7 @@ export const useModelStore = create<ModelStoreState>()(
         cascadeDeleteActivationsForMessage(draft.model, id);
         stripMessageFromFragments(draft.model, id);
         clearGeneralOrderingsForMessages(draft.model, removedMsgIds);
+        clearTimeConstraintsForMessages(draft.model, removedMsgIds);
         draft.model.updatedAt = Date.now();
       });
     },
@@ -891,6 +912,33 @@ export const useModelStore = create<ModelStoreState>()(
       withUndo('model', 'Delete General Ordering', 'global', (draft) => {
         if (!draft.model?.generalOrderings?.[id]) return;
         delete draft.model.generalOrderings[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createTimeConstraint: (data) => {
+      const id = newId();
+      withUndo('model', 'Create Time Constraint', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.timeConstraints = draft.model.timeConstraints ?? {};
+        draft.model.timeConstraints[id] = { ...data, id, kind: 'TIME_CONSTRAINT' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateTimeConstraint: (id, patch) => {
+      withUndo('model', 'Update Time Constraint', 'global', (draft) => {
+        if (!draft.model?.timeConstraints?.[id]) return;
+        draft.model.timeConstraints[id] = { ...draft.model.timeConstraints[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteTimeConstraint: (id) => {
+      withUndo('model', 'Delete Time Constraint', 'global', (draft) => {
+        if (!draft.model?.timeConstraints?.[id]) return;
+        delete draft.model.timeConstraints[id];
         draft.model.updatedAt = Date.now();
       });
     },

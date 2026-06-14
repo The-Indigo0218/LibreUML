@@ -34,6 +34,7 @@ export type ActiveModal =
   | "interaction-use-props"
   | "gate-props"
   | "general-ordering-props"
+  | "time-constraint-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -101,6 +102,7 @@ interface UiStoreState {
   openInteractionUseProps: (useId: string) => void;
   openGateProps: (gateId: string) => void;
   openGeneralOrderingProps: (orderingId: string) => void;
+  openTimeConstraintProps: (constraintId: string) => void;
   closeModals: () => void;
   openInlineEdgePanel: (edgeId: string) => void;
   closeInlineEdgePanel: () => void;
@@ -221,6 +223,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openInteractionUseProps: (useId) => set({ activeModal: "interaction-use-props", editingId: useId }),
   openGateProps: (gateId) => set({ activeModal: "gate-props", editingId: gateId }),
   openGeneralOrderingProps: (orderingId) => set({ activeModal: "general-ordering-props", editingId: orderingId }),
+  openTimeConstraintProps: (constraintId) => set({ activeModal: "time-constraint-props", editingId: constraintId }),
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 

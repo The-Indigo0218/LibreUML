@@ -117,6 +117,9 @@ import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, ra
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
 import { yToMessageSlot, yToInvariantSlot, messageYForIndex, computeSlotLayout } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
+import { useSequenceToolStore } from '../store/sequenceToolStore';
+import { useFragmentDraw } from './interactions/useFragmentDraw';
+import { resolveFragmentCoverage, insertFragmentWithCoverage } from '../features/diagram/services/sequenceInserts';
 import { standaloneModelOps } from '../store/standaloneModelOps';
 
 const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
@@ -468,6 +471,57 @@ export default function KonvaCanvas() {
     onPickRelation: handlePickRelation,
     onDropEmpty: handleDropEmpty,
   });
+
+  // ── G-a: draw a box to create a fragment ───────────────────────────────────
+  const armedFragmentKind = useSequenceToolStore((s) => s.armedFragmentKind);
+  const disarmFragmentTool = useSequenceToolStore((s) => s.disarm);
+  const isSequenceDiagram = vfsController.vfsFile?.diagramType === 'SEQUENCE_DIAGRAM';
+  const fragmentToolArmed = isSequenceDiagram && armedFragmentKind !== null;
+
+  const handleFragmentRectComplete = useCallback(
+    (rect: { x: number; y: number; width: number; height: number } | null) => {
+      const kind = useSequenceToolStore.getState().armedFragmentKind;
+      if (!kind) return;
+
+      if (!rect) {
+        // Plain click while armed → legacy "cover every lifeline" fallback.
+        insertFragmentWithCoverage(kind);
+        disarmFragmentTool();
+        return;
+      }
+
+      const lifelines = shapes
+        .filter((s) => isLifelineViewModel(s.data))
+        .map((s) => {
+          const vm = s.data as { domainId: string; headWidth?: number };
+          return { id: vm.domainId, centerX: s.x + (vm.headWidth ?? 0) / 2 };
+        });
+      const messages = shapes
+        .filter((s) => isMessageViewModel(s.data))
+        .map((s) => ({ id: (s.data as { domainId: string }).domainId, y: s.y }));
+
+      const { coveredLifelineIds, messageIds } = resolveFragmentCoverage(rect, lifelines, messages);
+      insertFragmentWithCoverage(kind, coveredLifelineIds, messageIds);
+      disarmFragmentTool();
+    },
+    [shapes, disarmFragmentTool],
+  );
+
+  const fragmentDraw = useFragmentDraw({
+    stageRef,
+    armed: fragmentToolArmed,
+    onComplete: handleFragmentRectComplete,
+  });
+
+  // Escape disarms the fragment tool.
+  useEffect(() => {
+    if (!fragmentToolArmed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') disarmFragmentTool();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [fragmentToolArmed, disarmFragmentTool]);
 
   const nodeTypePickerOverlay = useMemo(() => {
     if (!nodeTypePicker) return null;
@@ -1670,6 +1724,12 @@ export default function KonvaCanvas() {
 
   const handleStageMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      // While a fragment tool is armed, the box-draw gesture owns left-drag.
+      if (fragmentToolArmed) {
+        fragmentDraw.stageHandlers.onMouseDown(e);
+        return;
+      }
+
       connectionDraw.stageHandlers.onMouseDown(e);
       if (connectionDraw.isConnectingRef.current) return;
 
@@ -1679,11 +1739,15 @@ export default function KonvaCanvas() {
         stageHandlers.onMouseDown(e);
       }
     },
-    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan, stageHandlers],
+    [fragmentToolArmed, fragmentDraw.stageHandlers, connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan, stageHandlers],
   );
 
   const handleStageMouseMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      if (fragmentToolArmed && fragmentDraw.isDrawingRef.current) {
+        fragmentDraw.stageHandlers.onMouseMove(e);
+        return;
+      }
       if (rightClickPan.isRightDraggingRef.current) return;
 
       connectionDraw.stageHandlers.onMouseMove(e);
@@ -1691,16 +1755,20 @@ export default function KonvaCanvas() {
 
       stageHandlers.onMouseMove(e);
     },
-    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan.isRightDraggingRef, stageHandlers],
+    [fragmentToolArmed, fragmentDraw.stageHandlers, fragmentDraw.isDrawingRef, connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan.isRightDraggingRef, stageHandlers],
   );
 
   const handleStageMouseUp = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      if (fragmentDraw.isDrawingRef.current) {
+        fragmentDraw.stageHandlers.onMouseUp(e);
+        return;
+      }
       connectionDraw.stageHandlers.onMouseUp(e);
       rightClickPan.stageHandlers.onMouseUp(e);
       stageHandlers.onMouseUp(e);
     },
-    [connectionDraw.stageHandlers, rightClickPan, stageHandlers],
+    [fragmentDraw.stageHandlers, fragmentDraw.isDrawingRef, connectionDraw.stageHandlers, rightClickPan, stageHandlers],
   );
 
   useEffect(() => {
@@ -2246,7 +2314,13 @@ export default function KonvaCanvas() {
       className="w-full h-full overflow-hidden bg-canvas-base relative"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      style={fragmentToolArmed ? { cursor: 'crosshair' } : undefined}
     >
+      {fragmentToolArmed && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-md bg-cyan-500/90 text-white text-xs font-medium shadow-lg pointer-events-none">
+          {t('sidebar.fragments.drawHint', { kind: armedFragmentKind?.toLowerCase() })}
+        </div>
+      )}
       {size.width > 0 && size.height > 0 && (
         <Stage
           ref={stageRef}
@@ -2557,6 +2631,19 @@ export default function KonvaCanvas() {
                 y={lassoRect.y}
                 width={lassoRect.width}
                 height={lassoRect.height}
+              />
+            )}
+            {fragmentDraw.drawRect && (
+              <Rect
+                x={fragmentDraw.drawRect.x}
+                y={fragmentDraw.drawRect.y}
+                width={fragmentDraw.drawRect.width}
+                height={fragmentDraw.drawRect.height}
+                stroke="#22d3ee"
+                strokeWidth={1.5}
+                dash={[6, 4]}
+                fill="rgba(34, 211, 238, 0.08)"
+                listening={false}
               />
             )}
           </Layer>

@@ -43,17 +43,55 @@ function resolveActiveSequence(): ActiveSequence | null {
   return { tabId, isStandaloneFile, activeModel, lifelineIds };
 }
 
+/** A world-space rectangle (drawn fragment box), in canvas coordinates. */
+export interface CoverageRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /**
- * Inserts a combined fragment of the given kind into the active sequence diagram.
- * Covers every lifeline on the canvas (MVP policy) and seeds the operand count
- * the kind requires (alt/par/seq/strict → 2, the rest → 1).
+ * Pure geometry resolver for the "draw a fragment" gesture (G-a): given the drawn
+ * rectangle, the lifeline center-Xs and the on-canvas message Ys, returns which
+ * lifelines the box spans (X) and which messages fall inside it (Y). Tolerant by
+ * design — a lifeline counts when its centerline is within the box and a message
+ * when its glyph Y is within it, so the user never needs pixel-perfect framing.
  */
-export function insertFragmentIntoActiveDiagram(fragmentKind: FragmentKind): void {
+export function resolveFragmentCoverage(
+  rect: CoverageRect,
+  lifelines: { id: string; centerX: number }[],
+  messages: { id: string; y: number }[],
+): { coveredLifelineIds: string[]; messageIds: string[] } {
+  const x2 = rect.x + rect.width;
+  const y2 = rect.y + rect.height;
+  const coveredLifelineIds = lifelines
+    .filter((l) => l.centerX >= rect.x && l.centerX <= x2)
+    .map((l) => l.id);
+  const messageIds = messages
+    .filter((m) => m.y >= rect.y && m.y <= y2)
+    .map((m) => m.id);
+  return { coveredLifelineIds, messageIds };
+}
+
+/**
+ * Creates a combined fragment of the given kind, covering the passed lifelines and
+ * seeding operand 0 with the passed messages. When `coveredLifelineIds` is empty
+ * it falls back to covering every lifeline on the canvas (the legacy click-insert
+ * policy). The box itself stays derived — it auto-fits the captured messages — and
+ * the user can move/resize it afterwards (hybrid layout overrides).
+ */
+export function insertFragmentWithCoverage(
+  fragmentKind: FragmentKind,
+  coveredLifelineIds: string[] = [],
+  messageIds: string[] = [],
+): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
   const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
 
-  if (lifelineIds.length === 0) {
+  const covered = coveredLifelineIds.length > 0 ? coveredLifelineIds : lifelineIds;
+  if (covered.length === 0) {
     useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un fragmento');
     return;
   }
@@ -61,7 +99,7 @@ export function insertFragmentIntoActiveDiagram(fragmentKind: FragmentKind): voi
   const operands = Array.from({ length: defaultOperandCount(fragmentKind) }, (_, i) => ({
     id: crypto.randomUUID(),
     guard: fragmentKind === 'ALT' && i === 1 ? 'else' : '',
-    messageIds: [] as string[],
+    messageIds: i === 0 ? [...messageIds] : ([] as string[]),
     fragmentIds: [] as string[],
   }));
 
@@ -69,9 +107,18 @@ export function insertFragmentIntoActiveDiagram(fragmentKind: FragmentKind): voi
     Object.keys(activeModel.interactionFragments ?? {}).length + 1
   }`;
 
-  const payload = { name, fragmentKind, coveredLifelineIds: lifelineIds, operands };
+  const payload = { name, fragmentKind, coveredLifelineIds: covered, operands };
   if (isStandaloneFile) standaloneModelOps(tabId).createFragment(payload);
   else useModelStore.getState().createFragment(payload);
+}
+
+/**
+ * Inserts a combined fragment covering every lifeline on the canvas (the legacy
+ * click-to-insert / context-menu policy). Thin wrapper over
+ * {@link insertFragmentWithCoverage}.
+ */
+export function insertFragmentIntoActiveDiagram(fragmentKind: FragmentKind): void {
+  insertFragmentWithCoverage(fragmentKind);
 }
 
 /**

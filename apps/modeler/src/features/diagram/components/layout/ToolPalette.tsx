@@ -14,7 +14,6 @@ import { isDiagramView } from "../../hooks/useVFSCanvasController";
 import type { VFSFile } from "../../../../core/domain/vfs/vfs.types";
 import { getRelationShortcutKey } from "../../../../canvas/interactions/relationShortcuts";
 import {
-  insertFragmentIntoActiveDiagram,
   insertInteractionUseIntoActiveDiagram,
   insertEndpointMessageIntoActiveDiagram,
   insertGeneralOrderingIntoActiveDiagram,
@@ -22,6 +21,7 @@ import {
   insertCoregionIntoActiveDiagram,
   insertContinuationIntoActiveDiagram,
 } from "../../services/sequenceInserts";
+import { useSequenceToolStore } from "../../../../store/sequenceToolStore";
 
 export default function ToolPalette() {
   const activeTabId = useWorkspaceStore((s) => s.activeTabId);
@@ -82,6 +82,9 @@ export default function ToolPalette() {
       return aForeign - bForeign;
     });
   }, [showForeign, registry, nativeNodeIds]);
+
+  const armedFragmentKind = useSequenceToolStore((s) => s.armedFragmentKind);
+  const toggleArmFragment = useSequenceToolStore((s) => s.toggleArm);
 
   const commonFragments = fragmentTools.filter((tool) => tool.category !== 'advanced');
   const advancedFragments = fragmentTools.filter((tool) => tool.category === 'advanced');
@@ -214,7 +217,8 @@ export default function ToolPalette() {
           title={t("sidebar.fragments.title")}
           isOpen={isFragmentsOpen}
           setIsOpen={setIsFragmentsOpen}
-          onInsert={(tool) => insertFragmentIntoActiveDiagram(tool.fragmentKind!)}
+          armedKind={armedFragmentKind}
+          onInsert={(tool) => toggleArmFragment(tool.fragmentKind!)}
         />
 
         <InsertSection
@@ -270,6 +274,8 @@ interface InsertSectionProps {
   isOpen: boolean;
   setIsOpen: (v: boolean) => void;
   onInsert: (tool: ToolConfig) => void;
+  /** Fragment kind currently armed for the draw gesture — highlights its row. */
+  armedKind?: string | null;
 }
 
 /**
@@ -285,6 +291,7 @@ function InsertSection({
   isOpen,
   setIsOpen,
   onInsert,
+  armedKind,
 }: InsertSectionProps) {
   if (common.length === 0 && advanced.length === 0) return null;
 
@@ -296,7 +303,12 @@ function InsertSection({
       <CollapsibleSection title={title} isOpen={isOpen} setIsOpen={setIsOpen}>
         <div className="flex flex-col gap-2 px-3">
           {visible.map((tool) => (
-            <InsertItem key={tool.id} tool={tool} onInsert={() => onInsert(tool)} />
+            <InsertItem
+              key={tool.id}
+              tool={tool}
+              onInsert={() => onInsert(tool)}
+              armed={!!armedKind && tool.fragmentKind === armedKind}
+            />
           ))}
         </div>
       </CollapsibleSection>
@@ -307,13 +319,16 @@ function InsertSection({
 interface InsertItemProps {
   tool: ToolConfig;
   onInsert: () => void;
+  /** When true the row is shown as armed (toggled on) — used by the draw gesture. */
+  armed?: boolean;
 }
 
 /** Click-to-insert palette row for a fragment operator or structural extra. */
-function InsertItem({ tool, onInsert }: InsertItemProps) {
+function InsertItem({ tool, onInsert, armed = false }: InsertItemProps) {
   const [isHovered, setIsHovered] = useState(false);
   const color = tool.color || '#6366F1';
   const IconComponent = getIconComponent(tool.icon);
+  const active = isHovered || armed;
 
   return (
     <button
@@ -323,8 +338,8 @@ function InsertItem({ tool, onInsert }: InsertItemProps) {
       onMouseLeave={() => setIsHovered(false)}
       className="group flex items-center cursor-pointer rounded-lg transition-all duration-200 border flex-row gap-3 px-3 py-2 justify-start"
       style={{
-        borderColor: isHovered ? color : "transparent",
-        backgroundColor: isHovered ? `color-mix(in srgb, ${color} 15%, transparent)` : "transparent",
+        borderColor: active ? color : "transparent",
+        backgroundColor: active ? `color-mix(in srgb, ${color} ${armed ? 25 : 15}%, transparent)` : "transparent",
       }}
     >
       <span style={{ color }} className="group-hover:brightness-125 transition-all shrink-0">
@@ -332,7 +347,7 @@ function InsertItem({ tool, onInsert }: InsertItemProps) {
       </span>
       <span
         className="font-mono font-semibold text-sm"
-        style={{ color: isHovered ? "var(--color-text-primary)" : "var(--color-text-muted)" }}
+        style={{ color: active ? "var(--color-text-primary)" : "var(--color-text-muted)" }}
       >
         {tool.label}
       </span>

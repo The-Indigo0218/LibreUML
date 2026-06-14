@@ -149,7 +149,8 @@
     },
     "otherDiagram": "from another diagram",
     "fragments": {
-      "title": "Fragments"
+      "title": "Fragments",
+      "drawHint": "Draw a box over the messages to wrap in {{kind}} — click for all, Esc to cancel"
     },
     "structure": {
       "title": "Structure"

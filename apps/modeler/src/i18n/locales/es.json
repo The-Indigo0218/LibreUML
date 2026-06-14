@@ -157,7 +157,8 @@
     },
     "otherDiagram": "de otro diagrama",
     "fragments": {
-      "title": "Fragmentos"
+      "title": "Fragmentos",
+      "drawHint": "Dibujá un recuadro sobre los mensajes a envolver en {{kind}} — clic para todas, Esc para cancelar"
     },
     "structure": {
       "title": "Estructura"

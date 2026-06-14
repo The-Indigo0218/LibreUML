@@ -380,6 +380,41 @@ describe('buildSequenceDiagramNodes', () => {
     }
   });
 
+  it('passes the IGNORE/CONSIDER message set through to the view model', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const msg = makeMessage('m1', 'll1', 'll2', 1);
+    const frag: IRInteractionFragment = {
+      id: 'f1',
+      kind: 'FRAGMENT',
+      name: 'ignore-1',
+      fragmentKind: 'IGNORE',
+      coveredLifelineIds: ['ll1', 'll2'],
+      operands: [{ id: 'op1', guard: '', messageIds: ['m1'], fragmentIds: [] }],
+      messageSet: ['login', 'logout'],
+    };
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: msg },
+      interactionFragments: { f1: frag },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const fragNode = result.find((n) => n.type === 'umlFragment');
+    expect(fragNode).toBeDefined();
+    if (fragNode && isFragmentViewModel(fragNode.data)) {
+      expect(fragNode.data.fragmentKind).toBe('IGNORE');
+      expect(fragNode.data.messageSet).toEqual(['login', 'logout']);
+    }
+  });
+
   it('honors manual layout overrides on a fragment (G-a/G-b)', () => {
     const ll1 = makeLifeline('ll1');
     const ll2 = makeLifeline('ll2');

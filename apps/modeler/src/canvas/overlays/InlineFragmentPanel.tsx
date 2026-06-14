@@ -72,6 +72,17 @@ export default function InlineFragmentPanel({ elementId, onAdvanced, onClose }: 
   const setKind = (kind: IRInteractionFragment['fragmentKind']) =>
     ops.updateFragment(elementId, { fragmentKind: kind });
 
+  // IGNORE/CONSIDER (UML 2.5 §17.6) carry an explicit message set.
+  const showsMessageSet =
+    fragment.fragmentKind === 'IGNORE' || fragment.fragmentKind === 'CONSIDER';
+  const setMessageSet = (value: string) =>
+    ops.updateFragment(elementId, {
+      messageSet: value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    });
+
   const isManual =
     fragment.manualLeft !== undefined ||
     fragment.manualTop !== undefined ||
@@ -136,6 +147,21 @@ export default function InlineFragmentPanel({ elementId, onAdvanced, onClose }: 
             </div>
           ))}
         </section>
+
+        {showsMessageSet && (
+          <section className="space-y-1.5">
+            <div className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">
+              {t('inlineFragmentPanel.messageSet')}
+            </div>
+            <input
+              key={fragment.messageSet?.join(', ') ?? ''}
+              defaultValue={fragment.messageSet?.join(', ') ?? ''}
+              onBlur={(e) => setMessageSet(e.target.value)}
+              placeholder={t('inlineFragmentPanel.messageSetPlaceholder')}
+              className={`${fieldCls} w-full`}
+            />
+          </section>
+        )}
 
         <div className="border-t border-surface-border/50 pt-3 flex items-center gap-2">
           {/* Hybrid layout (G-a/G-b): clear the box override → back to auto. */}

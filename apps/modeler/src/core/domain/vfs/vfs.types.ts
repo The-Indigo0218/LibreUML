@@ -539,6 +539,13 @@ export interface IRInteractionFragment extends IRElement {
   manualTop?: number;
   manualWidth?: number;
   manualHeight?: number;
+  /**
+   * UML 2.5 §17.6 — the explicit message set for IGNORE / CONSIDER operators.
+   * IGNORE renders `ignore {m1, m2}` (those messages are disregarded inside the
+   * region); CONSIDER renders `consider {m1, m2}` (only those are significant).
+   * Empty/undefined for every other kind, and harmless when present.
+   */
+  messageSet?: string[];
 }
 
 /**

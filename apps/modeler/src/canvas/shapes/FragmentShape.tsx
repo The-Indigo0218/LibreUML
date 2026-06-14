@@ -61,7 +61,14 @@ export default function FragmentShape({
   const w = live?.w ?? W;
   const h = live?.h ?? H;
 
-  const labelText = vm.fragmentKind.toLowerCase();
+  // IGNORE/CONSIDER carry an explicit message set, rendered UML-style as
+  // `ignore {m1, m2}` right in the corner-tab label.
+  const showsSet =
+    (vm.fragmentKind === 'IGNORE' || vm.fragmentKind === 'CONSIDER') &&
+    !!vm.messageSet?.length;
+  const labelText = showsSet
+    ? `${vm.fragmentKind.toLowerCase()} {${vm.messageSet!.join(', ')}}`
+    : vm.fragmentKind.toLowerCase();
   // Approximate label width (Konva can't measure synchronously cheap; use char count).
   const labelW = labelText.length * 7 + LABEL_PAD_X * 2;
   const labelH = LABEL_FONT + LABEL_PAD_Y * 2;

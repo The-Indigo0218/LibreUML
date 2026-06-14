@@ -1077,6 +1077,8 @@
     "kind": "Kind",
     "operands": "Operands",
     "guard": "Guard",
+    "messageSet": "Message set",
+    "messageSetPlaceholder": "e.g. login, logout",
     "resetLayout": "Reset layout",
     "advanced": "Advanced…",
     "close": "Close"

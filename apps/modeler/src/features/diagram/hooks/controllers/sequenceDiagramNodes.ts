@@ -818,6 +818,7 @@ function buildFragmentNodes(
         operands: operandVMs,
         nestingDepth: depthFor(frag),
         isManual,
+        messageSet: frag.messageSet,
       };
 
       return {

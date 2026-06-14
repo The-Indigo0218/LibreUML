@@ -228,6 +228,8 @@ export interface FragmentViewModel {
   nestingDepth: number;
   /** True when any manual layout override is active → draw the cyan stroke. */
   isManual?: boolean;
+  /** IGNORE/CONSIDER message set, rendered as `{m1, m2}` after the kind label. */
+  messageSet?: string[];
 }
 
 export interface StateInvariantViewModel {

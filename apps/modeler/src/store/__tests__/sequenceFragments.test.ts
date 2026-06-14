@@ -40,6 +40,19 @@ describe('Sequence Diagram — fragment store actions', () => {
     expect(frag.coveredLifelineIds).toEqual([ll1, ll2]);
   });
 
+  it('persists the IGNORE/CONSIDER message set via updateFragment', () => {
+    const { ll1, ll2 } = makeTwoLifelines();
+    const fid = useModelStore.getState().createFragment({
+      name: 'ignore-1',
+      fragmentKind: 'IGNORE',
+      coveredLifelineIds: [ll1, ll2],
+      operands: [{ id: 'op1', messageIds: [], fragmentIds: [] }],
+    });
+    useModelStore.getState().updateFragment(fid, { messageSet: ['login', 'logout'] });
+    const frag = useModelStore.getState().model!.interactionFragments![fid];
+    expect(frag.messageSet).toEqual(['login', 'logout']);
+  });
+
   it('cascades fragment cleanup when a covered lifeline is deleted', () => {
     const { ll1, ll2 } = makeTwoLifelines();
     const fid = useModelStore.getState().createFragment({

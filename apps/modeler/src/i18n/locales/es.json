@@ -1086,6 +1086,8 @@
     "kind": "Tipo",
     "operands": "Operandos",
     "guard": "Guarda",
+    "messageSet": "Conjunto de mensajes",
+    "messageSetPlaceholder": "ej. login, logout",
     "resetLayout": "Restablecer disposición",
     "advanced": "Avanzado…",
     "close": "Cerrar"

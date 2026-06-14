@@ -16,6 +16,8 @@ import {
   insertInteractionUseIntoActiveDiagram,
   insertEndpointMessageIntoActiveDiagram,
   insertSelfMessageIntoActiveDiagram,
+  reverseMessageInActiveDiagram,
+  deleteMessageInActiveDiagram,
 } from "../services/sequenceInserts";
 
 export type ContextMenuType = "pane" | "node" | "edge";
@@ -389,6 +391,28 @@ export const useDiagramMenus = ({
       if (menu.type === "node" && menu.id) {
         const nodeId = menu.id;
         const effectiveType = getVFSNodeKind(nodeId);
+
+        // Sequence messages are edge-like: give them the same edit / reverse /
+        // delete interactivity as class-diagram relations. (Messages are derived
+        // shapes, so they never reach the ViewNode-based generic items below.)
+        if (effectiveType === "MESSAGE") {
+          return [
+            {
+              label: t("contextMenu.node.edit"),
+              onClick: () => useUiStore.getState().openMessageProps(nodeId),
+            },
+            {
+              label: t("contextMenu.edge.reverse"),
+              onClick: () => reverseMessageInActiveDiagram(nodeId),
+            },
+            {
+              label: t("contextMenu.edge.delete"),
+              onClick: () => deleteMessageInActiveDiagram(nodeId),
+              danger: true,
+            },
+          ];
+        }
+
         const isClassType =
           effectiveType === "CLASS" ||
           effectiveType === "INTERFACE" ||

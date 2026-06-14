@@ -365,3 +365,32 @@ export function insertContinuationIntoActiveDiagram(): void {
 
   useUiStore.getState().openContinuationProps(newId);
 }
+
+/**
+ * Reverses a message's direction (swaps source/target lifelines), mirroring the
+ * "Reverse Direction" action available on class-diagram relations. Self-messages
+ * are a no-op (source === target).
+ */
+export function reverseMessageInActiveDiagram(messageId: string): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel } = ctx;
+  const msg = activeModel.messages?.[messageId];
+  if (!msg) return;
+  const patch = {
+    sourceLifelineId: msg.targetLifelineId,
+    targetLifelineId: msg.sourceLifelineId,
+  };
+  if (isStandaloneFile) standaloneModelOps(tabId).updateMessage(messageId, patch);
+  else useModelStore.getState().updateMessage(messageId, patch);
+}
+
+/** Deletes a message (and cascades its paired activation) from the active diagram. */
+export function deleteMessageInActiveDiagram(messageId: string): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel } = ctx;
+  if (!activeModel.messages?.[messageId]) return;
+  if (isStandaloneFile) standaloneModelOps(tabId).deleteMessage(messageId);
+  else useModelStore.getState().deleteMessage(messageId);
+}

@@ -1637,12 +1637,17 @@ export default function KonvaCanvas() {
       closeMenu();
     },
     getVFSNodeKind: (nodeId) => {
-      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
-      if (!viewNode) return undefined;
-      if (!viewNode.elementId) return 'NOTE';
       const activeModel = vfsController.isStandalone
         ? vfsController.localModel
         : useModelStore.getState().model;
+      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
+      if (!viewNode) {
+        // Derived sequence elements aren't ViewNodes; the context menu passes
+        // their domain id. Messages get a proper menu (edit / reverse / delete).
+        if (activeModel?.messages?.[nodeId]) return 'MESSAGE';
+        return undefined;
+      }
+      if (!viewNode.elementId) return 'NOTE';
       if (!activeModel) return undefined;
       const cls = activeModel.classes[viewNode.elementId];
       if (cls) return cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS';

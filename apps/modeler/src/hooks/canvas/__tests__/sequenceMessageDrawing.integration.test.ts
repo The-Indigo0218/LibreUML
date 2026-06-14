@@ -244,4 +244,33 @@ describe('onConnect simulation — SEQUENCE_DIAGRAM creates IRMessage', () => {
     const state = useModelStore.getState().model!;
     expect(state.messages![newMsgId].fragmentId).toBeUndefined();
   });
+
+  // ─── Message interactivity: reverse + delete (context-menu actions) ──────────
+
+  it('reverses a message by swapping its source/target lifelines', () => {
+    const { ll1, ll2 } = setup();
+    const msgId = simulateConnect(ll1, ll2, 'MESSAGE_ASYNC');
+    // The "Reverse Direction" action swaps the endpoints.
+    const msg = useModelStore.getState().model!.messages![msgId];
+    useModelStore.getState().updateMessage(msgId, {
+      sourceLifelineId: msg.targetLifelineId,
+      targetLifelineId: msg.sourceLifelineId,
+    });
+    const after = useModelStore.getState().model!.messages![msgId];
+    expect(after.sourceLifelineId).toBe(ll2);
+    expect(after.targetLifelineId).toBe(ll1);
+  });
+
+  it('deletes a message and cascades its paired activation', () => {
+    const { ll1, ll2 } = setup();
+    const msgId = simulateConnect(ll1, ll2, 'MESSAGE_SYNC'); // creates an activation on ll2
+    expect(Object.keys(useModelStore.getState().model!.activations!)).toHaveLength(1);
+
+    useModelStore.getState().deleteMessage(msgId);
+
+    const state = useModelStore.getState().model!;
+    expect(state.messages![msgId]).toBeUndefined();
+    // The activation opened by the deleted SYNC is cascaded away.
+    expect(Object.keys(state.activations!)).toHaveLength(0);
+  });
 });

@@ -107,6 +107,131 @@ describe('buildSequenceDiagramXmi', () => {
     expect(xmi).toContain('refersTo="diag-2"');
   });
 
+  it('folds a per-message guard into the message name (C8)', () => {
+    const guarded: IRMessage = {
+      id: 'm1', kind: 'MESSAGE', name: 'pay', messageKind: 'SYNC', guard: 'amount>0',
+      sourceLifelineId: 'a', targetLifelineId: 'b', sequenceNumber: 1,
+    };
+    const noName: IRMessage = {
+      id: 'm2', kind: 'MESSAGE', name: '', messageKind: 'ASYNC', guard: 'ok',
+      sourceLifelineId: 'a', targetLifelineId: 'b', sequenceNumber: 2,
+    };
+    const model = makeModel({
+      lifelines: { a: ll('a'), b: ll('b') },
+      messages: { m1: guarded, m2: noName },
+    });
+    const xmi = buildSequenceDiagramXmi(model, null, 'Seq');
+    expect(xmi).toContain('name="[amount&gt;0] pay"');
+    expect(xmi).toContain('name="[ok]"');
+  });
+
+  it('serializes continuations and coregions (C3/C4)', () => {
+    const model = makeModel({
+      lifelines: { a: ll('a'), b: ll('b') },
+      continuations: {
+        c1: { id: 'c1', kind: 'CONTINUATION', name: 'Retry', coveredLifelineIds: ['a', 'b'], afterSequenceNumber: 1 },
+      },
+      coregions: {
+        co1: { id: 'co1', kind: 'COREGION', name: '', lifelineId: 'a', fromSequence: 0, toSequence: 2 },
+      },
+    });
+    const xmi = buildSequenceDiagramXmi(model, null, 'Seq');
+    expect(xmi).toContain('xmi:type="uml:Continuation"');
+    expect(xmi).toContain('name="Retry"');
+    // Coregion → single-lifeline par CombinedFragment.
+    expect(xmi).toContain('xmi:id="co1" interactionOperator="par" covered="a"');
+  });
+
+  it('serializes a decomposed lifeline as a PartDecomposition (C5)', () => {
+    const model = makeModel({
+      lifelines: { a: ll('a', { decomposedAs: 'sub-diag', decomposedName: 'Inner' }), b: ll('b') },
+    });
+    const xmi = buildSequenceDiagramXmi(model, null, 'Seq');
+    expect(xmi).toContain('decomposedAs="decomp_a"');
+    expect(xmi).toContain('xmi:type="uml:PartDecomposition"');
+    expect(xmi).toContain('refersTo="sub-diag"');
+    expect(xmi).toContain('name="Inner"');
+  });
+
+  it('serializes general orderings between occurrence ends (C6)', () => {
+    const m1: IRMessage = {
+      id: 'm1', kind: 'MESSAGE', name: 'a', messageKind: 'SYNC',
+      sourceLifelineId: 'a', targetLifelineId: 'b', sequenceNumber: 1,
+    };
+    const m2: IRMessage = {
+      id: 'm2', kind: 'MESSAGE', name: 'b', messageKind: 'SYNC',
+      sourceLifelineId: 'a', targetLifelineId: 'b', sequenceNumber: 2,
+    };
+    const model = makeModel({
+      lifelines: { a: ll('a'), b: ll('b') },
+      messages: { m1, m2 },
+      generalOrderings: {
+        g1: { id: 'g1', kind: 'GENERAL_ORDERING', name: '', beforeMessageId: 'm1', beforeEnd: 'RECEIVE', afterMessageId: 'm2', afterEnd: 'SEND' },
+      },
+    });
+    const xmi = buildSequenceDiagramXmi(model, null, 'Seq');
+    expect(xmi).toContain('xmi:type="uml:GeneralOrdering"');
+    expect(xmi).toContain('before="m1_recv"');
+    expect(xmi).toContain('after="m2_send"');
+  });
+
+  it('skips a general ordering whose message is absent', () => {
+    const m1: IRMessage = {
+      id: 'm1', kind: 'MESSAGE', name: 'a', messageKind: 'SYNC',
+      sourceLifelineId: 'a', targetLifelineId: 'b', sequenceNumber: 1,
+    };
+    const model = makeModel({
+      lifelines: { a: ll('a'), b: ll('b') },
+      messages: { m1 },
+      generalOrderings: {
+        g1: { id: 'g1', kind: 'GENERAL_ORDERING', name: '', beforeMessageId: 'm1', beforeEnd: 'RECEIVE', afterMessageId: 'gone', afterEnd: 'SEND' },
+      },
+    });
+    const xmi = buildSequenceDiagramXmi(model, null, 'Seq');
+    expect(xmi).not.toContain('uml:GeneralOrdering');
+  });
+
+  it('serializes duration and time constraints (C1/C2)', () => {
+    const m1: IRMessage = {
+      id: 'm1', kind: 'MESSAGE', name: 'a', messageKind: 'SYNC',
+      sourceLifelineId: 'a', targetLifelineId: 'b', sequenceNumber: 1,
+    };
+    const m2: IRMessage = {
+      id: 'm2', kind: 'MESSAGE', name: 'b', messageKind: 'SYNC',
+      sourceLifelineId: 'a', targetLifelineId: 'b', sequenceNumber: 2,
+    };
+    const model = makeModel({
+      lifelines: { a: ll('a'), b: ll('b') },
+      messages: { m1, m2 },
+      timeConstraints: {
+        d1: { id: 'd1', kind: 'TIME_CONSTRAINT', name: '', constraintKind: 'DURATION', fromMessageId: 'm1', fromEnd: 'SEND', toMessageId: 'm2', toEnd: 'RECEIVE', expression: '0..3s' },
+        t1: { id: 't1', kind: 'TIME_CONSTRAINT', name: '', constraintKind: 'TIME', fromMessageId: 'm1', fromEnd: 'SEND', expression: 't=now' },
+      },
+    });
+    const xmi = buildSequenceDiagramXmi(model, null, 'Seq');
+    expect(xmi).toContain('xmi:type="uml:DurationConstraint"');
+    expect(xmi).toContain('constrainedElement="m1_send m2_recv"');
+    expect(xmi).toContain('<body>0..3s</body>');
+    expect(xmi).toContain('xmi:type="uml:TimeConstraint"');
+    expect(xmi).toContain('<body>t=now</body>');
+  });
+
+  it('skips a duration constraint missing its second anchor', () => {
+    const m1: IRMessage = {
+      id: 'm1', kind: 'MESSAGE', name: 'a', messageKind: 'SYNC',
+      sourceLifelineId: 'a', targetLifelineId: 'b', sequenceNumber: 1,
+    };
+    const model = makeModel({
+      lifelines: { a: ll('a'), b: ll('b') },
+      messages: { m1 },
+      timeConstraints: {
+        d1: { id: 'd1', kind: 'TIME_CONSTRAINT', name: '', constraintKind: 'DURATION', fromMessageId: 'm1', fromEnd: 'SEND', expression: '0..3s' },
+      },
+    });
+    const xmi = buildSequenceDiagramXmi(model, null, 'Seq');
+    expect(xmi).not.toContain('uml:DurationConstraint');
+  });
+
   it('excludes lifelines absent from the diagram view', () => {
     const model = makeModel({ lifelines: { a: ll('a'), b: ll('b') } });
     const view = { diagramId: 'd', nodes: [{ id: 'vn1', elementId: 'a', x: 0, y: 0 }], edges: [] };

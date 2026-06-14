@@ -47,6 +47,7 @@ import type { InlineGatePanelProps } from './overlays/InlineGatePanel';
 import { worldToScreen } from './engine/projection';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
 import { useWorkspaceStore } from '../store/workspace.store';
+import { useVFSStore } from '../store/project-vfs.store';
 import type { UmlRelationType, stereotype } from '../features/diagram/types/diagram.types';
 import { useQuickLinker } from '../hooks/canvas/useQuickLinker';
 import { useFormatPainterStore } from '../store/formatPainter.store';
@@ -70,6 +71,7 @@ import GatePropertiesModal from '../features/diagram/components/modals/GatePrope
 import GeneralOrderingPropertiesModal from '../features/diagram/components/modals/GeneralOrderingPropertiesModal';
 import TimeConstraintPropertiesModal from '../features/diagram/components/modals/TimeConstraintPropertiesModal';
 import CoregionPropertiesModal from '../features/diagram/components/modals/CoregionPropertiesModal';
+import LifelinePropertiesModal from '../features/diagram/components/modals/LifelinePropertiesModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -1397,7 +1399,7 @@ export default function KonvaCanvas() {
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (nodeId) => {
       const shape = shapes.find((s) => s.id === nodeId);
-      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data))) {
+      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data))) {
         startUseCaseInlineEdit(nodeId);
         closeMenu();
         return;
@@ -1511,6 +1513,7 @@ export default function KonvaCanvas() {
       if (activeModel.systemBoundaries?.[viewNode.elementId]) return 'SYSTEM_BOUNDARY';
       if (activeModel.ucModules?.[viewNode.elementId]) return 'UC_MODULE';
       if (activeModel.domainEntities?.[viewNode.elementId]) return 'DOMAIN_ENTITY';
+      if (activeModel.lifelines?.[viewNode.elementId]) return 'LIFELINE';
       return 'NOTE';
     },
     getIsNodeExternal: (nodeId) => {
@@ -2337,7 +2340,17 @@ export default function KonvaCanvas() {
                   : isUseCaseViewModel(vm)
                   ? () => handleUseCaseDblClickModal(shape.id)
                   : isLifelineViewModel(vm)
-                  ? () => startUseCaseInlineEdit(shape.id)
+                  ? () => {
+                      // C5: a decomposed lifeline navigates to its sub-interaction;
+                      // otherwise double-click starts an inline rename.
+                      const diagramId = vm.decomposedDiagramId;
+                      if (diagramId && useVFSStore.getState().project?.nodes[diagramId]) {
+                        useWorkspaceStore.getState().openTab(diagramId);
+                        useWorkspaceStore.getState().setActiveTab(diagramId);
+                      } else {
+                        startUseCaseInlineEdit(shape.id);
+                      }
+                    }
                   : isFragmentViewModel(vm)
                   ? () => openInlineFragmentPanel(vm.domainId)
                   : isMessageViewModel(vm)
@@ -2764,6 +2777,7 @@ export default function KonvaCanvas() {
       <GeneralOrderingPropertiesModal />
       <TimeConstraintPropertiesModal />
       <CoregionPropertiesModal />
+      <LifelinePropertiesModal />
     </div>
   );
 }

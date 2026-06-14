@@ -394,11 +394,12 @@ export const useDiagramMenus = ({
           effectiveType === "SYSTEM_BOUNDARY" ||
           effectiveType === "UC_MODULE";
         const isDomainEntityType = effectiveType === "DOMAIN_ENTITY";
+        const isLifelineType = effectiveType === "LIFELINE";
         const isNodeExternal = getIsNodeExternal(nodeId);
 
         const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [];
 
-        if (!isPackageType && !isNoteType) {
+        if (!isPackageType && !isNoteType && !isLifelineType) {
           baseOptions.push({
             label: (isUseCaseNodeType || isDomainEntityType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
@@ -437,6 +438,10 @@ export const useDiagramMenus = ({
 
         if (effectiveType === "LIFELINE") {
           baseOptions.push({
+            label: t("contextMenu.node.rename"),
+            onClick: () => onEditNode(nodeId),
+          });
+          baseOptions.push({
             label: t("contextMenu.node.addStateInvariant"),
             onClick: () => addStateInvariant(nodeId),
           });
@@ -448,6 +453,13 @@ export const useDiagramMenus = ({
             label: t("contextMenu.node.addLostMessage"),
             onClick: () => addEndpointMessage(nodeId, 'lost'),
           });
+          const lifelineId = getElementId(nodeId);
+          if (lifelineId) {
+            baseOptions.push({
+              label: t("contextMenu.node.decomposeLifeline"),
+              onClick: () => useUiStore.getState().openLifelineProps(lifelineId),
+            });
+          }
         }
 
         if (isNoteType) {

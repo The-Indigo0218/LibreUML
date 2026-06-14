@@ -312,6 +312,8 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       headHeight: LIFELINE_HEAD_H,
       headTopOffset,
       isDestroyed: destroySlot !== undefined,
+      decomposedRef: ll.decomposedAs ? (ll.decomposedName || 'ref') : undefined,
+      decomposedDiagramId: ll.decomposedAs,
       onRename,
     };
 

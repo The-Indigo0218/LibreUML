@@ -161,6 +161,10 @@ export interface LifelineViewModel {
 
   headTopOffset?: number;
   isDestroyed?: boolean;
+  /** Display label of the sub-interaction this lifeline decomposes to (C5). */
+  decomposedRef?: string;
+  /** VFS file id of the sub-interaction; double-click navigates here (C5). */
+  decomposedDiagramId?: string;
   onRename?: (name: string) => void;
 }
 

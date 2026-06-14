@@ -205,7 +205,8 @@
       "editActorProperties": "Editar Propiedades",
       "addStateInvariant": "Añadir Invariante de Estado",
       "addFoundMessage": "Añadir Mensaje Encontrado",
-      "addLostMessage": "Añadir Mensaje Perdido"
+      "addLostMessage": "Añadir Mensaje Perdido",
+      "decomposeLifeline": "Descomponer…"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",

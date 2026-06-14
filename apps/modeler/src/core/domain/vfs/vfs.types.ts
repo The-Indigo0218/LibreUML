@@ -359,6 +359,16 @@ export interface IRLifeline extends IRElement {
   /** Display name when participantKind === 'ANONYMOUS' (or override for named participants). */
   alias?: string;
   isExternal?: boolean;
+  /**
+   * UML 2.5 §17.4 PartDecomposition — VFS file id of the SEQUENCE_DIAGRAM that
+   * refines this lifeline's internal behaviour. When set, the lifeline shows a
+   * `ref <name>` marker and double-clicking it navigates to that sub-interaction
+   * (C5). Mirrors `IRInteractionUse.referencedDiagramId` but anchored to a
+   * single participant.
+   */
+  decomposedAs?: string;
+  /** Display label of the referenced sub-interaction (falls back to its file name). */
+  decomposedName?: string;
 }
 
 export type MessageKind =

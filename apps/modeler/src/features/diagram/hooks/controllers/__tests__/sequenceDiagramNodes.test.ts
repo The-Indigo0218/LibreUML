@@ -1200,3 +1200,35 @@ describe('buildSequenceDiagramNodes — coregions', () => {
     expect(node).toBeUndefined();
   });
 });
+
+describe('buildSequenceDiagramNodes — decomposed lifeline (C5)', () => {
+  it('carries the decomposition ref + target diagram id on the lifeline VM', () => {
+    const ll = makeLifeline('ll1', { decomposedAs: 'diag-sub', decomposedName: 'ProcessOrder' });
+    const model = makeModel({ lifelines: { ll1: ll } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlLifeline');
+    expect(node).toBeDefined();
+    if (node && isLifelineViewModel(node.data)) {
+      expect(node.data.decomposedRef).toBe('ProcessOrder');
+      expect(node.data.decomposedDiagramId).toBe('diag-sub');
+    }
+  });
+
+  it('leaves the ref undefined for a non-decomposed lifeline', () => {
+    const model = makeModel({ lifelines: { ll1: makeLifeline('ll1') } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [{ id: 'vn1', elementId: 'll1', x: 50, y: 0 }],
+      edges: [],
+    };
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlLifeline');
+    if (node && isLifelineViewModel(node.data)) {
+      expect(node.data.decomposedRef).toBeUndefined();
+      expect(node.data.decomposedDiagramId).toBeUndefined();
+    }
+  });
+});

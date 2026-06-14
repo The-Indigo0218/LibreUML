@@ -197,7 +197,8 @@
       "editActorProperties": "Edit Properties",
       "addStateInvariant": "Add State Invariant",
       "addFoundMessage": "Add Found Message",
-      "addLostMessage": "Add Lost Message"
+      "addLostMessage": "Add Lost Message",
+      "decomposeLifeline": "Decompose…"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",

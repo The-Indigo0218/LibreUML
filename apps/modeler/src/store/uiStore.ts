@@ -36,6 +36,7 @@ export type ActiveModal =
   | "general-ordering-props"
   | "time-constraint-props"
   | "coregion-props"
+  | "lifeline-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -105,6 +106,7 @@ interface UiStoreState {
   openGeneralOrderingProps: (orderingId: string) => void;
   openTimeConstraintProps: (constraintId: string) => void;
   openCoregionProps: (coregionId: string) => void;
+  openLifelineProps: (lifelineId: string) => void;
   closeModals: () => void;
   openInlineEdgePanel: (edgeId: string) => void;
   closeInlineEdgePanel: () => void;
@@ -227,6 +229,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openGeneralOrderingProps: (orderingId) => set({ activeModal: "general-ordering-props", editingId: orderingId }),
   openTimeConstraintProps: (constraintId) => set({ activeModal: "time-constraint-props", editingId: constraintId }),
   openCoregionProps: (coregionId) => set({ activeModal: "coregion-props", editingId: coregionId }),
+  openLifelineProps: (lifelineId) => set({ activeModal: "lifeline-props", editingId: lifelineId }),
 
   closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
 

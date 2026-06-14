@@ -141,6 +141,25 @@ export default function LifelineShape({
         perfectDrawEnabled={false}
       />
 
+      {/* ── Decomposition marker (C5): `ref <name>` at the head's bottom ───── */}
+      {vm.decomposedRef && (
+        <Text
+          x={4}
+          y={top + headH - 14}
+          width={W - 8}
+          text={`ref ${vm.decomposedRef}`}
+          fontSize={STEREO_FONT}
+          fontFamily={FONT_SANS}
+          fontStyle="italic"
+          fill="#7C83FF"
+          align="right"
+          ellipsis
+          wrap="none"
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+      )}
+
       {/* ── Dashed timeline going down ────────────────────────────────────── */}
       <Line
         points={[lineX, timelineTop, lineX, timelineBottom]}

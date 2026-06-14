@@ -141,3 +141,36 @@ export function insertEndpointMessageIntoActiveDiagram(
 
   useUiStore.getState().openMessageProps(newId);
 }
+
+/**
+ * Inserts a general ordering (UML 2.5 §17.2) between the two earliest messages,
+ * then opens its properties so the user can re-pick the endpoints. Requires at
+ * least two messages — a temporal order needs two occurrences to relate.
+ */
+export function insertGeneralOrderingIntoActiveDiagram(): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel } = ctx;
+
+  const ordered = Object.values(activeModel.messages ?? {}).sort(
+    (a, b) => a.sequenceNumber - b.sequenceNumber,
+  );
+  if (ordered.length < 2) {
+    useToastStore.getState().show('⚠️ Crea al menos dos mensajes antes de añadir un orden general');
+    return;
+  }
+
+  const payload = {
+    name: '',
+    beforeMessageId: ordered[0].id,
+    beforeEnd: 'RECEIVE' as const,
+    afterMessageId: ordered[1].id,
+    afterEnd: 'SEND' as const,
+  };
+
+  const newId = isStandaloneFile
+    ? standaloneModelOps(tabId).createGeneralOrdering(payload)
+    : useModelStore.getState().createGeneralOrdering(payload);
+
+  useUiStore.getState().openGeneralOrderingProps(newId);
+}

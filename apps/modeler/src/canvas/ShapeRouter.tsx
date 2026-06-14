@@ -18,6 +18,7 @@ import {
   isStateInvariantViewModel,
   isInteractionUseViewModel,
   isGateViewModel,
+  isGeneralOrderingViewModel,
 } from '../adapters/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
@@ -33,6 +34,7 @@ import FragmentShape, { getFragmentShapeSize } from './shapes/FragmentShape';
 import StateInvariantShape, { getStateInvariantShapeSize } from './shapes/StateInvariantShape';
 import InteractionUseShape, { getInteractionUseShapeSize } from './shapes/InteractionUseShape';
 import GateShape, { getGateShapeSize } from './shapes/GateShape';
+import GeneralOrderingShape, { getGeneralOrderingShapeSize } from './shapes/GeneralOrderingShape';
 
 export interface NodeShapeRenderProps {
   key: string;
@@ -69,6 +71,7 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
   if (isStateInvariantViewModel(vm)) return getStateInvariantShapeSize(vm);
   if (isInteractionUseViewModel(vm)) return getInteractionUseShapeSize(vm);
   if (isGateViewModel(vm))           return getGateShapeSize(vm);
+  if (isGeneralOrderingViewModel(vm)) return getGeneralOrderingShapeSize(vm);
   return getClassShapeSize(vm as NodeViewModel);
 }
 
@@ -131,6 +134,9 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
 
   if (isGateViewModel(vm))
     return <GateShape key={key} viewModel={vm} {...common} />;
+
+  if (isGeneralOrderingViewModel(vm))
+    return <GeneralOrderingShape key={key} viewModel={vm} {...common} />;
 
   return <ClassShape key={key} viewModel={vm as NodeViewModel} {...common} />;
 }

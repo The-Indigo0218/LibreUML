@@ -548,6 +548,24 @@ export interface IRStateInvariant extends IRElement {
   afterSequenceNumber: number;
 }
 
+/**
+ * UML 2.5 §17.2 GeneralOrdering — a dotted arrow that forces a temporal order
+ * between two OccurrenceSpecifications (message ends) that would otherwise be
+ * unordered (typically on different lifelines). Purely a constraint: it adds no
+ * message, only an ordering edge `before → after`.
+ */
+export interface IRGeneralOrdering extends IRElement {
+  kind: 'GENERAL_ORDERING';
+  /** The earlier message whose occurrence must precede the other. */
+  beforeMessageId: string;
+  /** Which end (occurrence) of the before-message anchors the order's tail. */
+  beforeEnd: 'SEND' | 'RECEIVE';
+  /** The later message whose occurrence must follow the other. */
+  afterMessageId: string;
+  /** Which end (occurrence) of the after-message the arrow points at. */
+  afterEnd: 'SEND' | 'RECEIVE';
+}
+
 export type RelationKind =
   | 'ASSOCIATION'
   | 'AGGREGATION'
@@ -619,6 +637,7 @@ export interface SemanticModel {
   stateInvariants?: Record<string, IRStateInvariant>;
   interactionUses?: Record<string, IRInteractionUse>;
   gates?: Record<string, IRGate>;
+  generalOrderings?: Record<string, IRGeneralOrdering>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

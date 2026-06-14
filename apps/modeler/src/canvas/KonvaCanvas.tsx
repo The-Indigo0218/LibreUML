@@ -67,6 +67,7 @@ import MessagePropertiesModal from '../features/diagram/components/modals/Messag
 import StateInvariantPropertiesModal from '../features/diagram/components/modals/StateInvariantPropertiesModal';
 import InteractionUsePropertiesModal from '../features/diagram/components/modals/InteractionUsePropertiesModal';
 import GatePropertiesModal from '../features/diagram/components/modals/GatePropertiesModal';
+import GeneralOrderingPropertiesModal from '../features/diagram/components/modals/GeneralOrderingPropertiesModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -99,6 +100,7 @@ import {
   isStateInvariantViewModel,
   isInteractionUseViewModel,
   isGateViewModel,
+  isGeneralOrderingViewModel,
   type AnyNodeViewModel,
   type NodeViewModel,
   type PackageViewModel,
@@ -2342,6 +2344,8 @@ export default function KonvaCanvas() {
                   ? () => openInlineInteractionUsePanel(vm.domainId)
                   : isGateViewModel(vm)
                   ? () => openInlineGatePanel(vm.domainId)
+                  : isGeneralOrderingViewModel(vm)
+                  ? () => useUiStore.getState().openGeneralOrderingProps(vm.domainId)
                   : isActivationViewModel(vm)
                   ? () => handleActivationResetOverride(shape.id)
                   : isNodeViewModel(vm)
@@ -2360,6 +2364,9 @@ export default function KonvaCanvas() {
                 const isLifeline = isLifelineViewModel(vm);
                 const isActivation = isActivationViewModel(vm);
                 const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm);
+                // General orderings have fully-derived geometry (anchored to two
+                // messages) → not draggable at all.
+                const isGeneralOrdering = isGeneralOrderingViewModel(vm);
                 // Vertical-only, store-backed drag: messages, activations, and
                 // the slot-anchored derived elements all lock X and persist Y.
                 const isVerticalDrag = isMsg || isDerived || isActivation;
@@ -2372,7 +2379,7 @@ export default function KonvaCanvas() {
                   y: pos.y,
                   selected: selectedIds.has(shape.id),
                   opacity: connectDimmed ? 0.3 : undefined,
-                  draggable: true,
+                  draggable: !isGeneralOrdering,
                   visible: isVisible && !isDescendantOfCollapsed,
                   onDragStart: isVerticalDrag ? undefined : guardedDragStart,
                   onDragMove: isVerticalDrag ? undefined : handleDragMove,
@@ -2743,6 +2750,7 @@ export default function KonvaCanvas() {
       <StateInvariantPropertiesModal />
       <InteractionUsePropertiesModal />
       <GatePropertiesModal />
+      <GeneralOrderingPropertiesModal />
     </div>
   );
 }

@@ -253,6 +253,19 @@ export interface GateViewModel {
 }
 
 
+export interface GeneralOrderingViewModel {
+  __brand: 'generalOrdering';
+  id: string;
+  domainId: string;
+  /** Tail point (before occurrence) relative to the node's top-left. */
+  from: { x: number; y: number };
+  /** Head point (after occurrence) relative to the node's top-left. */
+  to: { x: number; y: number };
+  /** Bounding-box size (max of |dx|, |dy| plus padding) for hit/size. */
+  width: number;
+  height: number;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -268,7 +281,8 @@ export type AnyNodeViewModel =
   | FragmentViewModel
   | StateInvariantViewModel
   | InteractionUseViewModel
-  | GateViewModel;
+  | GateViewModel
+  | GeneralOrderingViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -329,4 +343,8 @@ export function isInteractionUseViewModel(vm: AnyNodeViewModel): vm is Interacti
 
 export function isGateViewModel(vm: AnyNodeViewModel): vm is GateViewModel {
   return '__brand' in vm && vm.__brand === 'gate';
+}
+
+export function isGeneralOrderingViewModel(vm: AnyNodeViewModel): vm is GeneralOrderingViewModel {
+  return '__brand' in vm && vm.__brand === 'generalOrdering';
 }

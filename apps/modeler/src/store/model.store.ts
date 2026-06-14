@@ -22,6 +22,7 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRGeneralOrdering,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -176,6 +177,17 @@ function clearGateRefsOnMessages(model: SemanticModel, gateIds: Set<string>) {
   });
 }
 
+/** Deletes general orderings that reference any of the given (deleted) message ids. */
+function clearGeneralOrderingsForMessages(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.generalOrderings || messageIds.size === 0) return;
+  for (const oid of Object.keys(model.generalOrderings)) {
+    const go = model.generalOrderings[oid];
+    if (messageIds.has(go.beforeMessageId) || messageIds.has(go.afterMessageId)) {
+      delete model.generalOrderings[oid];
+    }
+  }
+}
+
 /** Deletes all gates owned by a fragment and clears their message references. */
 function removeGatesForFragment(model: SemanticModel, fragmentId: string) {
   if (!model.gates) return;
@@ -266,6 +278,10 @@ interface ModelStoreState {
   updateGate: (id: string, patch: Partial<IRGate>) => void;
   deleteGate: (id: string) => void;
 
+  createGeneralOrdering: (data: Omit<IRGeneralOrdering, 'id' | 'kind'>) => string;
+  updateGeneralOrdering: (id: string, patch: Partial<IRGeneralOrdering>) => void;
+  deleteGeneralOrdering: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -319,6 +335,7 @@ export const useModelStore = create<ModelStoreState>()(
           stateInvariants: {},
           interactionUses: {},
           gates: {},
+          generalOrderings: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -662,16 +679,19 @@ export const useModelStore = create<ModelStoreState>()(
       const name = useModelStore.getState().model?.messages?.[id]?.name ?? id;
       withUndo('model', `Delete Message: ${name}`, 'global', (draft) => {
         if (!draft.model?.messages?.[id]) return;
+        const removedMsgIds = new Set<string>([id]);
         delete draft.model.messages[id];
         // Cascade: REPLY messages that reference this one.
         Object.keys(draft.model.messages).forEach((mid) => {
           if (draft.model.messages![mid].inReplyTo === id) {
+            removedMsgIds.add(mid);
             delete draft.model.messages![mid];
             stripMessageFromFragments(draft.model, mid);
           }
         });
         cascadeDeleteActivationsForMessage(draft.model, id);
         stripMessageFromFragments(draft.model, id);
+        clearGeneralOrderingsForMessages(draft.model, removedMsgIds);
         draft.model.updatedAt = Date.now();
       });
     },
@@ -844,6 +864,33 @@ export const useModelStore = create<ModelStoreState>()(
         if (!draft.model?.gates?.[id]) return;
         delete draft.model.gates[id];
         clearGateRefsOnMessages(draft.model, new Set([id]));
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createGeneralOrdering: (data) => {
+      const id = newId();
+      withUndo('model', 'Create General Ordering', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.generalOrderings = draft.model.generalOrderings ?? {};
+        draft.model.generalOrderings[id] = { ...data, id, kind: 'GENERAL_ORDERING' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateGeneralOrdering: (id, patch) => {
+      withUndo('model', 'Update General Ordering', 'global', (draft) => {
+        if (!draft.model?.generalOrderings?.[id]) return;
+        draft.model.generalOrderings[id] = { ...draft.model.generalOrderings[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteGeneralOrdering: (id) => {
+      withUndo('model', 'Delete General Ordering', 'global', (draft) => {
+        if (!draft.model?.generalOrderings?.[id]) return;
+        delete draft.model.generalOrderings[id];
         draft.model.updatedAt = Date.now();
       });
     },

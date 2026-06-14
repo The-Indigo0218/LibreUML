@@ -20,7 +20,7 @@ export const MODEL_ELEMENT_COLLECTIONS = [
   'actors', 'useCases', 'systemBoundaries', 'ucModules', 'domainEntities', 'domainAttributes',
   'activityNodes', 'objectInstances', 'components', 'nodes', 'artifacts',
   'lifelines', 'messages', 'activations', 'interactionFragments', 'stateInvariants',
-  'interactionUses', 'gates', 'relations',
+  'interactionUses', 'gates', 'generalOrderings', 'relations',
 ] as const;
 
 type CollectionKey = (typeof MODEL_ELEMENT_COLLECTIONS)[number];

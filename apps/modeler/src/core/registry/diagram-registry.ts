@@ -914,9 +914,10 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
     // found/lost are endpoint messages (open outside the interaction) and sit
     // under "advanced" since they default to the first lifeline.
     structure: [
-      { id: 'ref',       type: 'STRUCTURE', category: 'common',   label: 'ref',   icon: 'Frame',  color: '#6366F1' },
-      { id: 'msg-found', type: 'STRUCTURE', category: 'advanced', label: 'found', icon: 'LogIn',  color: '#818CF8' },
-      { id: 'msg-lost',  type: 'STRUCTURE', category: 'advanced', label: 'lost',  icon: 'LogOut', color: '#818CF8' },
+      { id: 'ref',         type: 'STRUCTURE', category: 'common',   label: 'ref',   icon: 'Frame',       color: '#6366F1' },
+      { id: 'msg-found',   type: 'STRUCTURE', category: 'advanced', label: 'found', icon: 'LogIn',       color: '#818CF8' },
+      { id: 'msg-lost',    type: 'STRUCTURE', category: 'advanced', label: 'lost',  icon: 'LogOut',      color: '#818CF8' },
+      { id: 'gen-ordering', type: 'STRUCTURE', category: 'advanced', label: 'order', icon: 'ArrowDownUp', color: '#818CF8' },
     ],
   },
 

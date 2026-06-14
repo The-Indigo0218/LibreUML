@@ -17,6 +17,7 @@ import {
   insertFragmentIntoActiveDiagram,
   insertInteractionUseIntoActiveDiagram,
   insertEndpointMessageIntoActiveDiagram,
+  insertGeneralOrderingIntoActiveDiagram,
 } from "../../services/sequenceInserts";
 
 export default function ToolPalette() {
@@ -88,6 +89,7 @@ export default function ToolPalette() {
     if (id === 'ref') insertInteractionUseIntoActiveDiagram();
     else if (id === 'msg-found') insertEndpointMessageIntoActiveDiagram('found');
     else if (id === 'msg-lost') insertEndpointMessageIntoActiveDiagram('lost');
+    else if (id === 'gen-ordering') insertGeneralOrderingIntoActiveDiagram();
   };
 
   const setTabConnectionMode = useWorkspaceStore((s) => s.setTabConnectionMode);

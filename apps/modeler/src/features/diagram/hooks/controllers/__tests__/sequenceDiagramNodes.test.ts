@@ -16,6 +16,7 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRGeneralOrdering,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
@@ -26,6 +27,7 @@ import {
   isStateInvariantViewModel,
   isInteractionUseViewModel,
   isGateViewModel,
+  isGeneralOrderingViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
@@ -990,5 +992,82 @@ describe('computeHierarchicalNumbers', () => {
     expect(result.get('a')).toBe('1');
     expect(result.get('b')).toBe('2');
     expect(result.get('c')).toBe('3');
+  });
+});
+
+function makeGeneralOrdering(
+  id: string,
+  beforeMessageId: string,
+  afterMessageId: string,
+  partial: Partial<IRGeneralOrdering> = {},
+): IRGeneralOrdering {
+  return {
+    id,
+    kind: 'GENERAL_ORDERING',
+    name: '',
+    beforeMessageId,
+    beforeEnd: 'RECEIVE',
+    afterMessageId,
+    afterEnd: 'SEND',
+    ...partial,
+  };
+}
+
+describe('buildSequenceDiagramNodes — general orderings', () => {
+  it('emits a general-ordering node anchored to its two message occurrences', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: {
+        m1: makeMessage('m1', 'll1', 'll2', 1),
+        m2: makeMessage('m2', 'll2', 'll1', 2),
+      },
+      generalOrderings: { go1: makeGeneralOrdering('go1', 'm1', 'm2') },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const goNode = result.find((n) => n.type === 'umlGeneralOrdering');
+    expect(goNode).toBeDefined();
+    expect(goNode && isGeneralOrderingViewModel(goNode.data)).toBe(true);
+    if (goNode && isGeneralOrderingViewModel(goNode.data)) {
+      const ll1CenterX = 50 + 70; // headWidth/2 = 70
+      const ll2CenterX = 250 + 70;
+      // before = RECEIVE end of m1 (target ll2, slot 1); after = SEND end of m2 (source ll2, slot 2).
+      const y1 = messageYForIndex(1);
+      const y2 = messageYForIndex(2);
+      // Both occurrences are on ll2 here → node anchored at that X, spanning the two Ys.
+      expect(goNode.position.x).toBeCloseTo(ll2CenterX, 0);
+      expect(goNode.position.y).toBeCloseTo(Math.min(y1, y2), 0);
+      expect(goNode.data.height).toBeCloseTo(Math.abs(y2 - y1), 0);
+      void ll1CenterX;
+    }
+  });
+
+  it('omits a general ordering whose message is missing', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: makeMessage('m1', 'll1', 'll2', 1) },
+      generalOrderings: { go1: makeGeneralOrdering('go1', 'm1', 'ghost') },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    expect(result.find((n) => n.type === 'umlGeneralOrdering')).toBeUndefined();
   });
 });

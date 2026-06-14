@@ -36,6 +36,7 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRGeneralOrdering,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -129,6 +130,16 @@ function clearGateRefsOnMessagesLocal(model: SemanticModel, gateIds: Set<string>
   for (const m of Object.values(model.messages)) {
     if (m.sourceGateId && gateIds.has(m.sourceGateId)) delete (m as { sourceGateId?: string }).sourceGateId;
     if (m.targetGateId && gateIds.has(m.targetGateId)) delete (m as { targetGateId?: string }).targetGateId;
+  }
+}
+
+function clearGeneralOrderingsForMessagesLocal(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.generalOrderings || messageIds.size === 0) return;
+  for (const oid of Object.keys(model.generalOrderings)) {
+    const go = model.generalOrderings[oid];
+    if (messageIds.has(go.beforeMessageId) || messageIds.has(go.afterMessageId)) {
+      delete model.generalOrderings[oid];
+    }
   }
 }
 
@@ -551,15 +562,18 @@ export function standaloneModelOps(fileId: string) {
     deleteMessage: (id: string) => {
       update((m) => {
         if (!m.messages?.[id]) return;
+        const removedMsgIds = new Set<string>([id]);
         delete m.messages[id];
         for (const mid of Object.keys(m.messages)) {
           if (m.messages[mid].inReplyTo === id) {
+            removedMsgIds.add(mid);
             delete m.messages[mid];
             stripMessageFromFragmentsLocal(m, mid);
           }
         }
         cascadeDeleteActivationsForMessageLocal(m, id);
         stripMessageFromFragmentsLocal(m, id);
+        clearGeneralOrderingsForMessagesLocal(m, removedMsgIds);
         m.updatedAt = Date.now();
       });
     },
@@ -727,6 +741,34 @@ export function standaloneModelOps(fileId: string) {
         if (!m.gates?.[id]) return;
         delete m.gates[id];
         clearGateRefsOnMessagesLocal(m, new Set([id]));
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── General Orderings (UML 2.5 §17.2) ─────────────────────────────────────
+
+    createGeneralOrdering: (data: Omit<IRGeneralOrdering, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.generalOrderings = m.generalOrderings ?? {};
+        m.generalOrderings[id] = { ...data, id, kind: 'GENERAL_ORDERING' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateGeneralOrdering: (id: string, patch: Partial<IRGeneralOrdering>) => {
+      update((m) => {
+        if (!m.generalOrderings?.[id]) return;
+        m.generalOrderings[id] = { ...m.generalOrderings[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteGeneralOrdering: (id: string) => {
+      update((m) => {
+        if (!m.generalOrderings?.[id]) return;
+        delete m.generalOrderings[id];
         m.updatedAt = Date.now();
       });
     },

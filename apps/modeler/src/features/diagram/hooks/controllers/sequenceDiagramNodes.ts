@@ -20,6 +20,7 @@ import type {
   StateInvariantViewModel,
   InteractionUseViewModel,
   GateViewModel,
+  GeneralOrderingViewModel,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -521,6 +522,56 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       };
     });
 
+  // 5d. Emit General Orderings (UML 2.5 §17.2) — a dotted arrow forcing a
+  //     temporal order between two message occurrences. Position is fully
+  //     derived from the two anchored messages (no slot anchor of its own).
+  const messageById = new Map(allMessages.map((m) => [m.id, m]));
+  const occurrencePoint = (
+    messageId: string,
+    end: 'SEND' | 'RECEIVE',
+  ): { x: number; y: number } | null => {
+    const msg = messageById.get(messageId);
+    if (!msg) return null;
+    const slot = messageIndex.get(messageId);
+    if (slot === undefined) return null;
+    const y = msg.manualY ?? messageYForIndex(slot, slotLayout);
+    const lifelineId = end === 'SEND' ? msg.sourceLifelineId : msg.targetLifelineId;
+    const x = lifelineCenterX.get(lifelineId);
+    if (x === undefined) return null;
+    return { x, y };
+  };
+
+  const generalOrderingNodes = Object.values(model.generalOrderings ?? {})
+    .map((go) => {
+      const from = occurrencePoint(go.beforeMessageId, go.beforeEnd);
+      const to = occurrencePoint(go.afterMessageId, go.afterEnd);
+      if (!from || !to) return null;
+
+      const minX = Math.min(from.x, to.x);
+      const minY = Math.min(from.y, to.y);
+      const width = Math.abs(to.x - from.x);
+      const height = Math.abs(to.y - from.y);
+
+      const viewModel: GeneralOrderingViewModel = {
+        __brand: 'generalOrdering',
+        id: go.id,
+        domainId: go.id,
+        from: { x: from.x - minX, y: from.y - minY },
+        to: { x: to.x - minX, y: to.y - minY },
+        width,
+        height,
+      };
+
+      return {
+        id: `go-${go.id}`,
+        type: 'umlGeneralOrdering',
+        position: { x: minX, y: minY },
+        data: viewModel,
+        domainId: go.id,
+      };
+    })
+    .filter(<T>(n: T | null): n is T => n !== null);
+
   // 6. Emit Notes (reuse existing makeNoteNode helper).
   const noteNodes = noteViewNodes.map((vn) =>
     makeNoteNode(vn, handleNoteUpdate, diagramView.nodes),
@@ -553,6 +604,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     ...messageNodes,
     ...stateInvariantNodes,
     ...gateNodes,
+    ...generalOrderingNodes,
     ...noteNodes,
   ];
 }

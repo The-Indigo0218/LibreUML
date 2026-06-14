@@ -12,6 +12,7 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRGeneralOrdering,
 } from '../domain/vfs/vfs.types';
 import { MULTI_OPERAND_FRAGMENT_KINDS } from '../domain/vfs/vfs.types';
 
@@ -273,6 +274,35 @@ export class SequenceDiagramValidator implements BaseValidator {
     }
     if (!gate.name || gate.name.trim() === '') {
       warnings.push('Gate has no name');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific general-ordering validation (UML 2.5 §17.2). Error
+   * when either endpoint message is missing or the two endpoints coincide
+   * (a self-ordering is meaningless).
+   */
+  validateGeneralOrdering(ordering: IRGeneralOrdering, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!model.messages?.[ordering.beforeMessageId]) {
+      errors.push(`General ordering references missing message "${ordering.beforeMessageId}"`);
+    }
+    if (!model.messages?.[ordering.afterMessageId]) {
+      errors.push(`General ordering references missing message "${ordering.afterMessageId}"`);
+    }
+    if (
+      ordering.beforeMessageId === ordering.afterMessageId &&
+      ordering.beforeEnd === ordering.afterEnd
+    ) {
+      warnings.push('General ordering relates a message occurrence to itself');
     }
 
     return {

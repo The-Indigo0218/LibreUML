@@ -60,6 +60,8 @@ export interface NodeShapeRenderProps {
   onMouseEnter?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   onMouseLeave?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   onResizeEnd?: (id: string, width: number, height: number) => void;
+  /** Clears a lifeline's manual timeline length (G-c foot-handle double-click). */
+  onResetTimeline?: (id: string) => void;
   isDropTarget?: boolean;
 }
 
@@ -85,7 +87,7 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
 }
 
 export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): React.ReactNode {
-  const { key, onMouseEnter, onMouseLeave, onResizeEnd, isDropTarget, ...common } = props;
+  const { key, onMouseEnter, onMouseLeave, onResizeEnd, onResetTimeline, isDropTarget, ...common } = props;
 
   if (isNoteViewModel(vm))
     return <NoteShape key={key} viewModel={vm} {...common} />;
@@ -124,7 +126,13 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
     return <DomainEntityShape key={key} viewModel={vm} {...common} />;
 
   if (isLifelineViewModel(vm))
-    return <LifelineShape key={key} viewModel={vm} {...common} />;
+    return (
+      <LifelineShape
+        key={key} viewModel={vm} {...common}
+        onResizeEnd={onResizeEnd}
+        onResetTimeline={onResetTimeline}
+      />
+    );
 
   if (isMessageViewModel(vm))
     return <MessageShape key={key} viewModel={vm} {...common} />;

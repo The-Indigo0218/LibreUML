@@ -35,6 +35,7 @@ import {
   isCoregionViewModel,
   isContinuationViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
+import type { LifelineViewModel } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
   return {
@@ -116,6 +117,28 @@ describe('buildSequenceDiagramNodes', () => {
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe('umlLifeline');
     expect(isLifelineViewModel(result[0].data)).toBe(true);
+  });
+
+  it('honors a manual timeline length and flags it (G-c)', () => {
+    const derived = makeLifeline('ll1');
+    const manual = makeLifeline('ll2', { manualTimelineLength: 600 });
+    const model = makeModel({ lifelines: { ll1: derived, ll2: manual } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const derivedVM = result.find((n) => n.domainId === 'll1')!.data as LifelineViewModel;
+    const manualVM = result.find((n) => n.domainId === 'll2')!.data as LifelineViewModel;
+
+    expect(manualVM.timelineLength).toBe(600);
+    expect(manualVM.isManualTimeline).toBe(true);
+    expect(derivedVM.isManualTimeline).toBeFalsy();
+    expect(derivedVM.timelineLength).not.toBe(600);
   });
 
   it('emits a Message view model for a message between two visible lifelines', () => {

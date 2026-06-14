@@ -156,6 +156,8 @@ export interface LifelineViewModel {
   participantKind: LifelineParticipantKindVM;
   isExternal?: boolean;
   timelineLength: number;
+  /** True when `timelineLength` comes from a manual override (G-c) → cyan timeline. */
+  isManualTimeline?: boolean;
   headWidth: number;
   headHeight: number;
 

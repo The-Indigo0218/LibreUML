@@ -300,7 +300,12 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       : 0;
     const headBottomY = headTopOffset + LIFELINE_HEAD_H;
     const endY = destroySlot !== undefined ? messageYForIndex(destroySlot, slotLayout) : normalBottomY;
-    const llTimelineLength = Math.max(MESSAGE_BAND_H * 0.5, endY - headBottomY);
+    // G-c: a manual length stretches the timeline past the last message. Ignored
+    // for destroyed lifelines, whose timeline ends at the destroy occurrence.
+    const isManualTimeline = destroySlot === undefined && ll.manualTimelineLength !== undefined;
+    const llTimelineLength = isManualTimeline
+      ? Math.max(MESSAGE_BAND_H * 0.5, ll.manualTimelineLength!)
+      : Math.max(MESSAGE_BAND_H * 0.5, endY - headBottomY);
 
     const viewModel: LifelineViewModel = {
       __brand: 'lifeline',
@@ -310,6 +315,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       participantKind: participantKindFromIR(ll.participantKind),
       isExternal: ll.isExternal,
       timelineLength: llTimelineLength,
+      isManualTimeline,
       headWidth: LIFELINE_HEAD_W,
       headHeight: LIFELINE_HEAD_H,
       headTopOffset,

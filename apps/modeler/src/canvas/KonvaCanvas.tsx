@@ -877,6 +877,32 @@ export default function KonvaCanvas() {
     [shapes, activationOps],
   );
 
+  // ── Lifeline timeline: manual vertical length (G-c) ───────────────────────
+  // Dragging the foot handle pins manualTimelineLength; double-clicking it clears
+  // the override so the timeline goes back to its derived length.
+  const handleLifelineTimelineResizeEnd = useCallback(
+    (id: string, _width: number, newLength: number) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isLifelineViewModel(shapeEntry.data)) return;
+      activationOps().updateLifeline(shapeEntry.data.domainId, {
+        manualTimelineLength: Math.max(20, Math.round(newLength)),
+      });
+    },
+    [shapes, activationOps],
+  );
+
+  const handleLifelineTimelineReset = useCallback(
+    (id: string) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isLifelineViewModel(shapeEntry.data)) return;
+      if (!shapeEntry.data.isManualTimeline) return;
+      activationOps().updateLifeline(shapeEntry.data.domainId, {
+        manualTimelineLength: undefined,
+      });
+    },
+    [shapes, activationOps],
+  );
+
   // ── Combined fragments: movable + resizable container (G-a/G-b) ──────────
   // Dragging the box vertically pins manualTop and shifts every contained
   // message (manualY) by the same delta so the contents follow the container.
@@ -2571,9 +2597,12 @@ export default function KonvaCanvas() {
                     ? handleActivationResizeEnd
                     : isFragment
                     ? handleFragmentResizeEnd
+                    : isLifeline
+                    ? handleLifelineTimelineResizeEnd
                     : isUCModuleViewModel(vm)
                     ? handleUCModuleResizeEnd
                     : handleSystemBoundaryResizeEnd,
+                  onResetTimeline: isLifeline ? handleLifelineTimelineReset : undefined,
                   isDropTarget: hoveredPackageId === shape.id,
                 });
               })}

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Group, Rect, Line, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { LifelineViewModel } from '../../adapters/view-models/node.view-model';
@@ -7,6 +8,8 @@ const STROKE_W = 1.5;
 const NAME_FONT = 13;
 const STEREO_FONT = 10;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
+const FOOT_HANDLE_H = 8; // hit-area of the timeline foot resize grabber
+const MIN_TIMELINE_LEN = 20;
 
 function stereotypeFor(kind: LifelineViewModel['participantKind']): string | null {
   switch (kind) {
@@ -43,6 +46,10 @@ interface LifelineShapeProps {
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
   dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
+  /** (id, width, newTimelineLength) — fired when the foot handle is released (G-c). */
+  onResizeEnd?: (id: string, width: number, height: number) => void;
+  /** Clears the manual timeline length (foot-handle double-click). */
+  onResetTimeline?: (id: string) => void;
 }
 
 export default function LifelineShape({
@@ -60,6 +67,8 @@ export default function LifelineShape({
   onDragMove,
   onDragEnd,
   dragBoundFunc,
+  onResizeEnd,
+  onResetTimeline,
 }: LifelineShapeProps) {
   const colors = resolveLifelineColors();
   const W = vm.headWidth;
@@ -67,8 +76,13 @@ export default function LifelineShape({
   const top = vm.headTopOffset ?? 0;
   const lineX = W / 2;
   const timelineTop = top + headH;
-  const timelineBottom = timelineTop + vm.timelineLength;
+  // Live length while the foot handle is dragged; null = use the derived/manual length.
+  const [liveLength, setLiveLength] = useState<number | null>(null);
+  const timelineLength = liveLength ?? vm.timelineLength;
+  const timelineBottom = timelineTop + timelineLength;
   const stereotype = stereotypeFor(vm.participantKind);
+  // The foot handle is offered for live lifelines (a destroyed one ends at its ✕).
+  const showFootHandle = !!onResizeEnd && !vm.isDestroyed;
 
   return (
     <Group
@@ -160,11 +174,11 @@ export default function LifelineShape({
         />
       )}
 
-      {/* ── Dashed timeline going down ────────────────────────────────────── */}
+      {/* ── Dashed timeline going down (cyan when manually stretched) ──────── */}
       <Line
         points={[lineX, timelineTop, lineX, timelineBottom]}
-        stroke={colors.timeline}
-        strokeWidth={1}
+        stroke={vm.isManualTimeline ? '#22d3ee' : colors.timeline}
+        strokeWidth={vm.isManualTimeline ? 1.5 : 1}
         dash={[6, 4]}
         listening={false}
         perfectDrawEnabled={false}
@@ -188,6 +202,48 @@ export default function LifelineShape({
             perfectDrawEnabled={false}
           />
         </>
+      )}
+
+      {/* ── Timeline foot resize handle (G-c) — drag to stretch, dbl-click resets ─ */}
+      {showFootHandle && (
+        <Rect
+          x={lineX - 7}
+          y={timelineBottom - FOOT_HANDLE_H / 2}
+          width={14}
+          height={FOOT_HANDLE_H}
+          fill="transparent"
+          draggable
+          onMouseEnter={(e) => {
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'ns-resize';
+          }}
+          onMouseLeave={(e) => {
+            const stage = e.target.getStage();
+            if (stage) stage.container().style.cursor = 'default';
+          }}
+          dragBoundFunc={function (pos) {
+            // Lock X; the foot handle only moves vertically.
+            return { x: this.getAbsolutePosition().x, y: pos.y };
+          }}
+          onDragStart={(e) => { e.cancelBubble = true; }}
+          onDragMove={(e) => {
+            e.cancelBubble = true;
+            const next = Math.max(MIN_TIMELINE_LEN, e.target.y() + FOOT_HANDLE_H / 2 - timelineTop);
+            setLiveLength(next);
+          }}
+          onDragEnd={(e) => {
+            e.cancelBubble = true;
+            const next = Math.max(MIN_TIMELINE_LEN, e.target.y() + FOOT_HANDLE_H / 2 - timelineTop);
+            setLiveLength(null);
+            // Reset the transient handle position; geometry comes from the store.
+            e.target.position({ x: lineX - 7, y: timelineTop + vm.timelineLength - FOOT_HANDLE_H / 2 });
+            onResizeEnd?.(vm.id, W, next);
+          }}
+          onDblClick={(e) => {
+            e.cancelBubble = true;
+            onResetTimeline?.(vm.id);
+          }}
+        />
       )}
 
       {/* ── Selection outline ─────────────────────────────────────────────── */}

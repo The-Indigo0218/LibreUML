@@ -369,6 +369,15 @@ export interface IRLifeline extends IRElement {
   decomposedAs?: string;
   /** Display label of the referenced sub-interaction (falls back to its file name). */
   decomposedName?: string;
+  /**
+   * Hybrid layout override (G-c): manual vertical length of the lifeline's
+   * timeline, in px. By default the timeline length is derived from the message
+   * count; dragging the foot handle pins this value so the user can stretch the
+   * lifeline past the last message (EA/StarUML style). Ignored for destroyed
+   * lifelines (their timeline ends at the destroy occurrence). Double-clicking
+   * the foot handle clears it.
+   */
+  manualTimelineLength?: number;
 }
 
 export type MessageKind =

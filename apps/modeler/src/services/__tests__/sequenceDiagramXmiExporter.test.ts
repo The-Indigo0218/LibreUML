@@ -87,6 +87,34 @@ describe('buildSequenceDiagramXmi', () => {
     expect(xmi).toContain('<cfragmentGate xmi:id="g1" name="in"/>');
   });
 
+  it('serializes IGNORE/CONSIDER as a ConsiderIgnoreFragment with message refs + set comment', () => {
+    const login: IRMessage = {
+      id: 'mlogin', kind: 'MESSAGE', name: 'login', messageKind: 'SYNC',
+      sourceLifelineId: 'a', targetLifelineId: 'b', sequenceNumber: 1,
+    };
+    const frag: IRInteractionFragment = {
+      id: 'fr2', kind: 'FRAGMENT', name: 'ignore', fragmentKind: 'IGNORE',
+      coveredLifelineIds: ['a', 'b'],
+      operands: [{ id: 'op1', messageIds: [], fragmentIds: [] }],
+      messageSet: ['login', 'logout'],
+    };
+    const model = makeModel({
+      lifelines: { a: ll('a'), b: ll('b') },
+      messages: { mlogin: login },
+      interactionFragments: { fr2: frag },
+    });
+    const xmi = buildSequenceDiagramXmi(model, null, 'Seq');
+    expect(xmi).toContain('xmi:type="uml:ConsiderIgnoreFragment"');
+    expect(xmi).toContain('interactionOperator="ignore"');
+    // 'login' resolves to the message id; 'logout' has no message → not referenced.
+    expect(xmi).toContain('message="mlogin"');
+    // The literal set is preserved as a comment for round-trip fidelity.
+    expect(xmi).toContain('<body>{login, logout}</body>');
+    // Well-formed XML.
+    const doc = new DOMParser().parseFromString(xmi, 'application/xml');
+    expect(doc.getElementsByTagName('parsererror').length).toBe(0);
+  });
+
   it('serializes state invariants and interaction uses', () => {
     const si: IRStateInvariant = {
       id: 's1', kind: 'STATE_INVARIANT', name: 'ready', lifelineId: 'a', constraint: 'ready', afterSequenceNumber: 0,

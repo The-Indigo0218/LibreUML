@@ -126,10 +126,41 @@ function serializeCombinedFragment(
   frag: IRInteractionFragment,
   gates: IRGate[],
   coveredInScope: (id: string) => boolean,
+  messageIdByName?: Map<string, string>,
 ): string {
   const covered = frag.coveredLifelineIds.filter(coveredInScope).map(xmiId).join(' ');
-  const open = `    <fragment xmi:type="uml:CombinedFragment" xmi:id="${xmiId(frag.id)}" interactionOperator="${interactionOperator(frag.fragmentKind)}"${covered ? ` covered="${covered}"` : ''}>`;
+
+  // UML 2.5: IGNORE/CONSIDER carry a message set → ConsiderIgnoreFragment.
+  // `message` references the matching Messages by name; the literal set is also
+  // kept as an ownedComment so it survives a round-trip even when a name doesn't
+  // resolve to a message in this diagram.
+  const isConsiderIgnore =
+    (frag.fragmentKind === 'IGNORE' || frag.fragmentKind === 'CONSIDER') &&
+    !!frag.messageSet?.length;
+  const xmiType = isConsiderIgnore ? 'uml:ConsiderIgnoreFragment' : 'uml:CombinedFragment';
+  const messageRefs = isConsiderIgnore
+    ? (frag.messageSet ?? [])
+        .map((name) => messageIdByName?.get(name))
+        .filter((id): id is string => !!id)
+    : [];
+
+  const openAttrs = [
+    `xmi:type="${xmiType}"`,
+    `xmi:id="${xmiId(frag.id)}"`,
+    `interactionOperator="${interactionOperator(frag.fragmentKind)}"`,
+    covered ? `covered="${covered}"` : '',
+    messageRefs.length ? `message="${messageRefs.join(' ')}"` : '',
+  ].filter(Boolean).join(' ');
+  const open = `    <fragment ${openAttrs}>`;
   const lines: string[] = [open];
+
+  if (isConsiderIgnore) {
+    lines.push(
+      `      <ownedComment xmi:type="uml:Comment" xmi:id="${xmiId(frag.id)}_set">`,
+      `        <body>{${esc((frag.messageSet ?? []).join(', '))}}</body>`,
+      `      </ownedComment>`,
+    );
+  }
 
   for (const gate of gates) {
     lines.push(`      <cfragmentGate xmi:id="${xmiId(gate.id)}" name="${esc(gate.name || '')}"/>`);
@@ -313,9 +344,15 @@ export function buildSequenceDiagramXmi(
     return end === 'SEND' ? ends.sendEvent : ends.receiveEvent;
   };
 
+  // Name → message id, for ConsiderIgnoreFragment.message references.
+  const messageIdByName = new Map<string, string>();
+  for (const msg of messages) {
+    if (msg.name) messageIdByName.set(msg.name, xmiId(msg.id));
+  }
+
   // Combined fragments (with their gates + operands).
   for (const frag of fragments) {
-    lines.push(serializeCombinedFragment(frag, gatesByFragment.get(frag.id) ?? [], (id) => lifelineIds.has(id)));
+    lines.push(serializeCombinedFragment(frag, gatesByFragment.get(frag.id) ?? [], (id) => lifelineIds.has(id), messageIdByName));
   }
 
   // State invariants + interaction uses.

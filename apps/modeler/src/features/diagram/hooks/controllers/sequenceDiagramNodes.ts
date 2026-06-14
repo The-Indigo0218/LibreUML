@@ -750,8 +750,9 @@ function buildFragmentNodes(
       // Horizontal bounds shared with gate placement (keeps edges aligned).
       const bounds = fragmentHorizontalBounds(frag.coveredLifelineIds, lifelineCenterX);
       if (!bounds) return null;
-      const { left, right } = bounds;
-      const width = right - left;
+      let left = bounds.left;
+      const { right } = bounds;
+      let width = right - left;
 
       // Y bounds: derived from the messages contained in any operand.
       const allMsgIds = frag.operands.flatMap((op) => op.messageIds);
@@ -770,7 +771,18 @@ function buildFragmentNodes(
         top = LIFELINE_HEAD_H + TIMELINE_TOP_PAD;
         bottom = top + FRAGMENT_MIN_H;
       }
-      const height = Math.max(FRAGMENT_MIN_H, bottom - top);
+      let height = Math.max(FRAGMENT_MIN_H, bottom - top);
+
+      // Hybrid overrides (G-a/G-b): a moved/resized fragment pins its own box.
+      if (frag.manualLeft !== undefined) left = frag.manualLeft;
+      if (frag.manualWidth !== undefined) width = frag.manualWidth;
+      if (frag.manualTop !== undefined) top = frag.manualTop;
+      if (frag.manualHeight !== undefined) height = frag.manualHeight;
+      const isManual =
+        frag.manualLeft !== undefined ||
+        frag.manualTop !== undefined ||
+        frag.manualWidth !== undefined ||
+        frag.manualHeight !== undefined;
 
       // Operand yOffsets: first = 0; rest distributed by message count.
       const operandVMs: FragmentOperandVM[] = (() => {
@@ -796,6 +808,7 @@ function buildFragmentNodes(
         height,
         operands: operandVMs,
         nestingDepth: depthFor(frag),
+        isManual,
       };
 
       return {

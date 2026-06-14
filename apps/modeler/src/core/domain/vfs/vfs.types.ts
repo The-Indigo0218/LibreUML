@@ -518,6 +518,18 @@ export interface IRInteractionFragment extends IRElement {
   /** Operands. ALT supports many; OPT/LOOP/PAR support one. */
   operands: IRInteractionOperand[];
   parentFragmentId?: string;
+  /**
+   * Hybrid layout overrides (G-a/G-b): by default the box is derived (X from the
+   * covered lifelines, Y from the span of the messages it contains). When any of
+   * these are set the builder uses them instead, letting the user move the
+   * container vertically and resize its width/height like in EA/StarUML. Dragging
+   * the box vertically also shifts the contained messages (`manualY`) so the
+   * contents follow the container; the inline panel's reset clears all four.
+   */
+  manualLeft?: number;
+  manualTop?: number;
+  manualWidth?: number;
+  manualHeight?: number;
 }
 
 /**

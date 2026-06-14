@@ -823,6 +823,59 @@ export default function KonvaCanvas() {
     [shapes, activationOps],
   );
 
+  // ── Combined fragments: movable + resizable container (G-a/G-b) ──────────
+  // Dragging the box vertically pins manualTop and shifts every contained
+  // message (manualY) by the same delta so the contents follow the container.
+  // Resizing pins manualWidth/manualHeight. Reset lives in the inline panel.
+  const handleFragmentDragEnd = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      const node = e.target;
+      const shapeEntry = shapes.find((s) => s.id === node.id());
+      if (!shapeEntry || !isFragmentViewModel(shapeEntry.data)) return;
+      const vm = shapeEntry.data;
+      const delta = Math.round(node.y() - shapeEntry.y);
+
+      const ops = vfsController.isStandalone && activeTabId ? standaloneModelOps(activeTabId) : useModelStore.getState();
+      // Pin the whole box so it stays put even with no/empty contents.
+      ops.updateFragment(vm.domainId, {
+        manualLeft: Math.round(shapeEntry.x),
+        manualTop: Math.round(node.y()),
+        manualWidth: Math.round(vm.width),
+        manualHeight: Math.round(vm.height),
+      });
+
+      // Shift the contained messages so they obey the container's movement.
+      if (delta !== 0) {
+        const fragModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+        const frag = fragModel?.interactionFragments?.[vm.domainId];
+        const msgIds = frag ? frag.operands.flatMap((op) => op.messageIds) : [];
+        for (const mid of msgIds) {
+          const msgShape = shapes.find((s) => isMessageViewModel(s.data) && s.data.domainId === mid);
+          if (msgShape) ops.updateMessage(mid, { manualY: Math.round(msgShape.y + delta) });
+        }
+      }
+
+      node.position({ x: shapeEntry.x, y: shapeEntry.y });
+    },
+    [shapes, vfsController.isStandalone, vfsController.localModel, activeTabId],
+  );
+
+  const handleFragmentResizeEnd = useCallback(
+    (id: string, newWidth: number, newHeight: number) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isFragmentViewModel(shapeEntry.data)) return;
+      const vm = shapeEntry.data;
+      const ops = vfsController.isStandalone && activeTabId ? standaloneModelOps(activeTabId) : useModelStore.getState();
+      ops.updateFragment(vm.domainId, {
+        manualLeft: Math.round(shapeEntry.x),
+        manualTop: Math.round(shapeEntry.y),
+        manualWidth: Math.max(60, Math.round(newWidth)),
+        manualHeight: Math.max(36, Math.round(newHeight)),
+      });
+    },
+    [shapes, vfsController.isStandalone, activeTabId],
+  );
+
   const handleToggleCollapse = useCallback(
     (packageId: string) => {
       const shape = shapes.find((s) => s.id === packageId);
@@ -2391,6 +2444,7 @@ export default function KonvaCanvas() {
                 const isMsg = isMessageViewModel(vm);
                 const isLifeline = isLifelineViewModel(vm);
                 const isActivation = isActivationViewModel(vm);
+                const isFragment = isFragmentViewModel(vm);
                 const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm) || isContinuationViewModel(vm);
                 // General orderings, timing constraints and coregions have
                 // fully-derived geometry (anchored to occurrences) → not draggable.
@@ -2398,9 +2452,10 @@ export default function KonvaCanvas() {
                   isGeneralOrderingViewModel(vm) ||
                   isTimeConstraintViewModel(vm) ||
                   isCoregionViewModel(vm);
-                // Vertical-only, store-backed drag: messages, activations, and
-                // the slot-anchored derived elements all lock X and persist Y.
-                const isVerticalDrag = isMsg || isDerived || isActivation;
+                // Vertical-only, store-backed drag: messages, activations, the
+                // slot-anchored derived elements, and movable fragment containers
+                // all lock X and persist Y.
+                const isVerticalDrag = isMsg || isDerived || isActivation || isFragment;
                 // Strong highlight: while connecting, dim nodes that are illegal
                 // targets for the active relation so legal ones stand out.
                 const connectDimmed = connectionDraw.candidateValidity?.get(shape.id) === false;
@@ -2420,6 +2475,8 @@ export default function KonvaCanvas() {
                     ? handleDerivedDragEnd
                     : isActivation
                     ? handleActivationDragEnd
+                    : isFragment
+                    ? handleFragmentDragEnd
                     : handleDragEnd,
                   dragBoundFunc: isVerticalDrag
                     ? (p: { x: number; y: number }) => ({ x: pos.x, y: p.y })
@@ -2438,6 +2495,8 @@ export default function KonvaCanvas() {
                   onMouseLeave: handleUseCaseMouseLeave,
                   onResizeEnd: isActivation
                     ? handleActivationResizeEnd
+                    : isFragment
+                    ? handleFragmentResizeEnd
                     : isUCModuleViewModel(vm)
                     ? handleUCModuleResizeEnd
                     : handleSystemBoundaryResizeEnd,

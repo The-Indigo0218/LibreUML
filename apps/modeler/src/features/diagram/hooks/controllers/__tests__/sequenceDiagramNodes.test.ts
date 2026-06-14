@@ -354,6 +354,45 @@ describe('buildSequenceDiagramNodes', () => {
     }
   });
 
+  it('honors manual layout overrides on a fragment (G-a/G-b)', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const msg = makeMessage('m1', 'll1', 'll2', 1);
+    const frag: IRInteractionFragment = {
+      id: 'f1',
+      kind: 'FRAGMENT',
+      name: 'opt-1',
+      fragmentKind: 'OPT',
+      coveredLifelineIds: ['ll1', 'll2'],
+      operands: [{ id: 'op1', messageIds: ['m1'], fragmentIds: [] }],
+      manualLeft: 12,
+      manualTop: 345,
+      manualWidth: 222,
+      manualHeight: 88,
+    };
+    const model = makeModel({
+      lifelines: { ll1, ll2 },
+      messages: { m1: msg },
+      interactionFragments: { f1: frag },
+    });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const fragNode = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlFragment');
+    expect(fragNode).toBeDefined();
+    expect(fragNode!.position).toEqual({ x: 12, y: 345 });
+    if (fragNode && isFragmentViewModel(fragNode.data)) {
+      expect(fragNode.data.width).toBe(222);
+      expect(fragNode.data.height).toBe(88);
+      expect(fragNode.data.isManual).toBe(true);
+    }
+  });
+
   it('skips fragments whose covered lifelines are all absent from the diagram', () => {
     const ll1 = makeLifeline('ll1');
     const frag: IRInteractionFragment = {

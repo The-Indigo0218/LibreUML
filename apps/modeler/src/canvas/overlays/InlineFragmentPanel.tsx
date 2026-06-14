@@ -15,7 +15,7 @@
 
 import { useTranslation } from 'react-i18next';
 import { useDismissOnOutsideClick } from '../../hooks/useDismissOnOutsideClick';
-import { X, Settings2 } from 'lucide-react';
+import { X, Settings2, RotateCcw } from 'lucide-react';
 import { useModelStore } from '../../store/model.store';
 import { useVFSStore } from '../../store/project-vfs.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
@@ -72,6 +72,25 @@ export default function InlineFragmentPanel({ elementId, onAdvanced, onClose }: 
   const setKind = (kind: IRInteractionFragment['fragmentKind']) =>
     ops.updateFragment(elementId, { fragmentKind: kind });
 
+  const isManual =
+    fragment.manualLeft !== undefined ||
+    fragment.manualTop !== undefined ||
+    fragment.manualWidth !== undefined ||
+    fragment.manualHeight !== undefined;
+
+  // Hybrid reset: clear the box overrides AND release the contained messages'
+  // manual-Y so the whole container snaps back to the auto layout.
+  const resetLayout = () => {
+    ops.updateFragment(elementId, {
+      manualLeft: undefined,
+      manualTop: undefined,
+      manualWidth: undefined,
+      manualHeight: undefined,
+    });
+    const msgIds = readOperands().flatMap((o) => o.messageIds);
+    for (const mid of msgIds) ops.updateMessage(mid, { manualY: undefined });
+  };
+
   const fieldCls =
     'bg-surface-secondary border border-surface-border rounded px-1.5 py-1 text-xs text-text-primary outline-none focus:border-indigo-500 font-mono';
 
@@ -118,7 +137,18 @@ export default function InlineFragmentPanel({ elementId, onAdvanced, onClose }: 
           ))}
         </section>
 
-        <div className="border-t border-surface-border/50 pt-3">
+        <div className="border-t border-surface-border/50 pt-3 flex items-center gap-2">
+          {/* Hybrid layout (G-a/G-b): clear the box override → back to auto. */}
+          {isManual && (
+            <button
+              onClick={resetLayout}
+              title={t('inlineFragmentPanel.resetLayout')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-surface-border bg-surface-secondary text-xs text-cyan-400 hover:border-cyan-500 transition-all"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {t('inlineFragmentPanel.resetLayout')}
+            </button>
+          )}
           <button
             onClick={onAdvanced}
             title={t('inlineFragmentPanel.advanced')}

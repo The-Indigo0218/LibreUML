@@ -221,6 +221,8 @@ export interface FragmentViewModel {
   height: number;
   operands: FragmentOperandVM[];
   nestingDepth: number;
+  /** True when any manual layout override is active → draw the cyan stroke. */
+  isManual?: boolean;
 }
 
 export interface StateInvariantViewModel {

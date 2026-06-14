@@ -1130,6 +1130,7 @@
     "kind": "Kind",
     "operands": "Operands",
     "guard": "Guard",
+    "resetLayout": "Reset layout",
     "advanced": "Advanced…",
     "close": "Close"
   },

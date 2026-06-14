@@ -133,7 +133,7 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
     return <ActivationShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isFragmentViewModel(vm))
-    return <FragmentShape key={key} viewModel={vm} {...common} />;
+    return <FragmentShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isStateInvariantViewModel(vm))
     return <StateInvariantShape key={key} viewModel={vm} {...common} />;

@@ -1139,6 +1139,7 @@
     "kind": "Tipo",
     "operands": "Operandos",
     "guard": "Guarda",
+    "resetLayout": "Restablecer disposición",
     "advanced": "Avanzado…",
     "close": "Cerrar"
   },

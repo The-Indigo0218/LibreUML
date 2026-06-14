@@ -20,6 +20,7 @@ import {
   isGateViewModel,
   isGeneralOrderingViewModel,
   isTimeConstraintViewModel,
+  isCoregionViewModel,
 } from '../adapters/view-models/node.view-model';
 import ClassShape, { getClassShapeSize } from './shapes/ClassShape';
 import NoteShape, { getNoteShapeSize } from './shapes/NoteShape';
@@ -37,6 +38,7 @@ import InteractionUseShape, { getInteractionUseShapeSize } from './shapes/Intera
 import GateShape, { getGateShapeSize } from './shapes/GateShape';
 import GeneralOrderingShape, { getGeneralOrderingShapeSize } from './shapes/GeneralOrderingShape';
 import TimeConstraintShape, { getTimeConstraintShapeSize } from './shapes/TimeConstraintShape';
+import CoregionShape, { getCoregionShapeSize } from './shapes/CoregionShape';
 
 export interface NodeShapeRenderProps {
   key: string;
@@ -75,6 +77,7 @@ export function getShapeSize(vm: AnyNodeViewModel): { width: number; height: num
   if (isGateViewModel(vm))           return getGateShapeSize(vm);
   if (isGeneralOrderingViewModel(vm)) return getGeneralOrderingShapeSize(vm);
   if (isTimeConstraintViewModel(vm)) return getTimeConstraintShapeSize(vm);
+  if (isCoregionViewModel(vm))       return getCoregionShapeSize(vm);
   return getClassShapeSize(vm as NodeViewModel);
 }
 
@@ -143,6 +146,9 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
 
   if (isTimeConstraintViewModel(vm))
     return <TimeConstraintShape key={key} viewModel={vm} {...common} />;
+
+  if (isCoregionViewModel(vm))
+    return <CoregionShape key={key} viewModel={vm} {...common} />;
 
   return <ClassShape key={key} viewModel={vm as NodeViewModel} {...common} />;
 }

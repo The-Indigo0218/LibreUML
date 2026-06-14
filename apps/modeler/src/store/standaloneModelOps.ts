@@ -38,6 +38,7 @@ import type {
   IRGate,
   IRGeneralOrdering,
   IRTimeConstraint,
+  IRCoregion,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -91,6 +92,13 @@ function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: strin
     for (const sid of Object.keys(model.stateInvariants)) {
       if (model.stateInvariants[sid].lifelineId === lifelineId) {
         delete model.stateInvariants[sid];
+      }
+    }
+  }
+  if (model.coregions) {
+    for (const cid of Object.keys(model.coregions)) {
+      if (model.coregions[cid].lifelineId === lifelineId) {
+        delete model.coregions[cid];
       }
     }
   }
@@ -812,6 +820,34 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         if (!m.timeConstraints?.[id]) return;
         delete m.timeConstraints[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Coregions (UML 2.5 §17.4) ─────────────────────────────────────────────
+
+    createCoregion: (data: Omit<IRCoregion, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.coregions = m.coregions ?? {};
+        m.coregions[id] = { ...data, id, kind: 'COREGION' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateCoregion: (id: string, patch: Partial<IRCoregion>) => {
+      update((m) => {
+        if (!m.coregions?.[id]) return;
+        m.coregions[id] = { ...m.coregions[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteCoregion: (id: string) => {
+      update((m) => {
+        if (!m.coregions?.[id]) return;
+        delete m.coregions[id];
         m.updatedAt = Date.now();
       });
     },

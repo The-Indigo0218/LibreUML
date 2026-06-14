@@ -223,3 +223,33 @@ export function insertTimeConstraintIntoActiveDiagram(variant: 'duration' | 'tim
 
   useUiStore.getState().openTimeConstraintProps(newId);
 }
+
+/**
+ * Inserts a coregion (UML 2.5 §17.4) bracketing the first lifeline over the full
+ * message span, then opens its properties. Requires at least one lifeline.
+ */
+export function insertCoregionIntoActiveDiagram(lifelineId?: string): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+
+  const target = lifelineId ?? lifelineIds[0];
+  if (!target || !activeModel.lifelines?.[target]) {
+    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar una coregión');
+    return;
+  }
+
+  const messageCount = Object.keys(activeModel.messages ?? {}).length;
+  const payload = {
+    name: '',
+    lifelineId: target,
+    fromSequence: 0,
+    toSequence: messageCount,
+  };
+
+  const newId = isStandaloneFile
+    ? standaloneModelOps(tabId).createCoregion(payload)
+    : useModelStore.getState().createCoregion(payload);
+
+  useUiStore.getState().openCoregionProps(newId);
+}

@@ -14,6 +14,7 @@ import type {
   IRGate,
   IRGeneralOrdering,
   IRTimeConstraint,
+  IRCoregion,
 } from '../domain/vfs/vfs.types';
 import { MULTI_OPERAND_FRAGMENT_KINDS } from '../domain/vfs/vfs.types';
 
@@ -334,6 +335,28 @@ export class SequenceDiagramValidator implements BaseValidator {
     }
     if (!tc.expression || tc.expression.trim() === '') {
       warnings.push('Timing constraint has no expression');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
+  /**
+   * Sequence-diagram-specific coregion validation (UML 2.5 §17.4). Error when the
+   * bracketed lifeline is missing; warning when the span is empty (from === to).
+   */
+  validateCoregion(coregion: IRCoregion, model: SemanticModel): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!model.lifelines?.[coregion.lifelineId]) {
+      errors.push(`Coregion references missing lifeline "${coregion.lifelineId}"`);
+    }
+    if (coregion.fromSequence === coregion.toSequence) {
+      warnings.push('Coregion spans no message occurrences');
     }
 
     return {

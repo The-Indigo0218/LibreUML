@@ -18,6 +18,7 @@ import type {
   IRGate,
   IRGeneralOrdering,
   IRTimeConstraint,
+  IRCoregion,
 } from '../../../../../core/domain/vfs/vfs.types';
 import type { NodeBuilderContext } from '../sharedNodeBuilders';
 import {
@@ -30,6 +31,7 @@ import {
   isGateViewModel,
   isGeneralOrderingViewModel,
   isTimeConstraintViewModel,
+  isCoregionViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function makeModel(overrides: Partial<SemanticModel> = {}): SemanticModel {
@@ -1146,6 +1148,55 @@ describe('buildSequenceDiagramNodes — time/duration constraints', () => {
       timeConstraints: { tc1: makeTimeConstraint('tc1', 'DURATION', 'm1') }, // no toMessageId
     });
     const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlTimeConstraint');
+    expect(node).toBeUndefined();
+  });
+});
+
+function makeCoregion(
+  id: string,
+  lifelineId: string,
+  fromSequence: number,
+  toSequence: number,
+): IRCoregion {
+  return { id, kind: 'COREGION', name: '', lifelineId, fromSequence, toSequence };
+}
+
+describe('buildSequenceDiagramNodes — coregions', () => {
+  const view: DiagramView = {
+    diagramId: 'd1',
+    nodes: [
+      { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+      { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+    ],
+    edges: [],
+  };
+
+  it('emits a coregion centred on its lifeline spanning two boundaries', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      messages: {
+        m1: makeMessage('m1', 'll1', 'll2', 1),
+        m2: makeMessage('m2', 'll1', 'll2', 2),
+      },
+      coregions: { cr1: makeCoregion('cr1', 'll1', 0, 2) },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlCoregion');
+    expect(node).toBeDefined();
+    expect(node && isCoregionViewModel(node.data)).toBe(true);
+    if (node && isCoregionViewModel(node.data)) {
+      const ll1CenterX = 50 + 70;
+      expect(node.position.x).toBeCloseTo(ll1CenterX - node.data.width / 2, 0);
+      expect(node.position.y).toBeCloseTo(stateInvariantSlotY(0), 0);
+      expect(node.data.height).toBeCloseTo(stateInvariantSlotY(2) - stateInvariantSlotY(0), 0);
+    }
+  });
+
+  it('omits a coregion whose lifeline is not on the canvas', () => {
+    const model = makeModel({
+      lifelines: { ll1: makeLifeline('ll1'), ll2: makeLifeline('ll2') },
+      coregions: { cr1: makeCoregion('cr1', 'ghost', 0, 1) },
+    });
+    const node = buildSequenceDiagramNodes(makeCtx(model, view)).find((n) => n.type === 'umlCoregion');
     expect(node).toBeUndefined();
   });
 });

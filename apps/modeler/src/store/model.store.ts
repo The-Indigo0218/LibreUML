@@ -24,6 +24,7 @@ import type {
   IRGate,
   IRGeneralOrdering,
   IRTimeConstraint,
+  IRCoregion,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -93,6 +94,14 @@ function cascadeDeleteMessages(model: SemanticModel, lifelineId: string) {
     Object.keys(model.stateInvariants).forEach((sid) => {
       if (model.stateInvariants![sid].lifelineId === lifelineId) {
         delete model.stateInvariants![sid];
+      }
+    });
+  }
+  // Coregions bracket a single lifeline → drop with it.
+  if (model.coregions) {
+    Object.keys(model.coregions).forEach((cid) => {
+      if (model.coregions![cid].lifelineId === lifelineId) {
+        delete model.coregions![cid];
       }
     });
   }
@@ -301,6 +310,10 @@ interface ModelStoreState {
   updateTimeConstraint: (id: string, patch: Partial<IRTimeConstraint>) => void;
   deleteTimeConstraint: (id: string) => void;
 
+  createCoregion: (data: Omit<IRCoregion, 'id' | 'kind'>) => string;
+  updateCoregion: (id: string, patch: Partial<IRCoregion>) => void;
+  deleteCoregion: (id: string) => void;
+
   createRelation: (data: Omit<IRRelation, 'id'>) => string;
   updateRelation: (id: string, patch: Partial<Omit<IRRelation, 'id'>>) => void;
   deleteRelation: (id: string) => void;
@@ -356,6 +369,7 @@ export const useModelStore = create<ModelStoreState>()(
           gates: {},
           generalOrderings: {},
           timeConstraints: {},
+          coregions: {},
           relations: {},
           packageNames: [],
           createdAt: now,
@@ -939,6 +953,33 @@ export const useModelStore = create<ModelStoreState>()(
       withUndo('model', 'Delete Time Constraint', 'global', (draft) => {
         if (!draft.model?.timeConstraints?.[id]) return;
         delete draft.model.timeConstraints[id];
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createCoregion: (data) => {
+      const id = newId();
+      withUndo('model', 'Create Coregion', 'global', (draft) => {
+        if (!draft.model) return;
+        draft.model.coregions = draft.model.coregions ?? {};
+        draft.model.coregions[id] = { ...data, id, kind: 'COREGION' };
+        draft.model.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateCoregion: (id, patch) => {
+      withUndo('model', 'Update Coregion', 'global', (draft) => {
+        if (!draft.model?.coregions?.[id]) return;
+        draft.model.coregions[id] = { ...draft.model.coregions[id], ...patch };
+        draft.model.updatedAt = Date.now();
+      });
+    },
+
+    deleteCoregion: (id) => {
+      withUndo('model', 'Delete Coregion', 'global', (draft) => {
+        if (!draft.model?.coregions?.[id]) return;
+        delete draft.model.coregions[id];
         draft.model.updatedAt = Date.now();
       });
     },

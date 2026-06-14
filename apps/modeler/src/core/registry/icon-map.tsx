@@ -37,6 +37,10 @@ import {
   LogIn,
   LogOut,
   Frame,
+  ArrowDownUp,
+  Timer,
+  Clock,
+  Brackets,
 } from "lucide-react";
 
 /**
@@ -82,6 +86,10 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   LogIn,
   LogOut,
   Frame,
+  ArrowDownUp,
+  Timer,
+  Clock,
+  Brackets,
 };
 
 /**

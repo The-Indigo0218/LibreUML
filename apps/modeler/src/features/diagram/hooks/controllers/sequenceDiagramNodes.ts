@@ -22,6 +22,7 @@ import type {
   GateViewModel,
   GeneralOrderingViewModel,
   TimeConstraintViewModel,
+  CoregionViewModel,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -634,6 +635,38 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     })
     .filter(<T>(n: T | null): n is T => n !== null);
 
+  // 5f. Emit Coregions (UML 2.5 §17.4) — square brackets `[ ]` over a vertical
+  //     span of ONE lifeline marking an unordered region. Slot-anchored like
+  //     state invariants; fully derived geometry (not draggable).
+  const COREGION_W = 18;
+  const COREGION_MIN_H = MESSAGE_BAND_H * 0.7;
+  const coregionNodes = Object.values(model.coregions ?? {})
+    .filter((cr) => lifelineCenterX.has(cr.lifelineId))
+    .map((cr) => {
+      const centerX = lifelineCenterX.get(cr.lifelineId)!;
+      const lo = Math.max(0, Math.min(allMessages.length, Math.min(cr.fromSequence, cr.toSequence)));
+      const hi = Math.max(0, Math.min(allMessages.length, Math.max(cr.fromSequence, cr.toSequence)));
+      const topY = stateInvariantSlotY(lo, slotLayout);
+      const rawBottomY = stateInvariantSlotY(hi, slotLayout);
+      const height = Math.max(COREGION_MIN_H, rawBottomY - topY);
+
+      const viewModel: CoregionViewModel = {
+        __brand: 'coregion',
+        id: cr.id,
+        domainId: cr.id,
+        width: COREGION_W,
+        height,
+      };
+
+      return {
+        id: `cr-${cr.id}`,
+        type: 'umlCoregion',
+        position: { x: centerX - COREGION_W / 2, y: topY },
+        data: viewModel,
+        domainId: cr.id,
+      };
+    });
+
   // 6. Emit Notes (reuse existing makeNoteNode helper).
   const noteNodes = noteViewNodes.map((vn) =>
     makeNoteNode(vn, handleNoteUpdate, diagramView.nodes),
@@ -662,6 +695,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     ...fragmentNodes,
     ...interactionUseNodes,
     ...lifelineNodes,
+    ...coregionNodes,
     ...activationNodes,
     ...messageNodes,
     ...stateInvariantNodes,

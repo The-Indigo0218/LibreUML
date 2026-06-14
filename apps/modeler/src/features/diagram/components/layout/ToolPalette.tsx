@@ -19,6 +19,7 @@ import {
   insertEndpointMessageIntoActiveDiagram,
   insertGeneralOrderingIntoActiveDiagram,
   insertTimeConstraintIntoActiveDiagram,
+  insertCoregionIntoActiveDiagram,
 } from "../../services/sequenceInserts";
 
 export default function ToolPalette() {
@@ -93,6 +94,7 @@ export default function ToolPalette() {
     else if (id === 'gen-ordering') insertGeneralOrderingIntoActiveDiagram();
     else if (id === 'duration') insertTimeConstraintIntoActiveDiagram('duration');
     else if (id === 'time') insertTimeConstraintIntoActiveDiagram('time');
+    else if (id === 'coregion') insertCoregionIntoActiveDiagram();
   };
 
   const setTabConnectionMode = useWorkspaceStore((s) => s.setTabConnectionMode);

@@ -69,6 +69,7 @@ import InteractionUsePropertiesModal from '../features/diagram/components/modals
 import GatePropertiesModal from '../features/diagram/components/modals/GatePropertiesModal';
 import GeneralOrderingPropertiesModal from '../features/diagram/components/modals/GeneralOrderingPropertiesModal';
 import TimeConstraintPropertiesModal from '../features/diagram/components/modals/TimeConstraintPropertiesModal';
+import CoregionPropertiesModal from '../features/diagram/components/modals/CoregionPropertiesModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -103,6 +104,7 @@ import {
   isGateViewModel,
   isGeneralOrderingViewModel,
   isTimeConstraintViewModel,
+  isCoregionViewModel,
   type AnyNodeViewModel,
   type NodeViewModel,
   type PackageViewModel,
@@ -2350,6 +2352,8 @@ export default function KonvaCanvas() {
                   ? () => useUiStore.getState().openGeneralOrderingProps(vm.domainId)
                   : isTimeConstraintViewModel(vm)
                   ? () => useUiStore.getState().openTimeConstraintProps(vm.domainId)
+                  : isCoregionViewModel(vm)
+                  ? () => useUiStore.getState().openCoregionProps(vm.domainId)
                   : isActivationViewModel(vm)
                   ? () => handleActivationResetOverride(shape.id)
                   : isNodeViewModel(vm)
@@ -2368,9 +2372,12 @@ export default function KonvaCanvas() {
                 const isLifeline = isLifelineViewModel(vm);
                 const isActivation = isActivationViewModel(vm);
                 const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm);
-                // General orderings and timing constraints have fully-derived
-                // geometry (anchored to message occurrences) → not draggable.
-                const isGeneralOrdering = isGeneralOrderingViewModel(vm) || isTimeConstraintViewModel(vm);
+                // General orderings, timing constraints and coregions have
+                // fully-derived geometry (anchored to occurrences) → not draggable.
+                const isGeneralOrdering =
+                  isGeneralOrderingViewModel(vm) ||
+                  isTimeConstraintViewModel(vm) ||
+                  isCoregionViewModel(vm);
                 // Vertical-only, store-backed drag: messages, activations, and
                 // the slot-anchored derived elements all lock X and persist Y.
                 const isVerticalDrag = isMsg || isDerived || isActivation;
@@ -2756,6 +2763,7 @@ export default function KonvaCanvas() {
       <GatePropertiesModal />
       <GeneralOrderingPropertiesModal />
       <TimeConstraintPropertiesModal />
+      <CoregionPropertiesModal />
     </div>
   );
 }

@@ -281,6 +281,16 @@ export interface TimeConstraintViewModel {
   height: number;
 }
 
+export interface CoregionViewModel {
+  __brand: 'coregion';
+  id: string;
+  domainId: string;
+  /** Bracket width (lifeline-centred). */
+  width: number;
+  /** Vertical span between the top and bottom brackets. */
+  height: number;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -298,7 +308,8 @@ export type AnyNodeViewModel =
   | InteractionUseViewModel
   | GateViewModel
   | GeneralOrderingViewModel
-  | TimeConstraintViewModel;
+  | TimeConstraintViewModel
+  | CoregionViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -367,4 +378,8 @@ export function isGeneralOrderingViewModel(vm: AnyNodeViewModel): vm is GeneralO
 
 export function isTimeConstraintViewModel(vm: AnyNodeViewModel): vm is TimeConstraintViewModel {
   return '__brand' in vm && vm.__brand === 'timeConstraint';
+}
+
+export function isCoregionViewModel(vm: AnyNodeViewModel): vm is CoregionViewModel {
+  return '__brand' in vm && vm.__brand === 'coregion';
 }

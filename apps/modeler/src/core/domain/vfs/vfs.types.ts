@@ -585,6 +585,22 @@ export interface IRTimeConstraint extends IRElement {
   expression: string;
 }
 
+/**
+ * UML 2.5 §17.4 Coregion — a section of a single lifeline whose contained event
+ * occurrences are NOT ordered (they may happen in any order). Drawn as square
+ * brackets `[ ]` bracketing a vertical span of the lifeline. Lighter-weight than
+ * a full PAR fragment when concurrency is local to one participant.
+ */
+export interface IRCoregion extends IRElement {
+  kind: 'COREGION';
+  /** The single lifeline this coregion brackets. */
+  lifelineId: string;
+  /** Top boundary in message-slot units (0 = top of the timeline). */
+  fromSequence: number;
+  /** Bottom boundary in message-slot units. */
+  toSequence: number;
+}
+
 export type RelationKind =
   | 'ASSOCIATION'
   | 'AGGREGATION'
@@ -658,6 +674,7 @@ export interface SemanticModel {
   gates?: Record<string, IRGate>;
   generalOrderings?: Record<string, IRGeneralOrdering>;
   timeConstraints?: Record<string, IRTimeConstraint>;
+  coregions?: Record<string, IRCoregion>;
   relations: Record<string, IRRelation>;
   createdAt: number;
   updatedAt: number;

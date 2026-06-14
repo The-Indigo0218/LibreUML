@@ -281,24 +281,9 @@ describe('buildSequenceDiagramNodes', () => {
     }
   });
 
-  it('honours a manual activation override (P3 hybrid layout)', () => {
+  it('derives activation geometry from its execution span (system-managed, grows with content)', () => {
     const ll1 = makeLifeline('ll1');
     const ll2 = makeLifeline('ll2');
-    const msg = makeMessage('m1', 'll1', 'll2', 1);
-    const activation: IRActivation = {
-      id: 'act1',
-      kind: 'ACTIVATION',
-      name: '',
-      lifelineId: 'll2',
-      startMessageId: 'm1',
-      manualTopY: 333,
-      manualHeight: 88,
-    };
-    const model = makeModel({
-      lifelines: { ll1, ll2 },
-      messages: { m1: msg },
-      activations: { act1: activation },
-    });
     const view: DiagramView = {
       diagramId: 'd1',
       nodes: [
@@ -307,13 +292,38 @@ describe('buildSequenceDiagramNodes', () => {
       ],
       edges: [],
     };
-    const result = buildSequenceDiagramNodes(makeCtx(model, view));
-    const node = result.find((n) => n.type === 'umlActivation');
-    expect(node).toBeDefined();
-    if (node && isActivationViewModel(node.data)) {
-      expect(node.position.y).toBe(333);   // manualTopY wins over derived Y
-      expect(node.data.height).toBe(88);   // manualHeight wins over derived height
-      expect(node.data.isManual).toBe(true);
+
+    // SHORT span: bar opens at m1 and closes at the next message (1 band).
+    const sm1 = makeMessage('m1', 'll1', 'll2', 1);
+    const sm2 = makeMessage('m2', 'll2', 'll1', 2);
+    const shortAct: IRActivation = {
+      id: 'act1', kind: 'ACTIVATION', name: '', lifelineId: 'll2', startMessageId: 'm1', endMessageId: 'm2',
+    };
+    const shortModel = makeModel({ lifelines: { ll1, ll2 }, messages: { m1: sm1, m2: sm2 }, activations: { act1: shortAct } });
+    const shortNode = buildSequenceDiagramNodes(makeCtx(shortModel, view)).find((n) => n.type === 'umlActivation');
+
+    // LONG span: same open, but closes three bands later (more nested content).
+    const lm1 = makeMessage('m1', 'll1', 'll2', 1);
+    const lm2 = makeMessage('m2', 'll1', 'll2', 2);
+    const lm3 = makeMessage('m3', 'll1', 'll2', 3);
+    const lm4 = makeMessage('m4', 'll2', 'll1', 4);
+    const longAct: IRActivation = {
+      id: 'act1', kind: 'ACTIVATION', name: '', lifelineId: 'll2', startMessageId: 'm1', endMessageId: 'm4',
+    };
+    const longModel = makeModel({ lifelines: { ll1, ll2 }, messages: { m1: lm1, m2: lm2, m3: lm3, m4: lm4 }, activations: { act1: longAct } });
+    const longResult = buildSequenceDiagramNodes(makeCtx(longModel, view));
+    const longNode = longResult.find((n) => n.type === 'umlActivation');
+
+    expect(shortNode).toBeDefined();
+    expect(longNode).toBeDefined();
+    if (shortNode && isActivationViewModel(shortNode.data) && longNode && isActivationViewModel(longNode.data)) {
+      // Top aligns with the start message (anchored, not free).
+      const startY = longResult.find((n) => n.type === 'umlMessage')!.position.y;
+      expect(longNode.position.y).toBeCloseTo(startY, 0);
+      // A bar spanning more messages is taller — height grows with content.
+      expect(longNode.data.height).toBeGreaterThan(shortNode.data.height);
+      // No manual-override flag exists anymore.
+      expect('isManual' in longNode.data).toBe(false);
     }
   });
 

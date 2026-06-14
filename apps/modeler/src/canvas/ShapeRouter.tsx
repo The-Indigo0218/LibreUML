@@ -138,7 +138,21 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
     return <MessageShape key={key} viewModel={vm} {...common} />;
 
   if (isActivationViewModel(vm))
-    return <ActivationShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
+    // Activations are system-managed (no drag/resize): pass only the props the
+    // lean shape uses rather than the full draggable `common` bundle.
+    return (
+      <ActivationShape
+        key={key}
+        viewModel={vm}
+        x={common.x}
+        y={common.y}
+        selected={common.selected}
+        opacity={common.opacity}
+        visible={common.visible}
+        onNodeClick={common.onNodeClick}
+        onContextMenu={common.onContextMenu}
+      />
+    );
 
   if (isFragmentViewModel(vm))
     return <FragmentShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;

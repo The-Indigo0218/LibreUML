@@ -824,57 +824,15 @@ export default function KonvaCanvas() {
     [shapes, vfsController.isStandalone, vfsController.localModel, activeTabId],
   );
 
-  // ── Activation bars: hybrid manual override (P3) ──────────────────────────
-  // Dragging the bar vertically pins its top Y (manualTopY); resizing the
-  // bottom handle pins its height. Double-click clears both → back to auto.
+  // ── Activation bars ───────────────────────────────────────────────────────
+  // Geometry is fully system-managed (anchored to the lifeline, derived height),
+  // so activations are neither draggable nor resizable. `activationOps` is the
+  // shared store accessor reused by the lifeline-timeline handlers below.
   const activationOps = useCallback(() =>
     vfsController.isStandalone && activeTabId
       ? standaloneModelOps(activeTabId)
       : useModelStore.getState(),
     [vfsController.isStandalone, activeTabId],
-  );
-
-  const handleActivationDragEnd = useCallback(
-    (e: KonvaEventObject<MouseEvent>) => {
-      const node = e.target;
-      const shapeEntry = shapes.find((s) => s.id === node.id());
-      if (!shapeEntry || !isActivationViewModel(shapeEntry.data)) return;
-      const vm = shapeEntry.data;
-      activationOps().updateActivation(vm.domainId, {
-        manualTopY: Math.round(node.y()),
-        manualHeight: Math.round(vm.height),
-      });
-      // Re-derive will reposition; reset the transient drag position.
-      node.position({ x: shapeEntry.x, y: shapeEntry.y });
-    },
-    [shapes, activationOps],
-  );
-
-  const handleActivationResizeEnd = useCallback(
-    (id: string, _width: number, newHeight: number) => {
-      const shapeEntry = shapes.find((s) => s.id === id);
-      if (!shapeEntry || !isActivationViewModel(shapeEntry.data)) return;
-      const vm = shapeEntry.data;
-      activationOps().updateActivation(vm.domainId, {
-        manualTopY: Math.round(shapeEntry.y),
-        manualHeight: Math.max(20, Math.round(newHeight)),
-      });
-    },
-    [shapes, activationOps],
-  );
-
-  const handleActivationResetOverride = useCallback(
-    (id: string) => {
-      const shapeEntry = shapes.find((s) => s.id === id);
-      if (!shapeEntry || !isActivationViewModel(shapeEntry.data)) return;
-      const vm = shapeEntry.data;
-      if (!vm.isManual) return;
-      activationOps().updateActivation(vm.domainId, {
-        manualTopY: undefined,
-        manualHeight: undefined,
-      });
-    },
-    [shapes, activationOps],
   );
 
   // ── Lifeline timeline: manual vertical length (G-c) ───────────────────────
@@ -2572,8 +2530,6 @@ export default function KonvaCanvas() {
                   ? () => useUiStore.getState().openCoregionProps(vm.domainId)
                   : isContinuationViewModel(vm)
                   ? () => useUiStore.getState().openContinuationProps(vm.domainId)
-                  : isActivationViewModel(vm)
-                  ? () => handleActivationResetOverride(shape.id)
                   : isNodeViewModel(vm)
                   ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
                   : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
@@ -2600,10 +2556,10 @@ export default function KonvaCanvas() {
                   isGeneralOrderingViewModel(vm) ||
                   isTimeConstraintViewModel(vm) ||
                   isCoregionViewModel(vm);
-                // Vertical-only, store-backed drag: messages, activations, the
-                // slot-anchored derived elements, and movable fragment containers
-                // all lock X and persist Y.
-                const isVerticalDrag = isMsg || isDerived || isActivation || isFragment;
+                // Vertical-only, store-backed drag: messages, the slot-anchored
+                // derived elements, and movable fragment containers lock X and
+                // persist Y. Activations are NOT draggable (system-managed).
+                const isVerticalDrag = isMsg || isDerived || isFragment;
                 // Strong highlight: while connecting, dim nodes that are illegal
                 // targets for the active relation so legal ones stand out.
                 const connectDimmed = connectionDraw.candidateValidity?.get(shape.id) === false;
@@ -2613,7 +2569,7 @@ export default function KonvaCanvas() {
                   y: pos.y,
                   selected: selectedIds.has(shape.id),
                   opacity: connectDimmed ? 0.3 : undefined,
-                  draggable: !isGeneralOrdering,
+                  draggable: !isGeneralOrdering && !isActivation,
                   visible: isVisible && !isDescendantOfCollapsed,
                   onDragStart: isVerticalDrag ? undefined : guardedDragStart,
                   onDragMove: isVerticalDrag ? undefined : handleDragMove,
@@ -2621,8 +2577,6 @@ export default function KonvaCanvas() {
                     ? handleMessageDragEnd
                     : isDerived
                     ? handleDerivedDragEnd
-                    : isActivation
-                    ? handleActivationDragEnd
                     : isFragment
                     ? handleFragmentDragEnd
                     : handleDragEnd,
@@ -2641,9 +2595,7 @@ export default function KonvaCanvas() {
                   onContextMenu,
                   onMouseEnter: handleUseCaseMouseEnter,
                   onMouseLeave: handleUseCaseMouseLeave,
-                  onResizeEnd: isActivation
-                    ? handleActivationResizeEnd
-                    : isFragment
+                  onResizeEnd: isFragment
                     ? handleFragmentResizeEnd
                     : isLifeline
                     ? handleLifelineTimelineResizeEnd

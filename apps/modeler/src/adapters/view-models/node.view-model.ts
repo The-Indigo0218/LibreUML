@@ -202,8 +202,6 @@ export interface ActivationViewModel {
   height: number;
   isOpen: boolean;
   nestingDepth: number;
-  /** True when the bar's geometry comes from a manual drag/resize override. */
-  isManual?: boolean;
 }
 
 // Mirror of FragmentKind (vfs.types.ts) — the 12 UML 2.5 InteractionOperatorKind.

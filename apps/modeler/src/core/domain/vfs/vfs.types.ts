@@ -460,15 +460,10 @@ export interface IRActivation extends IRElement {
   endMessageId?: string;
   /** When set, nests this activation inside a parent (re-entrancy). */
   parentActivationId?: string;
-  /**
-   * Manual layout override (hybrid model): absolute canvas Y of the bar's top.
-   * When set, the builder uses it instead of the message-derived top. Cleared
-   * (double-click) restores the auto-calculated position. Paired with
-   * `manualHeight` so a dragged bar keeps its size.
-   */
-  manualTopY?: number;
-  /** Manual layout override: bar height in px. See `manualTopY`. */
-  manualHeight?: number;
+  // Activation geometry is fully system-managed (UML convention): the bar is
+  // anchored to its lifeline (X auto, fixed width) and its height is derived
+  // from the execution span — it grows automatically with nested messages,
+  // self-messages and new interactions. There are no manual layout overrides.
 }
 
 /**

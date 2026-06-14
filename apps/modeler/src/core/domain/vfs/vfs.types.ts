@@ -580,6 +580,9 @@ export interface IRStateInvariant extends IRElement {
    * sequenceNumber → Y in the layout builder.
    */
   afterSequenceNumber: number;
+  /** Hybrid layout overrides (G-d): manual box width/height, kept centered. */
+  manualWidth?: number;
+  manualHeight?: number;
 }
 
 /**

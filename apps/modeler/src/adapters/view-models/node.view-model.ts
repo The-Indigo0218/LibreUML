@@ -64,6 +64,9 @@ export interface NoteViewModel {
   borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
   fontFamilyOverride?: string;
   fontSizeOverride?: number;
+  /** Manual box width/height (G-d) — persisted on the ViewNode; auto when undefined. */
+  manualWidth?: number;
+  manualHeight?: number;
   onSave?: (update: { content?: string; title?: string }) => void;
 }
 
@@ -229,13 +232,15 @@ export interface FragmentViewModel {
 
 export interface StateInvariantViewModel {
   __brand: 'stateInvariant';
-  id: string;             
-  domainId: string;      
+  id: string;
+  domainId: string;
   constraint: string;
   width: number;
   height: number;
   afterSequenceNumber: number;
   totalMessages: number;
+  /** True when width/height come from a manual override (G-d) → cyan stroke. */
+  isManual?: boolean;
 }
 
 export interface InteractionUseViewModel {

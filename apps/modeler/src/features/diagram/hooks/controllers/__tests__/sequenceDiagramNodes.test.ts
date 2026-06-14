@@ -572,6 +572,31 @@ describe('buildSequenceDiagramNodes — state invariants', () => {
     }
   });
 
+  it('honors a manual width/height on a state invariant, kept centered (G-d)', () => {
+    const ll1 = makeLifeline('ll1');
+    const ll2 = makeLifeline('ll2');
+    const si = { ...makeStateInvariant('si1', 'll1', 'x>0', 0), manualWidth: 120, manualHeight: 44 };
+    const model = makeModel({ lifelines: { ll1, ll2 }, stateInvariants: { si1: si } });
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'vn1', elementId: 'll1', x: 50, y: 0 },
+        { id: 'vn2', elementId: 'll2', x: 250, y: 0 },
+      ],
+      edges: [],
+    };
+    const result = buildSequenceDiagramNodes(makeCtx(model, view));
+    const siNode = result.find((n) => n.type === 'umlStateInvariant');
+    expect(siNode && isStateInvariantViewModel(siNode.data)).toBe(true);
+    if (siNode && isStateInvariantViewModel(siNode.data)) {
+      expect(siNode.data.width).toBe(120);
+      expect(siNode.data.height).toBe(44);
+      expect(siNode.data.isManual).toBe(true);
+      // Still centred on the lifeline (centerX = 50 + 70).
+      expect(siNode.position.x).toBeCloseTo(120 - 120 / 2, 0);
+    }
+  });
+
   it('clamps afterSequenceNumber within [0, messageCount]', () => {
     const ll1 = makeLifeline('ll1');
     const si = makeStateInvariant('si1', 'll1', 'init', 99);

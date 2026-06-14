@@ -482,8 +482,10 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       const centerX = lifelineCenterX.get(si.lifelineId)!;
       const slot = Math.max(0, Math.min(allMessages.length, si.afterSequenceNumber));
       const cy = stateInvariantSlotY(slot, slotLayout);
-      const width = estimateStateInvariantWidth(si.constraint);
-      const height = STATE_INVARIANT_H;
+      // G-d: manual width/height override the text-derived box (kept centered).
+      const isManual = si.manualWidth !== undefined || si.manualHeight !== undefined;
+      const width = si.manualWidth ?? estimateStateInvariantWidth(si.constraint);
+      const height = si.manualHeight ?? STATE_INVARIANT_H;
 
       const viewModel: StateInvariantViewModel = {
         __brand: 'stateInvariant',
@@ -494,6 +496,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
         height,
         afterSequenceNumber: slot,
         totalMessages: allMessages.length,
+        isManual,
       };
 
       return {

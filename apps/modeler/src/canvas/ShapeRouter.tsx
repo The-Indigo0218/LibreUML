@@ -90,7 +90,7 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
   const { key, onMouseEnter, onMouseLeave, onResizeEnd, onResetTimeline, isDropTarget, ...common } = props;
 
   if (isNoteViewModel(vm))
-    return <NoteShape key={key} viewModel={vm} {...common} />;
+    return <NoteShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isActorViewModel(vm))
     return <ActorShape key={key} viewModel={vm} {...common} />;
@@ -144,7 +144,7 @@ export function renderShape(vm: AnyNodeViewModel, props: NodeShapeRenderProps): 
     return <FragmentShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isStateInvariantViewModel(vm))
-    return <StateInvariantShape key={key} viewModel={vm} {...common} />;
+    return <StateInvariantShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;
 
   if (isInteractionUseViewModel(vm))
     return <InteractionUseShape key={key} viewModel={vm} {...common} onResizeEnd={onResizeEnd} />;

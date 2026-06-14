@@ -916,6 +916,38 @@ export default function KonvaCanvas() {
     [shapes, activationOps],
   );
 
+  // ── Note: manual width/height persisted on the ViewNode (G-d) ─────────────
+  const handleNoteResizeEnd = useCallback(
+    (shapeId: string, newWidth: number, newHeight: number) => {
+      if (!activeTabId) return;
+      const w = Math.max(120, Math.round(newWidth));
+      const h = Math.max(60, Math.round(newHeight));
+      withUndo('vfs', 'Resize Note', activeTabId, (draft: any) => {
+        const file = draft.project?.nodes[activeTabId];
+        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+        const viewNode = file.content.nodes.find((vn: any) => vn.id === shapeId);
+        if (viewNode) {
+          viewNode.width = w;
+          viewNode.height = h;
+        }
+      });
+    },
+    [activeTabId],
+  );
+
+  // ── State invariant: manual width/height (G-d) ────────────────────────────
+  const handleStateInvariantResizeEnd = useCallback(
+    (id: string, newWidth: number, newHeight: number) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isStateInvariantViewModel(shapeEntry.data)) return;
+      activationOps().updateStateInvariant(shapeEntry.data.domainId, {
+        manualWidth: Math.max(40, Math.round(newWidth)),
+        manualHeight: Math.max(18, Math.round(newHeight)),
+      });
+    },
+    [shapes, activationOps],
+  );
+
   // ── Combined fragments: movable + resizable container (G-a/G-b) ──────────
   // Dragging the box vertically pins manualTop and shifts every contained
   // message (manualY) by the same delta so the contents follow the container.
@@ -2559,6 +2591,8 @@ export default function KonvaCanvas() {
                 const isActivation = isActivationViewModel(vm);
                 const isFragment = isFragmentViewModel(vm);
                 const isInteractionUse = isInteractionUseViewModel(vm);
+                const isStateInvariant = isStateInvariantViewModel(vm);
+                const isNote = isNoteViewModel(vm);
                 const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm) || isContinuationViewModel(vm);
                 // General orderings, timing constraints and coregions have
                 // fully-derived geometry (anchored to occurrences) → not draggable.
@@ -2615,6 +2649,10 @@ export default function KonvaCanvas() {
                     ? handleLifelineTimelineResizeEnd
                     : isInteractionUse
                     ? handleInteractionUseResizeEnd
+                    : isStateInvariant
+                    ? handleStateInvariantResizeEnd
+                    : isNote
+                    ? handleNoteResizeEnd
                     : isUCModuleViewModel(vm)
                     ? handleUCModuleResizeEnd
                     : handleSystemBoundaryResizeEnd,

@@ -1146,6 +1146,7 @@
   },
   "inlineStateInvariantPanel": {
     "constraint": "Restricción",
+    "resetSize": "Restablecer tamaño",
     "advanced": "Avanzado…",
     "close": "Cerrar"
   },

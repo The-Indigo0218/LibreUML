@@ -9,6 +9,7 @@ const NAME_FONT = 13;
 const STEREO_FONT = 10;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const FOOT_HANDLE_H = 8; // hit-area of the timeline foot resize grabber
+const TIMELINE_HIT_W = 24; // hit-strip width so right-click on the body opens the menu
 const MIN_TIMELINE_LEN = 20;
 
 function stereotypeFor(kind: LifelineViewModel['participantKind']): string | null {
@@ -173,6 +174,23 @@ export default function LifelineShape({
           perfectDrawEnabled={false}
         />
       )}
+
+      {/* ── Timeline body hit-strip ───────────────────────────────────────────
+          Transparent strip along the lifeline so a right-click on the BODY (not
+          just the head) opens the lifeline context menu — used to drop a self
+          message at the slot under the cursor. Listed before the foot handle so
+          the resize grabber still wins at the very bottom, and the lifeline Group
+          renders below messages/activations so those still capture their own
+          clicks; only empty timeline hits this. */}
+      <Rect
+        x={lineX - TIMELINE_HIT_W / 2}
+        y={timelineTop}
+        width={TIMELINE_HIT_W}
+        height={Math.max(0, timelineBottom - timelineTop)}
+        fill="transparent"
+        draggable={false}
+        perfectDrawEnabled={false}
+      />
 
       {/* ── Dashed timeline going down (cyan when manually stretched) ──────── */}
       <Line

@@ -1395,8 +1395,15 @@ export default function KonvaCanvas() {
     (screen: { x: number; y: number }) => {
       const stage = stageRef.current;
       if (!stage) return screen;
+      // `screen` is a page coordinate (clientX/clientY from the context-menu
+      // event). The stage transform maps world → *container-relative* pixels, so
+      // subtract the container's page offset first; otherwise everything is off by
+      // the toolbar/sidebar size (≈ one message band vertically — which dropped
+      // positional self-messages a slot too low).
+      const box = stage.container().getBoundingClientRect();
+      const local = { x: screen.x - box.left, y: screen.y - box.top };
       const transform = stage.getAbsoluteTransform().copy().invert();
-      return transform.point(screen);
+      return transform.point(local);
     },
     [stageRef],
   );

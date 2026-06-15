@@ -319,8 +319,8 @@ export const useDiagramMenus = ({
   );
 
   const addSelfMessage = useCallback(
-    (lifelineNodeId: string) =>
-      insertSelfMessageIntoActiveDiagram(getElementId(lifelineNodeId)),
+    (lifelineNodeId: string, dropY?: number) =>
+      insertSelfMessageIntoActiveDiagram(getElementId(lifelineNodeId), dropY),
     [getElementId],
   );
 
@@ -474,7 +474,9 @@ export const useDiagramMenus = ({
           });
           baseOptions.push({
             label: t("contextMenu.node.createSelfMessage"),
-            onClick: () => addSelfMessage(nodeId),
+            // Drop the self-message at the slot under the right-click on the
+            // lifeline body, so it nests into the execution open at that point.
+            onClick: () => addSelfMessage(nodeId, screenToCanvas({ x: menu.x, y: menu.y }).y),
           });
           baseOptions.push({
             label: t("contextMenu.node.addStateInvariant"),

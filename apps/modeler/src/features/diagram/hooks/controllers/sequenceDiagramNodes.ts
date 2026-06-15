@@ -415,12 +415,16 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   );
   for (const act of byDepthDesc) {
     const parentId = act.parentActivationId;
-    if (!parentId || !activationsById.has(parentId)) continue;
-    // A parent (including an open self-call that is still on the stack) grows to
-    // enclose its nested children — a self-message pushed onto a self-call is a
-    // deeper frame, so the outer bar must contain it. Parent-finding guarantees an
-    // *incoming* SYNC is never made a child of a self-call, so this never
-    // re-extends an atomic self-call to swallow an unrelated later message.
+    if (!parentId) continue;
+    const parent = activationsById.get(parentId);
+    if (!parent) continue;
+    // Only an OPEN parent grows to enclose its nested children (call-stack
+    // containment: a self-message pushed onto an open execution is a deeper frame).
+    // A *closed* execution already ends at its REPLY (endMessageId) — it must NOT
+    // be stretched below that to chase a child that a later insert/reorder left
+    // orphaned beyond the return, which is what produced the runaway bar spanning
+    // a whole gap down to a far-away self-message.
+    if (parent.endMessageId) continue;
     const need = finalBottomY.get(act.id)! + CHILD_CONTAINMENT_PAD;
     if (finalBottomY.get(parentId)! < need) finalBottomY.set(parentId, need);
   }

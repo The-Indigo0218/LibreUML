@@ -6,6 +6,7 @@ import { useUiStore } from "../../../store/uiStore";
 import { standaloneModelOps, getLocalModel } from "../../../store/standaloneModelOps";
 import { isDiagramView } from "../hooks/useVFSCanvasController";
 import { defaultMessageName } from "../../../hooks/canvas/sequenceMessageHelpers";
+import { yToMessageSlot, computeSlotLayout } from "../hooks/controllers/sequenceDiagramNodes";
 import { defaultOperandCount } from "../../../core/domain/vfs/vfs.types";
 import type { DiagramView, VFSFile, FragmentKind, SemanticModel } from "../../../core/domain/vfs/vfs.types";
 
@@ -195,8 +196,15 @@ export function insertEndpointMessageIntoActiveDiagram(
  * message, so the store auto-creates the paired nested Activation on that same
  * lifeline (re-entrant execution). This is the only sanctioned way to make a
  * self-message — drawing a manual connection back onto a lifeline is blocked.
+ *
+ * `dropY` (world Y of a right-click on the lifeline body) drops the message at the
+ * slot under the cursor instead of appending at the end: insertMessageAt shifts
+ * later messages down and the store auto-nests the new frame into whatever
+ * execution is open at that slot (it *respects the existing activation*). Omitting
+ * `dropY` appends at the end as before. Opens the props modal so the user can name
+ * it / adjust it right away.
  */
-export function insertSelfMessageIntoActiveDiagram(lifelineId?: string): void {
+export function insertSelfMessageIntoActiveDiagram(lifelineId?: string, dropY?: number): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
   const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
@@ -207,11 +215,13 @@ export function insertSelfMessageIntoActiveDiagram(lifelineId?: string): void {
     return;
   }
 
+  const messageCount = Object.keys(activeModel.messages ?? {}).length;
+  // P1 — drop at the slot under the cursor (clamped to [1, count+1]); the +1 lets a
+  // drop below the last message append. No drop point → append at the end.
   const sequenceNumber =
-    Object.values(activeModel.messages ?? {}).reduce(
-      (acc, m) => (m.sequenceNumber > acc ? m.sequenceNumber : acc),
-      0,
-    ) + 1;
+    dropY != null
+      ? yToMessageSlot(dropY, messageCount + 1, computeSlotLayout(activeModel))
+      : messageCount + 1;
 
   const payload = {
     name: defaultMessageName('SYNC'),
@@ -221,9 +231,12 @@ export function insertSelfMessageIntoActiveDiagram(lifelineId?: string): void {
     sequenceNumber,
   };
 
+  // insertMessageAt shifts existing messages at/after the slot down and auto-nests
+  // into the innermost open execution at that point (degenerates to append when the
+  // slot is count+1).
   const newId = isStandaloneFile
-    ? standaloneModelOps(tabId).createMessage(payload)
-    : useModelStore.getState().createMessage(payload);
+    ? standaloneModelOps(tabId).insertMessageAt(payload)
+    : useModelStore.getState().insertMessageAt(payload);
 
   useUiStore.getState().openMessageProps(newId);
 }

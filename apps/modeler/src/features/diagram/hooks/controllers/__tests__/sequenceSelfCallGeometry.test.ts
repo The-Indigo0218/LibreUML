@@ -150,4 +150,44 @@ describe('Sequence Diagram — self-call execution geometry', () => {
     expect(d2.depth).toBe(1);
     expect(d3.depth).toBe(2);
   });
+
+  it('does not stretch a CLOSED execution down to an orphaned child (no runaway bar)', () => {
+    const s = () => useModelStore.getState();
+    s().resetModel();
+    s().initModel('selfcall-orphan');
+
+    const cliente = s().createLifeline({ name: 'Cliente', participantKind: 'ACTOR', alias: 'Cliente' });
+    const portal = s().createLifeline({ name: 'Portal', participantKind: 'ANONYMOUS', alias: 'Portal' });
+
+    // E1 opens on Portal; a self-message nests into it (open) → parent = E1.
+    const m1 = s().createMessage({ name: 'sync', messageKind: 'SYNC', sourceLifelineId: cliente, targetLifelineId: portal, sequenceNumber: 1 });
+    const mSelf = s().createMessage({ name: 'self', messageKind: 'SYNC', sourceLifelineId: portal, targetLifelineId: portal, sequenceNumber: 2 });
+    // Now INSERT a reply *before* the self-message (slot 2) — this is the "metí un
+    // response antes del self-message" case. The reply closes E1 and the self-call
+    // gets shifted below the return, orphaning it past E1's end.
+    s().insertMessageAt({ name: 'reply', messageKind: 'REPLY', sourceLifelineId: portal, targetLifelineId: cliente, sequenceNumber: 2, inReplyTo: m1 });
+
+    const acts = Object.values(s().model?.activations ?? {});
+    const e1 = acts.find((a) => a.startMessageId === m1)!;
+    expect(e1.endMessageId).toBeDefined(); // E1 is closed by the reply
+
+    const model = s().model!;
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'v1', elementId: cliente, x: 50, y: 0 },
+        { id: 'v2', elementId: portal, x: 300, y: 0 },
+      ],
+      edges: [],
+    };
+    const ctx: NodeBuilderContext = { diagramView: view, model, isStandalone: false, activeTabId: null, handleNoteUpdate: () => {} };
+    const built = buildSequenceDiagramNodes(ctx).filter((n) => isActivationViewModel(n.data));
+    const e1Node = built.find((n) => (n.data as { domainId: string }).domainId === e1.id)!;
+    const selfAct = acts.find((a) => a.startMessageId === mSelf)!;
+    const selfNode = built.find((n) => (n.data as { domainId: string }).domainId === selfAct.id)!;
+
+    // E1's bar must not reach down past the orphaned self-call below the return.
+    const e1Bottom = e1Node.position.y + (e1Node.data as { height: number }).height;
+    expect(e1Bottom).toBeLessThan(selfNode.position.y);
+  });
 });

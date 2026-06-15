@@ -59,4 +59,46 @@ describe('Sequence Diagram — self-call execution geometry', () => {
     expect(selfCall.y).toBeGreaterThanOrEqual(caller.y);
     expect(selfCall.y + selfCall.height).toBeLessThanOrEqual(caller.y + caller.height);
   });
+
+  it('does NOT re-extend a self-call bar when a later sync is added on the same lifeline', () => {
+    const s = () => useModelStore.getState();
+    s().resetModel();
+    s().initModel('selfcall-no-reextend');
+
+    const cliente = s().createLifeline({ name: 'Cliente', participantKind: 'ACTOR', alias: 'Cliente' });
+    const portal = s().createLifeline({ name: 'Portal', participantKind: 'ANONYMOUS', alias: 'Portal' });
+
+    // Open call on Portal, an un-replied self-call inside it, then ANOTHER sync
+    // targeting Portal — the "sacar otro sync" the user reported. The self-call is
+    // atomic, so the new sync must not nest inside it and its bar must stay short.
+    s().createMessage({ name: 'consulta', messageKind: 'SYNC', sourceLifelineId: cliente, targetLifelineId: portal, sequenceNumber: 1 });
+    const m2 = s().createMessage({ name: 'validar', messageKind: 'SYNC', sourceLifelineId: portal, targetLifelineId: portal, sequenceNumber: 2 });
+    s().createMessage({ name: 'otro sync', messageKind: 'SYNC', sourceLifelineId: cliente, targetLifelineId: portal, sequenceNumber: 3 });
+
+    // The self-call must not have been chosen as the new sync's nesting parent.
+    const selfCallAct = Object.values(s().model?.activations ?? {}).find((a) => a.startMessageId === m2)!;
+    const childrenOfSelfCall = Object.values(s().model?.activations ?? {}).filter(
+      (a) => a.parentActivationId === selfCallAct.id,
+    );
+    expect(childrenOfSelfCall).toHaveLength(0);
+
+    const model = s().model!;
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'v1', elementId: cliente, x: 50, y: 0 },
+        { id: 'v2', elementId: portal, x: 300, y: 0 },
+      ],
+      edges: [],
+    };
+    const ctx: NodeBuilderContext = { diagramView: view, model, isStandalone: false, activeTabId: null, handleNoteUpdate: () => {} };
+
+    const acts = buildSequenceDiagramNodes(ctx)
+      .filter((n) => isActivationViewModel(n.data))
+      .map((n) => ({ y: n.position.y, ...(n.data as { height: number; isOpen: boolean }), domainId: (n.data as { domainId: string }).domainId }));
+
+    const selfCall = acts.find((a) => a.domainId === selfCallAct.id)!;
+    // Bar stays a short stub — it does NOT stretch down to enclose the new sync.
+    expect(selfCall.height).toBeLessThanOrEqual(MESSAGE_BAND_H + 1);
+  });
 });

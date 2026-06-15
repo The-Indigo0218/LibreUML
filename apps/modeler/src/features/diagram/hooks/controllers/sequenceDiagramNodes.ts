@@ -416,6 +416,10 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   for (const act of byDepthDesc) {
     const parentId = act.parentActivationId;
     if (!parentId || !activationsById.has(parentId)) continue;
+    // A self-call is an atomic call+return: its bar is a fixed short stub and must
+    // never grow to enclose later content (defends against legacy data whose
+    // parentActivationId points at a self-call).
+    if (selfCallActIds.has(parentId)) continue;
     const need = finalBottomY.get(act.id)! + CHILD_CONTAINMENT_PAD;
     if (finalBottomY.get(parentId)! < need) finalBottomY.set(parentId, need);
   }

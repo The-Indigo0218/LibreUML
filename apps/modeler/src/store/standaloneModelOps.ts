@@ -153,8 +153,15 @@ function findParentActivationForNesting(
   let bestSeq = -Infinity;
   for (const act of Object.values(model.activations)) {
     if (act.lifelineId !== lifelineId || act.endMessageId) continue;
-    const startSeq = model.messages[act.startMessageId]?.sequenceNumber;
-    if (startSeq === undefined || startSeq >= sequenceNumber) continue;
+    const startMsg = model.messages[act.startMessageId];
+    if (!startMsg) continue;
+    // A self-call is an atomic call+return: it never contains *later* messages,
+    // so it must not be picked as a nesting parent (otherwise its short bar would
+    // get stretched down to enclose the next message). It stays open in the model
+    // only because it has no reply of its own — the geometry renders it short.
+    if (startMsg.sourceLifelineId === startMsg.targetLifelineId) continue;
+    const startSeq = startMsg.sequenceNumber;
+    if (startSeq >= sequenceNumber) continue;
     if (startSeq > bestSeq) {
       bestSeq = startSeq;
       bestId = act.id;

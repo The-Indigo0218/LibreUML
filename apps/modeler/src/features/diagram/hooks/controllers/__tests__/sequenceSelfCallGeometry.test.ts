@@ -190,4 +190,46 @@ describe('Sequence Diagram — self-call execution geometry', () => {
     const e1Bottom = e1Node.position.y + (e1Node.data as { height: number }).height;
     expect(e1Bottom).toBeLessThan(selfNode.position.y);
   });
+
+  it('renders a message as PRINCIPAL once its (stale) parent has closed before it', () => {
+    // Repro of the user diagram: a second call is created while the first is still
+    // open, so it is stamped with parentActivationId = first. A reply is then
+    // inserted BEFORE it, closing the first call. The second call must now render
+    // as a principal execution (depth 0) — not a stranded sub-activation offset to
+    // the right of a parent that already returned.
+    const s = () => useModelStore.getState();
+    s().resetModel();
+    s().initModel('stale-parent');
+
+    const cliente = s().createLifeline({ name: 'Cliente', participantKind: 'ACTOR', alias: 'Cliente' });
+    const portal = s().createLifeline({ name: 'Portal', participantKind: 'ANONYMOUS', alias: 'Portal' });
+
+    const m1 = s().createMessage({ name: 'ConsultaFactura', messageKind: 'SYNC', sourceLifelineId: cliente, targetLifelineId: portal, sequenceNumber: 1 });
+    // Second call created while the first is still open → stamped parent = E1.
+    const m2 = s().createMessage({ name: 'sync message', messageKind: 'SYNC', sourceLifelineId: cliente, targetLifelineId: portal, sequenceNumber: 2 });
+    // Reply inserted BEFORE it (slot 2) closing E1; m2 shifts down to slot 3.
+    s().insertMessageAt({ name: 'Factura', messageKind: 'REPLY', sourceLifelineId: portal, targetLifelineId: cliente, sequenceNumber: 2, inReplyTo: m1 });
+
+    const acts = Object.values(s().model?.activations ?? {});
+    const e1 = acts.find((a) => a.startMessageId === m1)!;
+    const e2 = acts.find((a) => a.startMessageId === m2)!;
+    expect(e1.endMessageId).toBeDefined();        // E1 closed by the inserted reply
+    expect(e2.parentActivationId).toBe(e1.id);    // …yet m2 still carries the stale parent
+
+    const model = s().model!;
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'v1', elementId: cliente, x: 50, y: 0 },
+        { id: 'v2', elementId: portal, x: 300, y: 0 },
+      ],
+      edges: [],
+    };
+    const ctx: NodeBuilderContext = { diagramView: view, model, isStandalone: false, activeTabId: null, handleNoteUpdate: () => {} };
+    const built = buildSequenceDiagramNodes(ctx).filter((n) => isActivationViewModel(n.data));
+    const e2Depth = (built.find((n) => (n.data as { domainId: string }).domainId === e2.id)!.data as { nestingDepth: number }).nestingDepth;
+
+    // The closed parent no longer contains m2 → it renders as a principal bar.
+    expect(e2Depth).toBe(0);
+  });
 });

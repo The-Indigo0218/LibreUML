@@ -346,15 +346,29 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   // Visual X offset depth. Prefer the explicit parentActivationId chain (set when
   // a SYNC nests inside an open activation — self-calls / re-entrant calls); fall
   // back to the geometric overlap heuristic for legacy data without the field.
+  const startIndexOf = (act: IRActivation): number => messageIndex.get(act.startMessageId)!;
+  const endIndexOf = (act: IRActivation): number =>
+    act.endMessageId ? messageIndex.get(act.endMessageId) ?? allMessages.length + 1 : allMessages.length + 1;
+
+  // A parent execution only nests a child it actually CONTAINS in time: it must
+  // start before the child and still be open at (or end after) the child's start.
+  // A parent that already returned before the child begins — because a REPLY (even
+  // one inserted later) closed it, or because the child kept a stale
+  // parentActivationId from when the parent was still open — does NOT contain it.
+  // The child is then a fresh principal execution, not a sub-activation.
+  const parentContains = (parent: IRActivation, child: IRActivation): boolean => {
+    const ps = startIndexOf(parent);
+    const cs = startIndexOf(child);
+    return ps < cs && endIndexOf(parent) > cs;
+  };
+
   const geometricDepthFor = (act: IRActivation): number => {
-    const startIdx = messageIndex.get(act.startMessageId)!;
+    const startIdx = startIndexOf(act);
     let depth = 0;
     for (const other of allActivations) {
       if (other.id === act.id) continue;
       if (other.lifelineId !== act.lifelineId) continue;
-      const otherStart = messageIndex.get(other.startMessageId)!;
-      const otherEnd = other.endMessageId ? messageIndex.get(other.endMessageId) ?? allMessages.length + 1 : allMessages.length + 1;
-      if (otherStart < startIdx && otherEnd > startIdx) depth++;
+      if (startIndexOf(other) < startIdx && endIndexOf(other) > startIdx) depth++;
     }
     return depth;
   };
@@ -368,6 +382,9 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
         seen.add(cursor.id);
         const parent = activationsById.get(cursor.parentActivationId);
         if (!parent) break;
+        // Stop at the first ancestor that does not actually contain `act`: a
+        // closed-before / stale parent must not push the child down a level.
+        if (!parentContains(parent, act)) break;
         depth++;
         cursor = parent;
       }

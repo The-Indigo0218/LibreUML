@@ -37,6 +37,28 @@ describe('Sequence Diagram — reply unwinds the call stack', () => {
     expect(startSeq(openOnPortal[0].startMessageId)).toBe(6);
   });
 
+  it('unwinds the PRINCIPAL call when a reply lacks inReplyTo (no stranded outer bar)', () => {
+    // The reply omits inReplyTo (e.g. drawn without a resolvable matching SYNC).
+    // The fallback must close the principal call it returns to — ConsultaFactura,
+    // whose caller is the reply's target — and unwind the nested self-call with it,
+    // NOT just collapse the innermost self-call and leave the principal open (which
+    // made the following message nest into it as a sub-activation).
+    const cliente = s().createLifeline({ name: 'Cliente', participantKind: 'ACTOR', alias: 'Cliente' });
+    const portal = s().createLifeline({ name: 'PortalPagos', participantKind: 'ANONYMOUS', alias: 'PortalPagos' });
+
+    const m1 = s().createMessage({ name: 'ConsultaFactura', messageKind: 'SYNC', sourceLifelineId: cliente, targetLifelineId: portal, sequenceNumber: 1 });
+    s().createMessage({ name: 'ValidarDatos', messageKind: 'SYNC', sourceLifelineId: portal, targetLifelineId: portal, sequenceNumber: 2 });
+    s().createMessage({ name: 'Factura', messageKind: 'REPLY', sourceLifelineId: portal, targetLifelineId: cliente, sequenceNumber: 3 }); // no inReplyTo
+    const m4 = s().createMessage({ name: 'sync message', messageKind: 'SYNC', sourceLifelineId: cliente, targetLifelineId: portal, sequenceNumber: 4 });
+
+    const acts = Object.values(s().model?.activations ?? {});
+    const principal = acts.find((a) => a.startMessageId === m1)!;
+    const fresh = acts.find((a) => a.startMessageId === m4)!;
+
+    expect(principal.endMessageId).toBeDefined();      // principal call closed by the reply
+    expect(fresh.parentActivationId).toBeUndefined();  // next message is a fresh principal, not nested
+  });
+
   it('does not close an OUTER open call when an inner call returns', () => {
     const a = s().createLifeline({ name: 'A', participantKind: 'ANONYMOUS', alias: 'A' });
     const b = s().createLifeline({ name: 'B', participantKind: 'ANONYMOUS', alias: 'B' });

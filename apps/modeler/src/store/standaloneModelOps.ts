@@ -201,9 +201,26 @@ function closeActivationsForReplyLocal(
       : undefined;
 
   if (!target) {
-    target = Object.values(acts)
-      .filter((a) => a.lifelineId === reply.sourceLifelineId && !a.endMessageId)
-      .sort((x, y) => activationStartSeqLocal(model, y) - activationStartSeqLocal(model, x))[0];
+    // A reply returns control to its TARGET lifeline (the caller). The execution
+    // it closes is the open call on the SOURCE lifeline that was opened by a SYNC
+    // coming FROM that caller — not merely the innermost open bar. Using the
+    // innermost would close a nested self-call and leave the principal call open,
+    // so the next message would wrongly nest into it (sub-activation) instead of
+    // starting a fresh principal execution. Pick the most-recent such caller
+    // match; fall back to the innermost open bar only when none matches.
+    const openOnSource = Object.values(acts).filter(
+      (a) => a.lifelineId === reply.sourceLifelineId && !a.endMessageId,
+    );
+    const byStartDesc = (x: IRActivation, y: IRActivation) =>
+      activationStartSeqLocal(model, y) - activationStartSeqLocal(model, x);
+    const returnsToCaller = openOnSource
+      .filter(
+        (a) =>
+          model.messages?.[a.startMessageId]?.sourceLifelineId ===
+          reply.targetLifelineId,
+      )
+      .sort(byStartDesc);
+    target = returnsToCaller[0] ?? [...openOnSource].sort(byStartDesc)[0];
   }
   if (!target) return;
 

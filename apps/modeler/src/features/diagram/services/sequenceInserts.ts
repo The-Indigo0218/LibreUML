@@ -5,6 +5,7 @@ import { useToastStore } from "../../../store/toast.store";
 import { useUiStore } from "../../../store/uiStore";
 import { standaloneModelOps, getLocalModel } from "../../../store/standaloneModelOps";
 import { isDiagramView } from "../hooks/useVFSCanvasController";
+import { defaultMessageName } from "../../../hooks/canvas/sequenceMessageHelpers";
 import { defaultOperandCount } from "../../../core/domain/vfs/vfs.types";
 import type { DiagramView, VFSFile, FragmentKind, SemanticModel } from "../../../core/domain/vfs/vfs.types";
 
@@ -213,7 +214,7 @@ export function insertSelfMessageIntoActiveDiagram(lifelineId?: string): void {
     ) + 1;
 
   const payload = {
-    name: '',
+    name: defaultMessageName('SYNC'),
     messageKind: 'SYNC' as const,
     sourceLifelineId: target,
     targetLifelineId: target,

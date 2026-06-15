@@ -120,6 +120,25 @@ export function nodeUsesFreeBorderAnchors(vm: AnyNodeViewModel | undefined): boo
   return isLifelineViewModel(vm);
 }
 
+/** Sequence-diagram derived elements that are NOT valid connection endpoints. */
+const SEQUENCE_ELEMENT_BRANDS = new Set([
+  'message', 'activation', 'fragment', 'stateInvariant',
+  'interactionUse', 'gate', 'generalOrdering', 'timeConstraint',
+  'coregion', 'continuation',
+]);
+
+/**
+ * Returns false for sequence-diagram elements that play no part in the
+ * drag-from-anchor connection system (activations, messages, fragments, …).
+ * These elements must never show the 8 anchor dots or participate in
+ * nearAnchorRef / snap-target detection.
+ */
+export function nodeShowsConnectionAnchors(vm: AnyNodeViewModel | undefined): boolean {
+  if (!vm) return false;
+  const brand = (vm as { __brand?: string }).__brand;
+  return !brand || !SEQUENCE_ELEMENT_BRANDS.has(brand);
+}
+
 export function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   if (isNoteViewModel(vm)) return 'note';
   if (isPackageViewModel(vm)) return 'package';
@@ -204,10 +223,12 @@ function findNearest(
   radius: number,
   freeBorderIds: Set<string>,
   excludeNodeId?: string,
+  skipIds?: Set<string>,
 ): SnappedDot | null {
   let best: SnappedDot | null = null;
   for (const [nodeId, bounds] of boundsMap.entries()) {
     if (nodeId === excludeNodeId) continue;
+    if (skipIds?.has(nodeId)) continue;
     if (freeBorderIds.has(nodeId)) {
       const fb = freeBorderNearest(pos, nodeId, bounds, radius);
       if (fb && (!best || fb.dist < best.dist)) best = fb;
@@ -254,6 +275,7 @@ function findHoveredNode(
   pos: { x: number; y: number },
   boundsMap: Map<string, NodeBounds>,
   excludeNodeId?: string,
+  skipIds?: Set<string>,
 ): string | null {
   // Innermost (smallest-area) containing node wins, so a node inside a package
   // is preferred over the package behind it.
@@ -261,6 +283,7 @@ function findHoveredNode(
   let bestArea = Infinity;
   for (const [nodeId, b] of boundsMap.entries()) {
     if (nodeId === excludeNodeId) continue;
+    if (skipIds?.has(nodeId)) continue;
     const inside =
       pos.x >= b.x - NODE_HOVER_PAD && pos.x <= b.x + b.width + NODE_HOVER_PAD &&
       pos.y >= b.y - NODE_HOVER_PAD && pos.y <= b.y + b.height + NODE_HOVER_PAD;
@@ -411,6 +434,12 @@ export function useConnectionDraw({
     () => new Set(nodes.filter((n) => nodeUsesFreeBorderAnchors(n.data)).map((n) => n.id)),
     [nodes],
   );
+  /** IDs of sequence-specific elements that must never show connection anchors. */
+  const nonConnectableIdsRef = useRef<Set<string>>(new Set());
+  nonConnectableIdsRef.current = useMemo(
+    () => new Set(nodes.filter((n) => !nodeShowsConnectionAnchors(n.data)).map((n) => n.id)),
+    [nodes],
+  );
 
   // ── Hover overlay helper ────────────────────────────────────────────────────
   // Shows the right affordance for a hovered node: a highlighted centerline for
@@ -533,7 +562,7 @@ export function useConnectionDraw({
         // P4 — releasing over a node anchors to the continuous border point under
         // the cursor (magnet to cardinals). C7 — free-border targets (lifelines)
         // land on their vertical centerline at the cursor Y. Preview either point.
-        const tgtId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId);
+        const tgtId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId, nonConnectableIdsRef.current);
         const tgtBounds = tgtId ? boundsMapRef.current.get(tgtId) : undefined;
         const landing = tgtBounds
           ? tgtId && freeBorderIdsRef.current.has(tgtId)
@@ -553,11 +582,11 @@ export function useConnectionDraw({
         }
       } else {
         // ── Hover mode: update nearAnchorRef + visible anchor affordance ──
-        const near = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R, freeBorderIdsRef.current);
+        const near = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R, freeBorderIdsRef.current, undefined, nonConnectableIdsRef.current);
         nearAnchorRef.current = !!near;
 
         // Only update the hovered-node overlay when the hovered node changes.
-        const hoveredId = findHoveredNode(pos, boundsMapRef.current);
+        const hoveredId = findHoveredNode(pos, boundsMapRef.current, undefined, nonConnectableIdsRef.current);
         if (hoveredId !== hoverNodeIdRef.current) {
           hoverNodeIdRef.current = hoveredId;
           setHoverOverlay(hoveredId, hoveredId ? boundsMapRef.current.get(hoveredId) : undefined);
@@ -580,7 +609,7 @@ export function useConnectionDraw({
       const pos = stage.getRelativePointerPosition();
       if (!pos) return;
 
-      const nearest = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R, freeBorderIdsRef.current);
+      const nearest = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R, freeBorderIdsRef.current, undefined, nonConnectableIdsRef.current);
       if (!nearest) {
         nearAnchorRef.current = false;
         return;
@@ -621,7 +650,7 @@ export function useConnectionDraw({
           // P4 — the target is whatever node the cursor is over (innermost). The
           // endpoint anchors to the continuous border point under the drop, so the
           // whole perimeter is reachable (not just the 8 marks).
-          const tgtNodeId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId);
+          const tgtNodeId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId, nonConnectableIdsRef.current);
           if (tgtNodeId) {
             const srcBounds = boundsMapRef.current.get(src.nodeId);
             const tgtBounds = boundsMapRef.current.get(tgtNodeId);
@@ -676,7 +705,7 @@ export function useConnectionDraw({
               // Fallback: let onConnect handle validation if nodes not found.
               onConnect(src.nodeId, tgtNodeId, anchoring, { x: pos.x, y: pos.y });
             }
-          } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current)) {
+          } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current, undefined, nonConnectableIdsRef.current)) {
             // Quick Linker: released on empty canvas (no node under the cursor at
             // all) → offer to create a new node linked to the source.
             onDropEmpty(src.nodeId, { x: pos.x, y: pos.y });

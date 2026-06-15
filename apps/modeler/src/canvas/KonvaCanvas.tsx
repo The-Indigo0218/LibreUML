@@ -1208,7 +1208,6 @@ export default function KonvaCanvas() {
   const closeInlineActorPanel = useUiStore((s) => s.closeInlineActorPanel);
 
   const inlineMessagePanelId = useUiStore((s) => s.inlineMessagePanelId);
-  const openInlineMessagePanel = useUiStore((s) => s.openInlineMessagePanel);
   const closeInlineMessagePanel = useUiStore((s) => s.closeInlineMessagePanel);
 
   const inlineFragmentPanelId = useUiStore((s) => s.inlineFragmentPanelId);
@@ -1291,6 +1290,30 @@ export default function KonvaCanvas() {
             { x: screenPos.x, y: screenPos.y },
             { width: vm.headWidth - 8, height: LIFELINE_NAME_FONT + 6 },
             (text) => vm.onRename!(text));
+        }
+      } else if (isMessageViewModel(vm)) {
+        // Inline-rename only the name; the "N:" prefix + guard stay in the glyph.
+        const MSG_LABEL_H = 16;
+        if (vm.isSelfMessage) {
+          // Label sits to the right of the self-loop band.
+          const screenPos = transform.point({ x: pos.x + 44, y: pos.y + 6 });
+          if (vm.onRename) {
+            startInlineEditing(shapeId, vm.name, 'name',
+              { x: screenPos.x, y: screenPos.y },
+              { width: 140, height: MSG_LABEL_H + 4 },
+              (text) => vm.onRename!(text));
+          }
+        } else {
+          const labelW = Math.max(40, Math.abs(vm.length));
+          // Label box left edge (group-local): 0 rightward, -length leftward.
+          const labelLeft = vm.length < 0 ? vm.length : 0;
+          const screenPos = transform.point({ x: pos.x + labelLeft, y: pos.y - MSG_LABEL_H - 2 });
+          if (vm.onRename) {
+            startInlineEditing(shapeId, vm.name, 'name',
+              { x: screenPos.x, y: screenPos.y },
+              { width: labelW, height: MSG_LABEL_H + 4 },
+              (text) => vm.onRename!(text));
+          }
         }
       } else {
         (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
@@ -2520,7 +2543,7 @@ export default function KonvaCanvas() {
                   : isFragmentViewModel(vm)
                   ? () => openInlineFragmentPanel(vm.domainId)
                   : isMessageViewModel(vm)
-                  ? () => openInlineMessagePanel(vm.domainId)
+                  ? () => startUseCaseInlineEdit(shape.id)
                   : isStateInvariantViewModel(vm)
                   ? () => openInlineStateInvariantPanel(vm.domainId)
                   : isInteractionUseViewModel(vm)
@@ -2586,7 +2609,14 @@ export default function KonvaCanvas() {
                     ? handleFragmentDragEnd
                     : handleDragEnd,
                   dragBoundFunc: isVerticalDrag
-                    ? (p: { x: number; y: number }) => ({ x: pos.x, y: p.y })
+                    ? (p: { x: number; y: number }) => {
+                        // Pin X in screen space (dragBoundFunc is absolute), else
+                        // a panned/zoomed canvas snaps the glyph on the click.
+                        const stage = stageRef.current;
+                        const scale = stage?.scaleX() ?? 1;
+                        const stageOffX = stage?.x() ?? 0;
+                        return { x: pos.x * scale + stageOffX, y: p.y };
+                      }
                     : isLifeline
                     ? (p: { x: number; y: number }) => {
                         const stage = stageRef.current;

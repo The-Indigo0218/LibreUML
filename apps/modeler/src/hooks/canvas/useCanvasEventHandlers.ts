@@ -20,6 +20,7 @@ import { yToMessageSlot, computeSlotLayout } from '../../features/diagram/hooks/
 import { standaloneModelOps } from '../../store/standaloneModelOps';
 import {
   TOOL_TO_MESSAGE_KIND,
+  defaultMessageName,
   findMatchingSyncForReply,
   nextMessageSequenceNumber,
   autoAssignFragmentForNewMessage,
@@ -286,7 +287,7 @@ export function useCanvasEventHandlers({
         );
 
         const payload: Omit<IRMessage, 'id' | 'kind'> = {
-          name: '',
+          name: defaultMessageName(messageKind),
           messageKind,
           sourceLifelineId: srcLifelineId,
           targetLifelineId: tgtLifelineId,

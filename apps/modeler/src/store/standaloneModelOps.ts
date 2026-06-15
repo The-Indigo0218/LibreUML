@@ -135,6 +135,75 @@ function cascadeDeleteActivationsForMessageLocal(model: SemanticModel, messageId
   }
 }
 
+/**
+ * For a new SYNC execution on `lifelineId` occurring at `sequenceNumber`, find
+ * the innermost still-open activation already on that lifeline so the new bar
+ * can record itself as nested (re-entrancy). "Innermost" = the open activation
+ * whose start sits latest but still before the new message. Used for self-calls
+ * and nested incoming calls so the bar visibly steps inside its parent instead
+ * of overlapping it.
+ */
+function findParentActivationForNesting(
+  model: SemanticModel,
+  lifelineId: string,
+  sequenceNumber: number,
+): string | undefined {
+  if (!model.activations || !model.messages) return undefined;
+  let bestId: string | undefined;
+  let bestSeq = -Infinity;
+  for (const act of Object.values(model.activations)) {
+    if (act.lifelineId !== lifelineId || act.endMessageId) continue;
+    const startSeq = model.messages[act.startMessageId]?.sequenceNumber;
+    if (startSeq === undefined || startSeq >= sequenceNumber) continue;
+    if (startSeq > bestSeq) {
+      bestSeq = startSeq;
+      bestId = act.id;
+    }
+  }
+  return bestId;
+}
+
+function activationStartSeqLocal(model: SemanticModel, act: IRActivation): number {
+  return model.messages?.[act.startMessageId]?.sequenceNumber ?? -Infinity;
+}
+
+/**
+ * Close the activation a REPLY returns from and unwind the call stack: every
+ * still-open execution that started later on the same lifeline closes at the
+ * same point (a nested execution cannot outlive its caller) — mirroring EA/StarUML.
+ * Prefers the call named by `inReplyTo`; falls back to the innermost open
+ * activation on the returning (source) lifeline.
+ */
+function closeActivationsForReplyLocal(
+  model: SemanticModel,
+  replyId: string,
+  reply: Omit<IRMessage, 'id' | 'kind'>,
+) {
+  const acts = model.activations;
+  if (!acts) return;
+
+  let target =
+    reply.inReplyTo !== undefined
+      ? Object.values(acts).find(
+          (a) => a.startMessageId === reply.inReplyTo && !a.endMessageId,
+        )
+      : undefined;
+
+  if (!target) {
+    target = Object.values(acts)
+      .filter((a) => a.lifelineId === reply.sourceLifelineId && !a.endMessageId)
+      .sort((x, y) => activationStartSeqLocal(model, y) - activationStartSeqLocal(model, x))[0];
+  }
+  if (!target) return;
+
+  const { lifelineId } = target;
+  const fromSeq = activationStartSeqLocal(model, target);
+  for (const a of Object.values(acts)) {
+    if (a.endMessageId || a.lifelineId !== lifelineId) continue;
+    if (activationStartSeqLocal(model, a) >= fromSeq) a.endMessageId = replyId;
+  }
+}
+
 function stripMessageFromFragmentsLocal(model: SemanticModel, messageId: string) {
   if (!model.interactionFragments) return;
   for (const frag of Object.values(model.interactionFragments)) {
@@ -518,23 +587,23 @@ export function standaloneModelOps(fileId: string) {
         m.messages[id] = { ...data, id, kind: 'MESSAGE' };
 
         if (data.messageKind === 'SYNC') {
+          const parentActivationId = findParentActivationForNesting(
+            m,
+            data.targetLifelineId,
+            data.sequenceNumber,
+          );
           m.activations[activationId] = {
             id: activationId,
             kind: 'ACTIVATION',
             name: '',
             lifelineId: data.targetLifelineId,
             startMessageId: id,
+            ...(parentActivationId ? { parentActivationId } : {}),
           };
         }
 
-        if (data.messageKind === 'REPLY' && data.inReplyTo) {
-          for (const aid of Object.keys(m.activations)) {
-            const act = m.activations[aid];
-            if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
-              act.endMessageId = id;
-              break;
-            }
-          }
+        if (data.messageKind === 'REPLY') {
+          closeActivationsForReplyLocal(m, id, data);
         }
 
         m.updatedAt = Date.now();
@@ -559,23 +628,23 @@ export function standaloneModelOps(fileId: string) {
         m.messages[id] = { ...data, id, kind: 'MESSAGE' };
 
         if (data.messageKind === 'SYNC') {
+          const parentActivationId = findParentActivationForNesting(
+            m,
+            data.targetLifelineId,
+            data.sequenceNumber,
+          );
           m.activations[activationId] = {
             id: activationId,
             kind: 'ACTIVATION',
             name: '',
             lifelineId: data.targetLifelineId,
             startMessageId: id,
+            ...(parentActivationId ? { parentActivationId } : {}),
           };
         }
 
-        if (data.messageKind === 'REPLY' && data.inReplyTo) {
-          for (const aid of Object.keys(m.activations)) {
-            const act = m.activations[aid];
-            if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
-              act.endMessageId = id;
-              break;
-            }
-          }
+        if (data.messageKind === 'REPLY') {
+          closeActivationsForReplyLocal(m, id, data);
         }
 
         m.updatedAt = Date.now();

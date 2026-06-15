@@ -4,7 +4,10 @@ import type { ActivationViewModel } from '../../adapters/view-models/node.view-m
 import { resolveActivationColors } from '../tokens/colors';
 
 const DEFAULT_WIDTH = 10;
-const NESTING_OFFSET = 6;
+// Offset of a nested execution bar relative to its parent. Kept >= 80% of the
+// bar width so a nested bar steps clearly to the right (small intentional UML
+// overlap) instead of smearing on top of its parent.
+const NESTING_OFFSET = 8;
 
 export function getActivationShapeSize(vm: ActivationViewModel): { width: number; height: number } {
   return {

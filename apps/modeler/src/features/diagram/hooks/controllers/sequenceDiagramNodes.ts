@@ -44,6 +44,7 @@ const TIMELINE_BOTTOM_PAD = 60;
 const MIN_TIMELINE = 200;
 const ACTIVATION_W = 10;
 const ACTIVATION_END_PAD = 16; // extra height when activation is still open
+const CHILD_CONTAINMENT_PAD = 8; // px a parent bar extends below its deepest child
 const FRAGMENT_X_PAD = 20;
 const FRAGMENT_TOP_PAD = 28;
 const FRAGMENT_BOTTOM_PAD = 16;
@@ -340,9 +341,12 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     return lifelineInDiagram && messageIndex.has(a.startMessageId);
   });
 
-  // Compute nesting depth per activation: how many other activations on the same
-  // lifeline overlap and started earlier. Used as visual X offset.
-  const nestingDepthFor = (act: IRActivation): number => {
+  const activationsById = new Map(allActivations.map((a) => [a.id, a]));
+
+  // Visual X offset depth. Prefer the explicit parentActivationId chain (set when
+  // a SYNC nests inside an open activation — self-calls / re-entrant calls); fall
+  // back to the geometric overlap heuristic for legacy data without the field.
+  const geometricDepthFor = (act: IRActivation): number => {
     const startIdx = messageIndex.get(act.startMessageId)!;
     let depth = 0;
     for (const other of allActivations) {
@@ -355,21 +359,72 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     return depth;
   };
 
-  const activationNodes = allActivations.map((act) => {
-    const startIdx = messageIndex.get(act.startMessageId)!;
-    const endIdx = act.endMessageId
-      ? messageIndex.get(act.endMessageId) ?? null
-      : null;
-    const autoTopY = messageYForIndex(startIdx, slotLayout);
-    const autoBottomY = endIdx
-      ? messageYForIndex(endIdx, slotLayout)
-      : autoTopY + MESSAGE_BAND_H + ACTIVATION_END_PAD;
-    const autoHeight = Math.max(MESSAGE_BAND_H * 0.6, autoBottomY - autoTopY);
+  const nestingDepthFor = (act: IRActivation): number => {
+    if (act.parentActivationId) {
+      let depth = 0;
+      let cursor: IRActivation | undefined = act;
+      const seen = new Set<string>();
+      while (cursor?.parentActivationId && !seen.has(cursor.id)) {
+        seen.add(cursor.id);
+        const parent = activationsById.get(cursor.parentActivationId);
+        if (!parent) break;
+        depth++;
+        cursor = parent;
+      }
+      return depth;
+    }
+    return geometricDepthFor(act);
+  };
 
+  // Raw vertical span of each bar from its own start/end (open bars extend by a
+  // fixed pad). Containment is layered on top of this below.
+  const rawTopY = new Map<string, number>();
+  const finalBottomY = new Map<string, number>();
+  const selfCallActIds = new Set<string>();
+  for (const act of allActivations) {
+    const startIdx = messageIndex.get(act.startMessageId)!;
+    const top = messageYForIndex(startIdx, slotLayout);
+
+    // A self-call is an atomic call+return: it has no reply of its own, so its
+    // execution is a short, self-contained nested bar (≈ one slot) regardless of
+    // whether the stack-unwind later stamped it with an endMessageId. Matches
+    // EA/StarUML — otherwise it would stretch down to wherever its caller returns.
+    const startMsg = model.messages?.[act.startMessageId];
+    const isSelfCall =
+      !!startMsg && startMsg.sourceLifelineId === startMsg.targetLifelineId;
+
+    let bottom: number;
+    if (isSelfCall) {
+      selfCallActIds.add(act.id);
+      bottom = messageYForIndex(startIdx + 1, slotLayout);
+    } else {
+      const endIdx = act.endMessageId ? messageIndex.get(act.endMessageId) ?? null : null;
+      bottom = endIdx
+        ? messageYForIndex(endIdx, slotLayout)
+        : top + MESSAGE_BAND_H + ACTIVATION_END_PAD;
+    }
+    rawTopY.set(act.id, top);
+    finalBottomY.set(act.id, bottom);
+  }
+
+  // Containment (UML): a parent bar must enclose its children, extending a little
+  // below the deepest one. Process deepest-first so a child's already-extended
+  // bottom propagates up to its parent (and transitively to grandparents).
+  const byDepthDesc = [...allActivations].sort(
+    (a, b) => nestingDepthFor(b) - nestingDepthFor(a),
+  );
+  for (const act of byDepthDesc) {
+    const parentId = act.parentActivationId;
+    if (!parentId || !activationsById.has(parentId)) continue;
+    const need = finalBottomY.get(act.id)! + CHILD_CONTAINMENT_PAD;
+    if (finalBottomY.get(parentId)! < need) finalBottomY.set(parentId, need);
+  }
+
+  const activationNodes = allActivations.map((act) => {
     // Geometry is fully system-managed: the bar is anchored to its lifeline and
-    // its height is the derived execution span (grows with nested content).
-    const topY = autoTopY;
-    const height = Math.max(MESSAGE_BAND_H * 0.4, autoHeight);
+    // its height is the derived execution span (grows to contain nested content).
+    const topY = rawTopY.get(act.id)!;
+    const height = Math.max(MESSAGE_BAND_H * 0.4, finalBottomY.get(act.id)! - topY);
     const centerX = lifelineCenterX.get(act.lifelineId) ?? 0;
 
     const viewModel: ActivationViewModel = {
@@ -378,7 +433,8 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       domainId: act.id,
       width: ACTIVATION_W,
       height,
-      isOpen: !act.endMessageId,
+      // Self-calls always render solid (atomic call+return), never dashed-open.
+      isOpen: !act.endMessageId && !selfCallActIds.has(act.id),
       nestingDepth: nestingDepthFor(act),
     };
 

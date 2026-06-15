@@ -151,6 +151,75 @@ function stripMessageFromFragments(model: SemanticModel, messageId: string) {
 }
 
 /**
+ * For a new SYNC execution on `lifelineId` at `sequenceNumber`, find the
+ * innermost still-open activation already on that lifeline so the new bar can
+ * nest inside it (self-calls / re-entrant incoming calls) instead of overlapping.
+ */
+function findParentActivationForNesting(
+  model: SemanticModel,
+  lifelineId: string,
+  sequenceNumber: number,
+): string | undefined {
+  if (!model.activations || !model.messages) return undefined;
+  let bestId: string | undefined;
+  let bestSeq = -Infinity;
+  for (const act of Object.values(model.activations)) {
+    if (act.lifelineId !== lifelineId || act.endMessageId) continue;
+    const startSeq = model.messages[act.startMessageId]?.sequenceNumber;
+    if (startSeq === undefined || startSeq >= sequenceNumber) continue;
+    if (startSeq > bestSeq) {
+      bestSeq = startSeq;
+      bestId = act.id;
+    }
+  }
+  return bestId;
+}
+
+function activationStartSeq(model: SemanticModel, act: IRActivation): number {
+  return model.messages?.[act.startMessageId]?.sequenceNumber ?? -Infinity;
+}
+
+/**
+ * Close the activation a REPLY returns from and unwind the call stack: every
+ * still-open execution that started later on the same lifeline closes at the
+ * same point (a nested execution cannot outlive its caller). Mirrors EA/StarUML
+ * where a return pops the stack — so a reply always collapses its bar instead of
+ * leaving self-calls / nested calls open down to the bottom of the lifeline.
+ *
+ * Prefers the call explicitly named by `inReplyTo`; falls back to the innermost
+ * open activation on the returning (source) lifeline when it is missing or stale.
+ */
+function closeActivationsForReply(
+  model: SemanticModel,
+  replyId: string,
+  reply: Omit<IRMessage, 'id' | 'kind'>,
+) {
+  const acts = model.activations;
+  if (!acts) return;
+
+  let target =
+    reply.inReplyTo !== undefined
+      ? Object.values(acts).find(
+          (a) => a.startMessageId === reply.inReplyTo && !a.endMessageId,
+        )
+      : undefined;
+
+  if (!target) {
+    target = Object.values(acts)
+      .filter((a) => a.lifelineId === reply.sourceLifelineId && !a.endMessageId)
+      .sort((x, y) => activationStartSeq(model, y) - activationStartSeq(model, x))[0];
+  }
+  if (!target) return;
+
+  const { lifelineId } = target;
+  const fromSeq = activationStartSeq(model, target);
+  for (const a of Object.values(acts)) {
+    if (a.endMessageId || a.lifelineId !== lifelineId) continue;
+    if (activationStartSeq(model, a) >= fromSeq) a.endMessageId = replyId;
+  }
+}
+
+/**
  * Core message + auto-activation insertion shared by createMessage and
  * insertMessageAt. Mutates the draft model in place; the caller is responsible
  * for bumping updatedAt and for any sequenceNumber reflow.
@@ -167,25 +236,24 @@ function applyMessageCreation(
 
   // Auto-create an activation on the target lifeline for SYNC messages.
   if (data.messageKind === 'SYNC') {
+    const parentActivationId = findParentActivationForNesting(
+      model,
+      data.targetLifelineId,
+      data.sequenceNumber,
+    );
     model.activations[activationId] = {
       id: activationId,
       kind: 'ACTIVATION',
       name: '',
       lifelineId: data.targetLifelineId,
       startMessageId: id,
+      ...(parentActivationId ? { parentActivationId } : {}),
     };
   }
 
-  // For REPLY messages, close the matching open activation on the source side.
-  if (data.messageKind === 'REPLY' && data.inReplyTo) {
-    const acts = model.activations;
-    for (const aid of Object.keys(acts)) {
-      const act = acts[aid];
-      if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
-        act.endMessageId = id;
-        break;
-      }
-    }
+  // For REPLY messages, close the returning execution and unwind the stack.
+  if (data.messageKind === 'REPLY') {
+    closeActivationsForReply(model, id, data);
   }
 }
 

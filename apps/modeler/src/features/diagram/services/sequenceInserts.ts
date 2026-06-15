@@ -204,7 +204,27 @@ export function insertEndpointMessageIntoActiveDiagram(
  * `dropY` appends at the end as before. Opens the props modal so the user can name
  * it / adjust it right away.
  */
-export function insertSelfMessageIntoActiveDiagram(lifelineId?: string, dropY?: number): void {
+/**
+ * Is there an execution on `lifelineId` that is still active across `slot`? An
+ * execution counts when it starts before the slot and has not returned before it
+ * (no reply yet, or its reply lands at/after the slot). Open self-calls count too
+ * — a self-message nested on one is a valid deeper call-stack frame.
+ */
+function hasActiveExecutionAt(model: SemanticModel, lifelineId: string, slot: number): boolean {
+  const acts = model.activations ?? {};
+  const msgs = model.messages ?? {};
+  for (const a of Object.values(acts)) {
+    if (a.lifelineId !== lifelineId) continue;
+    const startMsg = msgs[a.startMessageId];
+    if (!startMsg) continue;
+    if (startMsg.sequenceNumber >= slot) continue;
+    const endSeq = a.endMessageId ? (msgs[a.endMessageId]?.sequenceNumber ?? Infinity) : Infinity;
+    if (endSeq >= slot) return true;
+  }
+  return false;
+}
+
+export function insertSelfMessageIntoActiveDiagram(lifelineId?: string, dropY?: number, force = false): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
   const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
@@ -222,6 +242,14 @@ export function insertSelfMessageIntoActiveDiagram(lifelineId?: string, dropY?: 
     dropY != null
       ? yToMessageSlot(dropY, messageCount + 1, computeSlotLayout(activeModel))
       : messageCount + 1;
+
+  // Validation: a self-message is a call made *during* an execution. If the drop
+  // point isn't inside any active execution on this lifeline, confirm via a modal
+  // before creating a stray top-level frame (the user can still create it).
+  if (!force && !hasActiveExecutionAt(activeModel, target, sequenceNumber)) {
+    useUiStore.getState().openSelfMessageWarning({ lifelineId: target, dropY });
+    return;
+  }
 
   const payload = {
     name: defaultMessageName('SYNC'),

@@ -38,6 +38,7 @@ export type ActiveModal =
   | "coregion-props"
   | "lifeline-props"
   | "continuation-props"
+  | "self-message-warning"
   | null;
 
 export interface AnchorSnapshot {
@@ -52,6 +53,8 @@ interface UiStoreState {
   activeModal: ActiveModal;
   editingId: string | null;
   anchorSnapshot: AnchorSnapshot | null;
+  /** Pending self-message awaiting confirmation in the self-message-warning modal. */
+  pendingSelfMessage: { lifelineId: string; dropY?: number } | null;
   isGetStartedOpen: boolean;
   /** Edge id whose inline properties panel is open, or null. */
   inlineEdgePanelId: string | null;
@@ -109,6 +112,7 @@ interface UiStoreState {
   openCoregionProps: (coregionId: string) => void;
   openLifelineProps: (lifelineId: string) => void;
   openContinuationProps: (continuationId: string) => void;
+  openSelfMessageWarning: (payload: { lifelineId: string; dropY?: number }) => void;
   closeModals: () => void;
   openInlineEdgePanel: (edgeId: string) => void;
   closeInlineEdgePanel: () => void;
@@ -153,6 +157,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   activeModal: null,
   editingId: null,
   anchorSnapshot: null,
+  pendingSelfMessage: null,
   isGetStartedOpen: false,
   inlineEdgePanelId: null,
   inlineClassPanelId: null,
@@ -233,8 +238,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openCoregionProps: (coregionId) => set({ activeModal: "coregion-props", editingId: coregionId }),
   openLifelineProps: (lifelineId) => set({ activeModal: "lifeline-props", editingId: lifelineId }),
   openContinuationProps: (continuationId) => set({ activeModal: "continuation-props", editingId: continuationId }),
+  openSelfMessageWarning: (payload) => set({ activeModal: "self-message-warning", pendingSelfMessage: payload }),
 
-  closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null }),
+  closeModals: () => set({ activeModal: null, editingId: null, anchorSnapshot: null, pendingSelfMessage: null }),
 
   openInlineEdgePanel: (edgeId) =>
     set({ ...NO_INLINE_PANELS, inlineEdgePanelId: edgeId, activeModal: null, editingId: null }),

@@ -1650,5 +1650,11 @@
     "packageNameExists": "Package name already exists at this level",
     "emptyPackage": "empty",
     "noPackage": "(No Package)"
+  },
+  "selfMessageWarning": {
+    "title": "Self-message outside an execution",
+    "body": "This self-message is not inside any active execution on the lifeline, so it will create a stray top-level execution. Did you mean to drop it over an active bar?",
+    "cancel": "Cancel",
+    "createAnyway": "Create anyway"
   }
 }

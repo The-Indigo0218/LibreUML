@@ -1659,5 +1659,11 @@
     "packageNameExists": "El nombre del paquete ya existe en este nivel",
     "emptyPackage": "vacío",
     "noPackage": "(Sin Paquete)"
+  },
+  "selfMessageWarning": {
+    "title": "Self-message fuera de una ejecución",
+    "body": "Este self-message no está dentro de ninguna ejecución activa de la lifeline, así que creará una ejecución suelta de nivel superior. ¿Querías soltarlo sobre una barra activa?",
+    "cancel": "Cancelar",
+    "createAnyway": "Crear igual"
   }
 }

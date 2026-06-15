@@ -73,6 +73,7 @@ import TimeConstraintPropertiesModal from '../features/diagram/components/modals
 import CoregionPropertiesModal from '../features/diagram/components/modals/CoregionPropertiesModal';
 import LifelinePropertiesModal from '../features/diagram/components/modals/LifelinePropertiesModal';
 import ContinuationPropertiesModal from '../features/diagram/components/modals/ContinuationPropertiesModal';
+import SelfMessageWarningModal from '../features/diagram/components/modals/SelfMessageWarningModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -3009,6 +3010,7 @@ export default function KonvaCanvas() {
       <CoregionPropertiesModal />
       <LifelinePropertiesModal />
       <ContinuationPropertiesModal />
+      <SelfMessageWarningModal />
     </div>
   );
 }

@@ -416,15 +416,24 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   for (const act of byDepthDesc) {
     const parentId = act.parentActivationId;
     if (!parentId || !activationsById.has(parentId)) continue;
-    // A self-call is an atomic call+return: its bar is a fixed short stub and must
-    // never grow to enclose later content (defends against legacy data whose
-    // parentActivationId points at a self-call).
-    if (selfCallActIds.has(parentId)) continue;
+    // A parent (including an open self-call that is still on the stack) grows to
+    // enclose its nested children — a self-message pushed onto a self-call is a
+    // deeper frame, so the outer bar must contain it. Parent-finding guarantees an
+    // *incoming* SYNC is never made a child of a self-call, so this never
+    // re-extends an atomic self-call to swallow an unrelated later message.
     const need = finalBottomY.get(act.id)! + CHILD_CONTAINMENT_PAD;
     if (finalBottomY.get(parentId)! < need) finalBottomY.set(parentId, need);
   }
 
-  const activationNodes = allActivations.map((act) => {
+  // Render shallow bars first so deeper (nested self-calls / re-entrant calls)
+  // paint ON TOP of their parent — otherwise a parent emitted later would cover
+  // the nested bar, hiding it. Combined with the per-depth tint this makes nested
+  // executions clearly visible instead of blending into the parent.
+  const activationsForRender = [...allActivations].sort(
+    (a, b) => nestingDepthFor(a) - nestingDepthFor(b),
+  );
+
+  const activationNodes = activationsForRender.map((act) => {
     // Geometry is fully system-managed: the bar is anchored to its lifeline and
     // its height is the derived execution span (grows to contain nested content).
     const topY = rawTopY.get(act.id)!;

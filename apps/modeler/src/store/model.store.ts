@@ -159,6 +159,7 @@ function findParentActivationForNesting(
   model: SemanticModel,
   lifelineId: string,
   sequenceNumber: number,
+  isSelfMessage: boolean,
 ): string | undefined {
   if (!model.activations || !model.messages) return undefined;
   let bestId: string | undefined;
@@ -167,11 +168,14 @@ function findParentActivationForNesting(
     if (act.lifelineId !== lifelineId || act.endMessageId) continue;
     const startMsg = model.messages[act.startMessageId];
     if (!startMsg) continue;
-    // A self-call is an atomic call+return: it never contains *later* messages,
-    // so it must not be picked as a nesting parent (otherwise its short bar would
-    // get stretched down to enclose the next message). It stays open in the model
-    // only because it has no reply of its own — the geometry renders it short.
-    if (startMsg.sourceLifelineId === startMsg.targetLifelineId) continue;
+    const candidateIsSelfCall = startMsg.sourceLifelineId === startMsg.targetLifelineId;
+    // For an *incoming* SYNC, a self-call is an atomic call+return that has
+    // already returned, so the incoming call must not nest into it (otherwise its
+    // short bar would re-extend to enclose the new message). But a *self-message*
+    // is a new frame pushed on the call stack while the current execution is still
+    // open, so it DOES nest into whatever is innermost — including an open
+    // self-call — giving each self-message a deeper offset (true call-stack depth).
+    if (candidateIsSelfCall && !isSelfMessage) continue;
     const startSeq = startMsg.sequenceNumber;
     if (startSeq >= sequenceNumber) continue;
     if (startSeq > bestSeq) {
@@ -247,6 +251,7 @@ function applyMessageCreation(
       model,
       data.targetLifelineId,
       data.sequenceNumber,
+      data.sourceLifelineId === data.targetLifelineId,
     );
     model.activations[activationId] = {
       id: activationId,

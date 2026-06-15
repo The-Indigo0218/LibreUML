@@ -43,7 +43,7 @@ export default function ActivationShape({
   onNodeClick,
   onContextMenu,
 }: ActivationShapeProps) {
-  const colors = resolveActivationColors();
+  const colors = resolveActivationColors(vm.nestingDepth);
   const W = vm.width || DEFAULT_WIDTH;
   const nestingX = vm.nestingDepth * NESTING_OFFSET;
   const H = vm.height;

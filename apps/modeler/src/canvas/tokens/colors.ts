@@ -204,11 +204,22 @@ export interface KonvaActivationColors {
   border: string;
 }
 
-/** Activation bar palette — slightly stronger indigo than the lifeline head to stand out. */
-export function resolveActivationColors(): KonvaActivationColors {
+/**
+ * Activation bar palette — slightly stronger indigo than the lifeline head to
+ * stand out. `nestingDepth` steps the fill one indigo shade darker per level so a
+ * nested execution (self-call / re-entrant call) is clearly distinguishable from
+ * the parent bar it sits inside, instead of blending into it.
+ */
+export function resolveActivationColors(nestingDepth = 0): KonvaActivationColors {
   const dark = isDark();
+  // indigo ramp, light → dark. depth 0 is the base; each level steps one darker,
+  // clamped at the end of the ramp so very deep stacks still render.
+  const lightRamp = ['#c7d2fe', '#a5b4fc', '#818cf8', '#6366f1']; // indigo 200→500
+  const darkRamp  = ['#a5b4fc', '#818cf8', '#6366f1', '#4f46e5']; // indigo 300→600
+  const ramp = dark ? darkRamp : lightRamp;
+  const idx = Math.min(Math.max(nestingDepth, 0), ramp.length - 1);
   return {
-    fill:   dark ? '#a5b4fc' : '#c7d2fe', // indigo-300 / indigo-200
+    fill:   ramp[idx],
     border: dark ? '#6366f1' : '#4338ca', // indigo-500 / indigo-700
   };
 }

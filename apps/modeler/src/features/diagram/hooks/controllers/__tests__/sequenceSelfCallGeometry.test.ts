@@ -101,4 +101,53 @@ describe('Sequence Diagram — self-call execution geometry', () => {
     // Bar stays a short stub — it does NOT stretch down to enclose the new sync.
     expect(selfCall.height).toBeLessThanOrEqual(MESSAGE_BAND_H + 1);
   });
+
+  it('stacks self-messages into progressively deeper executions (call-stack depth)', () => {
+    const s = () => useModelStore.getState();
+    s().resetModel();
+    s().initModel('selfcall-stack');
+
+    const cliente = s().createLifeline({ name: 'Cliente', participantKind: 'ACTOR', alias: 'Cliente' });
+    const portal = s().createLifeline({ name: 'Portal', participantKind: 'ANONYMOUS', alias: 'Portal' });
+
+    // Incoming call opens E1; each self-message pushes a new, deeper frame onto
+    // Portal's call stack: E2 nests in E1, E3 nests in the still-open E2.
+    const m1 = s().createMessage({ name: 'consulta', messageKind: 'SYNC', sourceLifelineId: cliente, targetLifelineId: portal, sequenceNumber: 1 });
+    const m2 = s().createMessage({ name: 'self-a', messageKind: 'SYNC', sourceLifelineId: portal, targetLifelineId: portal, sequenceNumber: 2 });
+    const m3 = s().createMessage({ name: 'self-b', messageKind: 'SYNC', sourceLifelineId: portal, targetLifelineId: portal, sequenceNumber: 3 });
+
+    const acts = Object.values(s().model?.activations ?? {});
+    const e1 = acts.find((a) => a.startMessageId === m1)!;
+    const e2 = acts.find((a) => a.startMessageId === m2)!;
+    const e3 = acts.find((a) => a.startMessageId === m3)!;
+
+    // Each self-message nests one level deeper than the previous frame.
+    expect(e2.parentActivationId).toBe(e1.id);
+    expect(e3.parentActivationId).toBe(e2.id);
+
+    const model = s().model!;
+    const view: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'v1', elementId: cliente, x: 50, y: 0 },
+        { id: 'v2', elementId: portal, x: 300, y: 0 },
+      ],
+      edges: [],
+    };
+    const ctx: NodeBuilderContext = { diagramView: view, model, isStandalone: false, activeTabId: null, handleNoteUpdate: () => {} };
+    const built = buildSequenceDiagramNodes(ctx)
+      .filter((n) => isActivationViewModel(n.data))
+      .map((n) => ({ domainId: (n.data as { domainId: string }).domainId, depth: (n.data as { nestingDepth: number }).nestingDepth }));
+
+    const d1 = built.find((a) => a.domainId === e1.id)!;
+    const d2 = built.find((a) => a.domainId === e2.id)!;
+    const d3 = built.find((a) => a.domainId === e3.id)!;
+
+    // Visual depth increases by one per self-message. The horizontal offset is
+    // applied in ActivationShape as nestingDepth * NESTING_OFFSET, so each deeper
+    // frame steps further right than its parent.
+    expect(d1.depth).toBe(0);
+    expect(d2.depth).toBe(1);
+    expect(d3.depth).toBe(2);
+  });
 });

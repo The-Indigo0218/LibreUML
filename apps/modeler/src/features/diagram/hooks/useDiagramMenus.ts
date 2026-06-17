@@ -16,6 +16,7 @@ import {
   insertInteractionUseIntoActiveDiagram,
   insertEndpointMessageIntoActiveDiagram,
   insertSelfMessageIntoActiveDiagram,
+  insertSelfMessageInActivation,
   reverseMessageInActiveDiagram,
   deleteMessageInActiveDiagram,
 } from "../services/sequenceInserts";
@@ -409,6 +410,18 @@ export const useDiagramMenus = ({
               label: t("contextMenu.edge.delete"),
               onClick: () => deleteMessageInActiveDiagram(nodeId),
               danger: true,
+            },
+          ];
+        }
+
+        // Activation bars are derived shapes too. The primary action is nesting a
+        // self-message INSIDE the execution (a call made during it), which opens
+        // the message properties modal to fill in the call name.
+        if (effectiveType === "ACTIVATION") {
+          return [
+            {
+              label: t("contextMenu.node.createSelfMessage"),
+              onClick: () => insertSelfMessageInActivation(nodeId),
             },
           ];
         }

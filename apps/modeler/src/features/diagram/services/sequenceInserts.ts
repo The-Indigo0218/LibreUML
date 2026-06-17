@@ -270,6 +270,46 @@ export function insertSelfMessageIntoActiveDiagram(lifelineId?: string, dropY?: 
 }
 
 /**
+ * Inserts a self-message nested inside a specific execution (activation bar).
+ * Unlike the lifeline action — which infers the parent from the drop point — this
+ * anchors the new call right after the activation's own start, so it always lands
+ * as a deeper frame INSIDE that execution. Opens the message properties modal so
+ * the user fills in the call name (and any other values) right away.
+ */
+export function insertSelfMessageInActivation(activationId: string): void {
+  const ctx = resolveActiveSequence();
+  if (!ctx) return;
+  const { tabId, isStandaloneFile, activeModel } = ctx;
+
+  const act = activeModel.activations?.[activationId];
+  if (!act) return;
+  const lifelineId = act.lifelineId;
+  if (!activeModel.lifelines?.[lifelineId]) return;
+
+  const startMsg = activeModel.messages?.[act.startMessageId];
+  if (!startMsg) return;
+
+  // Drop the call one slot after this execution's start. insertMessageAt shifts
+  // later messages down and auto-nests via parentActivationId, so the new bar
+  // becomes a child frame of THIS activation.
+  const sequenceNumber = startMsg.sequenceNumber + 1;
+
+  const payload = {
+    name: defaultMessageName('SYNC'),
+    messageKind: 'SYNC' as const,
+    sourceLifelineId: lifelineId,
+    targetLifelineId: lifelineId,
+    sequenceNumber,
+  };
+
+  const newId = isStandaloneFile
+    ? standaloneModelOps(tabId).insertMessageAt(payload)
+    : useModelStore.getState().insertMessageAt(payload);
+
+  useUiStore.getState().openMessageProps(newId);
+}
+
+/**
  * Inserts a general ordering (UML 2.5 §17.2) between the two earliest messages,
  * then opens its properties so the user can re-pick the endpoints. Requires at
  * least two messages — a temporal order needs two occurrences to relate.

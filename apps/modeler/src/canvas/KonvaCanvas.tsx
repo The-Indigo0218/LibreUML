@@ -1674,8 +1674,10 @@ export default function KonvaCanvas() {
       const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
       if (!viewNode) {
         // Derived sequence elements aren't ViewNodes; the context menu passes
-        // their domain id. Messages get a proper menu (edit / reverse / delete).
+        // their domain id. Messages get a proper menu (edit / reverse / delete);
+        // activation bars get a "Create Self Message" (nest a call inside).
         if (activeModel?.messages?.[nodeId]) return 'MESSAGE';
+        if (activeModel?.activations?.[nodeId]) return 'ACTIVATION';
         return undefined;
       }
       if (!viewNode.elementId) return 'NOTE';

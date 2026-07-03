@@ -67,16 +67,16 @@ describe('DomainModelDiagramValidator', () => {
       expect(validator.validateConnection(src, tgt, 'DEPENDENCY').isValid).toBe(false);
     });
 
-    it('rejects AGGREGATION', () => {
+    it('accepts AGGREGATION between two entities', () => {
       const src = makeEntity({ id: 'e1' });
       const tgt = makeEntity({ id: 'e2' });
-      expect(validator.validateConnection(src, tgt, 'AGGREGATION').isValid).toBe(false);
+      expect(validator.validateConnection(src, tgt, 'AGGREGATION').isValid).toBe(true);
     });
 
-    it('rejects COMPOSITION', () => {
+    it('accepts COMPOSITION between two entities', () => {
       const src = makeEntity({ id: 'e1' });
       const tgt = makeEntity({ id: 'e2' });
-      expect(validator.validateConnection(src, tgt, 'COMPOSITION').isValid).toBe(false);
+      expect(validator.validateConnection(src, tgt, 'COMPOSITION').isValid).toBe(true);
     });
 
     it('rejects REALIZATION', () => {
@@ -85,10 +85,17 @@ describe('DomainModelDiagramValidator', () => {
       expect(validator.validateConnection(src, tgt, 'REALIZATION').isValid).toBe(false);
     });
 
-    it('rejects GENERALIZATION', () => {
+    it('accepts GENERALIZATION between two entities', () => {
       const src = makeEntity({ id: 'e1' });
       const tgt = makeEntity({ id: 'e2' });
-      expect(validator.validateConnection(src, tgt, 'GENERALIZATION').isValid).toBe(false);
+      expect(validator.validateConnection(src, tgt, 'GENERALIZATION').isValid).toBe(true);
+    });
+
+    it('rejects GENERALIZATION from an entity to itself', () => {
+      const e = makeEntity({ id: 'e1' });
+      const result = validator.validateConnection(e, e, 'GENERALIZATION');
+      expect(result.isValid).toBe(false);
+      expect(result.errors?.[0]).toContain('itself');
     });
 
     it('rejects EXTEND', () => {
@@ -199,16 +206,18 @@ describe('DomainModelDiagramValidator', () => {
       expect(validator.validateEdge(edge, src, tgt).isValid).toBe(true);
     });
 
-    it('rejects association with empty label', () => {
+    it('allows association with empty label (verb is optional) but warns', () => {
       const edge = makeAssoc({ label: '' });
       const result = validator.validateEdge(edge, makeEntity(), makeEntity());
-      expect(result.isValid).toBe(false);
-      expect(result.errors?.some((e) => e.includes('verb label'))).toBe(true);
+      expect(result.isValid).toBe(true);
+      expect(result.warnings?.some((w) => w.includes('verb label'))).toBe(true);
     });
 
-    it('rejects association with whitespace-only label', () => {
+    it('allows association with whitespace-only label but warns', () => {
       const edge = makeAssoc({ label: '   ' });
-      expect(validator.validateEdge(edge, makeEntity(), makeEntity()).isValid).toBe(false);
+      const result = validator.validateEdge(edge, makeEntity(), makeEntity());
+      expect(result.isValid).toBe(true);
+      expect(result.warnings?.some((w) => w.includes('verb label'))).toBe(true);
     });
 
     it('accepts standard multiplicity presets', () => {

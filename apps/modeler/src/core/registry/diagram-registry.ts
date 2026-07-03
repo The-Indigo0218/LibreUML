@@ -696,6 +696,27 @@ const domainModelDiagramRegistry: DiagramTypeRegistry = {
         icon: 'MoveRight',
         translationKey: 'sidebar.connections.association',
       },
+      {
+        id: 'generalization',
+        type: 'EDGE',
+        label: 'Generalization',
+        icon: 'ArrowUp',
+        translationKey: 'sidebar.connections.generalization',
+      },
+      {
+        id: 'aggregation',
+        type: 'EDGE',
+        label: 'Aggregation',
+        icon: 'Diamond',
+        translationKey: 'sidebar.connections.aggregation',
+      },
+      {
+        id: 'composition',
+        type: 'EDGE',
+        label: 'Composition',
+        icon: 'Diamond',
+        translationKey: 'sidebar.connections.composition',
+      },
     ],
   },
 

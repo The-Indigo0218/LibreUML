@@ -86,6 +86,9 @@ export interface UmlEdgeData {
   type: UmlRelationType | "note" | string;
   sourceMultiplicity?: string;
   targetMultiplicity?: string;
+  /** UML navigability per end (from XMI <navigableOwnedEnd>). undefined = unspecified. */
+  sourceNavigable?: boolean;
+  targetNavigable?: boolean;
   isHovered?: boolean;
 }
 

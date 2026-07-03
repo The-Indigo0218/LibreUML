@@ -21,7 +21,10 @@
  *   2. retractAnchor()   — pull target anchor back so line body meets marker base.
  *   3. route()           — compute flat points array according to routingMode.
  *   4. <Line>            — draw path (solid or dashed).
- *   5. <EdgeMarker>      — draw arrowhead / diamond at original target anchor.
+ *   5. <EdgeMarker>×2    — endpoint glyphs. The target shows the kind's fixed
+ *                          marker (triangle / diamond / directional arrow); an
+ *                          association-family end otherwise reflects per-end
+ *                          navigability (arrow / ✕ / nothing). See markers.ts.
  *
  * Marker retraction (px)
  * ──────────────────────
@@ -62,23 +65,18 @@ import {
   type NodeShape,
   type LockedHandle,
   type AnchorPoint,
+  type AnchorFace,
   type Point,
   type LabelPositions,
 } from './geometry';
 import { avoidObstacles } from './obstacleAvoidance';
 import EdgeMarker from './EdgeMarker';
+import { resolveEndMarker, markerRetract } from './markers';
 
 const DASHED_KINDS = new Set<RelationKind>([
   'REALIZATION', 'DEPENDENCY', 'USAGE', 'INCLUDE', 'EXTEND',
   'PACKAGE_IMPORT', 'PACKAGE_MERGE', 'PACKAGE_ACCESS',
 ]);
-
-const MARKER_RETRACT: Partial<Record<RelationKind, number>> = {
-  GENERALIZATION: 16,
-  REALIZATION:    16,
-  AGGREGATION:    24,
-  COMPOSITION:    24,
-};
 
 // Maps RelationKind to CSS variable name (matches v1 useVFSEdgeStyling)
 const KIND_COLOR_VAR: Partial<Record<RelationKind, string>> = {
@@ -186,6 +184,13 @@ export interface KonvaEdgeProps {
   targetMultiplicity?: string;
   sourceRole?: string;
   targetRole?: string;
+  /**
+   * UML navigability of each association end (from IRAssociationEnd.isNavigable).
+   *   true  → open arrow (navigable) · false → ✕ (not navigable) · undefined → nothing.
+   * Only association-family kinds honour these; ignored elsewhere.
+   */
+  sourceNavigable?: boolean;
+  targetNavigable?: boolean;
   /** Highlight state (MAG-01.23) — edge is highlighted (show kind color + 3px stroke) */
   isHighlighted?: boolean;
   /** Hover state (MAG-01.24) — edge is hovered (show kind color + badge tooltip) */
@@ -280,6 +285,8 @@ export default function KonvaEdge({
   targetMultiplicity,
   sourceRole,
   targetRole,
+  sourceNavigable,
+  targetNavigable,
   isHighlighted = false,
   isHovered = false,
   isDimmed = false,
@@ -336,8 +343,15 @@ export default function KonvaEdge({
   const dashArray = lineStyleOverride
     ? borderDash(lineStyleOverride, strokeWidth)
     : (dashed ? [6, 4] : undefined);
-  const retract = MARKER_RETRACT[kind] ?? 0;
+  const retract = markerRetract(kind);
   const stereotypeLabel = getStereotypeLabel(kind);
+
+  // Endpoint glyphs (UML navigability). A fixed semantic marker (triangle /
+  // diamond / directional arrow) wins; association-family ends otherwise reflect
+  // per-end navigability (arrow / ✕ / nothing). Source markers never render on
+  // self-loops (both ends share a node).
+  const sourceMarker = isSelfLoop ? null : resolveEndMarker(kind, 'source', sourceNavigable);
+  const targetMarker = resolveEndMarker(kind, 'target', targetNavigable);
 
   const showLines  = renderMode !== 'labels';
   const showLabels = renderMode !== 'lines';
@@ -345,7 +359,7 @@ export default function KonvaEdge({
   // Waypoints actually rendered: the live draft (during a drag) or the persisted props.
   const effectiveWaypoints = draftWaypoints ?? waypoints;
 
-  const { markerX, markerY, markerFace, markerAngle, points, bezier, labelPositions, srcX, srcY } = useMemo(() => {
+  const { markerX, markerY, markerFace, markerAngle, points, bezier, labelPositions, srcX, srcY, srcFace, srcMarkerAngle } = useMemo(() => {
     // ── Self-loop ──────────────────────────────────────────────────────────
     if (isSelfLoop) {
       const loop = selfLoopPath(sourceBounds, retract);
@@ -364,6 +378,9 @@ export default function KonvaEdge({
         markerAngle: undefined as number | undefined,
         srcX,
         srcY,
+        // Self-loops never draw a source marker; placeholder face/angle.
+        srcFace: 'Right' as AnchorFace,
+        srcMarkerAngle: undefined as number | undefined,
         labelPositions: {
           sourceMultX: srcX + 6,
           sourceMultY: srcY - 14,
@@ -388,6 +405,9 @@ export default function KonvaEdge({
     let tgt: AnchorPoint;
     let retractedTgt: Point;
     let markerAngle: number | undefined;
+    // Rotation for a source-end navigability marker (tip points into the source
+    // node). Mirrors markerAngle; undefined → fall back to faceToMarkerAngle(src.face).
+    let srcMarkerAngle: number | undefined;
 
     if (useFloating) {
       // Anchors slide along each border toward the opposing node (or the nearest
@@ -404,6 +424,12 @@ export default function KonvaEdge({
       const len = Math.hypot(dx, dy) || 1;
       dx /= len; dy /= len;
       markerAngle = directionToAngle(dx, dy);
+      // Source marker points into the source node along the first segment.
+      let sdx = src.x - srcAim.x;
+      let sdy = src.y - srcAim.y;
+      const slen = Math.hypot(sdx, sdy) || 1;
+      sdx /= slen; sdy /= slen;
+      srcMarkerAngle = directionToAngle(sdx, sdy);
       retractedTgt = retract > 0 ? { x: tgt.x - dx * retract, y: tgt.y - dy * retract } : tgt;
     } else {
       ({ src, tgt } =
@@ -472,6 +498,9 @@ export default function KonvaEdge({
         ? effectiveWaypoints![effectiveWaypoints!.length - 1]
         : src;
       markerAngle = arrivalAngle(lastFrom, tgt) ?? markerAngle;
+      // Symmetric source-side angle: from the first route point back toward src.
+      const firstTo = hasWaypoints ? effectiveWaypoints![0] : tgt;
+      srcMarkerAngle = arrivalAngle(firstTo, src) ?? srcMarkerAngle;
     }
 
     // Target labels must clear the marker depth (e.g. 24px diamond for COMPOSITION)
@@ -486,6 +515,8 @@ export default function KonvaEdge({
       markerAngle,
       srcX: src.x,
       srcY: src.y,
+      srcFace: src.face,
+      srcMarkerAngle,
       labelPositions: computeLabelPositions(pts, src.x, src.y, tgt.x, tgt.y, targetAlong, isBezier),
     };
   }, [sourceBounds, targetBounds, kind, isSelfLoop, routing, obstacles, retract, anchorLocked, sourceHandle, targetHandle, sourceAnchor, targetAnchor, floating, sourceShape, targetShape, effectiveWaypoints]);
@@ -553,14 +584,26 @@ export default function KonvaEdge({
             onMouseLeave={(e) => onMouseLeave?.(e, id)}
             onDblClick={() => onDblClick?.(id)}
           />
-          <EdgeMarker
-            kind={kind}
-            x={markerX}
-            y={markerY}
-            face={markerFace}
-            stroke={stroke}
-            angleOverride={markerAngle}
-          />
+          {targetMarker && (
+            <EdgeMarker
+              shape={targetMarker}
+              x={markerX}
+              y={markerY}
+              face={markerFace}
+              stroke={stroke}
+              angleOverride={markerAngle}
+            />
+          )}
+          {sourceMarker && (
+            <EdgeMarker
+              shape={sourceMarker}
+              x={srcX}
+              y={srcY}
+              face={srcFace}
+              stroke={stroke}
+              angleOverride={srcMarkerAngle}
+            />
+          )}
         </>
       )}
 

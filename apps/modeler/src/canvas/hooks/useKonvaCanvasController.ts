@@ -111,6 +111,8 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
       targetMultiplicity: e.data.targetMultiplicity,
       sourceRole: e.data.sourceRole,
       targetRole: e.data.targetRole,
+      sourceNavigable: e.data.sourceNavigable,
+      targetNavigable: e.data.targetNavigable,
       anchorLocked: e.data.anchorLocked,
       sourceHandle: e.sourceHandle ?? undefined,
       targetHandle: e.targetHandle ?? undefined,

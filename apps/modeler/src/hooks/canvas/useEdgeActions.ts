@@ -35,6 +35,16 @@ export interface UseEdgeActionsResult {
   deleteEdgeById: (viewEdgeId: string) => void;
   reverseEdgeById: (viewEdgeId: string) => void;
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;
+  /**
+   * Sets the UML navigability of one association end (IRAssociationEnd.isNavigable).
+   * true → navigable · false → not navigable · undefined → unspecified (removes it).
+   * Mutates the semantic relation end so it is shared across every diagram.
+   */
+  setEdgeEndNavigable: (
+    viewEdgeId: string,
+    end: 'source' | 'target',
+    value: boolean | undefined,
+  ) => void;
   updateVFSEdgeProps: (
     viewEdgeId: string,
     props: {
@@ -180,6 +190,53 @@ export function useEdgeActions({
           const tmp = rel.sourceId;
           rel.sourceId = rel.targetId;
           rel.targetId = tmp;
+          draft.model.updatedAt = Date.now();
+        });
+      }
+    },
+    [activeTabId, isStandalone],
+  );
+
+  const setEdgeEndNavigable = useCallback(
+    (viewEdgeId: string, end: 'source' | 'target', value: boolean | undefined) => {
+      if (!activeTabId) return;
+      const currentProject = useVFSStore.getState().project;
+      if (!currentProject) return;
+      const fileNode = currentProject.nodes[activeTabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      if (!isDiagramView((fileNode as VFSFile).content)) return;
+
+      const currentView = (fileNode as VFSFile).content as DiagramView;
+      const viewEdge = currentView.edges.find((ve) => ve.id === viewEdgeId);
+      if (!viewEdge) return;
+      const { relationId } = viewEdge;
+
+      // Ensures the target end object exists (with its elementId) before writing
+      // isNavigable; undefined clears the flag back to "unspecified".
+      const applyToRelation = (rel: any) => {
+        if (!rel) return;
+        const endKey = end === 'source' ? 'sourceEnd' : 'targetEnd';
+        const elementId = end === 'source' ? rel.sourceId : rel.targetId;
+        if (!rel[endKey]) rel[endKey] = { elementId };
+        if (value === undefined) delete rel[endKey].isNavigable;
+        else rel[endKey].isNavigable = value;
+      };
+
+      if (isStandalone) {
+        if (!getLocalModel(activeTabId)?.relations[relationId]) return;
+        withUndo('vfs', 'Set Navigability', activeTabId, (draft: any) => {
+          const node = draft.project?.nodes[activeTabId];
+          const rel = node?.localModel?.relations[relationId];
+          if (!rel) return;
+          applyToRelation(rel);
+          node.localModel.updatedAt = Date.now();
+        });
+      } else {
+        if (!useModelStore.getState().model?.relations[relationId]) return;
+        withUndo('model', 'Set Navigability', 'global', (draft: any) => {
+          const rel = draft.model?.relations[relationId];
+          if (!rel) return;
+          applyToRelation(rel);
           draft.model.updatedAt = Date.now();
         });
       }
@@ -400,5 +457,5 @@ export function useEdgeActions({
     [activeTabId],
   );
 
-  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, updateVFSEdgeProps, updateEdgeWaypoints, updateEdgeRoutingMode, updateEdgeStyle, relinkEdgeEndpoint };
+  return { deleteEdgeById, reverseEdgeById, changeEdgeKind, setEdgeEndNavigable, updateVFSEdgeProps, updateEdgeWaypoints, updateEdgeRoutingMode, updateEdgeStyle, relinkEdgeEndpoint };
 }

@@ -99,6 +99,9 @@ export interface VFSCanvasEdge {
     targetMultiplicity?: string;
     sourceRole?: string;
     targetRole?: string;
+    /** UML navigability per end (IRAssociationEnd.isNavigable). */
+    sourceNavigable?: boolean;
+    targetNavigable?: boolean;
     anchorLocked?: boolean;
     condition?: string;
     extensionPoint?: string;
@@ -126,6 +129,11 @@ export interface VFSCanvasResult {
   deleteEdgeById: (viewEdgeId: string) => void;
   reverseEdgeById: (viewEdgeId: string) => void;
   changeEdgeKind: (viewEdgeId: string, kind: RelationKind) => void;
+  setEdgeEndNavigable: (
+    viewEdgeId: string,
+    end: 'source' | 'target',
+    value: boolean | undefined,
+  ) => void;
   updateVFSEdgeProps: (
     viewEdgeId: string,
     props: {
@@ -378,6 +386,8 @@ export function useVFSCanvasController(): VFSCanvasResult {
           targetMultiplicity: relation.targetEnd?.multiplicity ?? viewEdge.targetMultiplicity,
           sourceRole: viewEdge.sourceRole,
           targetRole: viewEdge.targetRole,
+          sourceNavigable: relation.sourceEnd?.isNavigable,
+          targetNavigable: relation.targetEnd?.isNavigable,
           anchorLocked: viewEdge.anchorLocked,
           condition: relation.condition,
           extensionPoint: relation.extensionPoint,
@@ -412,6 +422,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
     deleteEdgeById: edgeActions.deleteEdgeById,
     reverseEdgeById: edgeActions.reverseEdgeById,
     changeEdgeKind: edgeActions.changeEdgeKind,
+    setEdgeEndNavigable: edgeActions.setEdgeEndNavigable,
     updateVFSEdgeProps: edgeActions.updateVFSEdgeProps,
     relinkEdgeEndpoint: edgeActions.relinkEdgeEndpoint,
     updateEdgeWaypoints: edgeActions.updateEdgeWaypoints,

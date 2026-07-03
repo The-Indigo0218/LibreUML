@@ -1,23 +1,21 @@
 /**
- * EdgeMarker — Konva Group that renders the arrowhead / diamond at a
- * target anchor point.
+ * EdgeMarker — Konva Group that renders an endpoint glyph (arrowhead, diamond,
+ * triangle or navigability ✕) at an anchor point.
  *
- * Marker coordinate convention (matches VfsUmlEdge.tsx SVG markers):
+ * Marker coordinate convention (matches diagramToSvg.ts markers):
  *   - Tip at local (0, 0).
  *   - Body extends toward negative-x.
- *   - The Group is rotated by `faceToMarkerAngle(face)` so the tip always
- *     points into the node face.
+ *   - The Group is rotated by `faceToMarkerAngle(face)` (or `angleOverride`) so
+ *     the tip always points into the node face.
  *
- * Supported kinds:
- *   GENERALIZATION / REALIZATION → hollow triangle
- *   AGGREGATION                  → hollow diamond
- *   COMPOSITION                  → filled diamond
- *   everything else              → open chevron arrow
+ * The glyph is chosen by the caller via `resolveEndMarker` (markers.ts) — this
+ * component only draws the requested `shape`, so the same set of shapes renders
+ * at either end (source or target).
  */
 
 import { Group, Line } from 'react-konva';
-import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 import { faceToMarkerAngle, type AnchorFace } from './geometry';
+import type { MarkerShape } from './markers';
 
 function getCanvasBg(): string {
   return (
@@ -26,7 +24,7 @@ function getCanvasBg(): string {
 }
 
 interface EdgeMarkerProps {
-  kind: RelationKind;
+  shape: MarkerShape;
   x: number;
   y: number;
   face: AnchorFace;
@@ -39,13 +37,12 @@ interface EdgeMarkerProps {
   angleOverride?: number;
 }
 
-export default function EdgeMarker({ kind, x, y, face, stroke, angleOverride }: EdgeMarkerProps) {
+export default function EdgeMarker({ shape, x, y, face, stroke, angleOverride }: EdgeMarkerProps) {
   const rotation = angleOverride ?? faceToMarkerAngle(face);
   const bg = getCanvasBg();
 
-  switch (kind) {
-    case 'GENERALIZATION':
-    case 'REALIZATION':
+  switch (shape) {
+    case 'triangle':
       // Hollow triangle: tip at (0,0), base at x = -16
       return (
         <Group x={x} y={y} rotation={rotation} listening={false}>
@@ -61,7 +58,7 @@ export default function EdgeMarker({ kind, x, y, face, stroke, angleOverride }: 
         </Group>
       );
 
-    case 'AGGREGATION':
+    case 'diamondHollow':
       // Hollow diamond: right tip at (0,0), left tip at (-24, 0)
       return (
         <Group x={x} y={y} rotation={rotation} listening={false}>
@@ -77,7 +74,7 @@ export default function EdgeMarker({ kind, x, y, face, stroke, angleOverride }: 
         </Group>
       );
 
-    case 'COMPOSITION':
+    case 'diamondFilled':
       // Filled diamond: same shape, fill = stroke color
       return (
         <Group x={x} y={y} rotation={rotation} listening={false}>
@@ -93,6 +90,17 @@ export default function EdgeMarker({ kind, x, y, face, stroke, angleOverride }: 
         </Group>
       );
 
+    case 'cross':
+      // Navigability ✕ (explicitly non-navigable end). Small saltire sitting just
+      // off the anchor along the line body (toward −x), rotation-aligned.
+      return (
+        <Group x={x} y={y} rotation={rotation} listening={false}>
+          <Line points={[-12, -5, -2, 5]} stroke={stroke} strokeWidth={2} lineCap="round" perfectDrawEnabled={false} />
+          <Line points={[-12, 5, -2, -5]} stroke={stroke} strokeWidth={2} lineCap="round" perfectDrawEnabled={false} />
+        </Group>
+      );
+
+    case 'arrow':
     default:
       // Open chevron arrow: tip at (0,0)
       return (

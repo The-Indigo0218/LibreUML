@@ -1744,13 +1744,18 @@ export default function KonvaCanvas() {
     (e: KonvaEventObject<PointerEvent>, edgeId: string) => {
       e.evt.preventDefault();
       if (vfsController.vfsFile?.diagramType === 'DOMAIN_MODEL_DIAGRAM') {
-        const relationId = vfsController.edges.find((ve) => ve.id === edgeId)?.data.domainId;
-        if (relationId) openDomainAssociationProps(relationId);
-        return;
+        // Association-family edges (association / aggregation / composition) open the
+        // verb·multiplicity·navigability modal; generalization falls through to the
+        // standard edge action modal (anchor / delete).
+        const edge = edges.find((ed) => ed.id === edgeId);
+        if (edge && INLINE_PANEL_KINDS.has(edge.kind)) {
+          const relationId = vfsController.edges.find((ve) => ve.id === edgeId)?.data.domainId;
+          if (relationId) { openDomainAssociationProps(relationId); return; }
+        }
       }
       openVfsEdgeAction(edgeId, buildAnchorSnapshot(edgeId));
     },
-    [openVfsEdgeAction, buildAnchorSnapshot, openDomainAssociationProps, vfsController.vfsFile?.diagramType, vfsController.edges],
+    [openVfsEdgeAction, buildAnchorSnapshot, openDomainAssociationProps, vfsController.vfsFile?.diagramType, vfsController.edges, edges],
   );
 
   const handleEdgeDblClick = useCallback(
@@ -1760,11 +1765,16 @@ export default function KonvaCanvas() {
       if (edge.kind === 'EXTEND') { openExtendProps(edgeId); return; }
       // TODO: route through a ShapeRouter
       if (vfsController.vfsFile?.diagramType === 'DOMAIN_MODEL_DIAGRAM') {
-        const relationId = vfsController.edges.find((e) => e.id === edgeId)?.data.domainId;
-        if (relationId) openDomainAssociationProps(relationId);
+        // Association-family edges have the verb·multiplicity·navigability modal;
+        // a generalization opens the standard edge action modal instead.
+        if (INLINE_PANEL_KINDS.has(edge.kind)) {
+          const relationId = vfsController.edges.find((e) => e.id === edgeId)?.data.domainId;
+          if (relationId) { openDomainAssociationProps(relationId); return; }
+        }
+        openVfsEdgeAction(edgeId, buildAnchorSnapshot(edgeId));
       }
     },
-    [edges, openExtendProps, openDomainAssociationProps, vfsController.vfsFile?.diagramType],
+    [edges, openExtendProps, openDomainAssociationProps, openVfsEdgeAction, buildAnchorSnapshot, vfsController.vfsFile?.diagramType, vfsController.edges],
   );
 
   const handleStageContextMenu = useCallback(
@@ -2225,7 +2235,10 @@ export default function KonvaCanvas() {
       },
       sourceName: nodeName(edge.sourceId),
       targetName: nodeName(edge.targetId),
+      sourceNavigable: edge.sourceNavigable,
+      targetNavigable: edge.targetNavigable,
       onCommit: (props) => vfsController.updateVFSEdgeProps(edge.id, props),
+      onNavigableChange: (end, value) => vfsController.setEdgeEndNavigable(edge.id, end, value),
       onReverse: () => vfsController.reverseEdgeById(edge.id),
       onAdvanced: () => { closeInlineEdgePanel(); openVfsEdgeAction(edge.id, buildAnchorSnapshot(edge.id)); },
       onClose: closeInlineEdgePanel,
@@ -2480,6 +2493,8 @@ export default function KonvaCanvas() {
                 key={edge.id}
                 id={edge.id}
                 kind={edge.kind}
+                sourceNavigable={edge.sourceNavigable}
+                targetNavigable={edge.targetNavigable}
                 sourceBounds={sourceBounds}
                 targetBounds={targetBounds}
                 isSelfLoop={isSelfLoop}

@@ -6,7 +6,14 @@ import type { DomainEntityNode } from '../domain/models/nodes/domain-model.types
 import type { DomainAssociationEdge } from '../domain/models/edges/domain-model.types';
 import { isValidMultiplicity } from '../domain/multiplicity.utils';
 
-const ALLOWED_EDGE_TYPES = new Set(['ASSOCIATION', 'NOTE_LINK']);
+// A domain model is a conceptual class diagram: its proper relationships are the
+// structural ones between concepts — association, generalization (is-a), and
+// whole-part aggregation / composition (cf. Larman, "Applying UML and Patterns").
+// Behavioural / design relationships (dependency, realization, include/extend,
+// package relations) are deliberately excluded.
+const ALLOWED_EDGE_TYPES = new Set([
+  'ASSOCIATION', 'GENERALIZATION', 'AGGREGATION', 'COMPOSITION', 'NOTE_LINK',
+]);
 
 export class DomainModelDiagramValidator implements BaseValidator {
   validateConnection(
@@ -25,7 +32,7 @@ export class DomainModelDiagramValidator implements BaseValidator {
       return {
         isValid: false,
         errors: [
-          `Only ASSOCIATION is allowed in Domain Model diagrams (got: ${edgeType})`,
+          `Only ASSOCIATION and GENERALIZATION are allowed in Domain Model diagrams (got: ${edgeType})`,
         ],
       };
     }
@@ -34,7 +41,7 @@ export class DomainModelDiagramValidator implements BaseValidator {
       return {
         isValid: false,
         errors: [
-          `Association source must be a Domain Entity (got: ${sourceNode.type})`,
+          `Relation source must be a Domain Entity (got: ${sourceNode.type})`,
         ],
       };
     }
@@ -43,8 +50,16 @@ export class DomainModelDiagramValidator implements BaseValidator {
       return {
         isValid: false,
         errors: [
-          `Association target must be a Domain Entity (got: ${targetNode.type})`,
+          `Relation target must be a Domain Entity (got: ${targetNode.type})`,
         ],
+      };
+    }
+
+    // A concept cannot generalize itself.
+    if (edgeType === 'GENERALIZATION' && sourceNode.id === targetNode.id) {
+      return {
+        isValid: false,
+        errors: ['A Domain Entity cannot generalize itself'],
       };
     }
 
@@ -118,8 +133,10 @@ export class DomainModelDiagramValidator implements BaseValidator {
 
     const assoc = edge as DomainAssociationEdge;
 
+    // Verb label is a domain-modeling best practice, not a UML requirement —
+    // surface it as a warning (a nudge) rather than a blocking error.
     if (!assoc.label || assoc.label.trim() === '') {
-      errors.push('Association must have a verb label describing the relationship');
+      warnings.push('Consider adding a verb label describing the relationship');
     }
 
     if ('sourceMultiplicity' in assoc && !isValidMultiplicity(assoc.sourceMultiplicity)) {

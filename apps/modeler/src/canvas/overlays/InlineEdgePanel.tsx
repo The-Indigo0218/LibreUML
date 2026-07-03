@@ -30,6 +30,9 @@ export interface InlineEdgePanelValues {
   targetMultiplicity: string;
 }
 
+/** UML navigability of one association end. undefined = unspecified. */
+export type Navigability = boolean | undefined;
+
 export interface InlineEdgePanelProps {
   /** Edge id — used as React key by the parent so the panel re-inits per edge. */
   edgeId: string;
@@ -38,8 +41,13 @@ export interface InlineEdgePanelProps {
   /** Display names of the two endpoints. */
   sourceName: string;
   targetName: string;
+  /** Current UML navigability of each end (undefined = unspecified). */
+  sourceNavigable: Navigability;
+  targetNavigable: Navigability;
   /** Persists a subset of edge props (called on field blur / commit). */
   onCommit: (props: Partial<InlineEdgePanelValues>) => void;
+  /** Sets the navigability of one end (semantic — shared across diagrams). */
+  onNavigableChange: (end: 'source' | 'target', value: Navigability) => void;
   /** Reverse the relation direction. */
   onReverse: () => void;
   /** Open the full modal editor (kind change, anchor picker). */
@@ -48,11 +56,62 @@ export interface InlineEdgePanelProps {
   onClose: () => void;
 }
 
+/**
+ * NavigabilitySelector — 3-state segmented control for one association end.
+ *   —  unspecified (default; no arrowhead, matches EA/StarUML)
+ *   →  navigable (open arrow)
+ *   ✕  not navigable
+ */
+function NavigabilitySelector({
+  value,
+  onChange,
+  label,
+}: {
+  value: Navigability;
+  onChange: (v: Navigability) => void;
+  label: string;
+}) {
+  const opts: { key: string; v: Navigability; glyph: string; title: string }[] = [
+    { key: 'u', v: undefined, glyph: '—', title: 'Sin especificar' },
+    { key: 'n', v: true, glyph: '→', title: 'Navegable' },
+    { key: 'x', v: false, glyph: '✕', title: 'No navegable' },
+  ];
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] text-text-secondary uppercase tracking-wider">{label}</span>
+      <div className="flex rounded border border-surface-border overflow-hidden">
+        {opts.map((o) => {
+          const active = value === o.v;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              title={o.title}
+              onClick={() => onChange(o.v)}
+              className={
+                'px-2 py-0.5 text-xs font-mono transition-colors ' +
+                (active
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-surface-secondary text-text-secondary hover:text-text-primary')
+              }
+            >
+              {o.glyph}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function InlineEdgePanel({
   values,
   sourceName,
   targetName,
+  sourceNavigable,
+  targetNavigable,
   onCommit,
+  onNavigableChange,
   onReverse,
   onAdvanced,
   onClose,
@@ -118,6 +177,11 @@ export default function InlineEdgePanel({
             invalid={!srcMulValid}
             accent="indigo"
           />
+          <NavigabilitySelector
+            value={sourceNavigable}
+            onChange={(v) => onNavigableChange('source', v)}
+            label={t('inlineEdgePanel.navigability', 'Navegabilidad')}
+          />
         </div>
 
         {/* Target end */}
@@ -139,6 +203,11 @@ export default function InlineEdgePanel({
             onChange={(v) => { setTargetMul(v); commitMul('targetMultiplicity', v, isValidMultiplicity(v)); }}
             invalid={!tgtMulValid}
             accent="indigo"
+          />
+          <NavigabilitySelector
+            value={targetNavigable}
+            onChange={(v) => onNavigableChange('target', v)}
+            label={t('inlineEdgePanel.navigability', 'Navegabilidad')}
           />
         </div>
 

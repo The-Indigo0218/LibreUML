@@ -1656,5 +1656,19 @@
     "body": "This self-message is not inside any active execution on the lifeline, so it will create a stray top-level execution. Did you mean to drop it over an active bar?",
     "cancel": "Cancel",
     "createAnyway": "Create anyway"
+  },
+  "sequenceInserts": {
+    "needLifelineForFragment": "Create at least one lifeline before inserting a fragment",
+    "needLifelineForRef": "Create at least one lifeline before inserting a ref",
+    "needLifelineForMessage": "Create at least one lifeline before inserting a message",
+    "needLifelineForCoregion": "Create at least one lifeline before inserting a coregion",
+    "needLifelineForContinuation": "Create at least one lifeline before inserting a continuation",
+    "needTwoMessagesForOrdering": "Create at least two messages before adding a general ordering",
+    "needTwoMessagesForDuration": "Create at least two messages before adding a duration",
+    "needMessageForTimeMark": "Create at least one message before adding a time mark"
+  },
+  "sequenceStubs": {
+    "noNamedMessages": "No named messages to generate stubs from",
+    "generated": "{{ops}} operation(s) generated in {{classifiers}} classifier(s)"
   }
 }

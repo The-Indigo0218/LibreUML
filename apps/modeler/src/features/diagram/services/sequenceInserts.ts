@@ -5,15 +5,29 @@ import { useToastStore } from "../../../store/toast.store";
 import { useUiStore } from "../../../store/uiStore";
 import { standaloneModelOps, getLocalModel } from "../../../store/standaloneModelOps";
 import { isDiagramView } from "../hooks/useVFSCanvasController";
-import { defaultMessageName } from "../../../hooks/canvas/sequenceMessageHelpers";
+import { defaultMessageName, nextMessageSequenceNumber } from "../../../hooks/canvas/sequenceMessageHelpers";
 import { yToMessageSlot, computeSlotLayout } from "../hooks/controllers/sequenceDiagramNodes";
 import { defaultOperandCount } from "../../../core/domain/vfs/vfs.types";
 import type { DiagramView, VFSFile, FragmentKind, SemanticModel } from "../../../core/domain/vfs/vfs.types";
+import i18n from "../../../i18n/config";
+
+/**
+ * Warn the user that a precondition is missing. This module is a plain service,
+ * not a component, so it reads the i18n instance directly instead of `useTranslation`.
+ * The ⚠️ lives here rather than in the locale files — it is presentation, not language.
+ */
+function warn(key: string): void {
+  useToastStore.getState().show(`⚠️ ${i18n.t(`sequenceInserts.${key}`)}`);
+}
 
 interface ActiveSequence {
-  tabId: string;
-  isStandaloneFile: boolean;
   activeModel: SemanticModel;
+  /**
+   * Model mutators for this tab, already resolved to the standalone-file ops or
+   * the global model store. Every helper below writes through this, so none of
+   * them has to repeat the standalone branch.
+   */
+  ops: ReturnType<typeof standaloneModelOps> | ReturnType<typeof useModelStore.getState>;
   /** elementIds of every lifeline currently placed on the canvas. */
   lifelineIds: string[];
 }
@@ -42,7 +56,9 @@ function resolveActiveSequence(): ActiveSequence | null {
     .map((vn) => vn.elementId)
     .filter((id): id is string => !!id && !!activeModel.lifelines?.[id]);
 
-  return { tabId, isStandaloneFile, activeModel, lifelineIds };
+  const ops = isStandaloneFile ? standaloneModelOps(tabId) : useModelStore.getState();
+
+  return { activeModel, ops, lifelineIds };
 }
 
 /** A world-space rectangle (drawn fragment box), in canvas coordinates. */
@@ -90,11 +106,11 @@ export function insertFragmentWithCoverage(
 ): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+  const { activeModel, ops, lifelineIds } = ctx;
 
   const covered = coveredLifelineIds.length > 0 ? coveredLifelineIds : lifelineIds;
   if (covered.length === 0) {
-    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un fragmento');
+    warn('needLifelineForFragment');
     return;
   }
 
@@ -110,8 +126,7 @@ export function insertFragmentWithCoverage(
   }`;
 
   const payload = { name, fragmentKind, coveredLifelineIds: covered, operands };
-  if (isStandaloneFile) standaloneModelOps(tabId).createFragment(payload);
-  else useModelStore.getState().createFragment(payload);
+  ops.createFragment(payload);
 }
 
 /**
@@ -130,10 +145,10 @@ export function insertFragmentIntoActiveDiagram(fragmentKind: FragmentKind): voi
 export function insertInteractionUseIntoActiveDiagram(): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+  const { activeModel, ops, lifelineIds } = ctx;
 
   if (lifelineIds.length === 0) {
-    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un ref');
+    warn('needLifelineForRef');
     return;
   }
 
@@ -143,9 +158,7 @@ export function insertInteractionUseIntoActiveDiagram(): void {
     afterSequenceNumber: Object.keys(activeModel.messages ?? {}).length,
   };
 
-  const newId = isStandaloneFile
-    ? standaloneModelOps(tabId).createInteractionUse(payload)
-    : useModelStore.getState().createInteractionUse(payload);
+  const newId = ops.createInteractionUse(payload);
 
   useUiStore.getState().openInteractionUseProps(newId);
 }
@@ -161,19 +174,15 @@ export function insertEndpointMessageIntoActiveDiagram(
 ): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+  const { activeModel, ops, lifelineIds } = ctx;
 
   const endpoint = lifelineId ?? lifelineIds[0];
   if (!endpoint || !activeModel.lifelines?.[endpoint]) {
-    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un mensaje');
+    warn('needLifelineForMessage');
     return;
   }
 
-  const sequenceNumber =
-    Object.values(activeModel.messages ?? {}).reduce(
-      (acc, m) => (m.sequenceNumber > acc ? m.sequenceNumber : acc),
-      0,
-    ) + 1;
+  const sequenceNumber = nextMessageSequenceNumber(activeModel.messages ?? {});
 
   const payload = {
     name: '',
@@ -184,26 +193,11 @@ export function insertEndpointMessageIntoActiveDiagram(
     ...(variant === 'found' ? { isFound: true } : { isLost: true }),
   };
 
-  const newId = isStandaloneFile
-    ? standaloneModelOps(tabId).createMessage(payload)
-    : useModelStore.getState().createMessage(payload);
+  const newId = ops.createMessage(payload);
 
   useUiStore.getState().openMessageProps(newId);
 }
 
-/**
- * Creates a self-message on a single lifeline (source === target). It is a SYNC
- * message, so the store auto-creates the paired nested Activation on that same
- * lifeline (re-entrant execution). This is the only sanctioned way to make a
- * self-message — drawing a manual connection back onto a lifeline is blocked.
- *
- * `dropY` (world Y of a right-click on the lifeline body) drops the message at the
- * slot under the cursor instead of appending at the end: insertMessageAt shifts
- * later messages down and the store auto-nests the new frame into whatever
- * execution is open at that slot (it *respects the existing activation*). Omitting
- * `dropY` appends at the end as before. Opens the props modal so the user can name
- * it / adjust it right away.
- */
 /**
  * Is there an execution on `lifelineId` that is still active across `slot`? An
  * execution counts when it starts before the slot and has not returned before it
@@ -224,14 +218,27 @@ function hasActiveExecutionAt(model: SemanticModel, lifelineId: string, slot: nu
   return false;
 }
 
+/**
+ * Creates a self-message on a single lifeline (source === target). It is a SYNC
+ * message, so the store auto-creates the paired nested Activation on that same
+ * lifeline (re-entrant execution). This is the only sanctioned way to make a
+ * self-message — drawing a manual connection back onto a lifeline is blocked.
+ *
+ * `dropY` (world Y of a right-click on the lifeline body) drops the message at the
+ * slot under the cursor instead of appending at the end: insertMessageAt shifts
+ * later messages down and the store auto-nests the new frame into whatever
+ * execution is open at that slot (it *respects the existing activation*). Omitting
+ * `dropY` appends at the end as before. Opens the props modal so the user can name
+ * it / adjust it right away.
+ */
 export function insertSelfMessageIntoActiveDiagram(lifelineId?: string, dropY?: number, force = false): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+  const { activeModel, ops, lifelineIds } = ctx;
 
   const target = lifelineId ?? lifelineIds[0];
   if (!target || !activeModel.lifelines?.[target]) {
-    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un mensaje');
+    warn('needLifelineForMessage');
     return;
   }
 
@@ -262,9 +269,7 @@ export function insertSelfMessageIntoActiveDiagram(lifelineId?: string, dropY?: 
   // insertMessageAt shifts existing messages at/after the slot down and auto-nests
   // into the innermost open execution at that point (degenerates to append when the
   // slot is count+1).
-  const newId = isStandaloneFile
-    ? standaloneModelOps(tabId).insertMessageAt(payload)
-    : useModelStore.getState().insertMessageAt(payload);
+  const newId = ops.insertMessageAt(payload);
 
   useUiStore.getState().openMessageProps(newId);
 }
@@ -279,7 +284,7 @@ export function insertSelfMessageIntoActiveDiagram(lifelineId?: string, dropY?: 
 export function insertSelfMessageInActivation(activationId: string): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel } = ctx;
+  const { activeModel, ops } = ctx;
 
   const act = activeModel.activations?.[activationId];
   if (!act) return;
@@ -302,9 +307,7 @@ export function insertSelfMessageInActivation(activationId: string): void {
     sequenceNumber,
   };
 
-  const newId = isStandaloneFile
-    ? standaloneModelOps(tabId).insertMessageAt(payload)
-    : useModelStore.getState().insertMessageAt(payload);
+  const newId = ops.insertMessageAt(payload);
 
   useUiStore.getState().openMessageProps(newId);
 }
@@ -317,13 +320,13 @@ export function insertSelfMessageInActivation(activationId: string): void {
 export function insertGeneralOrderingIntoActiveDiagram(): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel } = ctx;
+  const { activeModel, ops } = ctx;
 
   const ordered = Object.values(activeModel.messages ?? {}).sort(
     (a, b) => a.sequenceNumber - b.sequenceNumber,
   );
   if (ordered.length < 2) {
-    useToastStore.getState().show('⚠️ Crea al menos dos mensajes antes de añadir un orden general');
+    warn('needTwoMessagesForOrdering');
     return;
   }
 
@@ -335,9 +338,7 @@ export function insertGeneralOrderingIntoActiveDiagram(): void {
     afterEnd: 'SEND' as const,
   };
 
-  const newId = isStandaloneFile
-    ? standaloneModelOps(tabId).createGeneralOrdering(payload)
-    : useModelStore.getState().createGeneralOrdering(payload);
+  const newId = ops.createGeneralOrdering(payload);
 
   useUiStore.getState().openGeneralOrderingProps(newId);
 }
@@ -350,18 +351,14 @@ export function insertGeneralOrderingIntoActiveDiagram(): void {
 export function insertTimeConstraintIntoActiveDiagram(variant: 'duration' | 'time'): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel } = ctx;
+  const { activeModel, ops } = ctx;
 
   const ordered = Object.values(activeModel.messages ?? {}).sort(
     (a, b) => a.sequenceNumber - b.sequenceNumber,
   );
   const need = variant === 'duration' ? 2 : 1;
   if (ordered.length < need) {
-    useToastStore.getState().show(
-      variant === 'duration'
-        ? '⚠️ Crea al menos dos mensajes antes de añadir una duración'
-        : '⚠️ Crea al menos un mensaje antes de añadir una marca de tiempo',
-    );
+    warn(variant === 'duration' ? 'needTwoMessagesForDuration' : 'needMessageForTimeMark');
     return;
   }
 
@@ -384,9 +381,7 @@ export function insertTimeConstraintIntoActiveDiagram(variant: 'duration' | 'tim
           expression: 't=now',
         };
 
-  const newId = isStandaloneFile
-    ? standaloneModelOps(tabId).createTimeConstraint(payload)
-    : useModelStore.getState().createTimeConstraint(payload);
+  const newId = ops.createTimeConstraint(payload);
 
   useUiStore.getState().openTimeConstraintProps(newId);
 }
@@ -398,11 +393,11 @@ export function insertTimeConstraintIntoActiveDiagram(variant: 'duration' | 'tim
 export function insertCoregionIntoActiveDiagram(lifelineId?: string): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+  const { activeModel, ops, lifelineIds } = ctx;
 
   const target = lifelineId ?? lifelineIds[0];
   if (!target || !activeModel.lifelines?.[target]) {
-    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar una coregión');
+    warn('needLifelineForCoregion');
     return;
   }
 
@@ -414,9 +409,7 @@ export function insertCoregionIntoActiveDiagram(lifelineId?: string): void {
     toSequence: messageCount,
   };
 
-  const newId = isStandaloneFile
-    ? standaloneModelOps(tabId).createCoregion(payload)
-    : useModelStore.getState().createCoregion(payload);
+  const newId = ops.createCoregion(payload);
 
   useUiStore.getState().openCoregionProps(newId);
 }
@@ -428,10 +421,10 @@ export function insertCoregionIntoActiveDiagram(lifelineId?: string): void {
 export function insertContinuationIntoActiveDiagram(): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel, lifelineIds } = ctx;
+  const { activeModel, ops, lifelineIds } = ctx;
 
   if (lifelineIds.length === 0) {
-    useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar una continuación');
+    warn('needLifelineForContinuation');
     return;
   }
 
@@ -441,9 +434,7 @@ export function insertContinuationIntoActiveDiagram(): void {
     afterSequenceNumber: Object.keys(activeModel.messages ?? {}).length,
   };
 
-  const newId = isStandaloneFile
-    ? standaloneModelOps(tabId).createContinuation(payload)
-    : useModelStore.getState().createContinuation(payload);
+  const newId = ops.createContinuation(payload);
 
   useUiStore.getState().openContinuationProps(newId);
 }
@@ -456,23 +447,21 @@ export function insertContinuationIntoActiveDiagram(): void {
 export function reverseMessageInActiveDiagram(messageId: string): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel } = ctx;
+  const { activeModel, ops } = ctx;
   const msg = activeModel.messages?.[messageId];
   if (!msg) return;
   const patch = {
     sourceLifelineId: msg.targetLifelineId,
     targetLifelineId: msg.sourceLifelineId,
   };
-  if (isStandaloneFile) standaloneModelOps(tabId).updateMessage(messageId, patch);
-  else useModelStore.getState().updateMessage(messageId, patch);
+  ops.updateMessage(messageId, patch);
 }
 
 /** Deletes a message (and cascades its paired activation) from the active diagram. */
 export function deleteMessageInActiveDiagram(messageId: string): void {
   const ctx = resolveActiveSequence();
   if (!ctx) return;
-  const { tabId, isStandaloneFile, activeModel } = ctx;
+  const { activeModel, ops } = ctx;
   if (!activeModel.messages?.[messageId]) return;
-  if (isStandaloneFile) standaloneModelOps(tabId).deleteMessage(messageId);
-  else useModelStore.getState().deleteMessage(messageId);
+  ops.deleteMessage(messageId);
 }

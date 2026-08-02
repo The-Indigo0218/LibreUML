@@ -1665,5 +1665,19 @@
     "body": "Este self-message no está dentro de ninguna ejecución activa de la lifeline, así que creará una ejecución suelta de nivel superior. ¿Querías soltarlo sobre una barra activa?",
     "cancel": "Cancelar",
     "createAnyway": "Crear igual"
+  },
+  "sequenceInserts": {
+    "needLifelineForFragment": "Crea al menos una lifeline antes de insertar un fragmento",
+    "needLifelineForRef": "Crea al menos una lifeline antes de insertar un ref",
+    "needLifelineForMessage": "Crea al menos una lifeline antes de insertar un mensaje",
+    "needLifelineForCoregion": "Crea al menos una lifeline antes de insertar una coregión",
+    "needLifelineForContinuation": "Crea al menos una lifeline antes de insertar una continuación",
+    "needTwoMessagesForOrdering": "Crea al menos dos mensajes antes de añadir un orden general",
+    "needTwoMessagesForDuration": "Crea al menos dos mensajes antes de añadir una duración",
+    "needMessageForTimeMark": "Crea al menos un mensaje antes de añadir una marca de tiempo"
+  },
+  "sequenceStubs": {
+    "noNamedMessages": "No hay mensajes con nombre que generen stubs",
+    "generated": "{{ops}} operación(es) generada(s) en {{classifiers}} clasificador(es)"
   }
 }

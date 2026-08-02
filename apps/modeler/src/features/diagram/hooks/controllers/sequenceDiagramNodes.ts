@@ -373,7 +373,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     return depth;
   };
 
-  const nestingDepthFor = (act: IRActivation): number => {
+  const computeNestingDepth = (act: IRActivation): number => {
     if (act.parentActivationId) {
       let depth = 0;
       let cursor: IRActivation | undefined = act;
@@ -392,6 +392,12 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     }
     return geometricDepthFor(act);
   };
+
+  // Resolve every depth once. It feeds two sort comparators and the view model,
+  // and the geometric fallback scans all activations — recomputing it inside a
+  // comparator made this quadratic in the number of bars.
+  const depthById = new Map(allActivations.map((act) => [act.id, computeNestingDepth(act)]));
+  const depthOf = (act: IRActivation): number => depthById.get(act.id) ?? 0;
 
   // Raw vertical span of each bar from its own start/end (open bars extend by a
   // fixed pad). Containment is layered on top of this below.
@@ -427,9 +433,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   // Containment (UML): a parent bar must enclose its children, extending a little
   // below the deepest one. Process deepest-first so a child's already-extended
   // bottom propagates up to its parent (and transitively to grandparents).
-  const byDepthDesc = [...allActivations].sort(
-    (a, b) => nestingDepthFor(b) - nestingDepthFor(a),
-  );
+  const byDepthDesc = [...allActivations].sort((a, b) => depthOf(b) - depthOf(a));
   for (const act of byDepthDesc) {
     const parentId = act.parentActivationId;
     if (!parentId) continue;
@@ -450,9 +454,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   // paint ON TOP of their parent — otherwise a parent emitted later would cover
   // the nested bar, hiding it. Combined with the per-depth tint this makes nested
   // executions clearly visible instead of blending into the parent.
-  const activationsForRender = [...allActivations].sort(
-    (a, b) => nestingDepthFor(a) - nestingDepthFor(b),
-  );
+  const activationsForRender = [...allActivations].sort((a, b) => depthOf(a) - depthOf(b));
 
   const activationNodes = activationsForRender.map((act) => {
     // Geometry is fully system-managed: the bar is anchored to its lifeline and
@@ -469,7 +471,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       height,
       // Self-calls always render solid (atomic call+return), never dashed-open.
       isOpen: !act.endMessageId && !selfCallActIds.has(act.id),
-      nestingDepth: nestingDepthFor(act),
+      nestingDepth: depthOf(act),
     };
 
     return {
@@ -775,10 +777,8 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   //    so we prepend them to the result.
   const fragmentNodes = buildFragmentNodes(
     Object.values(model.interactionFragments ?? {}),
-    lifelineViewNodes,
     lifelineCenterX,
     messageIndex,
-    allMessages.length,
     slotLayout,
   );
 
@@ -819,12 +819,12 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
 
 function buildFragmentNodes(
   fragments: IRInteractionFragment[],
-  _lifelineViewNodes: ViewNode[],
   lifelineCenterX: Map<string, number>,
   messageIndex: Map<string, number>,
-  totalMessages: number,
   slotLayout?: SlotLayout,
 ) {
+  const fragById = new Map(fragments.map((f) => [f.id, f]));
+
   // Compute nesting depth = number of ancestors.
   const depthFor = (frag: IRInteractionFragment): number => {
     let d = 0;
@@ -832,7 +832,7 @@ function buildFragmentNodes(
     const guard = new Set<string>([frag.id]);
     while (current && !guard.has(current)) {
       guard.add(current);
-      const parent = fragments.find((f) => f.id === current);
+      const parent = fragById.get(current);
       if (!parent) break;
       d++;
       current = parent.parentFragmentId;
@@ -916,9 +916,6 @@ function buildFragmentNodes(
       };
     })
     .filter(<T>(n: T | null): n is T => n !== null);
-  // Note: totalMessages currently unused in geometry calc but kept in signature
-  // for future use (e.g. clamping bottom to within-the-timeline).
-  void totalMessages;
 }
 
 // ─── Interaction Use (`ref`) geometry ──────────────────────────────────────────
@@ -931,13 +928,11 @@ function buildInteractionUseNodes(
 ) {
   return uses
     .map((use) => {
-      const liveIds = use.coveredLifelineIds.filter((id) => lifelineCenterX.has(id));
-      if (liveIds.length === 0) return null;
+      const bounds = fragmentHorizontalBounds(use.coveredLifelineIds, lifelineCenterX);
+      if (!bounds) return null;
 
-      const xs = liveIds.map((id) => lifelineCenterX.get(id)!).sort((a, b) => a - b);
-      const left = xs[0] - FRAGMENT_X_PAD;
-      const right = xs[xs.length - 1] + FRAGMENT_X_PAD;
-      const derivedWidth = Math.max(FRAGMENT_MIN_W, right - left);
+      const { left } = bounds;
+      const derivedWidth = bounds.right - left;
       // G-d: manual width/height override the derived box.
       const isManual = use.manualWidth !== undefined || use.manualHeight !== undefined;
       const width = use.manualWidth ?? derivedWidth;
@@ -981,13 +976,11 @@ function buildContinuationNodes(
 ) {
   return continuations
     .map((cont) => {
-      const liveIds = cont.coveredLifelineIds.filter((id) => lifelineCenterX.has(id));
-      if (liveIds.length === 0) return null;
+      const bounds = fragmentHorizontalBounds(cont.coveredLifelineIds, lifelineCenterX);
+      if (!bounds) return null;
 
-      const xs = liveIds.map((id) => lifelineCenterX.get(id)!).sort((a, b) => a - b);
-      const left = xs[0] - FRAGMENT_X_PAD;
-      const right = xs[xs.length - 1] + FRAGMENT_X_PAD;
-      const width = Math.max(FRAGMENT_MIN_W, right - left);
+      const { left } = bounds;
+      const width = bounds.right - left;
 
       const slot = Math.max(0, Math.min(totalMessages, cont.afterSequenceNumber));
       const cy = stateInvariantSlotY(slot, slotLayout);
@@ -1080,6 +1073,7 @@ export function computeHierarchicalNumbers(
 
   const sorted = [...messages].sort((a, b) => a.sequenceNumber - b.sequenceNumber);
   const fragById = new Map(fragments.map((f) => [f.id, f]));
+  const msgById = new Map(sorted.map((m) => [m.id, m]));
 
   // messageId → id of the fragment whose operand directly contains it
   const msgDirectFrag = new Map<string, string>();
@@ -1100,7 +1094,7 @@ export function computeHierarchicalNumbers(
   for (const frag of fragments) {
     const seqs = frag.operands
       .flatMap((op) => op.messageIds)
-      .map((id) => sorted.find((m) => m.id === id)?.sequenceNumber ?? Infinity);
+      .map((id) => msgById.get(id)?.sequenceNumber ?? Infinity);
     fragMinSeq.set(frag.id, seqs.length > 0 ? Math.min(...seqs) : Infinity);
   }
 
@@ -1161,7 +1155,7 @@ export function computeHierarchicalNumbers(
 
     for (const op of frag.operands) {
       const opMsgsSorted = op.messageIds
-        .map((id) => sorted.find((m) => m.id === id))
+        .map((id) => msgById.get(id))
         .filter((m): m is IRMessage => !!m)
         .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
 

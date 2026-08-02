@@ -59,7 +59,12 @@ export interface NodeShapeRenderProps {
   dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
   onMouseEnter?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
   onMouseLeave?: (e: KonvaEventObject<MouseEvent>, id: string) => void;
-  onResizeEnd?: (id: string, width: number, height: number) => void;
+  /**
+   * Final size on release. Transformer-based containers (system boundary, UC
+   * module, package) also report `dx`/`dy`: dragging a left/top anchor moves the
+   * node's origin, and that shift has to be persisted alongside the new size.
+   */
+  onResizeEnd?: (id: string, width: number, height: number, dx?: number, dy?: number) => void;
   /** Clears a lifeline's manual timeline length (G-c foot-handle double-click). */
   onResetTimeline?: (id: string) => void;
   isDropTarget?: boolean;

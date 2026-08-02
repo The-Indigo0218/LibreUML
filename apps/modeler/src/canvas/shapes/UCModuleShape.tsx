@@ -38,7 +38,8 @@ interface UCModuleShapeProps {
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
-  onResizeEnd?: (id: string, width: number, height: number) => void;
+  /** Final size on release, plus the origin shift caused by left/top anchors. */
+  onResizeEnd?: (id: string, width: number, height: number, dx?: number, dy?: number) => void;
 }
 
 export default function UCModuleShape({
@@ -76,6 +77,15 @@ export default function UCModuleShape({
     tr.getLayer()?.batchDraw();
     return () => { tr.nodes([]); };
   }, [showTransformer]);
+
+  // Re-sync anchor positions when the module's own size changes (e.g. after
+  // onResizeEnd commits a new width/height) — the Transformer only tracks the
+  // Group node's own transform, not its children's dimensions.
+  useEffect(() => {
+    if (!showTransformer) return;
+    trRef.current?.forceUpdate();
+    trRef.current?.getLayer()?.batchDraw();
+  }, [showTransformer, W, H]);
 
   const borderColor = isDropTarget ? '#22d3ee' : colors.border;
   const strokeW = isDropTarget ? 2 : STROKE_W;
@@ -197,6 +207,7 @@ export default function UCModuleShape({
           anchorStroke="#22d3ee"
           anchorFill="#ffffff"
           anchorStrokeWidth={1}
+          onMouseDown={(e) => { e.cancelBubble = true; }}
           boundBoxFunc={(oldBox, newBox) => {
             const stageScale = groupRef.current?.getStage()?.scaleX() ?? 1;
             if (newBox.width < UCM_MIN_W * stageScale || newBox.height < UCM_MIN_H * stageScale) {
@@ -211,7 +222,14 @@ export default function UCModuleShape({
             const sy = node.scaleY();
             node.scaleX(1);
             node.scaleY(1);
-            onResizeEnd?.(vm.id, Math.max(UCM_MIN_W, W * sx), Math.max(UCM_MIN_H, H * sy));
+            // A left/top anchor also moves the group's origin. react-konva never
+            // re-applies an x/y prop that didn't change, so put the node back and
+            // report the delta — the store commit is what actually moves it.
+            const dx = node.x() - x;
+            const dy = node.y() - y;
+            node.x(x);
+            node.y(y);
+            onResizeEnd?.(vm.id, Math.max(UCM_MIN_W, W * sx), Math.max(UCM_MIN_H, H * sy), dx, dy);
           }}
         />
       )}

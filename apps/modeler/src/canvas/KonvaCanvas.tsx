@@ -31,6 +31,7 @@ import { useConnectionDraw, type DropAnchoring } from './interactions/useConnect
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import { useRelationShortcuts } from './interactions/useRelationShortcuts';
 import { usePackageDrop } from './interactions/usePackageDrop';
+import { commitContainerResize } from './interactions/containerResize';
 import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
@@ -979,55 +980,40 @@ export default function KonvaCanvas() {
   );
 
   const handlePackageResizeEnd = useCallback(
-    (packageId: string, newWidth: number, newHeight: number) => {
+    (packageId: string, newWidth: number, newHeight: number, dx = 0, dy = 0) => {
       const shape = shapes.find((s) => s.id === packageId);
       if (!shape || !isPackageViewModel(shape.data)) return;
       const packageName = shape.data.name;
       withUndo('vfs', `Resize: ${packageName}`, activeTabId ?? '', (draft: any) => {
-        const file = draft.project?.nodes[activeTabId!];
-        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
-        const viewNode = file.content.nodes.find((vn: any) => vn.id === packageId);
-        if (viewNode) {
-          viewNode.width = newWidth;
-          viewNode.height = newHeight;
-        }
+        commitContainerResize(
+          draft, activeTabId!, packageId,
+          newWidth, newHeight, Math.round(dx), Math.round(dy),
+        );
       });
     },
     [shapes, activeTabId],
   );
 
   const handleSystemBoundaryResizeEnd = useCallback(
-    (shapeId: string, newWidth: number, newHeight: number) => {
+    (shapeId: string, newWidth: number, newHeight: number, dx = 0, dy = 0) => {
       if (!activeTabId) return;
       // Enforce minimum size here too, as a safety net
       const w = Math.max(SB_MIN_W, Math.round(newWidth));
       const h = Math.max(SB_MIN_H, Math.round(newHeight));
       withUndo('vfs', 'Resize System Boundary', activeTabId, (draft: any) => {
-        const file = draft.project?.nodes[activeTabId];
-        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
-        const viewNode = file.content.nodes.find((vn: any) => vn.id === shapeId);
-        if (viewNode) {
-          viewNode.width = w;
-          viewNode.height = h;
-        }
+        commitContainerResize(draft, activeTabId, shapeId, w, h, Math.round(dx), Math.round(dy));
       });
     },
     [activeTabId],
   );
 
   const handleUCModuleResizeEnd = useCallback(
-    (shapeId: string, newWidth: number, newHeight: number) => {
+    (shapeId: string, newWidth: number, newHeight: number, dx = 0, dy = 0) => {
       if (!activeTabId) return;
       const w = Math.max(UCM_MIN_W, Math.round(newWidth));
       const h = Math.max(UCM_MIN_H, Math.round(newHeight));
       withUndo('vfs', 'Resize Module', activeTabId, (draft: any) => {
-        const file = draft.project?.nodes[activeTabId];
-        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
-        const viewNode = file.content.nodes.find((vn: any) => vn.id === shapeId);
-        if (viewNode) {
-          viewNode.width = w;
-          viewNode.height = h;
-        }
+        commitContainerResize(draft, activeTabId, shapeId, w, h, Math.round(dx), Math.round(dy));
       });
     },
     [activeTabId],

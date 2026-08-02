@@ -467,6 +467,16 @@ export function useConnectionDraw({
     [],
   );
 
+  // Re-sync the hover overlay when the hovered node's own bounds change (e.g. a
+  // resize commits new width/height while the cursor never leaves the node, so
+  // onMouseMove's id-change gate never re-fires). Without this, the 8-point
+  // dots can freeze at pre-resize bounds until the cursor leaves and re-enters.
+  useEffect(() => {
+    const id = hoverNodeIdRef.current;
+    if (!id || isConnectingRef.current) return;
+    setHoverOverlay(id, boundsMapRef.current.get(id));
+  }, [nodes, setHoverOverlay, boundsMapRef]);
+
   // ── Reset helper ──────────────────────────────────────────────────────────
 
   const resetState = useCallback(() => {

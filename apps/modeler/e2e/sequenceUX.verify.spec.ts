@@ -1,6 +1,14 @@
 /**
- * TEMP verification spec for the 4 sequence-diagram changes. Drives the real
- * browser via the /__e2e harness. Not part of the permanent suite.
+ * Verification spec for four sequence-diagram behaviours, driving the real
+ * browser via the /__e2e harness: the IGNORE fragment's message set, creating a
+ * self-message from the lifeline menu, activation bars refusing drag/resize, and
+ * the message context menu.
+ *
+ * It was written as a throwaway and labelled as such, but it runs in
+ * `npm run test:e2e` and therefore gates the DoD. That mismatch let it sit red
+ * from 2026-06-15 — the day the self-message warning modal landed and changed
+ * the F2 flow — until 2026-08-10. Treat it as permanent: if a change alters one
+ * of these flows, update the spec in the same commit.
  */
 import { test, expect, type Page } from '@playwright/test';
 
@@ -42,6 +50,14 @@ test('sequence UX batch — all four changes', async ({ page }) => {
   const msgsBefore = Object.keys((await dump(page, 'messages')) ?? {});
   const actsBefore = Object.keys((await dump(page, 'activations')) ?? {});
   await selfItem.click();
+
+  // The head of Alpha sits outside any execution (the only activation is on
+  // Beta), so the insert asks for confirmation before creating a stray
+  // top-level frame. Confirm, which re-runs the insert with `force`.
+  const createAnyway = page.getByRole('button', { name: 'Create anyway' });
+  await expect(createAnyway).toBeVisible();
+  await createAnyway.click();
+
   await page.waitForTimeout(250);
   const msgsAfter = (await dump(page, 'messages')) as Record<string, any>;
   const newMsg = Object.keys(msgsAfter).filter((k) => !msgsBefore.includes(k));

@@ -62,6 +62,17 @@ export interface E2ESequenceSpec {
   }[];
 }
 
+
+/** Minimal activity-diagram seed (A1). */
+export interface E2EActivitySpec {
+  activityName?: string;
+  nodes: {
+    id: string; vnId: string; x: number; y: number;
+    activityType: string; name?: string;
+  }[];
+  flows?: { id: string; source: string; target: string; guard?: string }[];
+}
+
 export interface E2EDiagramSpec {
   nodes: E2ENodeSpec[];
   edges?: E2EEdgeSpec[];
@@ -170,12 +181,57 @@ function buildSequenceProject(spec: E2ESequenceSpec): LibreUMLProject {
   } as unknown as LibreUMLProject;
 }
 
+/** Builds an ACTIVITY_DIAGRAM project from an activity seed spec. */
+function buildActivityProject(spec: E2EActivitySpec): LibreUMLProject {
+  const now = Date.now();
+  const model = emptyModel() as unknown as Record<string, unknown>;
+  const ACTIVITY_ID = 'e2e-activity';
+  model.activities = {
+    [ACTIVITY_ID]: { id: ACTIVITY_ID, kind: 'ACTIVITY', name: spec.activityName ?? 'Flow' },
+  };
+  model.activityNodes = {};
+  model.activityPartitions = {};
+  for (const n of spec.nodes) {
+    (model.activityNodes as Record<string, unknown>)[n.id] = {
+      id: n.id, kind: 'ACTIVITY_NODE', name: n.name ?? '',
+      activityType: n.activityType, activityId: ACTIVITY_ID,
+    };
+  }
+  for (const f of spec.flows ?? []) {
+    (model.relations as Record<string, unknown>)[f.id] = {
+      id: f.id, kind: 'CONTROL_FLOW', sourceId: f.source, targetId: f.target,
+      ...(f.guard ? { guard: f.guard } : {}),
+    };
+  }
+
+  const viewNodes: ViewNode[] = spec.nodes.map((n) => ({ id: n.vnId, elementId: n.id, x: n.x, y: n.y }));
+  const viewEdges = (spec.flows ?? []).map((f) => ({ id: `ve-${f.id}`, relationId: f.id, waypoints: [] }));
+  const content: DiagramView = {
+    diagramId: FILE_ID, nodes: viewNodes, edges: viewEdges as DiagramView['edges'],
+  };
+
+  return {
+    id: 'e2e-project', projectName: 'E2E', version: '1.0.0', domainModelId: 'e2e-dm',
+    nodes: {
+      [FILE_ID]: {
+        id: FILE_ID, name: 'E2E.luml', type: 'FILE', parentId: null,
+        diagramType: 'ACTIVITY_DIAGRAM', extension: '.luml', isExternal: false,
+        standalone: true, content, localModel: model,
+        createdAt: now, updatedAt: now,
+      },
+    },
+    createdAt: now, updatedAt: now,
+  } as unknown as LibreUMLProject;
+}
+
 export interface E2ENodeRect { x: number; y: number; width: number; height: number; }
 
 export interface E2EApi {
   seed: (spec?: E2EDiagramSpec) => void;
   /** Seed a sequence diagram (verification harness). */
   seedSequence: (spec: E2ESequenceSpec) => void;
+  /** Seed an activity diagram (A1). */
+  seedActivity: (spec: E2EActivitySpec) => void;
   /** Read a collection of the active file's localModel back (lifelines/messages/…). */
   modelDump: (collection: string) => Record<string, unknown> | null;
   /** All Konva Text strings currently painted on the stage (render assertions). */
@@ -213,9 +269,15 @@ export default function E2EHarness() {
       useWorkspaceStore.getState().openTab(FILE_ID);
     };
 
+    const seedActivity = (spec: E2EActivitySpec) => {
+      useVFSStore.getState().loadProject(buildActivityProject(spec));
+      useWorkspaceStore.getState().openTab(FILE_ID);
+    };
+
     const api: E2EApi = {
       seed,
       seedSequence,
+      seedActivity,
       modelDump: (collection) => {
         const node = useVFSStore.getState().project?.nodes[FILE_ID];
         const lm = node && node.type === 'FILE' ? (node as { localModel?: Record<string, unknown> }).localModel : null;

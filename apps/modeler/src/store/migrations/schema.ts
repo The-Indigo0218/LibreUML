@@ -87,6 +87,11 @@ const MIGRATIONS: Migration[] = [migrateToV1];
 export function migrateModel(model: SemanticModel): SemanticModel {
   const from = model.schemaVersion ?? 0;
 
+  // Nothing to do — and nothing written. A model already in the store is frozen
+  // by immer, so an up-to-date model must come back untouched rather than being
+  // re-stamped with the version it already has.
+  if (from >= CURRENT_SCHEMA_VERSION) return model;
+
   for (const migration of MIGRATIONS) {
     if (from >= migration.to) continue;
     migration.run(model);

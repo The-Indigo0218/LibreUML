@@ -152,6 +152,20 @@ describe('migrateModel', () => {
     expect(migrateModel(reloaded)).toEqual(model);
   });
 
+  /**
+   * A model held in a store is frozen by immer. An up-to-date model must come
+   * back untouched rather than being re-stamped with the version it already
+   * has, or a harmless second pass throws on the user's loaded project.
+   */
+  it('does not write to an already-current model, so a frozen one survives', () => {
+    const model = Object.freeze(
+      migrateModel(legacyModel()),
+    ) as SemanticModel;
+
+    expect(() => migrateModel(model)).not.toThrow();
+    expect(needsMigration(model)).toBe(false);
+  });
+
   it('opens a project with no activity data without writing garbage', () => {
     const model = migrateModel(legacyModel());
 

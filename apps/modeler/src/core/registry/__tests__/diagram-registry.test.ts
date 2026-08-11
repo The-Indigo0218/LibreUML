@@ -236,7 +236,8 @@ describe('Diagram Registry', () => {
       expect(types).toContain('USE_CASE_DIAGRAM');
       expect(types).toContain('DOMAIN_MODEL_DIAGRAM');
       expect(types).toContain('SEQUENCE_DIAGRAM');
-      expect(types).toHaveLength(4);
+      expect(types).toContain('ACTIVITY_DIAGRAM');
+      expect(types).toHaveLength(5);
     });
   });
 

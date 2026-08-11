@@ -136,7 +136,18 @@
       "ucModule": "Módulo",
       "domainEntity": "Entidad",
       "lifeline": "Línea de Vida",
-      "actorLifeline": "Actor"
+      "actorLifeline": "Actor",
+      "action": "Acción",
+      "callOperation": "Llamada a Operación",
+      "initialNode": "Inicial",
+      "activityFinal": "Final",
+      "flowFinal": "Fin de Flujo",
+      "decision": "Decisión",
+      "merge": "Unión",
+      "fork": "Bifurcación",
+      "join": "Sincronización",
+      "objectNode": "Objeto",
+      "activityPartition": "Partición"
     },
     "connections": {
       "title": "Conexiones",
@@ -153,7 +164,9 @@
       "messageAsync": "Mensaje Asincrónico",
       "messageReply": "Respuesta",
       "messageCreate": "Mensaje de Creación",
-      "messageDestroy": "Mensaje de Destrucción"
+      "messageDestroy": "Mensaje de Destrucción",
+      "controlFlow": "Flujo de Control",
+      "objectFlow": "Flujo de Objeto"
     },
     "otherDiagram": "de otro diagrama",
     "fragments": {

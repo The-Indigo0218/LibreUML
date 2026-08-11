@@ -13,7 +13,14 @@ import { useKonvaDnD } from './hooks/useKonvaDnD';
 import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
 import { SB_MIN_W, SB_MIN_H } from './shapes/SystemBoundaryShape';
 import { UCM_MIN_W, UCM_MIN_H } from './shapes/UCModuleShape';
-import { getShapeSize, renderShape } from './ShapeRouter';
+import { getShapeSize, renderShape, type NodeShapeRenderProps } from './ShapeRouter';
+import {
+  NODE_KIND_DESCRIPTORS,
+  type NodeDragEnd,
+  type NodeEditor,
+  type NodeResize,
+} from './nodeKindDescriptors';
+import { getNodeKind } from '../adapters/view-models/node-kind';
 
 // Layout constants mirrored from shape files for inline editor positioning
 const ACTOR_NAME_Y_FROM_TOP = 84; // BODY_BOT(58) + LEG_DY(18) + NAME_GAP(8)
@@ -103,15 +110,12 @@ import {
   isLifelineViewModel,
   isFragmentViewModel,
   isMessageViewModel,
-  isActivationViewModel,
   isStateInvariantViewModel,
   isInteractionUseViewModel,
   isGateViewModel,
-  isGeneralOrderingViewModel,
-  isTimeConstraintViewModel,
-  isCoregionViewModel,
   isContinuationViewModel,
   type AnyNodeViewModel,
+  type LifelineViewModel,
   type NodeViewModel,
   type PackageViewModel,
 } from '../adapters/view-models/node.view-model';
@@ -2374,6 +2378,94 @@ export default function KonvaCanvas() {
     };
   }, [inlineGatePanelId, activeModel, closeInlineGatePanel]);
 
+  /**
+   * A0 (ADR-0009). `NODE_KIND_DESCRIPTORS` says *which* handler a node kind
+   * uses; these tables bind those names to the closures, which can only live
+   * here. Built once per render rather than per node.
+   */
+  const resizeHandlers = useMemo<Record<NodeResize, NodeShapeRenderProps['onResizeEnd']>>(
+    () => ({
+      fragment: handleFragmentResizeEnd,
+      lifelineTimeline: handleLifelineTimelineResizeEnd,
+      interactionUse: handleInteractionUseResizeEnd,
+      stateInvariant: handleStateInvariantResizeEnd,
+      note: handleNoteResizeEnd,
+      ucModule: handleUCModuleResizeEnd,
+      package: handlePackageResizeEnd,
+      systemBoundary: handleSystemBoundaryResizeEnd,
+    }),
+    [
+      handleFragmentResizeEnd,
+      handleLifelineTimelineResizeEnd,
+      handleInteractionUseResizeEnd,
+      handleStateInvariantResizeEnd,
+      handleNoteResizeEnd,
+      handleUCModuleResizeEnd,
+      handlePackageResizeEnd,
+      handleSystemBoundaryResizeEnd,
+    ],
+  );
+
+  const editorHandlers = useMemo<
+    Record<
+      NodeEditor,
+      ((shapeId: string, vm: AnyNodeViewModel, e: KonvaEventObject<MouseEvent>) => void) | undefined
+    >
+  >(() => {
+    // Every view model reaching an inline panel carries a domainId; the union
+    // as a whole does not declare one.
+    const domainIdOf = (vm: AnyNodeViewModel) => (vm as { domainId: string }).domainId;
+    const ui = () => useUiStore.getState();
+    return {
+      noteInline: (shapeId, _vm, e) => handleNoteDblClick(shapeId, e),
+      useCaseModal: (shapeId) => handleUseCaseDblClickModal(shapeId),
+      lifelineOpenOrRename: (shapeId, vm) => {
+        // C5: a decomposed lifeline navigates to its sub-interaction;
+        // otherwise double-click starts an inline rename.
+        const diagramId = (vm as LifelineViewModel).decomposedDiagramId;
+        if (diagramId && useVFSStore.getState().project?.nodes[diagramId]) {
+          useWorkspaceStore.getState().openTab(diagramId);
+          useWorkspaceStore.getState().setActiveTab(diagramId);
+        } else {
+          startUseCaseInlineEdit(shapeId);
+        }
+      },
+      fragmentPanel: (_shapeId, vm) => openInlineFragmentPanel(domainIdOf(vm)),
+      inlineRename: (shapeId) => startUseCaseInlineEdit(shapeId),
+      stateInvariantPanel: (_shapeId, vm) => openInlineStateInvariantPanel(domainIdOf(vm)),
+      interactionUsePanel: (_shapeId, vm) => openInlineInteractionUsePanel(domainIdOf(vm)),
+      gatePanel: (_shapeId, vm) => openInlineGatePanel(domainIdOf(vm)),
+      generalOrderingProps: (_shapeId, vm) => ui().openGeneralOrderingProps(domainIdOf(vm)),
+      timeConstraintProps: (_shapeId, vm) => ui().openTimeConstraintProps(domainIdOf(vm)),
+      coregionProps: (_shapeId, vm) => ui().openCoregionProps(domainIdOf(vm)),
+      continuationProps: (_shapeId, vm) => ui().openContinuationProps(domainIdOf(vm)),
+      classEditor: (shapeId, _vm, e) => handleClassDblClick(shapeId, e),
+      openProps: (_shapeId, vm) =>
+        (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.(),
+      // Only the package, which never reaches the main render loop.
+      none: undefined,
+    };
+  }, [
+    handleNoteDblClick,
+    handleUseCaseDblClickModal,
+    startUseCaseInlineEdit,
+    openInlineFragmentPanel,
+    openInlineStateInvariantPanel,
+    openInlineInteractionUsePanel,
+    openInlineGatePanel,
+    handleClassDblClick,
+  ]);
+
+  const dragEndHandlers = useMemo<Record<NodeDragEnd, NodeShapeRenderProps['onDragEnd']>>(
+    () => ({
+      message: handleMessageDragEnd,
+      derived: handleDerivedDragEnd,
+      fragment: handleFragmentDragEnd,
+      node: handleDragEnd,
+    }),
+    [handleMessageDragEnd, handleDerivedDragEnd, handleFragmentDragEnd, handleDragEnd],
+  );
+
   return (
     <div
       ref={containerRef}
@@ -2535,43 +2627,14 @@ export default function KonvaCanvas() {
                   }
                 }
                 
-                const onDblClick = isNoteViewModel(vm)
-                  ? (e: KonvaEventObject<MouseEvent>) => handleNoteDblClick(shape.id, e)
-                  : isUseCaseViewModel(vm)
-                  ? () => handleUseCaseDblClickModal(shape.id)
-                  : isLifelineViewModel(vm)
-                  ? () => {
-                      // C5: a decomposed lifeline navigates to its sub-interaction;
-                      // otherwise double-click starts an inline rename.
-                      const diagramId = vm.decomposedDiagramId;
-                      if (diagramId && useVFSStore.getState().project?.nodes[diagramId]) {
-                        useWorkspaceStore.getState().openTab(diagramId);
-                        useWorkspaceStore.getState().setActiveTab(diagramId);
-                      } else {
-                        startUseCaseInlineEdit(shape.id);
-                      }
-                    }
-                  : isFragmentViewModel(vm)
-                  ? () => openInlineFragmentPanel(vm.domainId)
-                  : isMessageViewModel(vm)
-                  ? () => startUseCaseInlineEdit(shape.id)
-                  : isStateInvariantViewModel(vm)
-                  ? () => openInlineStateInvariantPanel(vm.domainId)
-                  : isInteractionUseViewModel(vm)
-                  ? () => openInlineInteractionUsePanel(vm.domainId)
-                  : isGateViewModel(vm)
-                  ? () => openInlineGatePanel(vm.domainId)
-                  : isGeneralOrderingViewModel(vm)
-                  ? () => useUiStore.getState().openGeneralOrderingProps(vm.domainId)
-                  : isTimeConstraintViewModel(vm)
-                  ? () => useUiStore.getState().openTimeConstraintProps(vm.domainId)
-                  : isCoregionViewModel(vm)
-                  ? () => useUiStore.getState().openCoregionProps(vm.domainId)
-                  : isContinuationViewModel(vm)
-                  ? () => useUiStore.getState().openContinuationProps(vm.domainId)
-                  : isNodeViewModel(vm)
-                  ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
-                  : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
+                // A0 (ADR-0009): what this kind can do is read from its
+                // descriptor; only the closures still live here.
+                const descriptor = NODE_KIND_DESCRIPTORS[getNodeKind(vm) ?? 'class'];
+
+                const editor = editorHandlers[descriptor.editor];
+                const onDblClick = editor
+                  ? (e: KonvaEventObject<MouseEvent>) => editor(shape.id, vm, e)
+                  : undefined;
 
                 const onContextMenu = isUseCaseViewModel(vm)
                   ? (e: KonvaEventObject<PointerEvent>, nodeId: string) => {
@@ -2581,24 +2644,10 @@ export default function KonvaCanvas() {
                     }
                   : handleNodeContextMenu;
 
-                const isMsg = isMessageViewModel(vm);
-                const isLifeline = isLifelineViewModel(vm);
-                const isActivation = isActivationViewModel(vm);
-                const isFragment = isFragmentViewModel(vm);
-                const isInteractionUse = isInteractionUseViewModel(vm);
-                const isStateInvariant = isStateInvariantViewModel(vm);
-                const isNote = isNoteViewModel(vm);
-                const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm) || isContinuationViewModel(vm);
-                // General orderings, timing constraints and coregions have
-                // fully-derived geometry (anchored to occurrences) → not draggable.
-                const isGeneralOrdering =
-                  isGeneralOrderingViewModel(vm) ||
-                  isTimeConstraintViewModel(vm) ||
-                  isCoregionViewModel(vm);
                 // Vertical-only, store-backed drag: messages, the slot-anchored
                 // derived elements, and movable fragment containers lock X and
-                // persist Y. Activations are NOT draggable (system-managed).
-                const isVerticalDrag = isMsg || isDerived || isFragment;
+                // persist Y. The lifeline is the mirror case, locking Y.
+                const isVerticalDrag = descriptor.dragAxis === 'vertical';
                 // Strong highlight: while connecting, dim nodes that are illegal
                 // targets for the active relation so legal ones stand out.
                 const connectDimmed = connectionDraw.candidateValidity?.get(shape.id) === false;
@@ -2608,17 +2657,11 @@ export default function KonvaCanvas() {
                   y: pos.y,
                   selected: selectedIds.has(shape.id),
                   opacity: connectDimmed ? 0.3 : undefined,
-                  draggable: !isGeneralOrdering && !isActivation,
+                  draggable: descriptor.draggable,
                   visible: isVisible && !isDescendantOfCollapsed,
                   onDragStart: isVerticalDrag ? undefined : guardedDragStart,
                   onDragMove: isVerticalDrag ? undefined : handleDragMove,
-                  onDragEnd: isMsg
-                    ? handleMessageDragEnd
-                    : isDerived
-                    ? handleDerivedDragEnd
-                    : isFragment
-                    ? handleFragmentDragEnd
-                    : handleDragEnd,
+                  onDragEnd: dragEndHandlers[descriptor.dragEnd],
                   dragBoundFunc: isVerticalDrag
                     ? (p: { x: number; y: number }) => {
                         // Pin X in screen space (dragBoundFunc is absolute), else
@@ -2628,7 +2671,7 @@ export default function KonvaCanvas() {
                         const stageOffX = stage?.x() ?? 0;
                         return { x: pos.x * scale + stageOffX, y: p.y };
                       }
-                    : isLifeline
+                    : descriptor.dragAxis === 'horizontal'
                     ? (p: { x: number; y: number }) => {
                         const stage = stageRef.current;
                         const scale = stage?.scaleX() ?? 1;
@@ -2641,20 +2684,10 @@ export default function KonvaCanvas() {
                   onContextMenu,
                   onMouseEnter: handleUseCaseMouseEnter,
                   onMouseLeave: handleUseCaseMouseLeave,
-                  onResizeEnd: isFragment
-                    ? handleFragmentResizeEnd
-                    : isLifeline
-                    ? handleLifelineTimelineResizeEnd
-                    : isInteractionUse
-                    ? handleInteractionUseResizeEnd
-                    : isStateInvariant
-                    ? handleStateInvariantResizeEnd
-                    : isNote
-                    ? handleNoteResizeEnd
-                    : isUCModuleViewModel(vm)
-                    ? handleUCModuleResizeEnd
-                    : handleSystemBoundaryResizeEnd,
-                  onResetTimeline: isLifeline ? handleLifelineTimelineReset : undefined,
+                  onResizeEnd: resizeHandlers[descriptor.resize],
+                  onResetTimeline: descriptor.resetTimeline
+                    ? handleLifelineTimelineReset
+                    : undefined,
                   isDropTarget: hoveredPackageId === shape.id,
                 });
               })}

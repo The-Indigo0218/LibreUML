@@ -28,13 +28,22 @@ import type {
   IRContinuation,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
+import { migrateModel } from './migrations/schema';
 
+/**
+ * Backfills absent collections. This is the cheap guard, not the migration
+ * pipeline: it can only handle "a collection is missing", never a change in the
+ * shape of data that is present. Real format changes live in
+ * `migrations/schema.ts` (ADR-0012), which `loadModel` runs first.
+ */
 function normalize(m: SemanticModel): SemanticModel {
   m.enums           = m.enums           ?? {};
   m.dataTypes       = m.dataTypes       ?? {};
   m.actors          = m.actors          ?? {};
   m.useCases        = m.useCases        ?? {};
-  m.activityNodes   = m.activityNodes   ?? {};
+  m.activities         = m.activities         ?? {};
+  m.activityNodes      = m.activityNodes      ?? {};
+  m.activityPartitions = m.activityPartitions ?? {};
   m.objectInstances = m.objectInstances ?? {};
   m.components      = m.components      ?? {};
   m.nodes           = m.nodes           ?? {};
@@ -492,7 +501,9 @@ export const useModelStore = create<ModelStoreState>()(
 
     loadModel: (model) =>
       set((state) => {
-        state.model = normalize(model);
+        // Migrate before normalizing: the pipeline reshapes data that is
+        // present, normalize only backfills what is absent (ADR-0012).
+        state.model = normalize(migrateModel(model));
       }),
 
     createClass: (data) => {

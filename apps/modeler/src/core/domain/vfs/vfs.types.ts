@@ -315,9 +315,58 @@ export interface IRDomainEntity extends IRElement {
   attributeIds: string[];
 }
 
+/**
+ * The behaviour an activity diagram describes. Nodes and partitions always
+ * belong to exactly one.
+ */
+export interface IRActivity extends IRElement {
+  kind: 'ACTIVITY';
+  /** Trace to the use case this activity realizes (ADR-0010). */
+  realizesUseCaseId?: string;
+  /** Trace to the classifier that owns the behaviour. */
+  contextClassifierId?: string;
+}
+
+export type ActivityNodeKind =
+  // v1
+  | 'ACTION'
+  | 'CALL_OPERATION'
+  | 'INITIAL'
+  | 'ACTIVITY_FINAL'
+  | 'DECISION'
+  | 'MERGE'
+  | 'FORK'
+  | 'JOIN'
+  // v1.1
+  | 'FLOW_FINAL'
+  | 'OBJECT_NODE';
+
 export interface IRActivityNode extends IRElement {
   kind: 'ACTIVITY_NODE';
-  activityType: 'ACTION' | 'DECISION' | 'MERGE' | 'FORK' | 'JOIN' | 'INITIAL' | 'FINAL';
+  activityType: ActivityNodeKind;
+  /** Owning activity. A node always belongs to exactly one. */
+  activityId: string;
+  /** Partition (swimlane) containing it; undefined means outside any lane. */
+  partitionId?: string;
+  /** CALL_OPERATION only: the operation this action invokes (ADR-0010). */
+  callsOperationId?: string;
+  /** OBJECT_NODE only: classifier of the object that flows. */
+  classifierId?: string;
+  /** FORK/JOIN only: bar axis. Defaults to HORIZONTAL. */
+  barOrientation?: 'HORIZONTAL' | 'VERTICAL';
+}
+
+/**
+ * A swimlane. Its position comes from `index`, never from pixels: reordering
+ * lanes swaps indices and the geometry follows (ADR-0008).
+ */
+export interface IRActivityPartition extends IRElement {
+  kind: 'ACTIVITY_PARTITION';
+  activityId: string;
+  /** Order along the axis. Determines the lane's position. */
+  index: number;
+  /** Trace to the class or actor responsible for this lane (ADR-0010). */
+  representsId?: string;
 }
 
 export interface IRObjectInstance extends IRElement {
@@ -694,12 +743,22 @@ export interface IRRelation {
   isExternal?: boolean;
   condition?: string;      // «extend» guard condition
   extensionPoint?: string; // «extend» target extension point name
+  /** CONTROL_FLOW / OBJECT_FLOW guard, e.g. '[balance > 0]'. */
+  guard?: string;
+  /** CONTROL_FLOW / OBJECT_FLOW weight: '*', '1', or an expression. */
+  weight?: string;
 }
 
 export interface SemanticModel {
   id: string;
   name: string;
+  /** Business version of the model's content. Not the storage format. */
   version: string;
+  /**
+   * Storage format version, driving the migration pipeline (ADR-0012).
+   * Absent means "before migrations existed" and is treated as 0.
+   */
+  schemaVersion?: number;
   packages: Record<string, IRPackage>;
   classes: Record<string, IRClass>;
   interfaces: Record<string, IRInterface>;
@@ -713,7 +772,9 @@ export interface SemanticModel {
   ucModules?: Record<string, IRUCModule>;
   domainEntities?: Record<string, IRDomainEntity>;
   domainAttributes?: Record<string, IRDomainAttribute>;
+  activities?: Record<string, IRActivity>;
   activityNodes: Record<string, IRActivityNode>;
+  activityPartitions?: Record<string, IRActivityPartition>;
   objectInstances: Record<string, IRObjectInstance>;
   components: Record<string, IRComponent>;
   nodes: Record<string, IRNode>;
@@ -754,6 +815,8 @@ export type SemanticKind =
   | 'UC_MODULE'
   | 'DOMAIN_ENTITY'
   | 'LIFELINE'
+  | 'ACTIVITY_NODE'
+  | 'ACTIVITY_PARTITION'
   | 'UNKNOWN';
 
 /**
@@ -772,6 +835,8 @@ export interface ResolvedElement {
     | IRUCModule
     | IRDomainEntity
     | IRLifeline
+    | IRActivityNode
+    | IRActivityPartition
     | null;
   kind: SemanticKind;
 }

@@ -317,6 +317,44 @@ export interface ContinuationViewModel {
   totalMessages: number;
 }
 
+/**
+ * An action: the rounded box that does something (A1). Covers both plain
+ * actions and call-operation actions, which differ only by carrying a trace.
+ */
+export interface ActivityActionViewModel {
+  __brand: 'activityAction';
+  id: string;
+  domainId: string;
+  label: string;
+  /** Manual box size, persisted on the ViewNode; auto when undefined. */
+  manualWidth?: number;
+  manualHeight?: number;
+  /** Set when this is a CALL_OPERATION traced to an operation (ADR-0010). */
+  callsOperationName?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
+export type ActivityControlKindVM = 'INITIAL' | 'ACTIVITY_FINAL' | 'FLOW_FINAL';
+
+/**
+ * Initial / final / flow-final markers (A1). They carry no label — the glyph
+ * is the meaning — and are a fixed size, so there is nothing to resize.
+ */
+export interface ActivityControlNodeViewModel {
+  __brand: 'activityControlNode';
+  id: string;
+  domainId: string;
+  controlKind: ActivityControlKindVM;
+  colorOverride?: string;
+  onOpenProps?: () => void;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -336,7 +374,9 @@ export type AnyNodeViewModel =
   | GeneralOrderingViewModel
   | TimeConstraintViewModel
   | CoregionViewModel
-  | ContinuationViewModel;
+  | ContinuationViewModel
+  | ActivityActionViewModel
+  | ActivityControlNodeViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -409,6 +449,16 @@ export function isTimeConstraintViewModel(vm: AnyNodeViewModel): vm is TimeConst
 
 export function isCoregionViewModel(vm: AnyNodeViewModel): vm is CoregionViewModel {
   return '__brand' in vm && vm.__brand === 'coregion';
+}
+
+export function isActivityActionViewModel(vm: AnyNodeViewModel): vm is ActivityActionViewModel {
+  return '__brand' in vm && vm.__brand === 'activityAction';
+}
+
+export function isActivityControlNodeViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityControlNodeViewModel {
+  return '__brand' in vm && vm.__brand === 'activityControlNode';
 }
 
 export function isContinuationViewModel(vm: AnyNodeViewModel): vm is ContinuationViewModel {

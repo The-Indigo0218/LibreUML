@@ -32,7 +32,7 @@ const DIAGRAM_TYPE_CONFIG: DiagramTypeConfig[] = [
   { type: "USE_CASE_DIAGRAM",      label: "Use Case",   icon: Users,           enabled: true  },
   { type: "DOMAIN_MODEL_DIAGRAM",  label: "Domain",     icon: Network,         enabled: true  },
   { type: "SEQUENCE_DIAGRAM",      label: "Sequence",   icon: ArrowRightLeft,  enabled: true  },
-  { type: "ACTIVITY_DIAGRAM",      label: "Activity",   icon: Activity,        enabled: false },
+  { type: "ACTIVITY_DIAGRAM",      label: "Activity",   icon: Activity,        enabled: true },
   { type: "STATE_MACHINE_DIAGRAM", label: "State",      icon: GitBranch,       enabled: false },
   { type: "COMPONENT_DIAGRAM",     label: "Component",  icon: Puzzle,          enabled: false },
   { type: "DEPLOYMENT_DIAGRAM",    label: "Deployment", icon: Server,          enabled: false },

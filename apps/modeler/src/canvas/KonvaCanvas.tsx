@@ -114,6 +114,7 @@ import {
   isInteractionUseViewModel,
   isGateViewModel,
   isContinuationViewModel,
+  isActivityActionViewModel,
   type AnyNodeViewModel,
   type LifelineViewModel,
   type NodeViewModel,
@@ -1306,6 +1307,20 @@ export default function KonvaCanvas() {
               (text) => vm.onRename!(text));
           }
         }
+      } else if (isActivityActionViewModel(vm)) {
+        // The label is centred in the box; edit it in place.
+        const { width, height } = getShapeSize(vm);
+        const fontSize = vm.fontSizeOverride ?? 13;
+        const screenPos = transform.point({
+          x: pos.x + 8,
+          y: pos.y + (height - fontSize) / 2,
+        });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.label, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width: width - 16, height: fontSize + 6 },
+            (text) => vm.onRename!(text));
+        }
       } else {
         (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
       }
@@ -2442,7 +2457,8 @@ export default function KonvaCanvas() {
       classEditor: (shapeId, _vm, e) => handleClassDblClick(shapeId, e),
       openProps: (_shapeId, vm) =>
         (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.(),
-      // Only the package, which never reaches the main render loop.
+      // Nothing to open: the package draws in its own layer, and a control
+      // node is a filled circle with nothing to edit.
       none: undefined,
     };
   }, [

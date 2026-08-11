@@ -22,6 +22,8 @@ import GeneralOrderingShape from '../shapes/GeneralOrderingShape';
 import TimeConstraintShape from '../shapes/TimeConstraintShape';
 import CoregionShape from '../shapes/CoregionShape';
 import ContinuationShape from '../shapes/ContinuationShape';
+import ActionShape from '../shapes/ActionShape';
+import ControlNodeShape from '../shapes/ControlNodeShape';
 
 /**
  * A0 (ADR-0009). The descriptor table is the canvas' extension point for node
@@ -100,6 +102,8 @@ describe('renderShape routing', () => {
     timeConstraint: TimeConstraintShape,
     coregion: CoregionShape,
     continuation: ContinuationShape,
+    activityAction: ActionShape,
+    activityControlNode: ControlNodeShape,
   };
 
   /** Minimal view model that resolves to `kind` — see `getNodeKind`. */
@@ -187,6 +191,20 @@ describe('node kind behaviour matrix', () => {
       dragEnd: 'derived',
       resize: 'systemBoundary',
     },
+    // Activity nodes have free geometry, like class boxes: nothing about them
+    // is derived, so nothing is axis-locked.
+    activityAction: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'systemBoundary',
+    },
+    activityControlNode: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'systemBoundary',
+    },
   };
 
   it.each(ALL_NODE_KINDS)('%s behaves as it did before the table', (kind) => {
@@ -201,6 +219,12 @@ describe('node kind behaviour matrix', () => {
     expect(undraggable.sort()).toEqual(
       ['activation', 'coregion', 'generalOrdering', 'timeConstraint'].sort(),
     );
+  });
+
+  it('gives an action an inline rename and a control node no editor at all', () => {
+    expect(NODE_KIND_DESCRIPTORS.activityAction.editor).toBe('inlineRename');
+    // A filled circle has nothing to edit.
+    expect(NODE_KIND_DESCRIPTORS.activityControlNode.editor).toBe('none');
   });
 
   it('offers the timeline reset only on the lifeline', () => {

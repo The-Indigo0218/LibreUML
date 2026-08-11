@@ -20,6 +20,8 @@ import GeneralOrderingShape, { getGeneralOrderingShapeSize } from './shapes/Gene
 import TimeConstraintShape, { getTimeConstraintShapeSize } from './shapes/TimeConstraintShape';
 import CoregionShape, { getCoregionShapeSize } from './shapes/CoregionShape';
 import ContinuationShape, { getContinuationShapeSize } from './shapes/ContinuationShape';
+import ActionShape, { getActionShapeSize } from './shapes/ActionShape';
+import ControlNodeShape, { getControlNodeShapeSize } from './shapes/ControlNodeShape';
 
 export interface NodeSize {
   width: number;
@@ -68,7 +70,10 @@ export type NodeEditor =
   | 'classEditor'
   /** Falls through to the view model's own `onOpenProps`, if it has one. */
   | 'openProps'
-  /** No double-click behaviour at all — the package toggles collapse instead. */
+  /**
+   * No double-click behaviour at all: the package toggles collapse from its own
+   * layer, and a control node is a filled circle with nothing to edit.
+   */
   | 'none';
 
 /** Which resize handler commits the new size. */
@@ -399,6 +404,33 @@ export const NODE_KIND_DESCRIPTORS: Record<NodeKind, NodeKindDescriptor> = {
     draggable: true,
     dragAxis: 'vertical',
     dragEnd: 'derived',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (A1) ────────────────────────────────────────────────
+  // Free geometry, like class boxes: an activity node goes where the modeller
+  // puts it. Nothing here is derived, so nothing is axis-locked.
+
+  activityAction: describe({
+    size: getActionShapeSize,
+    render: (vm, { key, common }) => <ActionShape key={key} viewModel={vm} {...common} />,
+    editor: 'inlineRename',
+    resize: 'systemBoundary',
+    draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  activityControlNode: describe({
+    size: getControlNodeShapeSize,
+    render: (vm, { key, common }) => <ControlNodeShape key={key} viewModel={vm} {...common} />,
+    // A filled circle has nothing to edit.
+    editor: 'none',
+    resize: 'systemBoundary',
+    draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
     resetTimeline: false,
   }),
 };

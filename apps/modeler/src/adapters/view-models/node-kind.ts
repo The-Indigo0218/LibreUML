@@ -29,7 +29,9 @@ export type NodeKind =
   | 'generalOrdering'
   | 'timeConstraint'
   | 'coregion'
-  | 'continuation';
+  | 'continuation'
+  | 'activityAction'
+  | 'activityControlNode';
 
 /** Every kind, for exhaustiveness checks over descriptor tables. */
 export const ALL_NODE_KINDS: readonly NodeKind[] = [
@@ -52,6 +54,8 @@ export const ALL_NODE_KINDS: readonly NodeKind[] = [
   'timeConstraint',
   'coregion',
   'continuation',
+  'activityAction',
+  'activityControlNode',
 ] as const;
 
 /**

@@ -32,6 +32,7 @@ import { buildClassDiagramNodes } from './controllers/classDiagramNodes';
 import { buildUseCaseDiagramNodes } from './controllers/useCaseDiagramNodes';
 import { buildDomainModelNodes } from './controllers/domainModelNodes';
 import { buildSequenceDiagramNodes } from './controllers/sequenceDiagramNodes';
+import { buildActivityDiagramNodes } from './controllers/activityDiagramNodes';
 import {
   resolveSemanticElement,
   type NodeBuilderContext,
@@ -239,6 +240,7 @@ const NODE_BUILDERS: Partial<Record<string, NodeBuilder>> = {
   USE_CASE_DIAGRAM:  (ctx) => buildUseCaseDiagramNodes(ctx) as VFSCanvasNode[],
   DOMAIN_MODEL_DIAGRAM: (ctx) => buildDomainModelNodes(ctx) as VFSCanvasNode[],
   SEQUENCE_DIAGRAM:  (ctx) => buildSequenceDiagramNodes(ctx) as VFSCanvasNode[],
+  ACTIVITY_DIAGRAM:  (ctx) => buildActivityDiagramNodes(ctx) as VFSCanvasNode[],
 };
 
 function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSCanvasNode[] {

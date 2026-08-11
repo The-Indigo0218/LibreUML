@@ -18,6 +18,7 @@ import DiagramEditor from '../features/diagram/components/layout/DiagramEditor';
 import { useVFSStore } from '../store/project-vfs.store';
 import { useWorkspaceStore } from '../store/workspace.store';
 import { useAuthStore } from '../features/auth/store/auth.store';
+import { useSettingsStore } from '../store/settingsStore';
 import type {
   LibreUMLProject,
   SemanticModel,
@@ -186,6 +187,14 @@ export interface E2EApi {
   edgeMidpoint: (edgeId: string) => { x: number; y: number } | null;
   /** Page-space coords of an edge line's source (first) or target (last) point. */
   edgeEndpoint: (edgeId: string, end: 'source' | 'target') => { x: number; y: number } | null;
+  /**
+   * Viewport culling on/off, plus silencing the warning modal that would
+   * otherwise cover the canvas past 20 shapes. A0-bis (ADR-0014) measures the
+   * canvas with culling both ways, so the budget can say what it buys.
+   */
+  setCulling: (on: boolean) => void;
+  /** How many shape groups the stage is actually painting right now. */
+  renderedShapeCount: () => number;
 }
 
 declare global {
@@ -252,6 +261,16 @@ export default function E2EHarness() {
         const screen = stage.getAbsoluteTransform().point(pt);
         const c = stage.container().getBoundingClientRect();
         return { x: c.left + screen.x, y: c.top + screen.y };
+      },
+      setCulling: (on) => {
+        useSettingsStore.setState({ viewportCulling: on, suppressCullingWarning: true });
+      },
+      renderedShapeCount: () => {
+        const stage = Konva.stages[Konva.stages.length - 1];
+        if (!stage) return 0;
+        // Culling hides shapes rather than unmounting them, so count the ones
+        // actually being painted.
+        return stage.find('Group').filter((g) => g.isVisible()).length;
       },
     };
 

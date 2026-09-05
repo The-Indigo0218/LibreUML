@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pencil, Copy, Trash2, ArrowLeftRight, Settings2, Palette, Paintbrush, PaintBucket, Ban, Minus, Spline, Waypoints, SquareDashed, Type } from 'lucide-react';
 import type { EdgeRoutingMode, NodeBorderStyle } from '../../core/domain/vfs/vfs.types';
 
@@ -59,6 +60,7 @@ const ICONS: Record<ToolbarIcon, typeof Pencil> = {
 };
 
 export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProps) {
+  const { t } = useTranslation();
   const [openSwatch, setOpenSwatch] = useState<number | null>(null);
 
   if (actions.length === 0) return null;
@@ -146,8 +148,8 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
             />
           ))}
           <button
-            title="—"
-            aria-label="clear color"
+            title={t("selectionToolbar.clearColor")}
+            aria-label={t("selectionToolbar.clearColor")}
             onClick={() => { swatchAction.onPickColor?.(null); setOpenSwatch(null); }}
             className="w-5 h-5 rounded-full flex items-center justify-center border border-white/25
                        text-text-muted hover:bg-surface-hover"
@@ -196,8 +198,8 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
               );
             })}
             <button
-              title="—"
-              aria-label="clear border"
+              title={t("selectionToolbar.clearBorder")}
+              aria-label={t("selectionToolbar.clearBorder")}
               onClick={() => { swatchAction.onClearBorder?.(); setOpenSwatch(null); }}
               className="flex items-center justify-center w-8 h-7 rounded-md text-text-muted hover:bg-surface-hover"
             >
@@ -247,8 +249,8 @@ export default function SelectionToolbar({ x, y, actions }: SelectionToolbarProp
               );
             })}
             <button
-              title="—"
-              aria-label="clear font"
+              title={t("selectionToolbar.clearFont")}
+              aria-label={t("selectionToolbar.clearFont")}
               onClick={() => { swatchAction.onClearFont?.(); setOpenSwatch(null); }}
               className="flex items-center justify-center w-8 h-7 rounded-md text-text-muted hover:bg-surface-hover"
             >

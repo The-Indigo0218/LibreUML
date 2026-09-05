@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { ChevronRight, ChevronDown, Hash, FunctionSquare, Settings } from "lucide-react";
 import type { UmlAttribute, UmlMethod } from "../../../types/diagram.types";
 import type { ClassItemProps } from "./types";
@@ -17,6 +18,7 @@ export function ClassItem({
   viewNodeId,
   onDragStart,
 }: ClassItemProps) {
+  const { t } = useTranslation();
   const hasMembers = classNode.data.attributes.length > 0 || classNode.data.methods.length > 0;
   const [editValue, setEditValue] = useState(classNode.data.label);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -138,7 +140,7 @@ export function ClassItem({
           )}
           {classNode.data.isMain && (
             <span className="text-[9px] text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded font-bold">
-              MAIN
+              {t("packageExplorer.main")}
             </span>
           )}
         </div>
@@ -151,7 +153,7 @@ export function ClassItem({
               onEditClass(classNode.id);
             }}
             className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-surface-secondary rounded text-text-muted hover:text-uml-class-border"
-            title="Edit Properties"
+            title={t("sidebar.edit")}
           >
             <Settings className="w-3.5 h-3.5" />
           </button>

@@ -467,10 +467,21 @@ export class XmiConverterService {
     const [srcLower, srcUpper] = this.parseMultiplicityBounds(sourceMultiplicity || "1");
     const [tgtLower, tgtUpper] = this.parseMultiplicityBounds(targetMultiplicity || "0..*");
 
+    // UML navigability: a navigable end is listed in <navigableOwnedEnd> (a subset
+    // of the association's ownedEnds). Unspecified/undefined ends emit nothing, so
+    // legacy models without navigability round-trip unchanged.
+    const srcNavigable = ('sourceNavigable' in edge) && (edge as { sourceNavigable?: boolean }).sourceNavigable === true;
+    const tgtNavigable = ('targetNavigable' in edge) && (edge as { targetNavigable?: boolean }).targetNavigable === true;
+    const navigableEnds = [
+      ...(srcNavigable ? [`      <navigableOwnedEnd xmi:idref="${endSrcId}"/>`] : []),
+      ...(tgtNavigable ? [`      <navigableOwnedEnd xmi:idref="${endTgtId}"/>`] : []),
+    ];
+
     return [
       `    <packagedElement xmi:type="uml:Association" xmi:id="${id}">`,
       `      <memberEnd xmi:idref="${endSrcId}"/>`,
       `      <memberEnd xmi:idref="${endTgtId}"/>`,
+      ...navigableEnds,
       `      <ownedEnd xmi:type="uml:Property" xmi:id="${endSrcId}" name="${sourceRole}" type="${sourceId}" association="${id}"${aggregationAttr}>`,
       `        <lowerValue xmi:type="uml:LiteralInteger"            xmi:id="${endSrcId}_lower" value="${srcLower}"/>`,
       `        <upperValue xmi:type="uml:LiteralUnlimitedNatural"   xmi:id="${endSrcId}_upper" value="${srcUpper}"/>`,

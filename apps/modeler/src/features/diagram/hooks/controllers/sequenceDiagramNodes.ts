@@ -8,7 +8,9 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRContinuation,
   ViewNode,
+  SemanticModel,
 } from '../../../../core/domain/vfs/vfs.types';
 import type {
   LifelineViewModel,
@@ -19,6 +21,10 @@ import type {
   StateInvariantViewModel,
   InteractionUseViewModel,
   GateViewModel,
+  GeneralOrderingViewModel,
+  TimeConstraintViewModel,
+  CoregionViewModel,
+  ContinuationViewModel,
   LifelineParticipantKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
@@ -38,6 +44,7 @@ const TIMELINE_BOTTOM_PAD = 60;
 const MIN_TIMELINE = 200;
 const ACTIVATION_W = 10;
 const ACTIVATION_END_PAD = 16; // extra height when activation is still open
+const CHILD_CONTAINMENT_PAD = 8; // px a parent bar extends below its deepest child
 const FRAGMENT_X_PAD = 20;
 const FRAGMENT_TOP_PAD = 28;
 const FRAGMENT_BOTTOM_PAD = 16;
@@ -71,14 +78,93 @@ function participantKindFromIR(k: IRLifeline['participantKind']): LifelinePartic
   return k;
 }
 
-function computeTimelineLength(messageCount: number): number {
-  const need = TIMELINE_TOP_PAD + messageCount * MESSAGE_BAND_H + TIMELINE_BOTTOM_PAD;
-  return Math.max(MIN_TIMELINE, need);
+// ─── Variable slot layout (P4) ──────────────────────────────────────────────
+//
+// Slots are MESSAGE_BAND_H tall by default, but a message that *opens* one or
+// more combined fragments needs extra room above it so the fragment header(s)
+// don't compress into the message above — nested/stacked fragments each add a
+// header band. The layout is a cumulative array of boundary offsets; absent a
+// layout every helper degrades to the original uniform grid (backward compat).
+
+/** Extra room reserved above the first message of each fragment for its header. */
+const FRAGMENT_HEADER_ROOM = 26;
+
+export interface SlotLayout {
+  /**
+   * tops[s] = cumulative px offset (from HEAD + TOP_PAD) of the boundary *after*
+   * s messages. tops[0] = 0; length = count + 1. Band i (1-based) is centred at
+   * tops[i] - MESSAGE_BAND_H / 2.
+   */
+  tops: number[];
+  /** Number of ordered messages (= tops.length - 1). */
+  count: number;
 }
 
-export function messageYForIndex(index1Based: number): number {
-  // index 1 → first band centred at TIMELINE_TOP_PAD + 0.5 * MESSAGE_BAND_H
-  return TIMELINE_TOP_PAD + (index1Based - 0.5) * MESSAGE_BAND_H + LIFELINE_HEAD_H;
+type SlotLayoutModel = Pick<SemanticModel, 'messages' | 'interactionFragments'>;
+
+/**
+ * Build the slot layout for a model: a cumulative boundary offset per message,
+ * widening the band before any message that starts a fragment so nested/stacked
+ * fragment headers each get their own room (P4). With no fragments this is the
+ * uniform grid (tops[i] = i * MESSAGE_BAND_H).
+ */
+export function computeSlotLayoutFor(
+  orderedMessages: IRMessage[],
+  fragments: IRInteractionFragment[],
+): SlotLayout {
+  const slotOf = new Map<string, number>();
+  orderedMessages.forEach((m, i) => slotOf.set(m.id, i + 1));
+
+  // How many fragments begin at each 1-based message slot (earliest covered msg).
+  const fragmentStartsAt = new Map<number, number>();
+  for (const frag of fragments) {
+    const slots = frag.operands
+      .flatMap((op) => op.messageIds)
+      .map((id) => slotOf.get(id))
+      .filter((s): s is number => s !== undefined);
+    if (slots.length === 0) continue;
+    const start = Math.min(...slots);
+    fragmentStartsAt.set(start, (fragmentStartsAt.get(start) ?? 0) + 1);
+  }
+
+  const tops = [0];
+  for (let i = 1; i <= orderedMessages.length; i++) {
+    const headerExtra = (fragmentStartsAt.get(i) ?? 0) * FRAGMENT_HEADER_ROOM;
+    tops.push(tops[i - 1] + headerExtra + MESSAGE_BAND_H);
+  }
+  return { tops, count: orderedMessages.length };
+}
+
+/** Model-level convenience wrapper (orders messages by sequenceNumber). */
+export function computeSlotLayout(model: SlotLayoutModel): SlotLayout {
+  const ordered = Object.values(model.messages ?? {}).sort(
+    (a, b) => a.sequenceNumber - b.sequenceNumber,
+  );
+  return computeSlotLayoutFor(ordered, Object.values(model.interactionFragments ?? {}));
+}
+
+/** Offset (from HEAD + TOP_PAD) of band `i`'s centre. */
+function slotCenterOffset(i: number, layout?: SlotLayout): number {
+  if (!layout) return (i - 0.5) * MESSAGE_BAND_H;
+  if (i <= layout.count) return layout.tops[i] - MESSAGE_BAND_H / 2;
+  // Beyond the last message (insertion append) — extrapolate on the uniform grid.
+  return layout.tops[layout.count] + (i - layout.count - 0.5) * MESSAGE_BAND_H;
+}
+
+/** Offset (from HEAD + TOP_PAD) of the boundary *after* `slot` messages. */
+function boundaryOffset(slot: number, layout?: SlotLayout): number {
+  if (!layout) return slot * MESSAGE_BAND_H;
+  if (slot <= layout.count) return layout.tops[slot];
+  return layout.tops[layout.count] + (slot - layout.count) * MESSAGE_BAND_H;
+}
+
+function computeTimelineLength(messageCount: number, layout?: SlotLayout): number {
+  const span = layout ? layout.tops[layout.count] : messageCount * MESSAGE_BAND_H;
+  return Math.max(MIN_TIMELINE, TIMELINE_TOP_PAD + span + TIMELINE_BOTTOM_PAD);
+}
+
+export function messageYForIndex(index1Based: number, layout?: SlotLayout): number {
+  return LIFELINE_HEAD_H + TIMELINE_TOP_PAD + slotCenterOffset(index1Based, layout);
 }
 
 /**
@@ -88,8 +174,8 @@ export function messageYForIndex(index1Based: number): number {
  *
  * Exported for unit tests and for the StateInvariant layout below.
  */
-export function stateInvariantSlotY(slot: number): number {
-  return LIFELINE_HEAD_H + TIMELINE_TOP_PAD + slot * MESSAGE_BAND_H;
+export function stateInvariantSlotY(slot: number, layout?: SlotLayout): number {
+  return LIFELINE_HEAD_H + TIMELINE_TOP_PAD + boundaryOffset(slot, layout);
 }
 
 /** Estimated stadium width for a state-invariant constraint string. */
@@ -162,7 +248,14 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     })
     .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
 
-  const timelineLength = computeTimelineLength(allMessages.length);
+  // Variable slot layout (P4): widen bands that open fragments so headers don't
+  // compress. Shared by every Y derivation below and by the drag/insert inverses.
+  const slotLayout = computeSlotLayoutFor(
+    allMessages,
+    Object.values(model.interactionFragments ?? {}),
+  );
+
+  const timelineLength = computeTimelineLength(allMessages.length, slotLayout);
 
   // 3b. Build a lookup from messageId → 1-based slot (used by activations,
   //     fragments, state invariants and the create/destroy geometry below).
@@ -204,11 +297,16 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     const createSlot = createSlotByLifeline.get(viewNode.elementId);
     const destroySlot = destroySlotByLifeline.get(viewNode.elementId);
     const headTopOffset = createSlot !== undefined
-      ? Math.max(0, messageYForIndex(createSlot) - LIFELINE_HEAD_H / 2)
+      ? Math.max(0, messageYForIndex(createSlot, slotLayout) - LIFELINE_HEAD_H / 2)
       : 0;
     const headBottomY = headTopOffset + LIFELINE_HEAD_H;
-    const endY = destroySlot !== undefined ? messageYForIndex(destroySlot) : normalBottomY;
-    const llTimelineLength = Math.max(MESSAGE_BAND_H * 0.5, endY - headBottomY);
+    const endY = destroySlot !== undefined ? messageYForIndex(destroySlot, slotLayout) : normalBottomY;
+    // G-c: a manual length stretches the timeline past the last message. Ignored
+    // for destroyed lifelines, whose timeline ends at the destroy occurrence.
+    const isManualTimeline = destroySlot === undefined && ll.manualTimelineLength !== undefined;
+    const llTimelineLength = isManualTimeline
+      ? Math.max(MESSAGE_BAND_H * 0.5, ll.manualTimelineLength!)
+      : Math.max(MESSAGE_BAND_H * 0.5, endY - headBottomY);
 
     const viewModel: LifelineViewModel = {
       __brand: 'lifeline',
@@ -218,10 +316,13 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       participantKind: participantKindFromIR(ll.participantKind),
       isExternal: ll.isExternal,
       timelineLength: llTimelineLength,
+      isManualTimeline,
       headWidth: LIFELINE_HEAD_W,
       headHeight: LIFELINE_HEAD_H,
       headTopOffset,
       isDestroyed: destroySlot !== undefined,
+      decomposedRef: ll.decomposedAs ? (ll.decomposedName || 'ref') : undefined,
+      decomposedDiagramId: ll.decomposedAs,
       onRename,
     };
 
@@ -240,31 +341,126 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     return lifelineInDiagram && messageIndex.has(a.startMessageId);
   });
 
-  // Compute nesting depth per activation: how many other activations on the same
-  // lifeline overlap and started earlier. Used as visual X offset.
-  const nestingDepthFor = (act: IRActivation): number => {
-    const startIdx = messageIndex.get(act.startMessageId)!;
+  const activationsById = new Map(allActivations.map((a) => [a.id, a]));
+
+  // Visual X offset depth. Prefer the explicit parentActivationId chain (set when
+  // a SYNC nests inside an open activation — self-calls / re-entrant calls); fall
+  // back to the geometric overlap heuristic for legacy data without the field.
+  const startIndexOf = (act: IRActivation): number => messageIndex.get(act.startMessageId)!;
+  const endIndexOf = (act: IRActivation): number =>
+    act.endMessageId ? messageIndex.get(act.endMessageId) ?? allMessages.length + 1 : allMessages.length + 1;
+
+  // A parent execution only nests a child it actually CONTAINS in time: it must
+  // start before the child and still be open at (or end after) the child's start.
+  // A parent that already returned before the child begins — because a REPLY (even
+  // one inserted later) closed it, or because the child kept a stale
+  // parentActivationId from when the parent was still open — does NOT contain it.
+  // The child is then a fresh principal execution, not a sub-activation.
+  const parentContains = (parent: IRActivation, child: IRActivation): boolean => {
+    const ps = startIndexOf(parent);
+    const cs = startIndexOf(child);
+    return ps < cs && endIndexOf(parent) > cs;
+  };
+
+  const geometricDepthFor = (act: IRActivation): number => {
+    const startIdx = startIndexOf(act);
     let depth = 0;
     for (const other of allActivations) {
       if (other.id === act.id) continue;
       if (other.lifelineId !== act.lifelineId) continue;
-      const otherStart = messageIndex.get(other.startMessageId)!;
-      const otherEnd = other.endMessageId ? messageIndex.get(other.endMessageId) ?? allMessages.length + 1 : allMessages.length + 1;
-      if (otherStart < startIdx && otherEnd > startIdx) depth++;
+      if (startIndexOf(other) < startIdx && endIndexOf(other) > startIdx) depth++;
     }
     return depth;
   };
 
-  const activationNodes = allActivations.map((act) => {
+  const computeNestingDepth = (act: IRActivation): number => {
+    if (act.parentActivationId) {
+      let depth = 0;
+      let cursor: IRActivation | undefined = act;
+      const seen = new Set<string>();
+      while (cursor?.parentActivationId && !seen.has(cursor.id)) {
+        seen.add(cursor.id);
+        const parent = activationsById.get(cursor.parentActivationId);
+        if (!parent) break;
+        // Stop at the first ancestor that does not actually contain `act`: a
+        // closed-before / stale parent must not push the child down a level.
+        if (!parentContains(parent, act)) break;
+        depth++;
+        cursor = parent;
+      }
+      return depth;
+    }
+    return geometricDepthFor(act);
+  };
+
+  // Resolve every depth once. It feeds two sort comparators and the view model,
+  // and the geometric fallback scans all activations — recomputing it inside a
+  // comparator made this quadratic in the number of bars.
+  const depthById = new Map(allActivations.map((act) => [act.id, computeNestingDepth(act)]));
+  const depthOf = (act: IRActivation): number => depthById.get(act.id) ?? 0;
+
+  // Raw vertical span of each bar from its own start/end (open bars extend by a
+  // fixed pad). Containment is layered on top of this below.
+  const rawTopY = new Map<string, number>();
+  const finalBottomY = new Map<string, number>();
+  const selfCallActIds = new Set<string>();
+  for (const act of allActivations) {
     const startIdx = messageIndex.get(act.startMessageId)!;
-    const endIdx = act.endMessageId
-      ? messageIndex.get(act.endMessageId) ?? null
-      : null;
-    const topY = messageYForIndex(startIdx);
-    const bottomY = endIdx
-      ? messageYForIndex(endIdx)
-      : topY + MESSAGE_BAND_H + ACTIVATION_END_PAD;
-    const height = Math.max(MESSAGE_BAND_H * 0.6, bottomY - topY);
+    const top = messageYForIndex(startIdx, slotLayout);
+
+    // A self-call is an atomic call+return: it has no reply of its own, so its
+    // execution is a short, self-contained nested bar (≈ one slot) regardless of
+    // whether the stack-unwind later stamped it with an endMessageId. Matches
+    // EA/StarUML — otherwise it would stretch down to wherever its caller returns.
+    const startMsg = model.messages?.[act.startMessageId];
+    const isSelfCall =
+      !!startMsg && startMsg.sourceLifelineId === startMsg.targetLifelineId;
+
+    let bottom: number;
+    if (isSelfCall) {
+      selfCallActIds.add(act.id);
+      bottom = messageYForIndex(startIdx + 1, slotLayout);
+    } else {
+      const endIdx = act.endMessageId ? messageIndex.get(act.endMessageId) ?? null : null;
+      bottom = endIdx
+        ? messageYForIndex(endIdx, slotLayout)
+        : top + MESSAGE_BAND_H + ACTIVATION_END_PAD;
+    }
+    rawTopY.set(act.id, top);
+    finalBottomY.set(act.id, bottom);
+  }
+
+  // Containment (UML): a parent bar must enclose its children, extending a little
+  // below the deepest one. Process deepest-first so a child's already-extended
+  // bottom propagates up to its parent (and transitively to grandparents).
+  const byDepthDesc = [...allActivations].sort((a, b) => depthOf(b) - depthOf(a));
+  for (const act of byDepthDesc) {
+    const parentId = act.parentActivationId;
+    if (!parentId) continue;
+    const parent = activationsById.get(parentId);
+    if (!parent) continue;
+    // Only an OPEN parent grows to enclose its nested children (call-stack
+    // containment: a self-message pushed onto an open execution is a deeper frame).
+    // A *closed* execution already ends at its REPLY (endMessageId) — it must NOT
+    // be stretched below that to chase a child that a later insert/reorder left
+    // orphaned beyond the return, which is what produced the runaway bar spanning
+    // a whole gap down to a far-away self-message.
+    if (parent.endMessageId) continue;
+    const need = finalBottomY.get(act.id)! + CHILD_CONTAINMENT_PAD;
+    if (finalBottomY.get(parentId)! < need) finalBottomY.set(parentId, need);
+  }
+
+  // Render shallow bars first so deeper (nested self-calls / re-entrant calls)
+  // paint ON TOP of their parent — otherwise a parent emitted later would cover
+  // the nested bar, hiding it. Combined with the per-depth tint this makes nested
+  // executions clearly visible instead of blending into the parent.
+  const activationsForRender = [...allActivations].sort((a, b) => depthOf(a) - depthOf(b));
+
+  const activationNodes = activationsForRender.map((act) => {
+    // Geometry is fully system-managed: the bar is anchored to its lifeline and
+    // its height is the derived execution span (grows to contain nested content).
+    const topY = rawTopY.get(act.id)!;
+    const height = Math.max(MESSAGE_BAND_H * 0.4, finalBottomY.get(act.id)! - topY);
     const centerX = lifelineCenterX.get(act.lifelineId) ?? 0;
 
     const viewModel: ActivationViewModel = {
@@ -273,8 +469,9 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       domainId: act.id,
       width: ACTIVATION_W,
       height,
-      isOpen: !act.endMessageId,
-      nestingDepth: nestingDepthFor(act),
+      // Self-calls always render solid (atomic call+return), never dashed-open.
+      isOpen: !act.endMessageId && !selfCallActIds.has(act.id),
+      nestingDepth: depthOf(act),
     };
 
     return {
@@ -304,7 +501,10 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     // Found/lost/gate messages are never self-loops.
     const isSelf =
       !isFound && !isLost && !hasGate && msg.sourceLifelineId === msg.targetLifelineId;
-    const y = messageYForIndex(idx + 1);
+    // Hybrid layout (B2): a manual override pins the glyph Y; otherwise it sits on
+    // the computed slot. Ordering/numbering still come from `sequenceNumber`.
+    const isManualY = msg.manualY !== undefined;
+    const y = msg.manualY ?? messageYForIndex(idx + 1, slotLayout);
 
     let posX: number;
     let length: number;
@@ -341,6 +541,8 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       isSelfMessage: isSelf,
       isFound,
       isLost,
+      guard: msg.guard,
+      isManualY,
       onRename: (name: string) => {
         if (isStandalone && activeTabId) {
           standaloneModelOps(activeTabId).updateMessage(msg.id, { name });
@@ -367,9 +569,11 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     .map((si: IRStateInvariant) => {
       const centerX = lifelineCenterX.get(si.lifelineId)!;
       const slot = Math.max(0, Math.min(allMessages.length, si.afterSequenceNumber));
-      const cy = stateInvariantSlotY(slot);
-      const width = estimateStateInvariantWidth(si.constraint);
-      const height = STATE_INVARIANT_H;
+      const cy = stateInvariantSlotY(slot, slotLayout);
+      // G-d: manual width/height override the text-derived box (kept centered).
+      const isManual = si.manualWidth !== undefined || si.manualHeight !== undefined;
+      const width = si.manualWidth ?? estimateStateInvariantWidth(si.constraint);
+      const height = si.manualHeight ?? STATE_INVARIANT_H;
 
       const viewModel: StateInvariantViewModel = {
         __brand: 'stateInvariant',
@@ -380,6 +584,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
         height,
         afterSequenceNumber: slot,
         totalMessages: allMessages.length,
+        isManual,
       };
 
       return {
@@ -398,7 +603,7 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     .map((g: IRGate) => {
       const edgeX = gateEdgeX.get(g.id)!;
       const slot = Math.max(0, Math.min(allMessages.length, g.afterSequenceNumber));
-      const cy = stateInvariantSlotY(slot);
+      const cy = stateInvariantSlotY(slot, slotLayout);
 
       const viewModel: GateViewModel = {
         __brand: 'gate',
@@ -420,6 +625,149 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
       };
     });
 
+  // 5d. Emit General Orderings (UML 2.5 §17.2) — a dotted arrow forcing a
+  //     temporal order between two message occurrences. Position is fully
+  //     derived from the two anchored messages (no slot anchor of its own).
+  const messageById = new Map(allMessages.map((m) => [m.id, m]));
+  const occurrencePoint = (
+    messageId: string,
+    end: 'SEND' | 'RECEIVE',
+  ): { x: number; y: number } | null => {
+    const msg = messageById.get(messageId);
+    if (!msg) return null;
+    const slot = messageIndex.get(messageId);
+    if (slot === undefined) return null;
+    const y = msg.manualY ?? messageYForIndex(slot, slotLayout);
+    const lifelineId = end === 'SEND' ? msg.sourceLifelineId : msg.targetLifelineId;
+    const x = lifelineCenterX.get(lifelineId);
+    if (x === undefined) return null;
+    return { x, y };
+  };
+
+  const generalOrderingNodes = Object.values(model.generalOrderings ?? {})
+    .map((go) => {
+      const from = occurrencePoint(go.beforeMessageId, go.beforeEnd);
+      const to = occurrencePoint(go.afterMessageId, go.afterEnd);
+      if (!from || !to) return null;
+
+      const minX = Math.min(from.x, to.x);
+      const minY = Math.min(from.y, to.y);
+      const width = Math.abs(to.x - from.x);
+      const height = Math.abs(to.y - from.y);
+
+      const viewModel: GeneralOrderingViewModel = {
+        __brand: 'generalOrdering',
+        id: go.id,
+        domainId: go.id,
+        from: { x: from.x - minX, y: from.y - minY },
+        to: { x: to.x - minX, y: to.y - minY },
+        width,
+        height,
+      };
+
+      return {
+        id: `go-${go.id}`,
+        type: 'umlGeneralOrdering',
+        position: { x: minX, y: minY },
+        data: viewModel,
+        domainId: go.id,
+      };
+    })
+    .filter(<T>(n: T | null): n is T => n !== null);
+
+  // 5e. Emit Time / Duration Constraints (UML 2.5 §17.2). A TIME constraint is a
+  //     label at one occurrence; a DURATION constraint is a vertical bracket
+  //     between two occurrences with a label. Geometry is fully derived; the
+  //     bracket/label sits just right of the anchoring lifeline.
+  const DURATION_X_OFFSET = 24;
+  const TC_LABEL_CHAR_W = 6;
+  const TC_LABEL_PAD = 20;
+  const tcLabelWidth = (expr: string) => (expr.length + 2) * TC_LABEL_CHAR_W + TC_LABEL_PAD;
+
+  const timeConstraintNodes = Object.values(model.timeConstraints ?? {})
+    .map((tc) => {
+      const fromP = occurrencePoint(tc.fromMessageId, tc.fromEnd);
+      if (!fromP) return null;
+
+      if (tc.constraintKind === 'DURATION') {
+        if (!tc.toMessageId || !tc.toEnd) return null;
+        const toP = occurrencePoint(tc.toMessageId, tc.toEnd);
+        if (!toP) return null;
+        const bracketX = fromP.x + DURATION_X_OFFSET;
+        const minY = Math.min(fromP.y, toP.y);
+        const viewModel: TimeConstraintViewModel = {
+          __brand: 'timeConstraint',
+          id: tc.id,
+          domainId: tc.id,
+          constraintKind: 'DURATION',
+          expression: tc.expression,
+          from: { x: 0, y: fromP.y - minY },
+          to: { x: 0, y: toP.y - minY },
+          width: tcLabelWidth(tc.expression),
+          height: Math.abs(toP.y - fromP.y),
+        };
+        return {
+          id: `tc-${tc.id}`,
+          type: 'umlTimeConstraint',
+          position: { x: bracketX, y: minY },
+          data: viewModel,
+          domainId: tc.id,
+        };
+      }
+
+      // TIME: single-occurrence label with a small tick.
+      const viewModel: TimeConstraintViewModel = {
+        __brand: 'timeConstraint',
+        id: tc.id,
+        domainId: tc.id,
+        constraintKind: 'TIME',
+        expression: tc.expression,
+        from: { x: 0, y: 0 },
+        width: tcLabelWidth(tc.expression),
+        height: 16,
+      };
+      return {
+        id: `tc-${tc.id}`,
+        type: 'umlTimeConstraint',
+        position: { x: fromP.x, y: fromP.y },
+        data: viewModel,
+        domainId: tc.id,
+      };
+    })
+    .filter(<T>(n: T | null): n is T => n !== null);
+
+  // 5f. Emit Coregions (UML 2.5 §17.4) — square brackets `[ ]` over a vertical
+  //     span of ONE lifeline marking an unordered region. Slot-anchored like
+  //     state invariants; fully derived geometry (not draggable).
+  const COREGION_W = 18;
+  const COREGION_MIN_H = MESSAGE_BAND_H * 0.7;
+  const coregionNodes = Object.values(model.coregions ?? {})
+    .filter((cr) => lifelineCenterX.has(cr.lifelineId))
+    .map((cr) => {
+      const centerX = lifelineCenterX.get(cr.lifelineId)!;
+      const lo = Math.max(0, Math.min(allMessages.length, Math.min(cr.fromSequence, cr.toSequence)));
+      const hi = Math.max(0, Math.min(allMessages.length, Math.max(cr.fromSequence, cr.toSequence)));
+      const topY = stateInvariantSlotY(lo, slotLayout);
+      const rawBottomY = stateInvariantSlotY(hi, slotLayout);
+      const height = Math.max(COREGION_MIN_H, rawBottomY - topY);
+
+      const viewModel: CoregionViewModel = {
+        __brand: 'coregion',
+        id: cr.id,
+        domainId: cr.id,
+        width: COREGION_W,
+        height,
+      };
+
+      return {
+        id: `cr-${cr.id}`,
+        type: 'umlCoregion',
+        position: { x: centerX - COREGION_W / 2, y: topY },
+        data: viewModel,
+        domainId: cr.id,
+      };
+    });
+
   // 6. Emit Notes (reuse existing makeNoteNode helper).
   const noteNodes = noteViewNodes.map((vn) =>
     makeNoteNode(vn, handleNoteUpdate, diagramView.nodes),
@@ -429,10 +777,9 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
   //    so we prepend them to the result.
   const fragmentNodes = buildFragmentNodes(
     Object.values(model.interactionFragments ?? {}),
-    lifelineViewNodes,
     lifelineCenterX,
     messageIndex,
-    allMessages.length,
+    slotLayout,
   );
 
   // 8. Emit Interaction Uses (`ref`). Rendered with fragments at the back.
@@ -440,16 +787,30 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
     Object.values(model.interactionUses ?? {}),
     lifelineCenterX,
     allMessages.length,
+    slotLayout,
+  );
+
+  // 8b. Emit Continuations (UML 2.5 §17.3) — named stadium boxes spanning the
+  //     covered lifelines at a temporal slot. Slot-anchored & draggable like refs.
+  const continuationNodes = buildContinuationNodes(
+    Object.values(model.continuations ?? {}),
+    lifelineCenterX,
+    allMessages.length,
+    slotLayout,
   );
 
   return [
     ...fragmentNodes,
     ...interactionUseNodes,
     ...lifelineNodes,
+    ...coregionNodes,
     ...activationNodes,
     ...messageNodes,
     ...stateInvariantNodes,
     ...gateNodes,
+    ...generalOrderingNodes,
+    ...timeConstraintNodes,
+    ...continuationNodes,
     ...noteNodes,
   ];
 }
@@ -458,11 +819,12 @@ export function buildSequenceDiagramNodes(ctx: NodeBuilderContext) {
 
 function buildFragmentNodes(
   fragments: IRInteractionFragment[],
-  _lifelineViewNodes: ViewNode[],
   lifelineCenterX: Map<string, number>,
   messageIndex: Map<string, number>,
-  totalMessages: number,
+  slotLayout?: SlotLayout,
 ) {
+  const fragById = new Map(fragments.map((f) => [f.id, f]));
+
   // Compute nesting depth = number of ancestors.
   const depthFor = (frag: IRInteractionFragment): number => {
     let d = 0;
@@ -470,7 +832,7 @@ function buildFragmentNodes(
     const guard = new Set<string>([frag.id]);
     while (current && !guard.has(current)) {
       guard.add(current);
-      const parent = fragments.find((f) => f.id === current);
+      const parent = fragById.get(current);
       if (!parent) break;
       d++;
       current = parent.parentFragmentId;
@@ -483,15 +845,16 @@ function buildFragmentNodes(
       // Horizontal bounds shared with gate placement (keeps edges aligned).
       const bounds = fragmentHorizontalBounds(frag.coveredLifelineIds, lifelineCenterX);
       if (!bounds) return null;
-      const { left, right } = bounds;
-      const width = right - left;
+      let left = bounds.left;
+      const { right } = bounds;
+      let width = right - left;
 
       // Y bounds: derived from the messages contained in any operand.
       const allMsgIds = frag.operands.flatMap((op) => op.messageIds);
       const messageYs = allMsgIds
         .map((mid) => messageIndex.get(mid))
         .filter((idx): idx is number => idx !== undefined)
-        .map((idx) => messageYForIndex(idx));
+        .map((idx) => messageYForIndex(idx, slotLayout));
 
       let top: number;
       let bottom: number;
@@ -503,7 +866,18 @@ function buildFragmentNodes(
         top = LIFELINE_HEAD_H + TIMELINE_TOP_PAD;
         bottom = top + FRAGMENT_MIN_H;
       }
-      const height = Math.max(FRAGMENT_MIN_H, bottom - top);
+      let height = Math.max(FRAGMENT_MIN_H, bottom - top);
+
+      // Hybrid overrides (G-a/G-b): a moved/resized fragment pins its own box.
+      if (frag.manualLeft !== undefined) left = frag.manualLeft;
+      if (frag.manualWidth !== undefined) width = frag.manualWidth;
+      if (frag.manualTop !== undefined) top = frag.manualTop;
+      if (frag.manualHeight !== undefined) height = frag.manualHeight;
+      const isManual =
+        frag.manualLeft !== undefined ||
+        frag.manualTop !== undefined ||
+        frag.manualWidth !== undefined ||
+        frag.manualHeight !== undefined;
 
       // Operand yOffsets: first = 0; rest distributed by message count.
       const operandVMs: FragmentOperandVM[] = (() => {
@@ -529,6 +903,8 @@ function buildFragmentNodes(
         height,
         operands: operandVMs,
         nestingDepth: depthFor(frag),
+        isManual,
+        messageSet: frag.messageSet,
       };
 
       return {
@@ -540,9 +916,6 @@ function buildFragmentNodes(
       };
     })
     .filter(<T>(n: T | null): n is T => n !== null);
-  // Note: totalMessages currently unused in geometry calc but kept in signature
-  // for future use (e.g. clamping bottom to within-the-timeline).
-  void totalMessages;
 }
 
 // ─── Interaction Use (`ref`) geometry ──────────────────────────────────────────
@@ -551,19 +924,22 @@ function buildInteractionUseNodes(
   uses: IRInteractionUse[],
   lifelineCenterX: Map<string, number>,
   totalMessages: number,
+  slotLayout?: SlotLayout,
 ) {
   return uses
     .map((use) => {
-      const liveIds = use.coveredLifelineIds.filter((id) => lifelineCenterX.has(id));
-      if (liveIds.length === 0) return null;
+      const bounds = fragmentHorizontalBounds(use.coveredLifelineIds, lifelineCenterX);
+      if (!bounds) return null;
 
-      const xs = liveIds.map((id) => lifelineCenterX.get(id)!).sort((a, b) => a - b);
-      const left = xs[0] - FRAGMENT_X_PAD;
-      const right = xs[xs.length - 1] + FRAGMENT_X_PAD;
-      const width = Math.max(FRAGMENT_MIN_W, right - left);
+      const { left } = bounds;
+      const derivedWidth = bounds.right - left;
+      // G-d: manual width/height override the derived box.
+      const isManual = use.manualWidth !== undefined || use.manualHeight !== undefined;
+      const width = use.manualWidth ?? derivedWidth;
+      const height = use.manualHeight ?? INTERACTION_USE_H;
 
       const slot = Math.max(0, Math.min(totalMessages, use.afterSequenceNumber));
-      const top = stateInvariantSlotY(slot);
+      const top = stateInvariantSlotY(slot, slotLayout);
 
       const viewModel: InteractionUseViewModel = {
         __brand: 'interactionUse',
@@ -571,9 +947,10 @@ function buildInteractionUseNodes(
         domainId: use.id,
         label: use.referencedName || use.name || 'ref',
         width,
-        height: INTERACTION_USE_H,
+        height,
         afterSequenceNumber: slot,
         totalMessages,
+        isManual,
       };
 
       return {
@@ -587,15 +964,70 @@ function buildInteractionUseNodes(
     .filter(<T>(n: T | null): n is T => n !== null);
 }
 
+// ─── Continuation geometry ──────────────────────────────────────────────────────
+
+const CONTINUATION_H = 28;
+
+function buildContinuationNodes(
+  continuations: IRContinuation[],
+  lifelineCenterX: Map<string, number>,
+  totalMessages: number,
+  slotLayout?: SlotLayout,
+) {
+  return continuations
+    .map((cont) => {
+      const bounds = fragmentHorizontalBounds(cont.coveredLifelineIds, lifelineCenterX);
+      if (!bounds) return null;
+
+      const { left } = bounds;
+      const width = bounds.right - left;
+
+      const slot = Math.max(0, Math.min(totalMessages, cont.afterSequenceNumber));
+      const cy = stateInvariantSlotY(slot, slotLayout);
+
+      const viewModel: ContinuationViewModel = {
+        __brand: 'continuation',
+        id: cont.id,
+        domainId: cont.id,
+        label: cont.name || 'continuation',
+        width,
+        height: CONTINUATION_H,
+        afterSequenceNumber: slot,
+        totalMessages,
+      };
+
+      return {
+        id: `cont-${cont.id}`,
+        type: 'umlContinuation',
+        position: { x: left, y: cy - CONTINUATION_H / 2 },
+        data: viewModel,
+        domainId: cont.id,
+      };
+    })
+    .filter(<T>(n: T | null): n is T => n !== null);
+}
+
 /**
  * Convert a canvas Y coordinate (from a MessageShape drag) to a 1-based
  * slot index, clamped within [1, totalMessages].
  *
  * Inverse of `messageYForIndex`.
  */
-export function yToMessageSlot(y: number, totalMessages: number): number {
-  const raw = (y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD) / MESSAGE_BAND_H + 0.5;
-  return Math.max(1, Math.min(totalMessages, Math.round(raw)));
+export function yToMessageSlot(y: number, totalMessages: number, layout?: SlotLayout): number {
+  const localY = y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD;
+  if (!layout) {
+    const raw = localY / MESSAGE_BAND_H + 0.5;
+    return Math.max(1, Math.min(totalMessages, Math.round(raw)));
+  }
+  // Nearest band centre over [1, totalMessages]; totalMessages may be count + 1
+  // for insertion (the extra slot extrapolates below the last message).
+  let best = 1;
+  let bestDist = Infinity;
+  for (let i = 1; i <= totalMessages; i++) {
+    const d = Math.abs(localY - slotCenterOffset(i, layout));
+    if (d < bestDist) { bestDist = d; best = i; }
+  }
+  return best;
 }
 
 /**
@@ -604,9 +1036,20 @@ export function yToMessageSlot(y: number, totalMessages: number): number {
  *
  * Inverse of `stateInvariantSlotY`.
  */
-export function yToInvariantSlot(y: number, totalMessages: number): number {
-  const raw = (y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD) / MESSAGE_BAND_H;
-  return Math.max(0, Math.min(totalMessages, Math.round(raw)));
+export function yToInvariantSlot(y: number, totalMessages: number, layout?: SlotLayout): number {
+  const localY = y - LIFELINE_HEAD_H - TIMELINE_TOP_PAD;
+  if (!layout) {
+    const raw = localY / MESSAGE_BAND_H;
+    return Math.max(0, Math.min(totalMessages, Math.round(raw)));
+  }
+  // Nearest message boundary over [0, totalMessages].
+  let best = 0;
+  let bestDist = Infinity;
+  for (let s = 0; s <= totalMessages; s++) {
+    const d = Math.abs(localY - boundaryOffset(s, layout));
+    if (d < bestDist) { bestDist = d; best = s; }
+  }
+  return best;
 }
 
 /**
@@ -630,6 +1073,7 @@ export function computeHierarchicalNumbers(
 
   const sorted = [...messages].sort((a, b) => a.sequenceNumber - b.sequenceNumber);
   const fragById = new Map(fragments.map((f) => [f.id, f]));
+  const msgById = new Map(sorted.map((m) => [m.id, m]));
 
   // messageId → id of the fragment whose operand directly contains it
   const msgDirectFrag = new Map<string, string>();
@@ -650,7 +1094,7 @@ export function computeHierarchicalNumbers(
   for (const frag of fragments) {
     const seqs = frag.operands
       .flatMap((op) => op.messageIds)
-      .map((id) => sorted.find((m) => m.id === id)?.sequenceNumber ?? Infinity);
+      .map((id) => msgById.get(id)?.sequenceNumber ?? Infinity);
     fragMinSeq.set(frag.id, seqs.length > 0 ? Math.min(...seqs) : Infinity);
   }
 
@@ -711,7 +1155,7 @@ export function computeHierarchicalNumbers(
 
     for (const op of frag.operands) {
       const opMsgsSorted = op.messageIds
-        .map((id) => sorted.find((m) => m.id === id))
+        .map((id) => msgById.get(id))
         .filter((m): m is IRMessage => !!m)
         .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
 

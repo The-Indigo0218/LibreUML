@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { X, Settings } from "lucide-react";
 import { useVFSStore } from "../../../../store/project-vfs.store";
@@ -30,6 +31,7 @@ export default function ProjectPropertiesModal({
   isOpen,
   onClose,
 }: ProjectPropertiesModalProps) {
+  const { t } = useTranslation();
   const project = useVFSStore((s) => s.project);
   const updateProjectProperties = useVFSStore((s) => s.updateProjectProperties);
 
@@ -81,7 +83,7 @@ export default function ProjectPropertiesModal({
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-blue-400" />
             <h2 className="text-base font-semibold text-[#e2e8f0]">
-              Project Properties
+              {t("projectPropertiesModal.title")}
             </h2>
           </div>
           <button
@@ -95,7 +97,7 @@ export default function ProjectPropertiesModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <span className="block text-xs font-medium text-[#64748b] mb-1 uppercase tracking-wide">
-              Project Name
+              {t("projectPropertiesModal.projectName")}
             </span>
             <p className="px-3 py-2 bg-[#0f1419]/50 border border-[#1e2738] rounded-lg text-[#64748b] text-sm select-all">
               {project.projectName}
@@ -108,14 +110,14 @@ export default function ProjectPropertiesModal({
                 htmlFor="pp-version"
                 className="block text-sm font-medium text-[#cbd5e1] mb-1"
               >
-                Version
+                {t("projectPropertiesModal.version")}
               </label>
               <input
                 id="pp-version"
                 type="text"
                 value={version}
                 onChange={(e) => setVersion(e.target.value)}
-                placeholder="1.0.0"
+                placeholder={t("projectPropertiesModal.versionPlaceholder")}
                 className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C83FF]"
               />
             </div>
@@ -124,14 +126,14 @@ export default function ProjectPropertiesModal({
                 htmlFor="pp-author"
                 className="block text-sm font-medium text-[#cbd5e1] mb-1"
               >
-                Author
+                {t("projectPropertiesModal.author")}
               </label>
               <input
                 id="pp-author"
                 type="text"
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
-                placeholder="Your name"
+                placeholder={t("projectPropertiesModal.authorPlaceholder")}
                 className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C83FF]"
               />
             </div>
@@ -142,13 +144,13 @@ export default function ProjectPropertiesModal({
               htmlFor="pp-description"
               className="block text-sm font-medium text-[#cbd5e1] mb-1"
             >
-              Description
+              {t("projectPropertiesModal.description")}
             </label>
             <textarea
               id="pp-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Short project description"
+              placeholder={t("projectPropertiesModal.descriptionPlaceholder")}
               rows={2}
               className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C83FF] resize-none"
             />
@@ -160,7 +162,7 @@ export default function ProjectPropertiesModal({
                 htmlFor="pp-targetLanguage"
                 className="block text-sm font-medium text-[#cbd5e1] mb-1"
               >
-                Target Language
+                {t("projectPropertiesModal.targetLanguage")}
               </label>
               <select
                 id="pp-targetLanguage"
@@ -180,14 +182,14 @@ export default function ProjectPropertiesModal({
                 htmlFor="pp-basePackage"
                 className="block text-sm font-medium text-[#cbd5e1] mb-1"
               >
-                Base Package
+                {t("projectPropertiesModal.basePackage")}
               </label>
               <input
                 id="pp-basePackage"
                 type="text"
                 value={basePackage}
                 onChange={(e) => setBasePackage(e.target.value)}
-                placeholder="com.example.model"
+                placeholder={t("projectPropertiesModal.basePackagePlaceholder")}
                 className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C83FF]"
               />
             </div>
@@ -196,7 +198,7 @@ export default function ProjectPropertiesModal({
           <div className="grid grid-cols-2 gap-4 pt-1">
             <div>
               <span className="block text-xs font-medium text-[#64748b] mb-1 uppercase tracking-wide">
-                Created
+                {t("projectPropertiesModal.created")}
               </span>
               <span className="text-xs text-[#475569]">
                 {formatDate(project.createdAt)}
@@ -204,7 +206,7 @@ export default function ProjectPropertiesModal({
             </div>
             <div>
               <span className="block text-xs font-medium text-[#64748b] mb-1 uppercase tracking-wide">
-                Last Modified
+                {t("projectPropertiesModal.lastModified")}
               </span>
               <span className="text-xs text-[#475569]">
                 {formatDate(project.updatedAt)}
@@ -220,13 +222,13 @@ export default function ProjectPropertiesModal({
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-[#cbd5e1] bg-[#1e2738] hover:bg-[#2a3358] rounded-lg transition-colors"
             >
-              Cancel
+              {t("projectPropertiesModal.cancel")}
             </button>
             <button
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
             >
-              Save Changes
+              {t("projectPropertiesModal.saveChanges")}
             </button>
           </div>
         </form>

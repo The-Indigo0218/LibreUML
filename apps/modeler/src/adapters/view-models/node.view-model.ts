@@ -64,6 +64,9 @@ export interface NoteViewModel {
   borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
   fontFamilyOverride?: string;
   fontSizeOverride?: number;
+  /** Manual box width/height (G-d) — persisted on the ViewNode; auto when undefined. */
+  manualWidth?: number;
+  manualHeight?: number;
   onSave?: (update: { content?: string; title?: string }) => void;
 }
 
@@ -156,11 +159,17 @@ export interface LifelineViewModel {
   participantKind: LifelineParticipantKindVM;
   isExternal?: boolean;
   timelineLength: number;
+  /** True when `timelineLength` comes from a manual override (G-c) → cyan timeline. */
+  isManualTimeline?: boolean;
   headWidth: number;
   headHeight: number;
 
   headTopOffset?: number;
   isDestroyed?: boolean;
+  /** Display label of the sub-interaction this lifeline decomposes to (C5). */
+  decomposedRef?: string;
+  /** VFS file id of the sub-interaction; double-click navigates here (C5). */
+  decomposedDiagramId?: string;
   onRename?: (name: string) => void;
 }
 
@@ -178,6 +187,10 @@ export interface MessageViewModel {
   isSelfMessage: boolean;
   isFound?: boolean;
   isLost?: boolean;
+  /** Message-level guard ([guard]) rendered before the name (C8). */
+  guard?: string;
+  /** True when the glyph's Y comes from a manual override (B2 — `manualY`). */
+  isManualY?: boolean;
   onRename?: (name: string) => void;
 }
 
@@ -191,8 +204,10 @@ export interface ActivationViewModel {
   nestingDepth: number;
 }
 
+// Mirror of FragmentKind (vfs.types.ts) — the 12 UML 2.5 InteractionOperatorKind.
 export type FragmentKindVM =
-  | 'ALT' | 'OPT' | 'LOOP' | 'PAR' | 'SEQ' | 'BREAK' | 'CRITICAL';
+  | 'ALT' | 'OPT' | 'LOOP' | 'PAR' | 'SEQ' | 'STRICT' | 'BREAK' | 'CRITICAL'
+  | 'NEG' | 'ASSERT' | 'IGNORE' | 'CONSIDER';
 
 export interface FragmentOperandVM {
   id: string;
@@ -209,17 +224,23 @@ export interface FragmentViewModel {
   height: number;
   operands: FragmentOperandVM[];
   nestingDepth: number;
+  /** True when any manual layout override is active → draw the cyan stroke. */
+  isManual?: boolean;
+  /** IGNORE/CONSIDER message set, rendered as `{m1, m2}` after the kind label. */
+  messageSet?: string[];
 }
 
 export interface StateInvariantViewModel {
   __brand: 'stateInvariant';
-  id: string;             
-  domainId: string;      
+  id: string;
+  domainId: string;
   constraint: string;
   width: number;
   height: number;
   afterSequenceNumber: number;
   totalMessages: number;
+  /** True when width/height come from a manual override (G-d) → cyan stroke. */
+  isManual?: boolean;
 }
 
 export interface InteractionUseViewModel {
@@ -231,6 +252,8 @@ export interface InteractionUseViewModel {
   height: number;
   afterSequenceNumber: number;
   totalMessages: number;
+  /** True when width/height come from a manual override (G-d) → cyan stroke. */
+  isManual?: boolean;
 }
 
 export interface GateViewModel {
@@ -244,6 +267,55 @@ export interface GateViewModel {
   totalMessages: number;
 }
 
+
+export interface GeneralOrderingViewModel {
+  __brand: 'generalOrdering';
+  id: string;
+  domainId: string;
+  /** Tail point (before occurrence) relative to the node's top-left. */
+  from: { x: number; y: number };
+  /** Head point (after occurrence) relative to the node's top-left. */
+  to: { x: number; y: number };
+  /** Bounding-box size (max of |dx|, |dy| plus padding) for hit/size. */
+  width: number;
+  height: number;
+}
+
+export interface TimeConstraintViewModel {
+  __brand: 'timeConstraint';
+  id: string;
+  domainId: string;
+  constraintKind: 'DURATION' | 'TIME';
+  /** Rendered text (already wrapped in braces by the shape). */
+  expression: string;
+  /** Primary anchor point relative to the node's top-left. */
+  from: { x: number; y: number };
+  /** Second anchor (DURATION only) relative to the node's top-left. */
+  to?: { x: number; y: number };
+  width: number;
+  height: number;
+}
+
+export interface CoregionViewModel {
+  __brand: 'coregion';
+  id: string;
+  domainId: string;
+  /** Bracket width (lifeline-centred). */
+  width: number;
+  /** Vertical span between the top and bottom brackets. */
+  height: number;
+}
+
+export interface ContinuationViewModel {
+  __brand: 'continuation';
+  id: string;
+  domainId: string;
+  label: string;
+  width: number;
+  height: number;
+  afterSequenceNumber: number;
+  totalMessages: number;
+}
 
 export type AnyNodeViewModel =
   | NodeViewModel
@@ -260,7 +332,11 @@ export type AnyNodeViewModel =
   | FragmentViewModel
   | StateInvariantViewModel
   | InteractionUseViewModel
-  | GateViewModel;
+  | GateViewModel
+  | GeneralOrderingViewModel
+  | TimeConstraintViewModel
+  | CoregionViewModel
+  | ContinuationViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -321,4 +397,20 @@ export function isInteractionUseViewModel(vm: AnyNodeViewModel): vm is Interacti
 
 export function isGateViewModel(vm: AnyNodeViewModel): vm is GateViewModel {
   return '__brand' in vm && vm.__brand === 'gate';
+}
+
+export function isGeneralOrderingViewModel(vm: AnyNodeViewModel): vm is GeneralOrderingViewModel {
+  return '__brand' in vm && vm.__brand === 'generalOrdering';
+}
+
+export function isTimeConstraintViewModel(vm: AnyNodeViewModel): vm is TimeConstraintViewModel {
+  return '__brand' in vm && vm.__brand === 'timeConstraint';
+}
+
+export function isCoregionViewModel(vm: AnyNodeViewModel): vm is CoregionViewModel {
+  return '__brand' in vm && vm.__brand === 'coregion';
+}
+
+export function isContinuationViewModel(vm: AnyNodeViewModel): vm is ContinuationViewModel {
+  return '__brand' in vm && vm.__brand === 'continuation';
 }

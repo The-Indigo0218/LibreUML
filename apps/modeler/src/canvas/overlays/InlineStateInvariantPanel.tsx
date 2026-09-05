@@ -54,6 +54,10 @@ export default function InlineStateInvariantPanel({ elementId, onAdvanced, onClo
   const commitConstraint = (value: string) => {
     ops.updateStateInvariant(elementId, { constraint: value });
   };
+  const isManualSize = inv.manualWidth !== undefined || inv.manualHeight !== undefined;
+  const resetSize = () => {
+    ops.updateStateInvariant(elementId, { manualWidth: undefined, manualHeight: undefined });
+  };
 
   const fieldCls =
     'bg-surface-secondary border border-surface-border rounded px-1.5 py-1 text-xs text-text-primary outline-none focus:border-indigo-500 font-mono';
@@ -86,6 +90,15 @@ export default function InlineStateInvariantPanel({ elementId, onAdvanced, onClo
             aria-label={t('inlineStateInvariantPanel.constraint')}
           />
         </section>
+
+        {isManualSize && (
+          <button
+            onClick={resetSize}
+            className="w-full px-2.5 py-1.5 rounded border border-cyan-600/50 bg-cyan-500/10 text-xs text-cyan-300 hover:bg-cyan-500/20 transition-all"
+          >
+            {t('inlineStateInvariantPanel.resetSize')}
+          </button>
+        )}
 
         <div className="border-t border-surface-border/50 pt-3">
           <button

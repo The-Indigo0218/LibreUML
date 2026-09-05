@@ -777,23 +777,29 @@ export async function injectXmiIntoVFS(
     if (!sourceId || !targetId) continue;
 
     const kind = mapEdgeTypeToRelationKind(edge.data?.type ?? edge.type);
-    const hasMultiplicity =
-      edge.data?.sourceMultiplicity || edge.data?.targetMultiplicity;
+    const srcNav = edge.data?.sourceNavigable;
+    const tgtNav = edge.data?.targetNavigable;
+    // Build semantic ends when the edge carries multiplicity or navigability.
+    const hasEndData =
+      edge.data?.sourceMultiplicity || edge.data?.targetMultiplicity ||
+      srcNav !== undefined || tgtNav !== undefined;
 
     const relationId = modelStore.createRelation({
       kind,
       sourceId,
       targetId,
       ...externalFlag,
-      ...(hasMultiplicity
+      ...(hasEndData
         ? {
             sourceEnd: {
               elementId: sourceId,
               multiplicity: edge.data?.sourceMultiplicity,
+              ...(srcNav !== undefined ? { isNavigable: srcNav } : {}),
             },
             targetEnd: {
               elementId: targetId,
               multiplicity: edge.data?.targetMultiplicity,
+              ...(tgtNav !== undefined ? { isNavigable: tgtNav } : {}),
             },
           }
         : {}),

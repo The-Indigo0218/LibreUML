@@ -52,6 +52,7 @@ import {
 import { avoidObstacles } from '../edges/obstacleAvoidance';
 import { computeLabelPositions } from '../edges/geometry';
 import type { NodeBounds, AnchorFace } from '../edges/geometry';
+import { resolveEndMarker, markerRetract, type MarkerShape } from '../edges/markers';
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 
 
@@ -75,13 +76,6 @@ const NOTE_LINE_H = 1.5;
 const DASHED_KINDS = new Set<RelationKind>([
   'REALIZATION', 'DEPENDENCY', 'USAGE', 'INCLUDE', 'EXTEND',
 ]);
-
-const MARKER_RETRACT: Partial<Record<RelationKind, number>> = {
-  GENERALIZATION: 16,
-  REALIZATION: 16,
-  AGGREGATION: 24,
-  COMPOSITION: 24,
-};
 
 /**
  * Margin around the diagram bounding box.
@@ -547,7 +541,7 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
 
   if (!sourceBounds || !targetBounds) return '';
 
-  const retract = MARKER_RETRACT[edge.kind] ?? 0;
+  const retract = markerRetract(edge.kind);
   const dashed = DASHED_KINDS.has(edge.kind);
   const stroke = getEdgeColor();
   const bg = getCanvasBg();
@@ -556,6 +550,11 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
   let markerX: number;
   let markerY: number;
   let markerFace: AnchorFace;
+  // Source anchor — needed to draw a navigability marker at the source end.
+  // null for self-loops (no source marker).
+  let srcX: number | null = null;
+  let srcY: number | null = null;
+  let srcFace: AnchorFace = 'Right';
   let midX: number;
   let midY: number;
   let labelPositions: ReturnType<typeof computeLabelPositions> | null = null;
@@ -585,6 +584,9 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
     markerX = tgt.x;
     markerY = tgt.y;
     markerFace = tgt.face;
+    srcX = src.x;
+    srcY = src.y;
+    srcFace = src.face;
     // Midpoint of the path for label placement
     const n = points.length;
     midX = (points[0]! + points[n - 2]!) / 2;
@@ -594,7 +596,15 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
     labelPositions = computeLabelPositions(points, src.x, src.y, markerX, markerY, targetAlong, false);
   }
 
-  const marker = svgMarker(edge.kind, markerX, markerY, markerFace, stroke, bg);
+  // Endpoint glyphs (UML navigability): fixed semantic marker wins; otherwise
+  // per-end navigability decides. Source marker skipped on self-loops.
+  const targetShape = resolveEndMarker(edge.kind, 'target', edge.targetNavigable);
+  const sourceShape = srcX !== null ? resolveEndMarker(edge.kind, 'source', edge.sourceNavigable) : null;
+  const marker =
+    (targetShape ? svgMarker(targetShape, markerX, markerY, markerFace, stroke, bg) : '') +
+    (sourceShape && srcX !== null && srcY !== null
+      ? svgMarker(sourceShape, srcX, srcY, srcFace, stroke, bg)
+      : '');
 
   // Stereotype label («include», «extend», etc.)
   const stereotypeText = svgEdgeStereotypeLabel(edge.kind);
@@ -630,7 +640,7 @@ function svgEdge(edge: EdgeDescriptor, boundsMap: Map<string, NodeBounds>): stri
 }
 
 function svgMarker(
-  kind: RelationKind,
+  shape: MarkerShape,
   x: number,
   y: number,
   face: AnchorFace,
@@ -642,9 +652,8 @@ function svgMarker(
   const s = escapeXml(stroke);
   const b = escapeXml(bg);
 
-  switch (kind) {
-    case 'GENERALIZATION':
-    case 'REALIZATION':
+  switch (shape) {
+    case 'triangle':
       // Hollow triangle: tip at (0,0), base at x = -16 (matches EdgeMarker.tsx)
       return (
         `<g transform="${transform}">` +
@@ -653,7 +662,7 @@ function svgMarker(
         `</g>`
       );
 
-    case 'AGGREGATION':
+    case 'diamondHollow':
       // Hollow diamond: right tip at (0,0), left tip at (-24,0)
       return (
         `<g transform="${transform}">` +
@@ -662,7 +671,7 @@ function svgMarker(
         `</g>`
       );
 
-    case 'COMPOSITION':
+    case 'diamondFilled':
       // Filled diamond
       return (
         `<g transform="${transform}">` +
@@ -671,6 +680,16 @@ function svgMarker(
         `</g>`
       );
 
+    case 'cross':
+      // Navigability ✕ (explicitly non-navigable end)
+      return (
+        `<g transform="${transform}">` +
+        `<line x1="-12" y1="-5" x2="-2" y2="5" stroke="${s}" stroke-width="2" stroke-linecap="round"/>` +
+        `<line x1="-12" y1="5" x2="-2" y2="-5" stroke="${s}" stroke-width="2" stroke-linecap="round"/>` +
+        `</g>`
+      );
+
+    case 'arrow':
     default:
       // Open chevron arrow: tip at (0,0)
       return (

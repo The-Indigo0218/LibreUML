@@ -31,6 +31,7 @@ import { useConnectionDraw, type DropAnchoring } from './interactions/useConnect
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import { useRelationShortcuts } from './interactions/useRelationShortcuts';
 import { usePackageDrop } from './interactions/usePackageDrop';
+import { commitContainerResize } from './interactions/containerResize';
 import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
@@ -47,6 +48,7 @@ import type { InlineGatePanelProps } from './overlays/InlineGatePanel';
 import { worldToScreen } from './engine/projection';
 import type { ToolbarAction } from './overlays/SelectionToolbar';
 import { useWorkspaceStore } from '../store/workspace.store';
+import { useVFSStore } from '../store/project-vfs.store';
 import type { UmlRelationType, stereotype } from '../features/diagram/types/diagram.types';
 import { useQuickLinker } from '../hooks/canvas/useQuickLinker';
 import { useFormatPainterStore } from '../store/formatPainter.store';
@@ -67,6 +69,12 @@ import MessagePropertiesModal from '../features/diagram/components/modals/Messag
 import StateInvariantPropertiesModal from '../features/diagram/components/modals/StateInvariantPropertiesModal';
 import InteractionUsePropertiesModal from '../features/diagram/components/modals/InteractionUsePropertiesModal';
 import GatePropertiesModal from '../features/diagram/components/modals/GatePropertiesModal';
+import GeneralOrderingPropertiesModal from '../features/diagram/components/modals/GeneralOrderingPropertiesModal';
+import TimeConstraintPropertiesModal from '../features/diagram/components/modals/TimeConstraintPropertiesModal';
+import CoregionPropertiesModal from '../features/diagram/components/modals/CoregionPropertiesModal';
+import LifelinePropertiesModal from '../features/diagram/components/modals/LifelinePropertiesModal';
+import ContinuationPropertiesModal from '../features/diagram/components/modals/ContinuationPropertiesModal';
+import SelfMessageWarningModal from '../features/diagram/components/modals/SelfMessageWarningModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
 import { useInlineEditorStore } from './store/inlineEditorStore';
@@ -95,9 +103,14 @@ import {
   isLifelineViewModel,
   isFragmentViewModel,
   isMessageViewModel,
+  isActivationViewModel,
   isStateInvariantViewModel,
   isInteractionUseViewModel,
   isGateViewModel,
+  isGeneralOrderingViewModel,
+  isTimeConstraintViewModel,
+  isCoregionViewModel,
+  isContinuationViewModel,
   type AnyNodeViewModel,
   type NodeViewModel,
   type PackageViewModel,
@@ -105,7 +118,10 @@ import {
 import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, ratioFromPoint, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
 import type { RelationKind } from '../core/domain/vfs/vfs.types';
-import { yToMessageSlot, yToInvariantSlot, messageYForIndex } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
+import { yToMessageSlot, yToInvariantSlot, messageYForIndex, computeSlotLayout } from '../features/diagram/hooks/controllers/sequenceDiagramNodes';
+import { useSequenceToolStore } from '../store/sequenceToolStore';
+import { useFragmentDraw } from './interactions/useFragmentDraw';
+import { resolveFragmentCoverage, insertFragmentWithCoverage } from '../features/diagram/services/sequenceInserts';
 import { standaloneModelOps } from '../store/standaloneModelOps';
 
 const VFS_TYPE_TO_RELATION_KIND: Record<string, RelationKind> = {
@@ -458,6 +474,57 @@ export default function KonvaCanvas() {
     onDropEmpty: handleDropEmpty,
   });
 
+  // ── G-a: draw a box to create a fragment ───────────────────────────────────
+  const armedFragmentKind = useSequenceToolStore((s) => s.armedFragmentKind);
+  const disarmFragmentTool = useSequenceToolStore((s) => s.disarm);
+  const isSequenceDiagram = vfsController.vfsFile?.diagramType === 'SEQUENCE_DIAGRAM';
+  const fragmentToolArmed = isSequenceDiagram && armedFragmentKind !== null;
+
+  const handleFragmentRectComplete = useCallback(
+    (rect: { x: number; y: number; width: number; height: number } | null) => {
+      const kind = useSequenceToolStore.getState().armedFragmentKind;
+      if (!kind) return;
+
+      if (!rect) {
+        // Plain click while armed → legacy "cover every lifeline" fallback.
+        insertFragmentWithCoverage(kind);
+        disarmFragmentTool();
+        return;
+      }
+
+      const lifelines = shapes
+        .filter((s) => isLifelineViewModel(s.data))
+        .map((s) => {
+          const vm = s.data as { domainId: string; headWidth?: number };
+          return { id: vm.domainId, centerX: s.x + (vm.headWidth ?? 0) / 2 };
+        });
+      const messages = shapes
+        .filter((s) => isMessageViewModel(s.data))
+        .map((s) => ({ id: (s.data as { domainId: string }).domainId, y: s.y }));
+
+      const { coveredLifelineIds, messageIds } = resolveFragmentCoverage(rect, lifelines, messages);
+      insertFragmentWithCoverage(kind, coveredLifelineIds, messageIds);
+      disarmFragmentTool();
+    },
+    [shapes, disarmFragmentTool],
+  );
+
+  const fragmentDraw = useFragmentDraw({
+    stageRef,
+    armed: fragmentToolArmed,
+    onComplete: handleFragmentRectComplete,
+  });
+
+  // Escape disarms the fragment tool.
+  useEffect(() => {
+    if (!fragmentToolArmed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') disarmFragmentTool();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [fragmentToolArmed, disarmFragmentTool]);
+
   const nodeTypePickerOverlay = useMemo(() => {
     if (!nodeTypePicker) return null;
     return {
@@ -665,12 +732,33 @@ export default function KonvaCanvas() {
       const draggedEntry = msgShapes.find((e) => e.shape.id === draggedId);
       if (!draggedEntry) return;
 
-      const targetSlot = yToMessageSlot(newY, totalMessages);
+      // Hybrid layout (B2): Alt-drag pins the message at a manual Y (override)
+      // instead of reordering. Plain drag keeps the reorder gesture below and
+      // clears any prior override so the message snaps back onto the auto grid.
+      const ops = vfsController.isStandalone && activeTabId ? standaloneModelOps(activeTabId) : useModelStore.getState();
+      if (e.evt.altKey) {
+        ops.updateMessage(draggedEntry.vm.domainId, { manualY: Math.round(newY) });
+        node.position({ x: draggedEntry.shape.x, y: newY });
+        return;
+      }
+
+      // P4 — map the drop Y to a slot through the same variable layout the
+      // builder used, so reordering lands correctly when fragment headers widen
+      // bands. (Falls back to the uniform grid when the model is unavailable.)
+      const dragModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+      const slotLayout = dragModel ? computeSlotLayout(dragModel) : undefined;
+      const targetSlot = yToMessageSlot(newY, totalMessages, slotLayout);
       const currentSlot = draggedEntry.vm.sequenceNumber;
 
-      if (currentSlot === targetSlot) {
+      if (currentSlot === targetSlot && !draggedEntry.vm.isManualY) {
         node.position({ x: draggedEntry.shape.x, y: draggedEntry.shape.y });
         return;
+      }
+
+      // A plain reorder drag also releases any manual-Y override on the dragged
+      // message, returning it to the computed slot grid.
+      if (draggedEntry.vm.isManualY) {
+        ops.updateMessage(draggedEntry.vm.domainId, { manualY: undefined });
       }
 
       // Sort by current sequenceNumber, then move dragged item to targetSlot.
@@ -691,7 +779,7 @@ export default function KonvaCanvas() {
 
       node.position({ x: draggedEntry.shape.x, y: newY });
     },
-    [shapes, vfsController.isStandalone, activeTabId],
+    [shapes, vfsController.isStandalone, vfsController.localModel, activeTabId],
   );
 
   // Drag handler for state invariants, interaction uses, and gates.
@@ -705,9 +793,12 @@ export default function KonvaCanvas() {
       if (!shapeEntry) return;
 
       const vm = shapeEntry.data;
-      if (!isStateInvariantViewModel(vm) && !isInteractionUseViewModel(vm) && !isGateViewModel(vm)) return;
+      if (!isStateInvariantViewModel(vm) && !isInteractionUseViewModel(vm) && !isGateViewModel(vm) && !isContinuationViewModel(vm)) return;
 
-      const newSlot = yToInvariantSlot(newY, vm.totalMessages);
+      // P4 — invert against the builder's variable slot layout.
+      const derivedModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+      const derivedLayout = derivedModel ? computeSlotLayout(derivedModel) : undefined;
+      const newSlot = yToInvariantSlot(newY, vm.totalMessages, derivedLayout);
       if (newSlot === vm.afterSequenceNumber) {
         node.position({ x: shapeEntry.x, y: shapeEntry.y });
         return;
@@ -724,10 +815,148 @@ export default function KonvaCanvas() {
       } else if (isGateViewModel(vm)) {
         if (ops) ops.updateGate(vm.domainId, { afterSequenceNumber: newSlot });
         else useModelStore.getState().updateGate(vm.domainId, { afterSequenceNumber: newSlot });
+      } else if (isContinuationViewModel(vm)) {
+        if (ops) ops.updateContinuation(vm.domainId, { afterSequenceNumber: newSlot });
+        else useModelStore.getState().updateContinuation(vm.domainId, { afterSequenceNumber: newSlot });
       }
 
       // Reset visual position — the store update will re-derive the canonical Y.
       node.position({ x: shapeEntry.x, y: shapeEntry.y });
+    },
+    [shapes, vfsController.isStandalone, vfsController.localModel, activeTabId],
+  );
+
+  // ── Activation bars ───────────────────────────────────────────────────────
+  // Geometry is fully system-managed (anchored to the lifeline, derived height),
+  // so activations are neither draggable nor resizable. `activationOps` is the
+  // shared store accessor reused by the lifeline-timeline handlers below.
+  const activationOps = useCallback(() =>
+    vfsController.isStandalone && activeTabId
+      ? standaloneModelOps(activeTabId)
+      : useModelStore.getState(),
+    [vfsController.isStandalone, activeTabId],
+  );
+
+  // ── Lifeline timeline: manual vertical length (G-c) ───────────────────────
+  // Dragging the foot handle pins manualTimelineLength; double-clicking it clears
+  // the override so the timeline goes back to its derived length.
+  const handleLifelineTimelineResizeEnd = useCallback(
+    (id: string, _width: number, newLength: number) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isLifelineViewModel(shapeEntry.data)) return;
+      activationOps().updateLifeline(shapeEntry.data.domainId, {
+        manualTimelineLength: Math.max(20, Math.round(newLength)),
+      });
+    },
+    [shapes, activationOps],
+  );
+
+  const handleLifelineTimelineReset = useCallback(
+    (id: string) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isLifelineViewModel(shapeEntry.data)) return;
+      if (!shapeEntry.data.isManualTimeline) return;
+      activationOps().updateLifeline(shapeEntry.data.domainId, {
+        manualTimelineLength: undefined,
+      });
+    },
+    [shapes, activationOps],
+  );
+
+  // ── Interaction-use (ref): manual width/height (G-d) ──────────────────────
+  const handleInteractionUseResizeEnd = useCallback(
+    (id: string, newWidth: number, newHeight: number) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isInteractionUseViewModel(shapeEntry.data)) return;
+      activationOps().updateInteractionUse(shapeEntry.data.domainId, {
+        manualWidth: Math.max(40, Math.round(newWidth)),
+        manualHeight: Math.max(24, Math.round(newHeight)),
+      });
+    },
+    [shapes, activationOps],
+  );
+
+  // ── Note: manual width/height persisted on the ViewNode (G-d) ─────────────
+  const handleNoteResizeEnd = useCallback(
+    (shapeId: string, newWidth: number, newHeight: number) => {
+      if (!activeTabId) return;
+      const w = Math.max(120, Math.round(newWidth));
+      const h = Math.max(60, Math.round(newHeight));
+      withUndo('vfs', 'Resize Note', activeTabId, (draft: any) => {
+        const file = draft.project?.nodes[activeTabId];
+        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
+        const viewNode = file.content.nodes.find((vn: any) => vn.id === shapeId);
+        if (viewNode) {
+          viewNode.width = w;
+          viewNode.height = h;
+        }
+      });
+    },
+    [activeTabId],
+  );
+
+  // ── State invariant: manual width/height (G-d) ────────────────────────────
+  const handleStateInvariantResizeEnd = useCallback(
+    (id: string, newWidth: number, newHeight: number) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isStateInvariantViewModel(shapeEntry.data)) return;
+      activationOps().updateStateInvariant(shapeEntry.data.domainId, {
+        manualWidth: Math.max(40, Math.round(newWidth)),
+        manualHeight: Math.max(18, Math.round(newHeight)),
+      });
+    },
+    [shapes, activationOps],
+  );
+
+  // ── Combined fragments: movable + resizable container (G-a/G-b) ──────────
+  // Dragging the box vertically pins manualTop and shifts every contained
+  // message (manualY) by the same delta so the contents follow the container.
+  // Resizing pins manualWidth/manualHeight. Reset lives in the inline panel.
+  const handleFragmentDragEnd = useCallback(
+    (e: KonvaEventObject<MouseEvent>) => {
+      const node = e.target;
+      const shapeEntry = shapes.find((s) => s.id === node.id());
+      if (!shapeEntry || !isFragmentViewModel(shapeEntry.data)) return;
+      const vm = shapeEntry.data;
+      const delta = Math.round(node.y() - shapeEntry.y);
+
+      const ops = vfsController.isStandalone && activeTabId ? standaloneModelOps(activeTabId) : useModelStore.getState();
+      // Pin the whole box so it stays put even with no/empty contents.
+      ops.updateFragment(vm.domainId, {
+        manualLeft: Math.round(shapeEntry.x),
+        manualTop: Math.round(node.y()),
+        manualWidth: Math.round(vm.width),
+        manualHeight: Math.round(vm.height),
+      });
+
+      // Shift the contained messages so they obey the container's movement.
+      if (delta !== 0) {
+        const fragModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+        const frag = fragModel?.interactionFragments?.[vm.domainId];
+        const msgIds = frag ? frag.operands.flatMap((op) => op.messageIds) : [];
+        for (const mid of msgIds) {
+          const msgShape = shapes.find((s) => isMessageViewModel(s.data) && s.data.domainId === mid);
+          if (msgShape) ops.updateMessage(mid, { manualY: Math.round(msgShape.y + delta) });
+        }
+      }
+
+      node.position({ x: shapeEntry.x, y: shapeEntry.y });
+    },
+    [shapes, vfsController.isStandalone, vfsController.localModel, activeTabId],
+  );
+
+  const handleFragmentResizeEnd = useCallback(
+    (id: string, newWidth: number, newHeight: number) => {
+      const shapeEntry = shapes.find((s) => s.id === id);
+      if (!shapeEntry || !isFragmentViewModel(shapeEntry.data)) return;
+      const vm = shapeEntry.data;
+      const ops = vfsController.isStandalone && activeTabId ? standaloneModelOps(activeTabId) : useModelStore.getState();
+      ops.updateFragment(vm.domainId, {
+        manualLeft: Math.round(shapeEntry.x),
+        manualTop: Math.round(shapeEntry.y),
+        manualWidth: Math.max(60, Math.round(newWidth)),
+        manualHeight: Math.max(36, Math.round(newHeight)),
+      });
     },
     [shapes, vfsController.isStandalone, activeTabId],
   );
@@ -751,55 +980,40 @@ export default function KonvaCanvas() {
   );
 
   const handlePackageResizeEnd = useCallback(
-    (packageId: string, newWidth: number, newHeight: number) => {
+    (packageId: string, newWidth: number, newHeight: number, dx = 0, dy = 0) => {
       const shape = shapes.find((s) => s.id === packageId);
       if (!shape || !isPackageViewModel(shape.data)) return;
       const packageName = shape.data.name;
       withUndo('vfs', `Resize: ${packageName}`, activeTabId ?? '', (draft: any) => {
-        const file = draft.project?.nodes[activeTabId!];
-        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
-        const viewNode = file.content.nodes.find((vn: any) => vn.id === packageId);
-        if (viewNode) {
-          viewNode.width = newWidth;
-          viewNode.height = newHeight;
-        }
+        commitContainerResize(
+          draft, activeTabId!, packageId,
+          newWidth, newHeight, Math.round(dx), Math.round(dy),
+        );
       });
     },
     [shapes, activeTabId],
   );
 
   const handleSystemBoundaryResizeEnd = useCallback(
-    (shapeId: string, newWidth: number, newHeight: number) => {
+    (shapeId: string, newWidth: number, newHeight: number, dx = 0, dy = 0) => {
       if (!activeTabId) return;
       // Enforce minimum size here too, as a safety net
       const w = Math.max(SB_MIN_W, Math.round(newWidth));
       const h = Math.max(SB_MIN_H, Math.round(newHeight));
       withUndo('vfs', 'Resize System Boundary', activeTabId, (draft: any) => {
-        const file = draft.project?.nodes[activeTabId];
-        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
-        const viewNode = file.content.nodes.find((vn: any) => vn.id === shapeId);
-        if (viewNode) {
-          viewNode.width = w;
-          viewNode.height = h;
-        }
+        commitContainerResize(draft, activeTabId, shapeId, w, h, Math.round(dx), Math.round(dy));
       });
     },
     [activeTabId],
   );
 
   const handleUCModuleResizeEnd = useCallback(
-    (shapeId: string, newWidth: number, newHeight: number) => {
+    (shapeId: string, newWidth: number, newHeight: number, dx = 0, dy = 0) => {
       if (!activeTabId) return;
       const w = Math.max(UCM_MIN_W, Math.round(newWidth));
       const h = Math.max(UCM_MIN_H, Math.round(newHeight));
       withUndo('vfs', 'Resize Module', activeTabId, (draft: any) => {
-        const file = draft.project?.nodes[activeTabId];
-        if (!file || file.type !== 'FILE' || !isDiagramView(file.content)) return;
-        const viewNode = file.content.nodes.find((vn: any) => vn.id === shapeId);
-        if (viewNode) {
-          viewNode.width = w;
-          viewNode.height = h;
-        }
+        commitContainerResize(draft, activeTabId, shapeId, w, h, Math.round(dx), Math.round(dy));
       });
     },
     [activeTabId],
@@ -981,7 +1195,6 @@ export default function KonvaCanvas() {
   const closeInlineActorPanel = useUiStore((s) => s.closeInlineActorPanel);
 
   const inlineMessagePanelId = useUiStore((s) => s.inlineMessagePanelId);
-  const openInlineMessagePanel = useUiStore((s) => s.openInlineMessagePanel);
   const closeInlineMessagePanel = useUiStore((s) => s.closeInlineMessagePanel);
 
   const inlineFragmentPanelId = useUiStore((s) => s.inlineFragmentPanelId);
@@ -1065,6 +1278,30 @@ export default function KonvaCanvas() {
             { width: vm.headWidth - 8, height: LIFELINE_NAME_FONT + 6 },
             (text) => vm.onRename!(text));
         }
+      } else if (isMessageViewModel(vm)) {
+        // Inline-rename only the name; the "N:" prefix + guard stay in the glyph.
+        const MSG_LABEL_H = 16;
+        if (vm.isSelfMessage) {
+          // Label sits to the right of the self-loop band.
+          const screenPos = transform.point({ x: pos.x + 44, y: pos.y + 6 });
+          if (vm.onRename) {
+            startInlineEditing(shapeId, vm.name, 'name',
+              { x: screenPos.x, y: screenPos.y },
+              { width: 140, height: MSG_LABEL_H + 4 },
+              (text) => vm.onRename!(text));
+          }
+        } else {
+          const labelW = Math.max(40, Math.abs(vm.length));
+          // Label box left edge (group-local): 0 rightward, -length leftward.
+          const labelLeft = vm.length < 0 ? vm.length : 0;
+          const screenPos = transform.point({ x: pos.x + labelLeft, y: pos.y - MSG_LABEL_H - 2 });
+          if (vm.onRename) {
+            startInlineEditing(shapeId, vm.name, 'name',
+              { x: screenPos.x, y: screenPos.y },
+              { width: labelW, height: MSG_LABEL_H + 4 },
+              (text) => vm.onRename!(text));
+          }
+        }
       } else {
         (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
       }
@@ -1145,8 +1382,15 @@ export default function KonvaCanvas() {
     (screen: { x: number; y: number }) => {
       const stage = stageRef.current;
       if (!stage) return screen;
+      // `screen` is a page coordinate (clientX/clientY from the context-menu
+      // event). The stage transform maps world → *container-relative* pixels, so
+      // subtract the container's page offset first; otherwise everything is off by
+      // the toolbar/sidebar size (≈ one message band vertically — which dropped
+      // positional self-messages a slot too low).
+      const box = stage.container().getBoundingClientRect();
+      const local = { x: screen.x - box.left, y: screen.y - box.top };
       const transform = stage.getAbsoluteTransform().copy().invert();
-      return transform.point(screen);
+      return transform.point(local);
     },
     [stageRef],
   );
@@ -1313,7 +1557,7 @@ export default function KonvaCanvas() {
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (nodeId) => {
       const shape = shapes.find((s) => s.id === nodeId);
-      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data))) {
+      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data))) {
         startUseCaseInlineEdit(nodeId);
         closeMenu();
         return;
@@ -1410,12 +1654,19 @@ export default function KonvaCanvas() {
       closeMenu();
     },
     getVFSNodeKind: (nodeId) => {
-      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
-      if (!viewNode) return undefined;
-      if (!viewNode.elementId) return 'NOTE';
       const activeModel = vfsController.isStandalone
         ? vfsController.localModel
         : useModelStore.getState().model;
+      const viewNode = vfsController.diagramView?.nodes.find((vn) => vn.id === nodeId);
+      if (!viewNode) {
+        // Derived sequence elements aren't ViewNodes; the context menu passes
+        // their domain id. Messages get a proper menu (edit / reverse / delete);
+        // activation bars get a "Create Self Message" (nest a call inside).
+        if (activeModel?.messages?.[nodeId]) return 'MESSAGE';
+        if (activeModel?.activations?.[nodeId]) return 'ACTIVATION';
+        return undefined;
+      }
+      if (!viewNode.elementId) return 'NOTE';
       if (!activeModel) return undefined;
       const cls = activeModel.classes[viewNode.elementId];
       if (cls) return cls.isAbstract ? 'ABSTRACT_CLASS' : 'CLASS';
@@ -1427,6 +1678,7 @@ export default function KonvaCanvas() {
       if (activeModel.systemBoundaries?.[viewNode.elementId]) return 'SYSTEM_BOUNDARY';
       if (activeModel.ucModules?.[viewNode.elementId]) return 'UC_MODULE';
       if (activeModel.domainEntities?.[viewNode.elementId]) return 'DOMAIN_ENTITY';
+      if (activeModel.lifelines?.[viewNode.elementId]) return 'LIFELINE';
       return 'NOTE';
     },
     getIsNodeExternal: (nodeId) => {
@@ -1478,13 +1730,18 @@ export default function KonvaCanvas() {
     (e: KonvaEventObject<PointerEvent>, edgeId: string) => {
       e.evt.preventDefault();
       if (vfsController.vfsFile?.diagramType === 'DOMAIN_MODEL_DIAGRAM') {
-        const relationId = vfsController.edges.find((ve) => ve.id === edgeId)?.data.domainId;
-        if (relationId) openDomainAssociationProps(relationId);
-        return;
+        // Association-family edges (association / aggregation / composition) open the
+        // verb·multiplicity·navigability modal; generalization falls through to the
+        // standard edge action modal (anchor / delete).
+        const edge = edges.find((ed) => ed.id === edgeId);
+        if (edge && INLINE_PANEL_KINDS.has(edge.kind)) {
+          const relationId = vfsController.edges.find((ve) => ve.id === edgeId)?.data.domainId;
+          if (relationId) { openDomainAssociationProps(relationId); return; }
+        }
       }
       openVfsEdgeAction(edgeId, buildAnchorSnapshot(edgeId));
     },
-    [openVfsEdgeAction, buildAnchorSnapshot, openDomainAssociationProps, vfsController.vfsFile?.diagramType, vfsController.edges],
+    [openVfsEdgeAction, buildAnchorSnapshot, openDomainAssociationProps, vfsController.vfsFile?.diagramType, vfsController.edges, edges],
   );
 
   const handleEdgeDblClick = useCallback(
@@ -1494,11 +1751,16 @@ export default function KonvaCanvas() {
       if (edge.kind === 'EXTEND') { openExtendProps(edgeId); return; }
       // TODO: route through a ShapeRouter
       if (vfsController.vfsFile?.diagramType === 'DOMAIN_MODEL_DIAGRAM') {
-        const relationId = vfsController.edges.find((e) => e.id === edgeId)?.data.domainId;
-        if (relationId) openDomainAssociationProps(relationId);
+        // Association-family edges have the verb·multiplicity·navigability modal;
+        // a generalization opens the standard edge action modal instead.
+        if (INLINE_PANEL_KINDS.has(edge.kind)) {
+          const relationId = vfsController.edges.find((e) => e.id === edgeId)?.data.domainId;
+          if (relationId) { openDomainAssociationProps(relationId); return; }
+        }
+        openVfsEdgeAction(edgeId, buildAnchorSnapshot(edgeId));
       }
     },
-    [edges, openExtendProps, openDomainAssociationProps, vfsController.vfsFile?.diagramType],
+    [edges, openExtendProps, openDomainAssociationProps, openVfsEdgeAction, buildAnchorSnapshot, vfsController.vfsFile?.diagramType, vfsController.edges],
   );
 
   const handleStageContextMenu = useCallback(
@@ -1525,6 +1787,12 @@ export default function KonvaCanvas() {
 
   const handleStageMouseDown = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      // While a fragment tool is armed, the box-draw gesture owns left-drag.
+      if (fragmentToolArmed) {
+        fragmentDraw.stageHandlers.onMouseDown(e);
+        return;
+      }
+
       connectionDraw.stageHandlers.onMouseDown(e);
       if (connectionDraw.isConnectingRef.current) return;
 
@@ -1534,11 +1802,15 @@ export default function KonvaCanvas() {
         stageHandlers.onMouseDown(e);
       }
     },
-    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan, stageHandlers],
+    [fragmentToolArmed, fragmentDraw.stageHandlers, connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan, stageHandlers],
   );
 
   const handleStageMouseMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      if (fragmentToolArmed && fragmentDraw.isDrawingRef.current) {
+        fragmentDraw.stageHandlers.onMouseMove(e);
+        return;
+      }
       if (rightClickPan.isRightDraggingRef.current) return;
 
       connectionDraw.stageHandlers.onMouseMove(e);
@@ -1546,16 +1818,20 @@ export default function KonvaCanvas() {
 
       stageHandlers.onMouseMove(e);
     },
-    [connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan.isRightDraggingRef, stageHandlers],
+    [fragmentToolArmed, fragmentDraw.stageHandlers, fragmentDraw.isDrawingRef, connectionDraw.stageHandlers, connectionDraw.isConnectingRef, rightClickPan.isRightDraggingRef, stageHandlers],
   );
 
   const handleStageMouseUp = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
+      if (fragmentDraw.isDrawingRef.current) {
+        fragmentDraw.stageHandlers.onMouseUp(e);
+        return;
+      }
       connectionDraw.stageHandlers.onMouseUp(e);
       rightClickPan.stageHandlers.onMouseUp(e);
       stageHandlers.onMouseUp(e);
     },
-    [connectionDraw.stageHandlers, rightClickPan, stageHandlers],
+    [fragmentDraw.stageHandlers, fragmentDraw.isDrawingRef, connectionDraw.stageHandlers, rightClickPan, stageHandlers],
   );
 
   useEffect(() => {
@@ -1653,9 +1929,13 @@ export default function KonvaCanvas() {
 
     const messageCount = shapes.filter((s) => isMessageViewModel(s.data)).length;
     const cursorY = connectionDraw.tempLine.y2;
+    // P4 — preview the insert slot through the builder's variable layout so the
+    // guide sits at the real boundary even when fragment headers widen bands.
+    const guideModel = vfsController.isStandalone ? vfsController.localModel : useModelStore.getState().model;
+    const guideLayout = guideModel ? computeSlotLayout(guideModel) : undefined;
     // +1 slot so a drop below the last message previews as an append.
-    const slot = yToMessageSlot(cursorY, messageCount + 1);
-    const y = messageYForIndex(slot);
+    const slot = yToMessageSlot(cursorY, messageCount + 1, guideLayout);
+    const y = messageYForIndex(slot, guideLayout);
 
     // Span the guide across all lifeline heads (left edge of leftmost → right of rightmost).
     let left = Infinity;
@@ -1669,6 +1949,8 @@ export default function KonvaCanvas() {
     return { y, left: left - PAD, right: right + PAD, slot };
   }, [
     vfsController.vfsFile?.diagramType,
+    vfsController.isStandalone,
+    vfsController.localModel,
     connectionDraw.isConnecting,
     connectionDraw.tempLine,
     shapes,
@@ -1939,7 +2221,10 @@ export default function KonvaCanvas() {
       },
       sourceName: nodeName(edge.sourceId),
       targetName: nodeName(edge.targetId),
+      sourceNavigable: edge.sourceNavigable,
+      targetNavigable: edge.targetNavigable,
       onCommit: (props) => vfsController.updateVFSEdgeProps(edge.id, props),
+      onNavigableChange: (end, value) => vfsController.setEdgeEndNavigable(edge.id, end, value),
       onReverse: () => vfsController.reverseEdgeById(edge.id),
       onAdvanced: () => { closeInlineEdgePanel(); openVfsEdgeAction(edge.id, buildAnchorSnapshot(edge.id)); },
       onClose: closeInlineEdgePanel,
@@ -2095,7 +2380,13 @@ export default function KonvaCanvas() {
       className="w-full h-full overflow-hidden bg-canvas-base relative"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      style={fragmentToolArmed ? { cursor: 'crosshair' } : undefined}
     >
+      {fragmentToolArmed && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-md bg-cyan-500/90 text-white text-xs font-medium shadow-lg pointer-events-none">
+          {t('sidebar.fragments.drawHint', { kind: armedFragmentKind?.toLowerCase() })}
+        </div>
+      )}
       {size.width > 0 && size.height > 0 && (
         <Stage
           ref={stageRef}
@@ -2188,6 +2479,8 @@ export default function KonvaCanvas() {
                 key={edge.id}
                 id={edge.id}
                 kind={edge.kind}
+                sourceNavigable={edge.sourceNavigable}
+                targetNavigable={edge.targetNavigable}
                 sourceBounds={sourceBounds}
                 targetBounds={targetBounds}
                 isSelfLoop={isSelfLoop}
@@ -2247,17 +2540,35 @@ export default function KonvaCanvas() {
                   : isUseCaseViewModel(vm)
                   ? () => handleUseCaseDblClickModal(shape.id)
                   : isLifelineViewModel(vm)
-                  ? () => startUseCaseInlineEdit(shape.id)
+                  ? () => {
+                      // C5: a decomposed lifeline navigates to its sub-interaction;
+                      // otherwise double-click starts an inline rename.
+                      const diagramId = vm.decomposedDiagramId;
+                      if (diagramId && useVFSStore.getState().project?.nodes[diagramId]) {
+                        useWorkspaceStore.getState().openTab(diagramId);
+                        useWorkspaceStore.getState().setActiveTab(diagramId);
+                      } else {
+                        startUseCaseInlineEdit(shape.id);
+                      }
+                    }
                   : isFragmentViewModel(vm)
                   ? () => openInlineFragmentPanel(vm.domainId)
                   : isMessageViewModel(vm)
-                  ? () => openInlineMessagePanel(vm.domainId)
+                  ? () => startUseCaseInlineEdit(shape.id)
                   : isStateInvariantViewModel(vm)
                   ? () => openInlineStateInvariantPanel(vm.domainId)
                   : isInteractionUseViewModel(vm)
                   ? () => openInlineInteractionUsePanel(vm.domainId)
                   : isGateViewModel(vm)
                   ? () => openInlineGatePanel(vm.domainId)
+                  : isGeneralOrderingViewModel(vm)
+                  ? () => useUiStore.getState().openGeneralOrderingProps(vm.domainId)
+                  : isTimeConstraintViewModel(vm)
+                  ? () => useUiStore.getState().openTimeConstraintProps(vm.domainId)
+                  : isCoregionViewModel(vm)
+                  ? () => useUiStore.getState().openCoregionProps(vm.domainId)
+                  : isContinuationViewModel(vm)
+                  ? () => useUiStore.getState().openContinuationProps(vm.domainId)
                   : isNodeViewModel(vm)
                   ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
                   : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
@@ -2272,7 +2583,22 @@ export default function KonvaCanvas() {
 
                 const isMsg = isMessageViewModel(vm);
                 const isLifeline = isLifelineViewModel(vm);
-                const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm);
+                const isActivation = isActivationViewModel(vm);
+                const isFragment = isFragmentViewModel(vm);
+                const isInteractionUse = isInteractionUseViewModel(vm);
+                const isStateInvariant = isStateInvariantViewModel(vm);
+                const isNote = isNoteViewModel(vm);
+                const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm) || isContinuationViewModel(vm);
+                // General orderings, timing constraints and coregions have
+                // fully-derived geometry (anchored to occurrences) → not draggable.
+                const isGeneralOrdering =
+                  isGeneralOrderingViewModel(vm) ||
+                  isTimeConstraintViewModel(vm) ||
+                  isCoregionViewModel(vm);
+                // Vertical-only, store-backed drag: messages, the slot-anchored
+                // derived elements, and movable fragment containers lock X and
+                // persist Y. Activations are NOT draggable (system-managed).
+                const isVerticalDrag = isMsg || isDerived || isFragment;
                 // Strong highlight: while connecting, dim nodes that are illegal
                 // targets for the active relation so legal ones stand out.
                 const connectDimmed = connectionDraw.candidateValidity?.get(shape.id) === false;
@@ -2282,17 +2608,26 @@ export default function KonvaCanvas() {
                   y: pos.y,
                   selected: selectedIds.has(shape.id),
                   opacity: connectDimmed ? 0.3 : undefined,
-                  draggable: true,
+                  draggable: !isGeneralOrdering && !isActivation,
                   visible: isVisible && !isDescendantOfCollapsed,
-                  onDragStart: isMsg || isDerived ? undefined : guardedDragStart,
-                  onDragMove: isMsg || isDerived ? undefined : handleDragMove,
+                  onDragStart: isVerticalDrag ? undefined : guardedDragStart,
+                  onDragMove: isVerticalDrag ? undefined : handleDragMove,
                   onDragEnd: isMsg
                     ? handleMessageDragEnd
                     : isDerived
                     ? handleDerivedDragEnd
+                    : isFragment
+                    ? handleFragmentDragEnd
                     : handleDragEnd,
-                  dragBoundFunc: isMsg || isDerived
-                    ? (p: { x: number; y: number }) => ({ x: pos.x, y: p.y })
+                  dragBoundFunc: isVerticalDrag
+                    ? (p: { x: number; y: number }) => {
+                        // Pin X in screen space (dragBoundFunc is absolute), else
+                        // a panned/zoomed canvas snaps the glyph on the click.
+                        const stage = stageRef.current;
+                        const scale = stage?.scaleX() ?? 1;
+                        const stageOffX = stage?.x() ?? 0;
+                        return { x: pos.x * scale + stageOffX, y: p.y };
+                      }
                     : isLifeline
                     ? (p: { x: number; y: number }) => {
                         const stage = stageRef.current;
@@ -2306,9 +2641,20 @@ export default function KonvaCanvas() {
                   onContextMenu,
                   onMouseEnter: handleUseCaseMouseEnter,
                   onMouseLeave: handleUseCaseMouseLeave,
-                  onResizeEnd: isUCModuleViewModel(vm)
+                  onResizeEnd: isFragment
+                    ? handleFragmentResizeEnd
+                    : isLifeline
+                    ? handleLifelineTimelineResizeEnd
+                    : isInteractionUse
+                    ? handleInteractionUseResizeEnd
+                    : isStateInvariant
+                    ? handleStateInvariantResizeEnd
+                    : isNote
+                    ? handleNoteResizeEnd
+                    : isUCModuleViewModel(vm)
                     ? handleUCModuleResizeEnd
                     : handleSystemBoundaryResizeEnd,
+                  onResetTimeline: isLifeline ? handleLifelineTimelineReset : undefined,
                   isDropTarget: hoveredPackageId === shape.id,
                 });
               })}
@@ -2368,6 +2714,19 @@ export default function KonvaCanvas() {
                 height={lassoRect.height}
               />
             )}
+            {fragmentDraw.drawRect && (
+              <Rect
+                x={fragmentDraw.drawRect.x}
+                y={fragmentDraw.drawRect.y}
+                width={fragmentDraw.drawRect.width}
+                height={fragmentDraw.drawRect.height}
+                stroke="#22d3ee"
+                strokeWidth={1.5}
+                dash={[6, 4]}
+                fill="rgba(34, 211, 238, 0.08)"
+                listening={false}
+              />
+            )}
           </Layer>
 
           <Layer name="interaction">
@@ -2408,6 +2767,24 @@ export default function KonvaCanvas() {
                 listening={false}
               />
             ))}
+
+            {/* C7 — free-border affordance: a lifeline's grabbable timeline. Shown
+                instead of the 8 dots so a message can start/land anywhere along it. */}
+            {connectionDraw.hoveredFreeBorder && (
+              <Line
+                points={[
+                  connectionDraw.hoveredFreeBorder.x,
+                  connectionDraw.hoveredFreeBorder.y1,
+                  connectionDraw.hoveredFreeBorder.x,
+                  connectionDraw.hoveredFreeBorder.y2,
+                ]}
+                stroke="#22d3ee"
+                strokeWidth={3}
+                opacity={0.55}
+                lineCap="round"
+                listening={false}
+              />
+            )}
 
             {/* Landing indicator: green = the endpoint will anchor to this border
                 point; red = the relation is invalid for the stereotypes. */}
@@ -2631,6 +3008,12 @@ export default function KonvaCanvas() {
       <StateInvariantPropertiesModal />
       <InteractionUsePropertiesModal />
       <GatePropertiesModal />
+      <GeneralOrderingPropertiesModal />
+      <TimeConstraintPropertiesModal />
+      <CoregionPropertiesModal />
+      <LifelinePropertiesModal />
+      <ContinuationPropertiesModal />
+      <SelfMessageWarningModal />
     </div>
   );
 }

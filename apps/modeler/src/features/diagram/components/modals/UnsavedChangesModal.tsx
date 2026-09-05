@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { AlertTriangle, Save, Trash2, X } from "lucide-react";
 
 interface UnsavedChangesModalProps {
@@ -15,8 +16,8 @@ export default function UnsavedChangesModal({
   onDiscard,
   onCancel,
 }: UnsavedChangesModalProps) {
+  const { t } = useTranslation();
    
-  
   if (!isOpen) return null;
 
   return (
@@ -30,13 +31,11 @@ export default function UnsavedChangesModal({
           </div>
           <div>
             <h3 className="text-lg font-bold text-text-primary mb-1">
-              ¿Guardar cambios?
+              {t("unsavedChangesModal.title")}
             </h3>
-            <p className="text-text-secondary text-sm leading-relaxed">
-              Tienes cambios sin guardar en <strong className="text-text-primary">"{fileName}"</strong>.
-            </p>
+            <p className="text-text-secondary text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: t("unsavedChangesModal.message", { fileName }) }} />
             <p className="text-text-muted text-xs mt-1">
-              Si descartas, perderás los cambios recientes.
+              {t("unsavedChangesModal.discardHint")}
             </p>
           </div>
         </div>
@@ -47,14 +46,14 @@ export default function UnsavedChangesModal({
             onClick={onSave}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-uml-class-border text-white rounded-lg hover:brightness-110 transition-all shadow-md font-medium"
           >
-            <Save className="w-4 h-4" /> Guardar
+            <Save className="w-4 h-4" /> {t("unsavedChangesModal.save")}
           </button>
 
           <button
             onClick={onDiscard}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-all font-medium"
           >
-            <Trash2 className="w-4 h-4" /> Descartar cambios
+            <Trash2 className="w-4 h-4" /> {t("unsavedChangesModal.discard")}
           </button>
         </div>
 
@@ -64,7 +63,7 @@ export default function UnsavedChangesModal({
             onClick={onCancel}
             className="flex items-center gap-1 text-text-muted text-sm hover:text-text-primary transition-colors"
           >
-            <X className="w-3 h-3" /> Cancelar
+            <X className="w-3 h-3" /> {t("unsavedChangesModal.cancel")}
           </button>
         </div>
       </div>

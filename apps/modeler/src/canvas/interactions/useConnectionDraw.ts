@@ -98,11 +98,45 @@ export const SEQUENCE_STEREOTYPES = new Set<stereotype>(['lifeline']);
 
 /**
  * Node kinds for which a self-loop (src === tgt) is a meaningful UI gesture.
- * Self-message in sequence diagrams renders as a U-loop on the lifeline.
+ * No kind qualifies: a sequence self-message must be created from the lifeline's
+ * "Create Self Message" context-menu action (which also seeds the nested
+ * activation), so drawing a manual connection back onto the same lifeline is
+ * disallowed to avoid invalid/inconsistent diagrams.
  */
-export function nodeAllowsSelfLoop(vm: AnyNodeViewModel | undefined): boolean {
+export function nodeAllowsSelfLoop(_vm: AnyNodeViewModel | undefined): boolean {
+  return false;
+}
+
+/**
+ * Node kinds whose connection endpoint anchors to a continuous border (free
+ * anchoring) instead of the 8 fixed marks (C7). Lifelines (sequence diagrams)
+ * let a message start or land anywhere along their vertical timeline — X locked
+ * to the center, Y continuous — so drawing an interaction feels fluid instead of
+ * snapping to cardinals/corners. Only lifelines qualify, and they exist only in
+ * sequence diagrams, so this also scopes the behavior to SEQUENCE_DIAGRAM.
+ */
+export function nodeUsesFreeBorderAnchors(vm: AnyNodeViewModel | undefined): boolean {
   if (!vm) return false;
   return isLifelineViewModel(vm);
+}
+
+/** Sequence-diagram derived elements that are NOT valid connection endpoints. */
+const SEQUENCE_ELEMENT_BRANDS = new Set([
+  'message', 'activation', 'fragment', 'stateInvariant',
+  'interactionUse', 'gate', 'generalOrdering', 'timeConstraint',
+  'coregion', 'continuation',
+]);
+
+/**
+ * Returns false for sequence-diagram elements that play no part in the
+ * drag-from-anchor connection system (activations, messages, fragments, …).
+ * These elements must never show the 8 anchor dots or participate in
+ * nearAnchorRef / snap-target detection.
+ */
+export function nodeShowsConnectionAnchors(vm: AnyNodeViewModel | undefined): boolean {
+  if (!vm) return false;
+  const brand = (vm as { __brand?: string }).__brand;
+  return !brand || !SEQUENCE_ELEMENT_BRANDS.has(brand);
 }
 
 export function resolveStereotype(vm: AnyNodeViewModel): stereotype {
@@ -126,6 +160,14 @@ export interface AnchorDot {
   y: number;
 }
 
+/** Highlight of a free-border node's grabbable centerline (C7 — lifeline timeline). */
+export interface HoveredFreeBorder {
+  nodeId: string;
+  x: number;
+  y1: number;
+  y2: number;
+}
+
 /** 8-point anchor system: 4 cardinal midpoints + 4 corners. */
 function getAnchorDots(nodeId: string, b: NodeBounds): AnchorDot[] {
   const cx = b.x + b.width / 2;
@@ -143,18 +185,55 @@ function getAnchorDots(nodeId: string, b: NodeBounds): AnchorDot[] {
 }
 
 /** An anchor dot plus its distance to the probe point. */
-type SnappedDot = AnchorDot & { dist: number };
+export type SnappedDot = AnchorDot & { dist: number };
 
-/** Returns the nearest anchor within `radius` (with its distance), optionally excluding a node. */
+/**
+ * Nearest point on a free-border node's vertical centerline within `radius` (C7).
+ * X is locked to the node center; Y is the cursor's Y clamped to the node's span,
+ * so a message can be grabbed/dropped anywhere along the lifeline timeline.
+ */
+export function freeBorderNearest(
+  pos: { x: number; y: number },
+  nodeId: string,
+  b: NodeBounds,
+  radius: number,
+): SnappedDot | null {
+  const cx = b.x + b.width / 2;
+  const y = Math.max(b.y, Math.min(pos.y, b.y + b.height));
+  const dist = Math.hypot(pos.x - cx, pos.y - y);
+  return dist <= radius ? { nodeId, x: cx, y, dist } : null;
+}
+
+/** Landing point under the cursor for a hovered free-border target node. */
+export function freeBorderLanding(b: NodeBounds, pos: { x: number; y: number }): { x: number; y: number } {
+  return {
+    x: b.x + b.width / 2,
+    y: Math.max(b.y, Math.min(pos.y, b.y + b.height)),
+  };
+}
+
+/**
+ * Returns the nearest anchor within `radius` (with its distance), optionally
+ * excluding a node. Free-border nodes (lifelines, `freeBorderIds`) snap to their
+ * vertical centerline; every other node uses the 8 cardinal/corner marks.
+ */
 function findNearest(
   pos: { x: number; y: number },
   boundsMap: Map<string, NodeBounds>,
   radius: number,
+  freeBorderIds: Set<string>,
   excludeNodeId?: string,
+  skipIds?: Set<string>,
 ): SnappedDot | null {
   let best: SnappedDot | null = null;
   for (const [nodeId, bounds] of boundsMap.entries()) {
     if (nodeId === excludeNodeId) continue;
+    if (skipIds?.has(nodeId)) continue;
+    if (freeBorderIds.has(nodeId)) {
+      const fb = freeBorderNearest(pos, nodeId, bounds, radius);
+      if (fb && (!best || fb.dist < best.dist)) best = fb;
+      continue;
+    }
     for (const dot of getAnchorDots(nodeId, bounds)) {
       const d = Math.hypot(pos.x - dot.x, pos.y - dot.y);
       if (d <= radius && (!best || d < best.dist)) {
@@ -196,6 +275,7 @@ function findHoveredNode(
   pos: { x: number; y: number },
   boundsMap: Map<string, NodeBounds>,
   excludeNodeId?: string,
+  skipIds?: Set<string>,
 ): string | null {
   // Innermost (smallest-area) containing node wins, so a node inside a package
   // is preferred over the package behind it.
@@ -203,6 +283,7 @@ function findHoveredNode(
   let bestArea = Infinity;
   for (const [nodeId, b] of boundsMap.entries()) {
     if (nodeId === excludeNodeId) continue;
+    if (skipIds?.has(nodeId)) continue;
     const inside =
       pos.x >= b.x - NODE_HOVER_PAD && pos.x <= b.x + b.width + NODE_HOVER_PAD &&
       pos.y >= b.y - NODE_HOVER_PAD && pos.y <= b.y + b.height + NODE_HOVER_PAD;
@@ -280,6 +361,11 @@ export interface UseConnectionDrawReturn {
   /** Anchor dots for the currently hovered node (show 8 dots when hovering a node). */
   hoveredNodeAnchors: AnchorDot[];
   /**
+   * The hovered free-border node's grabbable centerline (C7). Set instead of the
+   * 8 dots for lifelines, so the affordance is "grab anywhere along this line".
+   */
+  hoveredFreeBorder: HoveredFreeBorder | null;
+  /**
    * Clears the hovered-node connection-point overlay. Call when an interaction
    * that the stage mousemove won't follow ends (e.g. a Konva drag release) or
    * when the pointer leaves the canvas, so the 8 dots never freeze on a node.
@@ -327,6 +413,7 @@ export function useConnectionDraw({
   const [isConnecting, setIsConnecting] = useState(false);
   const [tempLine, setTempLine] = useState<TempLine | null>(null);
   const [hoveredNodeAnchors, setHoveredNodeAnchors] = useState<AnchorDot[]>([]);
+  const [hoveredFreeBorder, setHoveredFreeBorder] = useState<HoveredFreeBorder | null>(null);
   const [snapTargetDot, setSnapTargetDot] = useState<AnchorDot | null>(null);
   const [snapFixed, setSnapFixed] = useState(false);
   const [snapValid, setSnapValid] = useState<boolean | null>(null);
@@ -341,6 +428,54 @@ export function useConnectionDraw({
   const sourceRef = useRef<AnchorDot | null>(null);
   /** Tracks which node is currently hovered to avoid unnecessary state thrashing. */
   const hoverNodeIdRef = useRef<string | null>(null);
+  /** IDs of nodes that use free-border (centerline) anchoring — lifelines (C7). */
+  const freeBorderIdsRef = useRef<Set<string>>(new Set());
+  freeBorderIdsRef.current = useMemo(
+    () => new Set(nodes.filter((n) => nodeUsesFreeBorderAnchors(n.data)).map((n) => n.id)),
+    [nodes],
+  );
+  /** IDs of sequence-specific elements that must never show connection anchors. */
+  const nonConnectableIdsRef = useRef<Set<string>>(new Set());
+  nonConnectableIdsRef.current = useMemo(
+    () => new Set(nodes.filter((n) => !nodeShowsConnectionAnchors(n.data)).map((n) => n.id)),
+    [nodes],
+  );
+
+  // ── Hover overlay helper ────────────────────────────────────────────────────
+  // Shows the right affordance for a hovered node: a highlighted centerline for
+  // free-border nodes (lifelines), the 8 cardinal/corner dots for everything else.
+  const setHoverOverlay = useCallback(
+    (nodeId: string | null, bounds: NodeBounds | undefined) => {
+      if (!nodeId || !bounds) {
+        setHoveredNodeAnchors([]);
+        setHoveredFreeBorder(null);
+        return;
+      }
+      if (freeBorderIdsRef.current.has(nodeId)) {
+        setHoveredFreeBorder({
+          nodeId,
+          x: bounds.x + bounds.width / 2,
+          y1: bounds.y,
+          y2: bounds.y + bounds.height,
+        });
+        setHoveredNodeAnchors([]);
+      } else {
+        setHoveredNodeAnchors(getAnchorDots(nodeId, bounds));
+        setHoveredFreeBorder(null);
+      }
+    },
+    [],
+  );
+
+  // Re-sync the hover overlay when the hovered node's own bounds change (e.g. a
+  // resize commits new width/height while the cursor never leaves the node, so
+  // onMouseMove's id-change gate never re-fires). Without this, the 8-point
+  // dots can freeze at pre-resize bounds until the cursor leaves and re-enters.
+  useEffect(() => {
+    const id = hoverNodeIdRef.current;
+    if (!id || isConnectingRef.current) return;
+    setHoverOverlay(id, boundsMapRef.current.get(id));
+  }, [nodes, setHoverOverlay, boundsMapRef]);
 
   // ── Reset helper ──────────────────────────────────────────────────────────
 
@@ -356,6 +491,7 @@ export function useConnectionDraw({
     setSnapValid(null);
     setConnectingSourceId(null);
     setHoveredNodeAnchors([]);
+    setHoveredFreeBorder(null);
     const stage = stageRef.current;
     if (stage) stage.draggable(true);
   }, [stageRef]);
@@ -365,6 +501,7 @@ export function useConnectionDraw({
     hoverNodeIdRef.current = null;
     nearAnchorRef.current = false;
     setHoveredNodeAnchors([]);
+    setHoveredFreeBorder(null);
   }, []);
 
   // ── Validity helpers ───────────────────────────────────────────────────────
@@ -433,11 +570,14 @@ export function useConnectionDraw({
         const srcVM = nodes.find((n) => n.id === src.nodeId)?.data;
         const excludeNodeId = nodeAllowsSelfLoop(srcVM) ? undefined : src.nodeId;
         // P4 — releasing over a node anchors to the continuous border point under
-        // the cursor (magnet to cardinals). Preview that exact landing point.
-        const tgtId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId);
+        // the cursor (magnet to cardinals). C7 — free-border targets (lifelines)
+        // land on their vertical centerline at the cursor Y. Preview either point.
+        const tgtId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId, nonConnectableIdsRef.current);
         const tgtBounds = tgtId ? boundsMapRef.current.get(tgtId) : undefined;
         const landing = tgtBounds
-          ? anchorFromRatio(tgtBounds, ratioFromPoint(tgtBounds, pos.x, pos.y, ANCHOR_MAGNET))
+          ? tgtId && freeBorderIdsRef.current.has(tgtId)
+            ? freeBorderLanding(tgtBounds, pos)
+            : anchorFromRatio(tgtBounds, ratioFromPoint(tgtBounds, pos.x, pos.y, ANCHOR_MAGNET))
           : null;
 
         setTempLine({ x1: src.x, y1: src.y, x2: landing ? landing.x : pos.x, y2: landing ? landing.y : pos.y });
@@ -445,30 +585,25 @@ export function useConnectionDraw({
         setSnapFixed(!!landing);
         setSnapValid(tgtId ? computeSnapValidity(src.nodeId, tgtId) : null);
 
-        // Show the hovered target node's 8 connection points (the magnet marks).
+        // Show the hovered target node's affordance (centerline or 8 magnet marks).
         if (tgtId !== hoverNodeIdRef.current) {
           hoverNodeIdRef.current = tgtId;
-          setHoveredNodeAnchors(tgtBounds ? getAnchorDots(tgtId!, tgtBounds) : []);
+          setHoverOverlay(tgtId, tgtBounds);
         }
       } else {
-        // ── Hover mode: update nearAnchorRef + visible anchor dots ────────
-        const near = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R);
+        // ── Hover mode: update nearAnchorRef + visible anchor affordance ──
+        const near = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R, freeBorderIdsRef.current, undefined, nonConnectableIdsRef.current);
         nearAnchorRef.current = !!near;
 
-        // Only update hovered-node anchors when the hovered node changes.
-        const hoveredId = findHoveredNode(pos, boundsMapRef.current);
+        // Only update the hovered-node overlay when the hovered node changes.
+        const hoveredId = findHoveredNode(pos, boundsMapRef.current, undefined, nonConnectableIdsRef.current);
         if (hoveredId !== hoverNodeIdRef.current) {
           hoverNodeIdRef.current = hoveredId;
-          if (hoveredId) {
-            const b = boundsMapRef.current.get(hoveredId);
-            setHoveredNodeAnchors(b ? getAnchorDots(hoveredId, b) : []);
-          } else {
-            setHoveredNodeAnchors([]);
-          }
+          setHoverOverlay(hoveredId, hoveredId ? boundsMapRef.current.get(hoveredId) : undefined);
         }
       }
     },
-    [stageRef, boundsMapRef, nodes, computeSnapValidity],
+    [stageRef, boundsMapRef, nodes, computeSnapValidity, setHoverOverlay],
   );
 
   // ── onMouseDown ────────────────────────────────────────────────────────────
@@ -484,7 +619,7 @@ export function useConnectionDraw({
       const pos = stage.getRelativePointerPosition();
       if (!pos) return;
 
-      const nearest = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R);
+      const nearest = findNearest(pos, boundsMapRef.current, ANCHOR_DETECT_R, freeBorderIdsRef.current, undefined, nonConnectableIdsRef.current);
       if (!nearest) {
         nearAnchorRef.current = false;
         return;
@@ -497,6 +632,7 @@ export function useConnectionDraw({
       setConnectingSourceId(nearest.nodeId);
       setTempLine({ x1: nearest.x, y1: nearest.y, x2: nearest.x, y2: nearest.y });
       setHoveredNodeAnchors([]);
+      setHoveredFreeBorder(null);
       setSnapTargetDot(null);
 
       // Suppress canvas pan during connection draw.
@@ -524,7 +660,7 @@ export function useConnectionDraw({
           // P4 — the target is whatever node the cursor is over (innermost). The
           // endpoint anchors to the continuous border point under the drop, so the
           // whole perimeter is reachable (not just the 8 marks).
-          const tgtNodeId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId);
+          const tgtNodeId = findHoveredNode(pos, boundsMapRef.current, excludeNodeId, nonConnectableIdsRef.current);
           if (tgtNodeId) {
             const srcBounds = boundsMapRef.current.get(src.nodeId);
             const tgtBounds = boundsMapRef.current.get(tgtNodeId);
@@ -579,7 +715,7 @@ export function useConnectionDraw({
               // Fallback: let onConnect handle validation if nodes not found.
               onConnect(src.nodeId, tgtNodeId, anchoring, { x: pos.x, y: pos.y });
             }
-          } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current)) {
+          } else if (onDropEmpty && !findHoveredNode(pos, boundsMapRef.current, undefined, nonConnectableIdsRef.current)) {
             // Quick Linker: released on empty canvas (no node under the cursor at
             // all) → offer to create a new node linked to the source.
             onDropEmpty(src.nodeId, { x: pos.x, y: pos.y });
@@ -624,6 +760,7 @@ export function useConnectionDraw({
     nearAnchorRef,
     tempLine,
     hoveredNodeAnchors,
+    hoveredFreeBorder,
     clearHoverAnchors,
     snapTargetDot,
     snapFixed,

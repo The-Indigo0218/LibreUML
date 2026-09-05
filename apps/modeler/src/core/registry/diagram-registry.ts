@@ -696,6 +696,27 @@ const domainModelDiagramRegistry: DiagramTypeRegistry = {
         icon: 'MoveRight',
         translationKey: 'sidebar.connections.association',
       },
+      {
+        id: 'generalization',
+        type: 'EDGE',
+        label: 'Generalization',
+        icon: 'ArrowUp',
+        translationKey: 'sidebar.connections.generalization',
+      },
+      {
+        id: 'aggregation',
+        type: 'EDGE',
+        label: 'Aggregation',
+        icon: 'Diamond',
+        translationKey: 'sidebar.connections.aggregation',
+      },
+      {
+        id: 'composition',
+        type: 'EDGE',
+        label: 'Composition',
+        icon: 'Diamond',
+        translationKey: 'sidebar.connections.composition',
+      },
     ],
   },
 
@@ -826,6 +847,9 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
   defaultNodeType: 'LIFELINE',
   defaultEdgeType: 'MESSAGE_SYNC',
 
+  // Class/use-case/domain tools are never meaningful inside an interaction.
+  hideForeignTools: true,
+
   tools: {
     nodes: [
       {
@@ -835,6 +859,14 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
         icon: 'User',
         color: '#6366F1',
         translationKey: 'sidebar.nodes.lifeline',
+      },
+      {
+        id: 'actor_lifeline',
+        type: 'NODE',
+        label: 'Actor',
+        icon: 'PersonStanding',
+        color: '#6366F1',
+        translationKey: 'sidebar.nodes.actorLifeline',
       },
       {
         id: 'note',
@@ -881,6 +913,36 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
         icon: 'XCircle',
         translationKey: 'sidebar.connections.messageDestroy',
       },
+    ],
+    // Combined-fragment operators (UML 2.5 §17.6). Click-to-insert; the common
+    // three lead, the remaining nine sit under the "advanced" disclosure. The
+    // label is the canonical operator keyword (language-neutral, as in EA/StarUML).
+    fragments: [
+      { id: 'frag-alt',      type: 'FRAGMENT', fragmentKind: 'ALT',      category: 'common',   label: 'alt',      icon: 'GitBranch',           color: '#6366F1' },
+      { id: 'frag-opt',      type: 'FRAGMENT', fragmentKind: 'OPT',      category: 'common',   label: 'opt',      icon: 'CircleHelp',          color: '#6366F1' },
+      { id: 'frag-loop',     type: 'FRAGMENT', fragmentKind: 'LOOP',     category: 'common',   label: 'loop',     icon: 'Repeat',              color: '#6366F1' },
+      { id: 'frag-par',      type: 'FRAGMENT', fragmentKind: 'PAR',      category: 'advanced', label: 'par',      icon: 'Columns2',            color: '#818CF8' },
+      { id: 'frag-seq',      type: 'FRAGMENT', fragmentKind: 'SEQ',      category: 'advanced', label: 'seq',      icon: 'ListOrdered',         color: '#818CF8' },
+      { id: 'frag-strict',   type: 'FRAGMENT', fragmentKind: 'STRICT',   category: 'advanced', label: 'strict',   icon: 'ArrowDownNarrowWide', color: '#818CF8' },
+      { id: 'frag-break',    type: 'FRAGMENT', fragmentKind: 'BREAK',    category: 'advanced', label: 'break',    icon: 'Scissors',            color: '#818CF8' },
+      { id: 'frag-critical', type: 'FRAGMENT', fragmentKind: 'CRITICAL', category: 'advanced', label: 'critical', icon: 'ShieldAlert',         color: '#818CF8' },
+      { id: 'frag-neg',      type: 'FRAGMENT', fragmentKind: 'NEG',      category: 'advanced', label: 'neg',      icon: 'Ban',                 color: '#818CF8' },
+      { id: 'frag-assert',   type: 'FRAGMENT', fragmentKind: 'ASSERT',   category: 'advanced', label: 'assert',   icon: 'BadgeCheck',          color: '#818CF8' },
+      { id: 'frag-ignore',   type: 'FRAGMENT', fragmentKind: 'IGNORE',   category: 'advanced', label: 'ignore',   icon: 'EyeOff',              color: '#818CF8' },
+      { id: 'frag-consider', type: 'FRAGMENT', fragmentKind: 'CONSIDER', category: 'advanced', label: 'consider', icon: 'Eye',                 color: '#818CF8' },
+    ],
+    // Click-to-insert structural extras. `ref` reuses another interaction;
+    // found/lost are endpoint messages (open outside the interaction) and sit
+    // under "advanced" since they default to the first lifeline.
+    structure: [
+      { id: 'ref',         type: 'STRUCTURE', category: 'common',   label: 'ref',   icon: 'Frame',       color: '#6366F1' },
+      { id: 'msg-found',   type: 'STRUCTURE', category: 'advanced', label: 'found', icon: 'LogIn',       color: '#818CF8' },
+      { id: 'msg-lost',    type: 'STRUCTURE', category: 'advanced', label: 'lost',  icon: 'LogOut',      color: '#818CF8' },
+      { id: 'gen-ordering', type: 'STRUCTURE', category: 'advanced', label: 'order',    icon: 'ArrowDownUp', color: '#818CF8' },
+      { id: 'duration',     type: 'STRUCTURE', category: 'advanced', label: 'duration', icon: 'Timer',       color: '#818CF8' },
+      { id: 'time',         type: 'STRUCTURE', category: 'advanced', label: 'time',     icon: 'Clock',       color: '#818CF8' },
+      { id: 'coregion',     type: 'STRUCTURE', category: 'advanced', label: 'coregion', icon: 'Brackets',    color: '#818CF8' },
+      { id: 'continuation', type: 'STRUCTURE', category: 'advanced', label: 'continuation', icon: 'Flag',    color: '#818CF8' },
     ],
   },
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useVFSStore } from "../../../../store/project-vfs.store";
@@ -19,6 +20,7 @@ export default function CreateFolderModal({
   editNodeId,
   initialParentId 
 }: CreateFolderModalProps) {
+  const { t } = useTranslation();
   const [folderName, setFolderName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedParentId, setSelectedParentId] = useState<string | null>(initialParentId ?? parentId ?? null);
@@ -63,7 +65,7 @@ export default function CreateFolderModal({
     );
 
     if (conflict) {
-      setValidationError("A folder with this name already exists in this location");
+      setValidationError(t("createFolderModal.folderNameExists"));
       return false;
     }
 
@@ -139,7 +141,7 @@ export default function CreateFolderModal({
       >
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-[#e2e8f0]">
-            {editNodeId ? "Edit Folder" : "Create New Folder"}
+            {editNodeId ? t("createFolderModal.editTitle") : t("createFolderModal.createTitle")}
           </h2>
           <button
             onClick={onClose}
@@ -152,7 +154,7 @@ export default function CreateFolderModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="folderName" className="block text-sm font-medium text-[#cbd5e1] mb-2">
-              Folder Name <span className="text-red-400">*</span>
+              {t("createFolderModal.folderName")} <span className="text-red-400">*</span>
             </label>
             <input
               ref={inputRef}
@@ -163,7 +165,7 @@ export default function CreateFolderModal({
                 setFolderName(e.target.value);
                 setValidationError("");
               }}
-              placeholder="My Folder"
+              placeholder={t("createFolderModal.folderNamePlaceholder")}
               className={`w-full px-3 py-2 bg-[#0f1419] border rounded-lg text-[#e2e8f0] placeholder-[#64748b] focus:outline-none focus:ring-2 ${
                 validationError
                   ? "border-red-500 focus:ring-red-500"
@@ -177,7 +179,7 @@ export default function CreateFolderModal({
 
           <div>
             <label htmlFor="location" className="block text-sm font-medium text-[#cbd5e1] mb-2">
-              Location <span className="text-red-400">*</span>
+              {t("createFolderModal.location")} <span className="text-red-400">*</span>
             </label>
             <select
               id="location"
@@ -199,13 +201,13 @@ export default function CreateFolderModal({
 
           <div>
             <label htmlFor="description" className="block text-sm font-medium text-[#cbd5e1] mb-2">
-              Description
+              {t("createFolderModal.description")}
             </label>
             <textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional folder description"
+              placeholder={t("createFolderModal.descriptionPlaceholder")}
               rows={3}
               className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-[#7C83FF] resize-none"
             />
@@ -217,14 +219,14 @@ export default function CreateFolderModal({
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-[#cbd5e1] bg-[#1e2738] hover:bg-[#2a3358] hover:text-[#e2e8f0] rounded-lg transition-colors"
             >
-              Cancel
+              {t("createFolderModal.cancel")}
             </button>
             <button
               type="submit"
               disabled={!folderName.trim()}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-[#374151] disabled:text-[#9ca3af] disabled:cursor-not-allowed rounded-lg transition-colors"
             >
-              {editNodeId ? "Save Changes" : "Create Folder"}
+              {editNodeId ? t("createFolderModal.saveChanges") : t("createFolderModal.createFolder")}
             </button>
           </div>
         </form>

@@ -15,7 +15,7 @@ exports[`ActivationShape > renders a closed activation bar 1`] = `
 exports[`ActivationShape > renders a deeply nested activation bar 1`] = `
 <div
   data-konva="Group"
-  data-props="{"id":"act1","x":67,"y":80,"visible":true}"
+  data-props="{"id":"act1","x":71,"y":80,"visible":true}"
 >
   <div
     data-konva="Rect"
@@ -27,7 +27,7 @@ exports[`ActivationShape > renders a deeply nested activation bar 1`] = `
 exports[`ActivationShape > renders a nested activation bar with offset 1`] = `
 <div
   data-konva="Group"
-  data-props="{"id":"act1","x":61,"y":80,"visible":true}"
+  data-props="{"id":"act1","x":63,"y":80,"visible":true}"
 >
   <div
     data-konva="Rect"

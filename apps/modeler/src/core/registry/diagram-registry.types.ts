@@ -1,12 +1,17 @@
 import type { DiagramType } from '../domain/workspace/diagram-file.types';
 import type { DomainNode } from '../domain/models/nodes';
 import type { DomainEdge } from '../domain/models/edges';
-import type { SemanticModel, ResolvedElement } from '../domain/vfs/vfs.types';
+import type { SemanticModel, ResolvedElement, FragmentKind } from '../domain/vfs/vfs.types';
 
 /**
- * Tool type for UI rendering
+ * Tool type for UI rendering. NODE/EDGE are drag-to-canvas / connection-mode
+ * tools; FRAGMENT and STRUCTURE are click-to-insert tools (sequence diagrams) —
+ * FRAGMENT inserts a combined fragment, STRUCTURE inserts a ref / found / lost.
  */
-export type ToolType = 'NODE' | 'EDGE';
+export type ToolType = 'NODE' | 'EDGE' | 'FRAGMENT' | 'STRUCTURE';
+
+/** Palette grouping for the common-vs-advanced split (defaults to 'common'). */
+export type ToolCategory = 'common' | 'advanced';
 
 /**
  * Tool configuration for UI rendering in Sidebar
@@ -18,6 +23,10 @@ export interface ToolConfig {
   icon: string; // Lucide icon name
   color?: string; // CSS color value
   translationKey?: string; // i18n key for label
+  /** Palette section split. Tools without a category render as 'common'. */
+  category?: ToolCategory;
+  /** For FRAGMENT tools: the InteractionOperatorKind to insert on click. */
+  fragmentKind?: FragmentKind;
 }
 
 /**
@@ -67,7 +76,18 @@ export interface DiagramTypeRegistry {
   tools: {
     nodes: ToolConfig[];
     edges: ToolConfig[];
+    /** Click-to-insert FRAGMENT tools (sequence operators). Optional. */
+    fragments?: ToolConfig[];
+    /** Click-to-insert STRUCTURE tools (ref / found / lost). Optional. */
+    structure?: ToolConfig[];
   };
+
+  /**
+   * When true, the palette shows only this diagram's native tools (no dimmed
+   * foreign tools from other diagram types). Sequence diagrams set this because
+   * dropping a class/use-case node into an interaction is never meaningful.
+   */
+  hideForeignTools?: boolean;
   
   // Code generation actions available for this diagram type
   codeGenerationActions: CodeGenerationAction[];

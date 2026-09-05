@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { StateInvariantViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveStateInvariantColors } from '../tokens/colors';
+import ResizeHandles from './ResizeHandles';
 
 const LABEL_FONT = 11;
 const FONT_SANS = 'Inter, ui-sans-serif, system-ui, sans-serif';
+const MANUAL_STROKE = '#22d3ee';
 
 export function getStateInvariantShapeSize(vm: StateInvariantViewModel): { width: number; height: number } {
   return { width: vm.width, height: vm.height };
@@ -25,6 +28,8 @@ interface StateInvariantShapeProps {
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
   dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
+  /** (id, width, height) — fired when a resize handle is released (G-d). */
+  onResizeEnd?: (id: string, width: number, height: number) => void;
 }
 
 export default function StateInvariantShape({
@@ -42,10 +47,12 @@ export default function StateInvariantShape({
   onDragMove,
   onDragEnd,
   dragBoundFunc,
+  onResizeEnd,
 }: StateInvariantShapeProps) {
   const colors = resolveStateInvariantColors();
-  const W = vm.width;
-  const H = vm.height;
+  const [live, setLive] = useState<{ w: number; h: number } | null>(null);
+  const W = live?.w ?? vm.width;
+  const H = live?.h ?? vm.height;
 
   return (
     <Group
@@ -80,7 +87,7 @@ export default function StateInvariantShape({
         height={H}
         cornerRadius={H / 2}
         fill={colors.fill}
-        stroke={colors.border}
+        stroke={vm.isManual ? MANUAL_STROKE : colors.border}
         strokeWidth={1.5}
         perfectDrawEnabled={false}
       />
@@ -99,6 +106,21 @@ export default function StateInvariantShape({
         listening={false}
         perfectDrawEnabled={false}
       />
+
+      {/* ── Resize handles (G-d) ──────────────────────────────────────────── */}
+      {onResizeEnd && (
+        <ResizeHandles
+          w={W}
+          h={H}
+          minW={40}
+          minH={18}
+          onResize={(nw, nh) => setLive({ w: nw, h: nh })}
+          onCommit={(nw, nh) => {
+            setLive(null);
+            onResizeEnd(vm.id, nw, nh);
+          }}
+        />
+      )}
 
       {selected && (
         <Rect

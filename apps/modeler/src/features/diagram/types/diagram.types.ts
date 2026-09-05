@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-export type stereotype = "class" | "interface" | "abstract" | "note" | "enum" | "package" | "actor" | "use_case" | "system_boundary" | "uc_module" | "domain_entity" | "lifeline";
+export type stereotype = "class" | "interface" | "abstract" | "note" | "enum" | "package" | "actor" | "use_case" | "system_boundary" | "uc_module" | "domain_entity" | "lifeline" | "actor_lifeline";
 export type UmlRelationType =
   | "association"
   | "inheritance"
@@ -86,6 +86,9 @@ export interface UmlEdgeData {
   type: UmlRelationType | "note" | string;
   sourceMultiplicity?: string;
   targetMultiplicity?: string;
+  /** UML navigability per end (from XMI <navigableOwnedEnd>). undefined = unspecified. */
+  sourceNavigable?: boolean;
+  targetNavigable?: boolean;
   isHovered?: boolean;
 }
 

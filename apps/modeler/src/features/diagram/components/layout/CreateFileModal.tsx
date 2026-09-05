@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   X,
@@ -54,6 +55,7 @@ export default function CreateFileModal({
   editNodeId,
   initialParentId,
 }: CreateFileModalProps) {
+  const { t } = useTranslation();
   const [fileName, setFileName] = useState("");
   const [diagramType, setDiagramType] = useState<DiagramType>("CLASS_DIAGRAM");
   const [description, setDescription] = useState("");
@@ -107,7 +109,7 @@ export default function CreateFileModal({
     );
 
     if (conflict) {
-      setValidationError("A file with this name already exists in this location");
+      setValidationError(t("createFileModal.fileNameExists"));
       return false;
     }
 
@@ -197,7 +199,7 @@ export default function CreateFileModal({
       >
         <div className="flex items-center justify-between p-6 pb-4 shrink-0">
           <h2 className="text-xl font-semibold text-[#e2e8f0]">
-            {editNodeId ? "Edit Diagram" : "Create New Diagram"}
+            {editNodeId ? t("createFileModal.editTitle") : t("createFileModal.createTitle")}
           </h2>
           <button
             onClick={onClose}
@@ -214,7 +216,7 @@ export default function CreateFileModal({
               htmlFor="fileName"
               className="block text-sm font-medium text-[#cbd5e1] mb-2"
             >
-              File Name <span className="text-red-400">*</span>
+              {t("createFileModal.fileName")} <span className="text-red-400">*</span>
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -226,7 +228,7 @@ export default function CreateFileModal({
                   setFileName(e.target.value);
                   setValidationError("");
                 }}
-                placeholder="MyDiagram"
+                placeholder={t("createFileModal.fileNamePlaceholder")}
                 className={`flex-1 px-3 py-2 bg-[#0f1419] border rounded-lg text-[#e2e8f0] placeholder-[#64748b] focus:outline-none focus:ring-2 ${
                   validationError
                     ? "border-red-500 focus:ring-red-500"
@@ -244,7 +246,7 @@ export default function CreateFileModal({
               htmlFor="location"
               className="block text-sm font-medium text-[#cbd5e1] mb-2"
             >
-              Location <span className="text-red-400">*</span>
+              {t("createFileModal.location")} <span className="text-red-400">*</span>
             </label>
             <select
               id="location"
@@ -267,7 +269,7 @@ export default function CreateFileModal({
           </div>
           <div>
             <label className="block text-sm font-medium text-[#cbd5e1] mb-2">
-              Diagram Type <span className="text-red-400">*</span>
+              {t("createFileModal.diagramType")} <span className="text-red-400">*</span>
             </label>
             <div className="grid grid-cols-3 gap-2">
               {DIAGRAM_TYPE_CONFIG.map(({ type, label, icon: Icon, enabled }) => {
@@ -293,7 +295,7 @@ export default function CreateFileModal({
                     </span>
                     {!enabled && (
                       <span className="absolute -top-1.5 -right-1.5 text-[8px] font-bold uppercase tracking-wide text-amber-500/80 bg-[#1a1400] border border-amber-500/25 rounded-sm px-1 py-px leading-none">
-                        Soon
+                        {t("createFileModal.soon")}
                       </span>
                     )}
                   </button>
@@ -306,13 +308,13 @@ export default function CreateFileModal({
               htmlFor="description"
               className="block text-sm font-medium text-[#cbd5e1] mb-2"
             >
-              Description
+              {t("createFileModal.description")}
             </label>
             <textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional diagram description"
+              placeholder={t("createFileModal.descriptionPlaceholder")}
               rows={3}
               className="w-full px-3 py-2 bg-[#0f1419] border border-[#2a3358] rounded-lg text-[#e2e8f0] placeholder-[#64748b] focus:outline-none focus:ring-2 focus:ring-[#7C83FF] resize-none"
             />
@@ -325,14 +327,14 @@ export default function CreateFileModal({
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-[#cbd5e1] bg-[#1e2738] hover:bg-[#2a3358] hover:text-[#e2e8f0] rounded-lg transition-colors"
             >
-              Cancel
+              {t("createFileModal.cancel")}
             </button>
             <button
               type="submit"
               disabled={!fileName.trim()}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-[#374151] disabled:text-[#9ca3af] disabled:cursor-not-allowed rounded-lg transition-colors"
             >
-              {editNodeId ? "Save Changes" : "Create Diagram"}
+              {editNodeId ? t("createFileModal.saveChanges") : t("createFileModal.createDiagram")}
             </button>
           </div>
         </form>

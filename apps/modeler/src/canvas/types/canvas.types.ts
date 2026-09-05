@@ -34,6 +34,10 @@ export interface EdgeDescriptor {
   targetMultiplicity?: string;
   sourceRole?: string;
   targetRole?: string;
+  // UML navigability per end (IRAssociationEnd.isNavigable):
+  //   true → open arrow · false → ✕ · undefined → nothing.
+  sourceNavigable?: boolean;
+  targetNavigable?: boolean;
   // Locked anchor points
   anchorLocked?: boolean;
   sourceHandle?: string;

@@ -1,8 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { useWorkspaceStore } from "../../../../store/workspace.store";
 import { useVFSStore } from "../../../../store/project-vfs.store";
 import { X } from "lucide-react";
 
 export default function TabBar() {
+  const { t } = useTranslation();
   const { openTabs, activeTabId, setActiveTab, closeTab } = useWorkspaceStore();
   const { project } = useVFSStore();
 
@@ -39,6 +41,7 @@ export default function TabBar() {
                 closeTab(tabId);
               }}
               className="p-0.5 hover:bg-surface-hover rounded transition-colors"
+              aria-label={t("tabBar.closeTab")}
             >
               <X className="w-3.5 h-3.5" />
             </button>

@@ -6,7 +6,7 @@ import { useModelStore } from '../../../../store/model.store';
 import { useWorkspaceStore } from '../../../../store/workspace.store';
 import { useVFSStore } from '../../../../store/project-vfs.store';
 import { standaloneModelOps, getLocalModel } from '../../../../store/standaloneModelOps';
-import type { IRMessage, IRLifeline, IRClass, IRInterface, MessageKind } from '../../../../core/domain/vfs/vfs.types';
+import type { IRMessage, IRLifeline, IRClass, IRInterface, MessageKind, VFSFile, DiagramView } from '../../../../core/domain/vfs/vfs.types';
 
 const MESSAGE_KIND_LABELS: Record<MessageKind, string> = {
   SYNC: 'Synchronous (→)',
@@ -59,7 +59,10 @@ export default function MessagePropertiesModal() {
 
   const [name, setName] = useState('');
   const [args, setArgs] = useState('');
+  const [guard, setGuard] = useState('');
   const [messageKind, setMessageKind] = useState<MessageKind>('SYNC');
+  const [targetLifelineId, setTargetLifelineId] = useState<string>('');
+  const [lifelines, setLifelines] = useState<Array<{ id: string; name: string }>>([]);
   const [operationId, setOperationId] = useState<string>('');
   const [availableOps, setAvailableOps] = useState<Array<{ id: string; name: string }>>([]);
   const [inReplyToLabel, setInReplyToLabel] = useState<string | null>(null);
@@ -73,7 +76,25 @@ export default function MessagePropertiesModal() {
     if (!msg) return;
     setName(msg.name ?? '');
     setArgs(msg.arguments ?? '');
+    setGuard(msg.guard ?? '');
     setMessageKind(msg.messageKind);
+    setTargetLifelineId(msg.targetLifelineId);
+    // Only lifelines on the canvas — model.lifelines keeps cleared ones around.
+    const fileNode = activeTabId ? project?.nodes[activeTabId] : undefined;
+    const content = fileNode && fileNode.type === 'FILE' ? (fileNode as VFSFile).content : undefined;
+    const onCanvas = new Set(
+      content && Array.isArray((content as DiagramView).nodes)
+        ? (content as DiagramView).nodes.map((n) => n.elementId).filter((id): id is string => !!id)
+        : [],
+    );
+    setLifelines(
+      Object.values(getModel()?.lifelines ?? {})
+        .filter((l) => onCanvas.has(l.id))
+        .map((l) => ({
+          id: l.id,
+          name: l.alias || l.name || l.id.slice(0, 6),
+        })),
+    );
     setOperationId(msg.operationId ?? '');
     setSourceGateId(msg.sourceGateId ?? '');
     setTargetGateId(msg.targetGateId ?? '');
@@ -96,15 +117,25 @@ export default function MessagePropertiesModal() {
   const message = getMessage();
   if (!message) return null;
 
+  // Retargeting (≈ resize) only applies to plain lifeline→lifeline arrows.
+  const canRetarget =
+    !message.isFound &&
+    !message.isLost &&
+    message.sourceLifelineId !== message.targetLifelineId;
+
   const handleSave = () => {
     if (!editingId) return;
     const patch: Partial<IRMessage> = {
       name: name.trim(),
       arguments: args.trim() || undefined,
+      guard: guard.trim() || undefined,
       messageKind,
       operationId: operationId || undefined,
       sourceGateId: sourceGateId || undefined,
       targetGateId: targetGateId || undefined,
+      ...(canRetarget && targetLifelineId && targetLifelineId !== message.sourceLifelineId
+        ? { targetLifelineId }
+        : {}),
     };
     if (isStandalone && activeTabId) {
       standaloneModelOps(activeTabId).updateMessage(editingId, patch);
@@ -173,6 +204,38 @@ export default function MessagePropertiesModal() {
             </select>
           </div>
 
+          {/* Target lifeline — a farther one lengthens the arrow. */}
+          {canRetarget && lifelines.length > 1 && (
+            <div>
+              <label className="block text-xs font-semibold text-[#94a3b8] mb-1">Target lifeline</label>
+              <select
+                className="w-full bg-[#0f1623] border border-[#2a3358] rounded px-3 py-1.5
+                           text-sm text-[#e2e8f0] focus:outline-none focus:ring-1 focus:ring-[#7C83FF]"
+                value={targetLifelineId}
+                onChange={(e) => {
+                  const newTarget = e.target.value;
+                  setTargetLifelineId(newTarget);
+                  // Refresh operations for the new target, dropping a stale pick.
+                  const ll = getLifeline(newTarget);
+                  const ops = ll ? getOperations(ll) : [];
+                  setAvailableOps(ops);
+                  if (!ops.some((o) => o.id === operationId)) setOperationId('');
+                }}
+              >
+                {lifelines
+                  .filter((l) => l.id !== message.sourceLifelineId)
+                  .map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+              </select>
+              <p className="mt-1 text-[10px] text-[#64748b]">
+                Lengthens the arrow to reach this lifeline.
+              </p>
+            </div>
+          )}
+
           {/* Operation (only when target lifeline has a classifier with operations) */}
           {availableOps.length > 0 && (
             <div>
@@ -204,6 +267,20 @@ export default function MessagePropertiesModal() {
               placeholder="e.g. userId, name"
               value={args}
               onChange={(e) => setArgs(e.target.value)}
+            />
+          </div>
+
+          {/* Guard — UML 2.5 message-level InteractionConstraint, shown as [guard] */}
+          <div>
+            <label className="block text-xs font-semibold text-[#94a3b8] mb-1">Guard</label>
+            <input
+              type="text"
+              className="w-full bg-[#0f1623] border border-[#2a3358] rounded px-3 py-1.5
+                         text-sm text-[#e2e8f0] placeholder-[#475569]
+                         focus:outline-none focus:ring-1 focus:ring-[#7C83FF]"
+              placeholder="e.g. balance > 0"
+              value={guard}
+              onChange={(e) => setGuard(e.target.value)}
             />
           </div>
 

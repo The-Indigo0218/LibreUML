@@ -282,6 +282,54 @@ describe('Diagram Registry', () => {
     });
   });
 
+  // G.2–G.4 — sequence palette: fragment operators + foreign-tool hiding
+  describe('Sequence palette tools', () => {
+    const registry = diagramRegistry.SEQUENCE_DIAGRAM;
+
+    it('hides foreign tools (sequence opts out of the all-tools palette)', () => {
+      expect(registry.hideForeignTools).toBe(true);
+      expect(diagramRegistry.CLASS_DIAGRAM.hideForeignTools).toBeUndefined();
+    });
+
+    it('declares all 12 FRAGMENT operators as click-to-insert tools', () => {
+      const fragments = registry.tools.fragments ?? [];
+      expect(fragments).toHaveLength(12);
+      expect(fragments.every((t) => t.type === 'FRAGMENT' && !!t.fragmentKind)).toBe(true);
+      expect(fragments.map((t) => t.fragmentKind)).toEqual([
+        'ALT', 'OPT', 'LOOP', 'PAR', 'SEQ', 'STRICT', 'BREAK', 'CRITICAL',
+        'NEG', 'ASSERT', 'IGNORE', 'CONSIDER',
+      ]);
+    });
+
+    it('splits operators into 3 common + 9 advanced', () => {
+      const fragments = registry.tools.fragments ?? [];
+      const common = fragments.filter((t) => t.category !== 'advanced');
+      expect(common.map((t) => t.fragmentKind)).toEqual(['ALT', 'OPT', 'LOOP']);
+      expect(fragments.filter((t) => t.category === 'advanced')).toHaveLength(9);
+    });
+
+    it('keeps fragment operators out of the aggregated node/edge palette', () => {
+      const { nodes, edges } = getAllTools();
+      const ids = [...nodes, ...edges].map((t) => t.id);
+      expect(ids.some((id) => id.startsWith('frag-'))).toBe(false);
+    });
+
+    it('offers a native Actor participant tool (an ACTOR-kind lifeline)', () => {
+      expect(registry.tools.nodes.map((t) => t.id)).toEqual(['lifeline', 'actor_lifeline', 'note']);
+      expect(getNativeNodeToolIds('SEQUENCE_DIAGRAM').has('actor_lifeline')).toBe(true);
+    });
+
+    it('declares ref / found / lost / order / duration / time / coregion / continuation as click-to-insert STRUCTURE tools', () => {
+      const structure = registry.tools.structure ?? [];
+      expect(structure.map((t) => t.id)).toEqual([
+        'ref', 'msg-found', 'msg-lost', 'gen-ordering', 'duration', 'time', 'coregion', 'continuation',
+      ]);
+      expect(structure.every((t) => t.type === 'STRUCTURE')).toBe(true);
+      // ref is common; the rest sit under the advanced disclosure.
+      expect(structure.filter((t) => t.category !== 'advanced').map((t) => t.id)).toEqual(['ref']);
+    });
+  });
+
   describe('Domain Model Diagram Registry', () => {
     const registry = diagramRegistry.DOMAIN_MODEL_DIAGRAM;
 

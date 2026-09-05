@@ -19,6 +19,18 @@ export const TOOL_TO_MESSAGE_KIND: Record<string, MessageKind> = {
   MESSAGE_DESTROY: 'DESTROY',
 };
 
+/** Placeholder name seeded on a new message so the label is never blank. */
+export function defaultMessageName(kind: MessageKind): string {
+  switch (kind) {
+    case 'SYNC':    return 'sync message';
+    case 'ASYNC':   return 'async message';
+    case 'REPLY':   return 'reply';
+    case 'CREATE':  return 'create';
+    case 'DESTROY': return 'destroy';
+    default:        return 'message';
+  }
+}
+
 /**
  * For a new REPLY src→tgt, find the most recent open SYNC tgt→src (reversed)
  * so the activation auto-pairing in createMessage can close the matching bar.

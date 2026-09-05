@@ -36,6 +36,10 @@ import type {
   IRStateInvariant,
   IRInteractionUse,
   IRGate,
+  IRGeneralOrdering,
+  IRTimeConstraint,
+  IRCoregion,
+  IRContinuation,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
 
@@ -92,6 +96,22 @@ function cascadeDeleteMessagesByLifeline(model: SemanticModel, lifelineId: strin
       }
     }
   }
+  if (model.coregions) {
+    for (const cid of Object.keys(model.coregions)) {
+      if (model.coregions[cid].lifelineId === lifelineId) {
+        delete model.coregions[cid];
+      }
+    }
+  }
+  if (model.continuations) {
+    for (const cid of Object.keys(model.continuations)) {
+      const cont = model.continuations[cid];
+      cont.coveredLifelineIds = cont.coveredLifelineIds.filter((id) => id !== lifelineId);
+      if (cont.coveredLifelineIds.length === 0) {
+        delete model.continuations[cid];
+      }
+    }
+  }
   if (model.interactionUses) {
     for (const uid of Object.keys(model.interactionUses)) {
       const use = model.interactionUses[uid];
@@ -115,6 +135,103 @@ function cascadeDeleteActivationsForMessageLocal(model: SemanticModel, messageId
   }
 }
 
+/**
+ * For a new SYNC execution on `lifelineId` occurring at `sequenceNumber`, find
+ * the innermost still-open activation already on that lifeline so the new bar
+ * can record itself as nested (re-entrancy). "Innermost" = the open activation
+ * whose start sits latest but still before the new message. Used for self-calls
+ * and nested incoming calls so the bar visibly steps inside its parent instead
+ * of overlapping it.
+ */
+function findParentActivationForNesting(
+  model: SemanticModel,
+  lifelineId: string,
+  sequenceNumber: number,
+  isSelfMessage: boolean,
+): string | undefined {
+  if (!model.activations || !model.messages) return undefined;
+  let bestId: string | undefined;
+  let bestSeq = -Infinity;
+  for (const act of Object.values(model.activations)) {
+    if (act.lifelineId !== lifelineId || act.endMessageId) continue;
+    const startMsg = model.messages[act.startMessageId];
+    if (!startMsg) continue;
+    const candidateIsSelfCall = startMsg.sourceLifelineId === startMsg.targetLifelineId;
+    // For an *incoming* SYNC, a self-call is an atomic call+return that has
+    // already returned, so the incoming call must not nest into it (otherwise its
+    // short bar would re-extend to enclose the new message). But a *self-message*
+    // is a new frame pushed on the call stack while the current execution is still
+    // open, so it DOES nest into whatever is innermost — including an open
+    // self-call — giving each self-message a deeper offset (true call-stack depth).
+    if (candidateIsSelfCall && !isSelfMessage) continue;
+    const startSeq = startMsg.sequenceNumber;
+    if (startSeq >= sequenceNumber) continue;
+    if (startSeq > bestSeq) {
+      bestSeq = startSeq;
+      bestId = act.id;
+    }
+  }
+  return bestId;
+}
+
+function activationStartSeqLocal(model: SemanticModel, act: IRActivation): number {
+  return model.messages?.[act.startMessageId]?.sequenceNumber ?? -Infinity;
+}
+
+/**
+ * Close the activation a REPLY returns from and unwind the call stack: every
+ * still-open execution that started later on the same lifeline closes at the
+ * same point (a nested execution cannot outlive its caller) — mirroring EA/StarUML.
+ * Prefers the call named by `inReplyTo`; falls back to the innermost open
+ * activation on the returning (source) lifeline.
+ */
+function closeActivationsForReplyLocal(
+  model: SemanticModel,
+  replyId: string,
+  reply: Omit<IRMessage, 'id' | 'kind'>,
+) {
+  const acts = model.activations;
+  if (!acts) return;
+
+  let target =
+    reply.inReplyTo !== undefined
+      ? Object.values(acts).find(
+          (a) => a.startMessageId === reply.inReplyTo && !a.endMessageId,
+        )
+      : undefined;
+
+  if (!target) {
+    // A reply returns control to its TARGET lifeline (the caller). The execution
+    // it closes is the open call on the SOURCE lifeline that was opened by a SYNC
+    // coming FROM that caller — not merely the innermost open bar. Using the
+    // innermost would close a nested self-call and leave the principal call open,
+    // so the next message would wrongly nest into it (sub-activation) instead of
+    // starting a fresh principal execution. Pick the most-recent such caller
+    // match; fall back to the innermost open bar only when none matches.
+    const openOnSource = Object.values(acts).filter(
+      (a) => a.lifelineId === reply.sourceLifelineId && !a.endMessageId,
+    );
+    const byStartDesc = (x: IRActivation, y: IRActivation) =>
+      activationStartSeqLocal(model, y) - activationStartSeqLocal(model, x);
+    const returnsToCaller = openOnSource
+      .filter(
+        (a) =>
+          model.messages?.[a.startMessageId]?.sourceLifelineId ===
+          reply.targetLifelineId,
+      )
+      .sort(byStartDesc);
+    target = returnsToCaller[0] ?? [...openOnSource].sort(byStartDesc)[0];
+  }
+  if (!target) return;
+
+  const { lifelineId } = target;
+  const fromSeq = activationStartSeqLocal(model, target);
+  for (const a of Object.values(acts)) {
+    if (a.endMessageId || a.lifelineId !== lifelineId) continue;
+    if (activationStartSeqLocal(model, a) >= fromSeq) a.endMessageId = replyId;
+  }
+}
+
 function stripMessageFromFragmentsLocal(model: SemanticModel, messageId: string) {
   if (!model.interactionFragments) return;
   for (const frag of Object.values(model.interactionFragments)) {
@@ -129,6 +246,29 @@ function clearGateRefsOnMessagesLocal(model: SemanticModel, gateIds: Set<string>
   for (const m of Object.values(model.messages)) {
     if (m.sourceGateId && gateIds.has(m.sourceGateId)) delete (m as { sourceGateId?: string }).sourceGateId;
     if (m.targetGateId && gateIds.has(m.targetGateId)) delete (m as { targetGateId?: string }).targetGateId;
+  }
+}
+
+function clearGeneralOrderingsForMessagesLocal(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.generalOrderings || messageIds.size === 0) return;
+  for (const oid of Object.keys(model.generalOrderings)) {
+    const go = model.generalOrderings[oid];
+    if (messageIds.has(go.beforeMessageId) || messageIds.has(go.afterMessageId)) {
+      delete model.generalOrderings[oid];
+    }
+  }
+}
+
+function clearTimeConstraintsForMessagesLocal(model: SemanticModel, messageIds: Set<string>) {
+  if (!model.timeConstraints || messageIds.size === 0) return;
+  for (const tid of Object.keys(model.timeConstraints)) {
+    const tc = model.timeConstraints[tid];
+    if (
+      messageIds.has(tc.fromMessageId) ||
+      (tc.toMessageId !== undefined && messageIds.has(tc.toMessageId))
+    ) {
+      delete model.timeConstraints[tid];
+    }
   }
 }
 
@@ -475,23 +615,24 @@ export function standaloneModelOps(fileId: string) {
         m.messages[id] = { ...data, id, kind: 'MESSAGE' };
 
         if (data.messageKind === 'SYNC') {
+          const parentActivationId = findParentActivationForNesting(
+            m,
+            data.targetLifelineId,
+            data.sequenceNumber,
+            data.sourceLifelineId === data.targetLifelineId,
+          );
           m.activations[activationId] = {
             id: activationId,
             kind: 'ACTIVATION',
             name: '',
             lifelineId: data.targetLifelineId,
             startMessageId: id,
+            ...(parentActivationId ? { parentActivationId } : {}),
           };
         }
 
-        if (data.messageKind === 'REPLY' && data.inReplyTo) {
-          for (const aid of Object.keys(m.activations)) {
-            const act = m.activations[aid];
-            if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
-              act.endMessageId = id;
-              break;
-            }
-          }
+        if (data.messageKind === 'REPLY') {
+          closeActivationsForReplyLocal(m, id, data);
         }
 
         m.updatedAt = Date.now();
@@ -516,23 +657,24 @@ export function standaloneModelOps(fileId: string) {
         m.messages[id] = { ...data, id, kind: 'MESSAGE' };
 
         if (data.messageKind === 'SYNC') {
+          const parentActivationId = findParentActivationForNesting(
+            m,
+            data.targetLifelineId,
+            data.sequenceNumber,
+            data.sourceLifelineId === data.targetLifelineId,
+          );
           m.activations[activationId] = {
             id: activationId,
             kind: 'ACTIVATION',
             name: '',
             lifelineId: data.targetLifelineId,
             startMessageId: id,
+            ...(parentActivationId ? { parentActivationId } : {}),
           };
         }
 
-        if (data.messageKind === 'REPLY' && data.inReplyTo) {
-          for (const aid of Object.keys(m.activations)) {
-            const act = m.activations[aid];
-            if (act.startMessageId === data.inReplyTo && !act.endMessageId) {
-              act.endMessageId = id;
-              break;
-            }
-          }
+        if (data.messageKind === 'REPLY') {
+          closeActivationsForReplyLocal(m, id, data);
         }
 
         m.updatedAt = Date.now();
@@ -551,15 +693,19 @@ export function standaloneModelOps(fileId: string) {
     deleteMessage: (id: string) => {
       update((m) => {
         if (!m.messages?.[id]) return;
+        const removedMsgIds = new Set<string>([id]);
         delete m.messages[id];
         for (const mid of Object.keys(m.messages)) {
           if (m.messages[mid].inReplyTo === id) {
+            removedMsgIds.add(mid);
             delete m.messages[mid];
             stripMessageFromFragmentsLocal(m, mid);
           }
         }
         cascadeDeleteActivationsForMessageLocal(m, id);
         stripMessageFromFragmentsLocal(m, id);
+        clearGeneralOrderingsForMessagesLocal(m, removedMsgIds);
+        clearTimeConstraintsForMessagesLocal(m, removedMsgIds);
         m.updatedAt = Date.now();
       });
     },
@@ -731,6 +877,118 @@ export function standaloneModelOps(fileId: string) {
       });
     },
 
+    // ── General Orderings (UML 2.5 §17.2) ─────────────────────────────────────
+
+    createGeneralOrdering: (data: Omit<IRGeneralOrdering, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.generalOrderings = m.generalOrderings ?? {};
+        m.generalOrderings[id] = { ...data, id, kind: 'GENERAL_ORDERING' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateGeneralOrdering: (id: string, patch: Partial<IRGeneralOrdering>) => {
+      update((m) => {
+        if (!m.generalOrderings?.[id]) return;
+        m.generalOrderings[id] = { ...m.generalOrderings[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteGeneralOrdering: (id: string) => {
+      update((m) => {
+        if (!m.generalOrderings?.[id]) return;
+        delete m.generalOrderings[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Time / Duration Constraints (UML 2.5 §17.2) ───────────────────────────
+
+    createTimeConstraint: (data: Omit<IRTimeConstraint, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.timeConstraints = m.timeConstraints ?? {};
+        m.timeConstraints[id] = { ...data, id, kind: 'TIME_CONSTRAINT' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateTimeConstraint: (id: string, patch: Partial<IRTimeConstraint>) => {
+      update((m) => {
+        if (!m.timeConstraints?.[id]) return;
+        m.timeConstraints[id] = { ...m.timeConstraints[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteTimeConstraint: (id: string) => {
+      update((m) => {
+        if (!m.timeConstraints?.[id]) return;
+        delete m.timeConstraints[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Coregions (UML 2.5 §17.4) ─────────────────────────────────────────────
+
+    createCoregion: (data: Omit<IRCoregion, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.coregions = m.coregions ?? {};
+        m.coregions[id] = { ...data, id, kind: 'COREGION' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateCoregion: (id: string, patch: Partial<IRCoregion>) => {
+      update((m) => {
+        if (!m.coregions?.[id]) return;
+        m.coregions[id] = { ...m.coregions[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteCoregion: (id: string) => {
+      update((m) => {
+        if (!m.coregions?.[id]) return;
+        delete m.coregions[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // ── Continuations (UML 2.5 §17.3) ─────────────────────────────────────────
+
+    createContinuation: (data: Omit<IRContinuation, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => {
+        m.continuations = m.continuations ?? {};
+        m.continuations[id] = { ...data, id, kind: 'CONTINUATION' };
+        m.updatedAt = Date.now();
+      });
+      return id;
+    },
+
+    updateContinuation: (id: string, patch: Partial<IRContinuation>) => {
+      update((m) => {
+        if (!m.continuations?.[id]) return;
+        m.continuations[id] = { ...m.continuations[id], ...patch };
+        m.updatedAt = Date.now();
+      });
+    },
+
+    deleteContinuation: (id: string) => {
+      update((m) => {
+        if (!m.continuations?.[id]) return;
+        delete m.continuations[id];
+        m.updatedAt = Date.now();
+      });
+    },
+
     // ── Package names ─────────────────────────────────────────────────────────
 
     addPackageName: (name: string) => {
@@ -771,6 +1029,33 @@ export function standaloneModelOps(fileId: string) {
         } else if (m.enums[elementId]) {
           m.enums[elementId] = { ...m.enums[elementId], packageName };
         }
+        m.updatedAt = Date.now();
+      });
+    },
+
+    // Rename a canvas-promoted package (IRPackage) in place — see the
+    // matching model.store.ts action for why this must not go through
+    // add/removePackageName once a package has been promoted to canvas.
+    renamePackageElement: (packageId: string, newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed) return;
+      update((m) => {
+        const pkg = m.packages?.[packageId];
+        if (!pkg || trimmed === pkg.name) return;
+        const oldName = pkg.name;
+        pkg.name = trimmed;
+
+        const rewrite = (name: string | undefined): string | undefined => {
+          if (!name) return name;
+          const segments = name.split('.');
+          if (segments[segments.length - 1] !== oldName) return name;
+          segments[segments.length - 1] = trimmed;
+          return segments.join('.');
+        };
+        [...pkg.classIds, ...pkg.interfaceIds, ...pkg.enumIds].forEach((id) => {
+          const rec = m.classes[id] ?? m.interfaces[id] ?? m.enums[id];
+          if (rec) rec.packageName = rewrite(rec.packageName);
+        });
         m.updatedAt = Date.now();
       });
     },

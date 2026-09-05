@@ -205,6 +205,10 @@ export function semanticModelToDomainEdges(
       targetNodeId: rel.targetId,
       sourceMultiplicity: rel.sourceEnd?.multiplicity,
       targetMultiplicity: rel.targetEnd?.multiplicity,
+      // Per-end UML navigability (undefined = unspecified). Read by the XMI
+      // converter to emit <navigableOwnedEnd> for navigable ends.
+      sourceNavigable: rel.sourceEnd?.isNavigable,
+      targetNavigable: rel.targetEnd?.isNavigable,
       createdAt: now,
       updatedAt: now,
     } as DomainEdge);

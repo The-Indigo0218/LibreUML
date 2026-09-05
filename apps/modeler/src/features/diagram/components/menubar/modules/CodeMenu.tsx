@@ -55,12 +55,14 @@ export function CodeMenu() {
 
     const plans = deriveOperationStubs(model, view);
     if (plans.length === 0) {
-      useToastStore.getState().show('ℹ️ No hay mensajes con nombre que generen stubs');
+      useToastStore.getState().show(`ℹ️ ${t('sequenceStubs.noNamedMessages')}`);
       return;
     }
     const ops = isStandalone ? standaloneModelOps(activeTabId) : useModelStore.getState();
     const count = applyOperationStubs(model, plans, ops.setElementMembers);
-    useToastStore.getState().show(`✅ ${count} operación(es) generada(s) en ${plans.length} clasificador(es)`);
+    useToastStore.getState().show(
+      `✅ ${t('sequenceStubs.generated', { ops: count, classifiers: plans.length })}`,
+    );
   };
 
   if (codeActions.length === 0) {

@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useModelStore } from '../model.store';
+import {
+  FRAGMENT_KINDS,
+  MULTI_OPERAND_FRAGMENT_KINDS,
+  defaultOperandCount,
+  type FragmentKind,
+} from '../../core/domain/vfs/vfs.types';
 
 describe('Sequence Diagram — fragment store actions', () => {
   beforeEach(() => {
@@ -32,6 +38,19 @@ describe('Sequence Diagram — fragment store actions', () => {
     expect(frag.fragmentKind).toBe('ALT');
     expect(frag.operands).toHaveLength(2);
     expect(frag.coveredLifelineIds).toEqual([ll1, ll2]);
+  });
+
+  it('persists the IGNORE/CONSIDER message set via updateFragment', () => {
+    const { ll1, ll2 } = makeTwoLifelines();
+    const fid = useModelStore.getState().createFragment({
+      name: 'ignore-1',
+      fragmentKind: 'IGNORE',
+      coveredLifelineIds: [ll1, ll2],
+      operands: [{ id: 'op1', messageIds: [], fragmentIds: [] }],
+    });
+    useModelStore.getState().updateFragment(fid, { messageSet: ['login', 'logout'] });
+    const frag = useModelStore.getState().model!.interactionFragments![fid];
+    expect(frag.messageSet).toEqual(['login', 'logout']);
   });
 
   it('cascades fragment cleanup when a covered lifeline is deleted', () => {
@@ -112,6 +131,54 @@ describe('Sequence Diagram — fragment store actions', () => {
 
     useModelStore.getState().deleteMessage(msgId);
     expect(useModelStore.getState().model!.interactionFragments![fid].operands[0].messageIds).not.toContain(msgId);
+  });
+});
+
+// ─── Fragment-kind coverage (B1 — all 7 combined fragments creatable) ───────
+
+describe('Sequence Diagram — all fragment kinds (B1)', () => {
+  beforeEach(() => {
+    useModelStore.getState().resetModel();
+    useModelStore.getState().initModel('test-model');
+  });
+
+  it('exposes all twelve UML 2.5 InteractionOperatorKind values', () => {
+    expect(FRAGMENT_KINDS).toEqual([
+      'ALT', 'OPT', 'LOOP', 'PAR', 'SEQ', 'STRICT', 'BREAK', 'CRITICAL',
+      'NEG', 'ASSERT', 'IGNORE', 'CONSIDER',
+    ]);
+  });
+
+  it('defaultOperandCount seeds 2 for multi-operand kinds, 1 otherwise', () => {
+    for (const k of FRAGMENT_KINDS) {
+      const expected = MULTI_OPERAND_FRAGMENT_KINDS.has(k) ? 2 : 1;
+      expect(defaultOperandCount(k)).toBe(expected);
+    }
+    // Explicit: alt/par/seq/strict multi, the rest single.
+    expect(MULTI_OPERAND_FRAGMENT_KINDS.has('SEQ')).toBe(true);
+    expect(MULTI_OPERAND_FRAGMENT_KINDS.has('STRICT')).toBe(true);
+    expect(MULTI_OPERAND_FRAGMENT_KINDS.has('CRITICAL')).toBe(false);
+    expect(MULTI_OPERAND_FRAGMENT_KINDS.has('NEG')).toBe(false);
+  });
+
+  it('persists a fragment of every kind through the store', () => {
+    const ll1 = useModelStore.getState().createLifeline({
+      name: 'A', participantKind: 'ANONYMOUS', alias: 'A',
+    });
+    for (const kind of FRAGMENT_KINDS as readonly FragmentKind[]) {
+      const operands = Array.from({ length: defaultOperandCount(kind) }, (_, i) => ({
+        id: `${kind}-op${i}`, messageIds: [], fragmentIds: [],
+      }));
+      const fid = useModelStore.getState().createFragment({
+        name: kind.toLowerCase(),
+        fragmentKind: kind,
+        coveredLifelineIds: [ll1],
+        operands,
+      });
+      const frag = useModelStore.getState().model!.interactionFragments![fid];
+      expect(frag.fragmentKind).toBe(kind);
+      expect(frag.operands).toHaveLength(defaultOperandCount(kind));
+    }
   });
 });
 

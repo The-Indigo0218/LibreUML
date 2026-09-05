@@ -198,6 +198,21 @@ export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
     // Sequence diagram constraint: lifelines always sit at y=0 (head at the top).
     overridePosition: (pos) => ({ x: pos.x, y: 0 }),
   },
+  actor_lifeline: {
+    getNextName: (model) =>
+      getNextVFSName(Object.values(model.lifelines ?? {}).map((l) => l.alias ?? l.name), 'Actor'),
+    applyToModelDraft: (m, id, name) => {
+      m.lifelines = m.lifelines ?? {};
+      m.lifelines[id] = { id, name, kind: 'LIFELINE', participantKind: 'ACTOR', alias: name };
+      m.updatedAt = Date.now();
+    },
+    applyToLocalModelDraft: (lm, id, name) => {
+      lm.lifelines = lm.lifelines ?? {};
+      lm.lifelines[id] = { id, name, kind: 'LIFELINE', participantKind: 'ACTOR', alias: name };
+      lm.updatedAt = Date.now();
+    },
+    overridePosition: (pos) => ({ x: pos.x, y: 0 }),
+  },
   package: {
     getNextName: (model) => getNextVFSName(Object.values(model.packages).map((p) => p.name), 'Package'),
     applyToModelDraft: (m, id, name, isExternal) => {

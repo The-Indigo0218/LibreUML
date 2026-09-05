@@ -7,8 +7,10 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import type { NoteViewModel } from '../../adapters/view-models/node.view-model';
 import { resolveNoteColors } from '../tokens/colors';
 import { borderDash } from './borderStyle';
+import ResizeHandles from './ResizeHandles';
 
 const NOTE_W = 224;
+const MANUAL_STROKE = '#22d3ee';
 const NOTE_FOLD = 12;
 const NOTE_H_PAD = 8;
 const NOTE_V_PAD = 8;
@@ -28,8 +30,8 @@ export function noteFontFamily(vm: NoteViewModel): string {
   return vm.fontFamilyOverride ?? FONT_SANS;
 }
 
-function estimateNoteHeight(content: string, title: string | undefined, secFont: number, titleBarH: number): number {
-  const contentInnerW = NOTE_W - 2 * NOTE_H_PAD;
+function estimateNoteHeight(content: string, title: string | undefined, secFont: number, titleBarH: number, width: number = NOTE_W): number {
+  const contentInnerW = width - 2 * NOTE_H_PAD;
   const charsPerLine = Math.max(1, Math.floor(contentInnerW / (secFont * 0.55)));
   const lineCount = content.split('\n').reduce((n, line) => {
     return n + Math.max(1, Math.ceil((line.length || 1) / charsPerLine));
@@ -41,7 +43,9 @@ function estimateNoteHeight(content: string, title: string | undefined, secFont:
 
 export function getNoteShapeSize(vm: NoteViewModel): { width: number; height: number } {
   const scale = noteScale(vm);
-  return { width: NOTE_W, height: estimateNoteHeight(vm.content, vm.title, NOTE_SEC_FONT * scale, NOTE_TITLE_H * scale) };
+  const width = vm.manualWidth ?? NOTE_W;
+  const height = vm.manualHeight ?? estimateNoteHeight(vm.content, vm.title, NOTE_SEC_FONT * scale, NOTE_TITLE_H * scale, width);
+  return { width, height };
 }
 
 interface NoteShapeProps {
@@ -58,6 +62,8 @@ interface NoteShapeProps {
   onDragStart?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragMove?: (e: KonvaEventObject<MouseEvent>) => void;
   onDragEnd?: (e: KonvaEventObject<MouseEvent>) => void;
+  /** (id, width, height) — fired when a resize handle is released (G-d). */
+  onResizeEnd?: (id: string, width: number, height: number) => void;
 }
 
 export default function NoteShape({
@@ -74,10 +80,12 @@ export default function NoteShape({
   onDragStart,
   onDragMove,
   onDragEnd,
+  onResizeEnd,
 }: NoteShapeProps) {
   const colors = resolveNoteColors();
-  const border = vm.colorOverride ?? colors.border;
-  const borderW = vm.borderWidthOverride ?? 1;
+  const isManual = vm.manualWidth !== undefined || vm.manualHeight !== undefined;
+  const border = vm.colorOverride ?? (isManual ? MANUAL_STROKE : colors.border);
+  const borderW = vm.borderWidthOverride ?? (isManual ? 1.5 : 1);
   const dash = borderDash(vm.borderStyleOverride, borderW);
   const fontSans = vm.fontFamilyOverride ?? FONT_SANS;
   const scale = noteScale(vm);
@@ -86,18 +94,22 @@ export default function NoteShape({
   const titleBarH = NOTE_TITLE_H * scale;
   const contentRef = useRef<Konva.Text>(null);
 
-  const [shapeH, setShapeH] = useState(() => estimateNoteHeight(vm.content, vm.title, secFont, titleBarH));
+  // Live size while a resize handle is dragged; null = derived/manual size.
+  const [live, setLive] = useState<{ w: number; h: number } | null>(null);
+  const baseW = vm.manualWidth ?? NOTE_W;
+  const [shapeH, setShapeH] = useState(() => vm.manualHeight ?? estimateNoteHeight(vm.content, vm.title, secFont, titleBarH, baseW));
 
   useLayoutEffect(() => {
+    if (vm.manualHeight !== undefined) { setShapeH(vm.manualHeight); return; }
     const textNode = contentRef.current;
     if (!textNode) return;
     const titleH = vm.title !== undefined ? titleBarH : 0;
     const total = titleH + NOTE_V_PAD + textNode.height() + NOTE_V_PAD;
     setShapeH(Math.max(NOTE_MIN_H, total));
-  }, [vm.content, vm.title, titleBarH]);
+  }, [vm.content, vm.title, titleBarH, vm.manualHeight]);
 
-  const W = NOTE_W;
-  const H = shapeH;
+  const W = live?.w ?? baseW;
+  const H = live?.h ?? shapeH;
   const titleH = vm.title !== undefined ? titleBarH : 0;
   const contentY = titleH + NOTE_V_PAD;
 
@@ -211,6 +223,21 @@ export default function NoteShape({
       />
 
       <Rect width={W} height={H} listening={true} />
+
+      {/* ── Resize handles (G-d) ──────────────────────────────────────────── */}
+      {onResizeEnd && (
+        <ResizeHandles
+          w={W}
+          h={H}
+          minW={120}
+          minH={60}
+          onResize={(nw, nh) => setLive({ w: nw, h: nh })}
+          onCommit={(nw, nh) => {
+            setLive(null);
+            onResizeEnd(vm.id, nw, nh);
+          }}
+        />
+      )}
 
       {selected && (
         <Shape

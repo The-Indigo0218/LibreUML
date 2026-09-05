@@ -363,13 +363,23 @@ export class XmiImporterService {
       .forEach((assoc) => {
         const assocId = assoc.getAttribute("xmi:id");
 
+        // UML navigability: xmi:ids of ends the association marks as navigable.
+        // Ends not listed are left unspecified (undefined) so one-way imports from
+        // EA/StarUML render a single arrow instead of forcing every end false.
+        const navRefs = new Set(
+          Array.from(assoc.querySelectorAll(":scope > navigableOwnedEnd"))
+            .map((n) => n.getAttribute("xmi:idref"))
+            .filter(Boolean) as string[],
+        );
+
         const ownedEnds = Array.from(assoc.querySelectorAll(":scope > ownedEnd"));
         if (ownedEnds.length >= 2) {
           const edge = this.buildAssociationFromOwnedEnds(
             assocId,
             ownedEnds[0],
             ownedEnds[1],
-            isValid
+            isValid,
+            navRefs
           );
           if (edge) { edges.push(edge); return; }
         }
@@ -388,7 +398,8 @@ export class XmiImporterService {
               assocId,
               end1El,
               end2El,
-              isValid
+              isValid,
+              navRefs
             );
             if (edge) edges.push(edge);
           }
@@ -416,7 +427,8 @@ export class XmiImporterService {
     assocId: string | null,
     end1: Element,
     end2: Element,
-    isValid: (src: string, tgt: string) => boolean
+    isValid: (src: string, tgt: string) => boolean,
+    navRefs: Set<string> = new Set()
   ): UmlEdge | null {
     const agg1 = end1.getAttribute("aggregation");
     const agg2 = end2.getAttribute("aggregation");
@@ -450,6 +462,8 @@ export class XmiImporterService {
         type:               relationType,
         sourceMultiplicity: this.parseMultiplicity(sourceEnd),
         targetMultiplicity: this.parseMultiplicity(targetEnd),
+        sourceNavigable:    navRefs.has(sourceEnd.getAttribute("xmi:id") ?? "") || undefined,
+        targetNavigable:    navRefs.has(targetEnd.getAttribute("xmi:id") ?? "") || undefined,
       },
     } as unknown as UmlEdge;
   }
@@ -459,7 +473,8 @@ export class XmiImporterService {
     assocId: string | null,
     end1El: Element,
     end2El: Element,
-    isValid: (src: string, tgt: string) => boolean
+    isValid: (src: string, tgt: string) => boolean,
+    navRefs: Set<string> = new Set()
   ): UmlEdge | null {
     const owner1 = end1El.parentElement?.getAttribute("xmi:id") ?? "";
     const owner2 = end2El.parentElement?.getAttribute("xmi:id") ?? "";
@@ -494,6 +509,8 @@ export class XmiImporterService {
         type:               relationType,
         sourceMultiplicity: this.parseMultiplicity(end1El),
         targetMultiplicity: this.parseMultiplicity(end2El),
+        sourceNavigable:    navRefs.has(end1El.getAttribute("xmi:id") ?? "") || undefined,
+        targetNavigable:    navRefs.has(end2El.getAttribute("xmi:id") ?? "") || undefined,
       },
     } as unknown as UmlEdge;
   }

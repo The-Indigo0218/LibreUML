@@ -4,14 +4,22 @@ import { useUiStore } from "../../../store/uiStore";
 import { useWorkspaceStore } from "../../../store/workspace.store";
 import { useVFSStore } from "../../../store/project-vfs.store";
 import { useModelStore } from "../../../store/model.store";
-import { useToastStore } from "../../../store/toast.store";
 import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../store/standaloneModelOps";
 import { isDiagramView } from "./useVFSCanvasController";
 import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
 import { undoTransaction } from "../../../core/undo/undoBridge";
 import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from "../../../canvas/shapes/UCModuleShape";
-import type { DiagramView, ViewNode, VFSFile } from "../../../core/domain/vfs/vfs.types";
+import type { DiagramView, ViewNode, VFSFile, FragmentKind } from "../../../core/domain/vfs/vfs.types";
+import {
+  insertFragmentIntoActiveDiagram,
+  insertInteractionUseIntoActiveDiagram,
+  insertEndpointMessageIntoActiveDiagram,
+  insertSelfMessageIntoActiveDiagram,
+  insertSelfMessageInActivation,
+  reverseMessageInActiveDiagram,
+  deleteMessageInActiveDiagram,
+} from "../services/sequenceInserts";
 
 export type ContextMenuType = "pane" | "node" | "edge";
 
@@ -254,107 +262,13 @@ export const useDiagramMenus = ({
   // ── Fragment insertion (sequence diagrams) ────────────────────────────────
 
   const addFragmentToDiagram = useCallback(
-    (fragmentKind: 'ALT' | 'OPT' | 'LOOP') => {
-      const tabId = useWorkspaceStore.getState().activeTabId;
-      if (!tabId) return;
-
-      const project = useVFSStore.getState().project;
-      if (!project) return;
-      const fileNode = project.nodes[tabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-      const content = (fileNode as VFSFile).content;
-      if (!isDiagramView(content)) return;
-
-      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
-      const activeModel = isStandaloneFile
-        ? getLocalModel(tabId)
-        : useModelStore.getState().model;
-      if (!activeModel) return;
-
-      // Gather covered lifelines: every ViewNode whose elementId resolves to a
-      // lifeline in the active model. This is the MVP "cover everything"
-      // policy; later phases can refine to clicked-X-range only.
-      const lifelineIds = (content as DiagramView).nodes
-        .map((vn) => vn.elementId)
-        .filter((id): id is string => !!id && !!activeModel.lifelines?.[id]);
-
-      if (lifelineIds.length === 0) {
-        useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un fragmento');
-        return;
-      }
-
-      const operandCount = fragmentKind === 'ALT' ? 2 : 1;
-      const operands = Array.from({ length: operandCount }, (_, i) => ({
-        id: crypto.randomUUID(),
-        guard: fragmentKind === 'ALT' && i === 1 ? 'else' : '',
-        messageIds: [] as string[],
-        fragmentIds: [] as string[],
-      }));
-
-      const name = `${fragmentKind.toLowerCase()}-${
-        Object.keys(activeModel.interactionFragments ?? {}).length + 1
-      }`;
-
-      if (isStandaloneFile) {
-        standaloneModelOps(tabId).createFragment({
-          name,
-          fragmentKind,
-          coveredLifelineIds: lifelineIds,
-          operands,
-        });
-      } else {
-        useModelStore.getState().createFragment({
-          name,
-          fragmentKind,
-          coveredLifelineIds: lifelineIds,
-          operands,
-        });
-      }
-    },
+    (fragmentKind: FragmentKind) => insertFragmentIntoActiveDiagram(fragmentKind),
     [],
   );
 
   // ── Interaction use (`ref`) insertion (sequence diagrams) ─────────────────
 
-  const addInteractionUse = useCallback(() => {
-    const tabId = useWorkspaceStore.getState().activeTabId;
-    if (!tabId) return;
-
-    const project = useVFSStore.getState().project;
-    if (!project) return;
-    const fileNode = project.nodes[tabId];
-    if (!fileNode || fileNode.type !== 'FILE') return;
-    const content = (fileNode as VFSFile).content;
-    if (!isDiagramView(content)) return;
-
-    const isStandaloneFile = (fileNode as VFSFile).standalone === true;
-    const activeModel = isStandaloneFile
-      ? getLocalModel(tabId)
-      : useModelStore.getState().model;
-    if (!activeModel) return;
-
-    const lifelineIds = (content as DiagramView).nodes
-      .map((vn) => vn.elementId)
-      .filter((id): id is string => !!id && !!activeModel.lifelines?.[id]);
-
-    if (lifelineIds.length === 0) {
-      useToastStore.getState().show('⚠️ Crea al menos una lifeline antes de insertar un ref');
-      return;
-    }
-
-    const afterSequenceNumber = Object.keys(activeModel.messages ?? {}).length;
-    const payload = {
-      name: '',
-      coveredLifelineIds: lifelineIds,
-      afterSequenceNumber,
-    };
-
-    const newId = isStandaloneFile
-      ? standaloneModelOps(tabId).createInteractionUse(payload)
-      : useModelStore.getState().createInteractionUse(payload);
-
-    useUiStore.getState().openInteractionUseProps(newId);
-  }, []);
+  const addInteractionUse = useCallback(() => insertInteractionUseIntoActiveDiagram(), []);
 
   // ── State invariant insertion (sequence diagrams) ─────────────────────────
 
@@ -400,45 +314,14 @@ export const useDiagramMenus = ({
   // ── Found / Lost message insertion (sequence diagrams) ────────────────────
 
   const addEndpointMessage = useCallback(
-    (lifelineNodeId: string, variant: 'found' | 'lost') => {
-      const tabId = useWorkspaceStore.getState().activeTabId;
-      if (!tabId) return;
+    (lifelineNodeId: string, variant: 'found' | 'lost') =>
+      insertEndpointMessageIntoActiveDiagram(variant, getElementId(lifelineNodeId)),
+    [getElementId],
+  );
 
-      const lifelineId = getElementId(lifelineNodeId);
-      if (!lifelineId) return;
-
-      const project = useVFSStore.getState().project;
-      if (!project) return;
-      const fileNode = project.nodes[tabId];
-      if (!fileNode || fileNode.type !== 'FILE') return;
-
-      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
-      const activeModel = isStandaloneFile
-        ? getLocalModel(tabId)
-        : useModelStore.getState().model;
-      if (!activeModel?.lifelines?.[lifelineId]) return;
-
-      const sequenceNumber =
-        Object.values(activeModel.messages ?? {}).reduce(
-          (acc, m) => (m.sequenceNumber > acc ? m.sequenceNumber : acc),
-          0,
-        ) + 1;
-
-      const payload = {
-        name: '',
-        messageKind: 'ASYNC' as const,
-        sourceLifelineId: variant === 'lost' ? lifelineId : '',
-        targetLifelineId: variant === 'found' ? lifelineId : '',
-        sequenceNumber,
-        ...(variant === 'found' ? { isFound: true } : { isLost: true }),
-      };
-
-      const newId = isStandaloneFile
-        ? standaloneModelOps(tabId).createMessage(payload)
-        : useModelStore.getState().createMessage(payload);
-
-      useUiStore.getState().openMessageProps(newId);
-    },
+  const addSelfMessage = useCallback(
+    (lifelineNodeId: string, dropY?: number) =>
+      insertSelfMessageIntoActiveDiagram(getElementId(lifelineNodeId), dropY),
     [getElementId],
   );
 
@@ -469,10 +352,14 @@ export const useDiagramMenus = ({
         }
         if (isSequenceDiagram) {
           return [
-            { label: t("contextMenu.pane.insertAltFragment"),  onClick: () => addFragmentToDiagram("ALT") },
-            { label: t("contextMenu.pane.insertOptFragment"),  onClick: () => addFragmentToDiagram("OPT") },
-            { label: t("contextMenu.pane.insertLoopFragment"), onClick: () => addFragmentToDiagram("LOOP") },
-            { label: t("contextMenu.pane.insertInteractionUse"), onClick: () => addInteractionUse() },
+            { label: t("contextMenu.pane.insertAltFragment"),      onClick: () => addFragmentToDiagram("ALT") },
+            { label: t("contextMenu.pane.insertOptFragment"),      onClick: () => addFragmentToDiagram("OPT") },
+            { label: t("contextMenu.pane.insertLoopFragment"),     onClick: () => addFragmentToDiagram("LOOP") },
+            { label: t("contextMenu.pane.insertParFragment"),      onClick: () => addFragmentToDiagram("PAR") },
+            { label: t("contextMenu.pane.insertSeqFragment"),      onClick: () => addFragmentToDiagram("SEQ") },
+            { label: t("contextMenu.pane.insertBreakFragment"),    onClick: () => addFragmentToDiagram("BREAK") },
+            { label: t("contextMenu.pane.insertCriticalFragment"), onClick: () => addFragmentToDiagram("CRITICAL") },
+            { label: t("contextMenu.pane.insertInteractionUse"),   onClick: () => addInteractionUse() },
             { label: t("contextMenu.pane.addNote"),            onClick: () => addVFSNode("NOTE", pos()) },
             { label: t("contextMenu.pane.cleanCanvas"),        onClick: onClearCanvas, danger: true },
           ];
@@ -505,6 +392,40 @@ export const useDiagramMenus = ({
       if (menu.type === "node" && menu.id) {
         const nodeId = menu.id;
         const effectiveType = getVFSNodeKind(nodeId);
+
+        // Sequence messages are edge-like: give them the same edit / reverse /
+        // delete interactivity as class-diagram relations. (Messages are derived
+        // shapes, so they never reach the ViewNode-based generic items below.)
+        if (effectiveType === "MESSAGE") {
+          return [
+            {
+              label: t("contextMenu.node.edit"),
+              onClick: () => useUiStore.getState().openMessageProps(nodeId),
+            },
+            {
+              label: t("contextMenu.edge.reverse"),
+              onClick: () => reverseMessageInActiveDiagram(nodeId),
+            },
+            {
+              label: t("contextMenu.edge.delete"),
+              onClick: () => deleteMessageInActiveDiagram(nodeId),
+              danger: true,
+            },
+          ];
+        }
+
+        // Activation bars are derived shapes too. The primary action is nesting a
+        // self-message INSIDE the execution (a call made during it), which opens
+        // the message properties modal to fill in the call name.
+        if (effectiveType === "ACTIVATION") {
+          return [
+            {
+              label: t("contextMenu.node.createSelfMessage"),
+              onClick: () => insertSelfMessageInActivation(nodeId),
+            },
+          ];
+        }
+
         const isClassType =
           effectiveType === "CLASS" ||
           effectiveType === "INTERFACE" ||
@@ -517,11 +438,12 @@ export const useDiagramMenus = ({
           effectiveType === "SYSTEM_BOUNDARY" ||
           effectiveType === "UC_MODULE";
         const isDomainEntityType = effectiveType === "DOMAIN_ENTITY";
+        const isLifelineType = effectiveType === "LIFELINE";
         const isNodeExternal = getIsNodeExternal(nodeId);
 
         const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [];
 
-        if (!isPackageType && !isNoteType) {
+        if (!isPackageType && !isNoteType && !isLifelineType) {
           baseOptions.push({
             label: (isUseCaseNodeType || isDomainEntityType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
@@ -560,6 +482,16 @@ export const useDiagramMenus = ({
 
         if (effectiveType === "LIFELINE") {
           baseOptions.push({
+            label: t("contextMenu.node.rename"),
+            onClick: () => onEditNode(nodeId),
+          });
+          baseOptions.push({
+            label: t("contextMenu.node.createSelfMessage"),
+            // Drop the self-message at the slot under the right-click on the
+            // lifeline body, so it nests into the execution open at that point.
+            onClick: () => addSelfMessage(nodeId, screenToCanvas({ x: menu.x, y: menu.y }).y),
+          });
+          baseOptions.push({
             label: t("contextMenu.node.addStateInvariant"),
             onClick: () => addStateInvariant(nodeId),
           });
@@ -571,6 +503,13 @@ export const useDiagramMenus = ({
             label: t("contextMenu.node.addLostMessage"),
             onClick: () => addEndpointMessage(nodeId, 'lost'),
           });
+          const lifelineId = getElementId(nodeId);
+          if (lifelineId) {
+            baseOptions.push({
+              label: t("contextMenu.node.decomposeLifeline"),
+              onClick: () => useUiStore.getState().openLifelineProps(lifelineId),
+            });
+          }
         }
 
         if (isNoteType) {
@@ -703,6 +642,7 @@ export const useDiagramMenus = ({
       addStateInvariant,
       addInteractionUse,
       addEndpointMessage,
+      addSelfMessage,
       isStandalone,
       t,
     ]

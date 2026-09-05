@@ -1032,5 +1032,32 @@ export function standaloneModelOps(fileId: string) {
         m.updatedAt = Date.now();
       });
     },
+
+    // Rename a canvas-promoted package (IRPackage) in place — see the
+    // matching model.store.ts action for why this must not go through
+    // add/removePackageName once a package has been promoted to canvas.
+    renamePackageElement: (packageId: string, newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed) return;
+      update((m) => {
+        const pkg = m.packages?.[packageId];
+        if (!pkg || trimmed === pkg.name) return;
+        const oldName = pkg.name;
+        pkg.name = trimmed;
+
+        const rewrite = (name: string | undefined): string | undefined => {
+          if (!name) return name;
+          const segments = name.split('.');
+          if (segments[segments.length - 1] !== oldName) return name;
+          segments[segments.length - 1] = trimmed;
+          return segments.join('.');
+        };
+        [...pkg.classIds, ...pkg.interfaceIds, ...pkg.enumIds].forEach((id) => {
+          const rec = m.classes[id] ?? m.interfaces[id] ?? m.enums[id];
+          if (rec) rec.packageName = rewrite(rec.packageName);
+        });
+        m.updatedAt = Date.now();
+      });
+    },
   };
 }

@@ -18,7 +18,30 @@ import { undoTransaction } from "../../../../core/undo/undoBridge";
 import { SIDEBAR_DND_TYPE } from "../../../../canvas/hooks/useKonvaDnD";
 import type { UmlClassNode, UmlAttribute, UmlMethod, visibility as UmlVisibility } from "../../types/diagram.types";
 import type { DeletePackageState, TreeNode } from "./packageExplorer/types";
-import type { SemanticModel, VFSFile, ViewNode } from "../../../../core/domain/vfs/vfs.types";
+import type { IRPackage, SemanticModel, VFSFile, ViewNode } from "../../../../core/domain/vfs/vfs.types";
+
+/**
+ * Resolve the IRPackage (a package promoted to canvas via "Add to Canvas")
+ * currently sitting at `pkgPath`, if any. `pkgPath` is always an *effective*
+ * path (ancestor-inclusive, mirroring canvas nesting — see pkgEffectivePaths
+ * above), so a package is looked up the same way whether it's a bare root
+ * package or nested several levels deep.
+ *
+ * Every mutation that targets a package by path (rename, delete, move-into)
+ * must resolve through this first: a promoted package no longer has an entry
+ * in the flat `packageNames` registry, so treating its path as a plain string
+ * (e.g. remove+add on rename) silently creates a new, disconnected package
+ * instead of touching the real one — see project_package_rename_ghost_bug.
+ */
+export function resolveIRPackageByPath(
+  packages: Record<string, IRPackage> | undefined,
+  effectivePaths: Map<string, string>,
+  pkgPath: string,
+): IRPackage | undefined {
+  return Object.values(packages ?? {}).find(
+    (pkg) => (effectivePaths.get(pkg.id) ?? pkg.name) === pkgPath
+  );
+}
 const EMPTY_VIEW_NODES: ViewNode[] = [];
 
 
@@ -135,6 +158,7 @@ export default function PackageExplorer() {
   const addPackageName = useModelStore((s) => s.addPackageName);
   const removePackageName = useModelStore((s) => s.removePackageName);
   const setElementPackage = useModelStore((s) => s.setElementPackage);
+  const renamePackageElement = useModelStore((s) => s.renamePackageElement);
   const updateClass = useModelStore((s) => s.updateClass);
   const updateInterface = useModelStore((s) => s.updateInterface);
   const updateEnum = useModelStore((s) => s.updateEnum);
@@ -370,37 +394,50 @@ export default function PackageExplorer() {
   const updatePackageName = useCallback((packagePath: string, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === packagePath) return;
+    if (!activeModel) return;
 
     const pathSegments = packagePath.split(".");
     pathSegments[pathSegments.length - 1] = trimmed;
     const newFullPath = pathSegments.join(".");
 
+    // Resolve whether this path is already backed by a real IRPackage (promoted
+    // to canvas via "Add to Canvas" — same lookup handleAddToCanvas/deletePackage
+    // use). If it is, the plain string registry no longer has an entry for it
+    // (promotion removes it), so renaming through removePackageName/addPackageName
+    // silently creates a brand-new empty package instead of renaming the
+    // existing one — leaving a permanent ghost duplicate on the canvas.
+    const irPkg = resolveIRPackageByPath(activeModel.packages, pkgEffectivePaths, packagePath);
+
     if (isStandalone && activeTabId) {
       const ops = standaloneModelOps(activeTabId);
-      ops.removePackageName(packagePath);
-      ops.addPackageName(newFullPath);
-      if (!activeModel) return;
-      [...Object.values(activeModel.classes), ...Object.values(activeModel.interfaces), ...Object.values(activeModel.enums)].forEach((el) => {
-        if (el.packageName === packagePath) ops.setElementPackage(el.id, newFullPath);
-      });
+      if (irPkg) {
+        ops.renamePackageElement(irPkg.id, trimmed);
+      } else {
+        ops.removePackageName(packagePath);
+        ops.addPackageName(newFullPath);
+        [...Object.values(activeModel.classes), ...Object.values(activeModel.interfaces), ...Object.values(activeModel.enums)].forEach((el) => {
+          if (el.packageName === packagePath) ops.setElementPackage(el.id, newFullPath);
+        });
+      }
     } else {
-      removePackageName(packagePath);
-      addPackageName(newFullPath);
-      if (!activeModel) return;
-      [...Object.values(activeModel.classes), ...Object.values(activeModel.interfaces), ...Object.values(activeModel.enums)].forEach((el) => {
-        if (el.packageName === packagePath) setElementPackage(el.id, newFullPath);
-      });
+      if (irPkg) {
+        renamePackageElement(irPkg.id, trimmed);
+      } else {
+        removePackageName(packagePath);
+        addPackageName(newFullPath);
+        [...Object.values(activeModel.classes), ...Object.values(activeModel.interfaces), ...Object.values(activeModel.enums)].forEach((el) => {
+          if (el.packageName === packagePath) setElementPackage(el.id, newFullPath);
+        });
+      }
     }
     showToast(`Package renamed to "${newFullPath}".`);
-  }, [activeModel, isStandalone, activeTabId, removePackageName, addPackageName, setElementPackage, showToast]);
+  }, [activeModel, isStandalone, activeTabId, removePackageName, addPackageName, setElementPackage, renamePackageElement, pkgEffectivePaths, showToast]);
 
   const deletePackage = useCallback((pkgPath: string, deleteClasses: boolean) => {
     if (!activeModel) return;
 
     // Resolve the IRPackage entry for this path (if it's a visual canvas package).
-    const irPkg = Object.values(activeModel.packages ?? {}).find(
-      (pkg) => (pkgEffectivePaths.get(pkg.id) ?? pkg.name) === pkgPath
-    );
+    const irPkg = resolveIRPackageByPath(activeModel.packages, pkgEffectivePaths, pkgPath);
 
     const allEls = [
       ...Object.values(activeModel.classes),
@@ -724,9 +761,7 @@ export default function PackageExplorer() {
     const { elementId, viewNodeId } = payload;
 
     if (viewNodeId && activeTabId && activeModel?.packages) {
-      const targetPkg = Object.values(activeModel.packages).find(
-        (p) => (pkgEffectivePaths.get(p.id) ?? p.name) === targetPkgPath
-      );
+      const targetPkg = resolveIRPackageByPath(activeModel.packages, pkgEffectivePaths, targetPkgPath);
       if (targetPkg) {
         const targetViewNode = viewNodes.find((vn) => vn.elementId === targetPkg.id);
         if (targetViewNode) {
@@ -777,9 +812,7 @@ export default function PackageExplorer() {
 
     // Look up by effective path so nested packages (e.g. "s.dfdf") are found by their
     // resolved path rather than the raw IRPackage.name ("dfdf").
-    const irPkg = Object.values(activeModel.packages ?? {}).find(
-      (p) => (pkgEffectivePaths.get(p.id) ?? p.name) === pkgPath
-    );
+    const irPkg = resolveIRPackageByPath(activeModel.packages, pkgEffectivePaths, pkgPath);
 
     if (irPkg) {
       if (viewNodes.some((vn) => vn.elementId === irPkg.id)) {

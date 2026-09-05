@@ -443,6 +443,15 @@ interface ModelStoreState {
   addPackageName: (name: string) => void;
   removePackageName: (name: string) => void;
   setElementPackage: (elementId: string, packageName: string | undefined) => void;
+  /**
+   * Rename a canvas-promoted package (IRPackage, `model.packages[id]`) in place.
+   * Distinct from add/removePackageName, which only touch the flat
+   * `packageNames` registry used before a package is promoted via "Add to
+   * Canvas" — renaming a promoted package through that registry instead
+   * leaves the IRPackage (and its drawn canvas shape) untouched, creating a
+   * ghost duplicate. See PackageExplorer.tsx's updatePackageName.
+   */
+  renamePackageElement: (packageId: string, newName: string) => void;
 }
 
 export type ModelStore = ModelStoreState;
@@ -1260,6 +1269,37 @@ export const useModelStore = create<ModelStoreState>()(
           draft.model.enums[elementId].packageName = packageName;
         } else return;
         draft.model.updatedAt = Date.now();
+      });
+    },
+
+    renamePackageElement: (packageId, newName) => {
+      const trimmed = newName.trim();
+      if (!trimmed) return;
+      const pkg = useModelStore.getState().model?.packages?.[packageId];
+      if (!pkg || trimmed === pkg.name) return;
+      const oldName = pkg.name;
+      withUndo('model', `Rename Package: ${trimmed}`, 'global', (draft) => {
+        const p = draft.model?.packages?.[packageId];
+        if (!p) return;
+        p.name = trimmed;
+
+        // Cascade the leaf-segment rename to direct member elements' packageName
+        // (written from the package's effective path at drop-time, not derived
+        // reactively — left alone they'd go stale). Members of NESTED
+        // sub-packages are not covered here: their packageName carries an
+        // ancestor prefix this function has no way to resolve.
+        const rewrite = (name: string | undefined): string | undefined => {
+          if (!name) return name;
+          const segments = name.split('.');
+          if (segments[segments.length - 1] !== oldName) return name;
+          segments[segments.length - 1] = trimmed;
+          return segments.join('.');
+        };
+        [...p.classIds, ...p.interfaceIds, ...p.enumIds].forEach((id) => {
+          const rec = draft.model!.classes[id] ?? draft.model!.interfaces[id] ?? draft.model!.enums[id];
+          if (rec) rec.packageName = rewrite(rec.packageName);
+        });
+        draft.model!.updatedAt = Date.now();
       });
     },
   }))

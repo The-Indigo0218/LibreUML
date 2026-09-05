@@ -5,6 +5,10 @@ import type {
   ActivityActionViewModel,
   ActivityControlNodeViewModel,
   ActivityControlKindVM,
+  ActivityDecisionViewModel,
+  ActivityDecisionKindVM,
+  ActivityForkJoinViewModel,
+  ActivityForkJoinKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
   resolveSemanticElement,
@@ -21,6 +25,18 @@ const CONTROL_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityCont
   INITIAL: 'INITIAL',
   ACTIVITY_FINAL: 'ACTIVITY_FINAL',
   FLOW_FINAL: 'FLOW_FINAL',
+};
+
+/** IR activity types that render as the decision/merge rhombus (A2). */
+const DECISION_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityDecisionKindVM>> = {
+  DECISION: 'DECISION',
+  MERGE: 'MERGE',
+};
+
+/** IR activity types that render as the fork/join bar (A2). */
+const FORK_JOIN_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityForkJoinKindVM>> = {
+  FORK: 'FORK',
+  JOIN: 'JOIN',
 };
 
 function makeActionNode(
@@ -75,8 +91,52 @@ function makeControlNode(
   };
 }
 
+function makeDecisionNode(
+  viewNode: ViewNode,
+  decisionKind: ActivityDecisionKindVM,
+  allViewNodes: ViewNode[],
+) {
+  const vm: ActivityDecisionViewModel = {
+    __brand: 'activityDecision',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    decisionKind,
+    colorOverride: viewNode.color,
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlActivityDecision',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
+function makeForkJoinNode(
+  viewNode: ViewNode,
+  forkJoinKind: ActivityForkJoinKindVM,
+  barOrientation: 'HORIZONTAL' | 'VERTICAL',
+  allViewNodes: ViewNode[],
+) {
+  const vm: ActivityForkJoinViewModel = {
+    __brand: 'activityForkJoin',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    forkJoinKind,
+    barOrientation,
+    colorOverride: viewNode.color,
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlActivityForkJoin',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
 /**
- * Builds the canvas nodes for an activity diagram (A1).
+ * Builds the canvas nodes for an activity diagram (A1/A2).
  *
  * A ViewNode whose element is not in the model is **omitted**, not rendered as
  * an "Unknown" note the way the class-diagram builder does. A dangling
@@ -119,8 +179,18 @@ export function buildActivityDiagramNodes(ctx: NodeBuilderContext) {
       return makeControlNode(viewNode, controlKind, diagramView.nodes);
     }
 
-    // Decision/merge/fork/join land in A2; until their shapes exist, drawing
-    // them as something else would misrepresent the model.
+    const decisionKind = DECISION_TYPES[node.activityType];
+    if (decisionKind) {
+      return makeDecisionNode(viewNode, decisionKind, diagramView.nodes);
+    }
+
+    const forkJoinKind = FORK_JOIN_TYPES[node.activityType];
+    if (forkJoinKind) {
+      return makeForkJoinNode(viewNode, forkJoinKind, node.barOrientation ?? 'HORIZONTAL', diagramView.nodes);
+    }
+
+    // OBJECT_NODE (v1.1) lands in A6; until its shape exists, drawing it as
+    // something else would misrepresent the model.
     return null;
   });
 

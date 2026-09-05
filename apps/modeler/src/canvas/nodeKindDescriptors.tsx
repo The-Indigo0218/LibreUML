@@ -22,6 +22,8 @@ import CoregionShape, { getCoregionShapeSize } from './shapes/CoregionShape';
 import ContinuationShape, { getContinuationShapeSize } from './shapes/ContinuationShape';
 import ActionShape, { getActionShapeSize } from './shapes/ActionShape';
 import ControlNodeShape, { getControlNodeShapeSize } from './shapes/ControlNodeShape';
+import DecisionShape, { getDecisionShapeSize } from './shapes/DecisionShape';
+import ForkJoinShape, { getForkJoinShapeSize } from './shapes/ForkJoinShape';
 
 export interface NodeSize {
   width: number;
@@ -426,6 +428,31 @@ export const NODE_KIND_DESCRIPTORS: Record<NodeKind, NodeKindDescriptor> = {
     size: getControlNodeShapeSize,
     render: (vm, { key, common }) => <ControlNodeShape key={key} viewModel={vm} {...common} />,
     // A filled circle has nothing to edit.
+    editor: 'none',
+    resize: 'systemBoundary',
+    draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (A2) ────────────────────────────────────────────────
+
+  activityDecision: describe({
+    size: getDecisionShapeSize,
+    render: (vm, { key, common }) => <DecisionShape key={key} viewModel={vm} {...common} />,
+    // No label on the node — the branch condition lives on the edges (`guard`).
+    editor: 'none',
+    resize: 'systemBoundary',
+    draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  activityForkJoin: describe({
+    size: getForkJoinShapeSize,
+    render: (vm, { key, common }) => <ForkJoinShape key={key} viewModel={vm} {...common} />,
     editor: 'none',
     resize: 'systemBoundary',
     draggable: true,

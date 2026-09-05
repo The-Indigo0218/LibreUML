@@ -355,6 +355,43 @@ export interface ActivityControlNodeViewModel {
   onOpenProps?: () => void;
 }
 
+/** Decision/merge share one glyph (a rhombus); only the fan direction differs. */
+export type ActivityDecisionKindVM = 'DECISION' | 'MERGE';
+
+/**
+ * Decision / merge (A2): the rhombus that branches or rejoins control flow.
+ * One view model covers both — UML draws them identically, and telling a
+ * decision (should fan out) from a merge (should fan in) is the validator's
+ * job, not the shape's. No label: the branch condition lives on the outgoing
+ * edges as `guard`, not on the node.
+ */
+export interface ActivityDecisionViewModel {
+  __brand: 'activityDecision';
+  id: string;
+  domainId: string;
+  decisionKind: ActivityDecisionKindVM;
+  colorOverride?: string;
+  onOpenProps?: () => void;
+}
+
+/** Fork/join share one glyph (a bar); only the fan direction differs. */
+export type ActivityForkJoinKindVM = 'FORK' | 'JOIN';
+
+/**
+ * Fork / join (A2): the synchronization bar that splits or rejoins concurrent
+ * flows. One view model covers both, oriented by `barOrientation` (persisted
+ * on the IR node, defaults to HORIZONTAL). No label, same reasoning as decision/merge.
+ */
+export interface ActivityForkJoinViewModel {
+  __brand: 'activityForkJoin';
+  id: string;
+  domainId: string;
+  forkJoinKind: ActivityForkJoinKindVM;
+  barOrientation: 'HORIZONTAL' | 'VERTICAL';
+  colorOverride?: string;
+  onOpenProps?: () => void;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -376,7 +413,9 @@ export type AnyNodeViewModel =
   | CoregionViewModel
   | ContinuationViewModel
   | ActivityActionViewModel
-  | ActivityControlNodeViewModel;
+  | ActivityControlNodeViewModel
+  | ActivityDecisionViewModel
+  | ActivityForkJoinViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -459,6 +498,18 @@ export function isActivityControlNodeViewModel(
   vm: AnyNodeViewModel,
 ): vm is ActivityControlNodeViewModel {
   return '__brand' in vm && vm.__brand === 'activityControlNode';
+}
+
+export function isActivityDecisionViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityDecisionViewModel {
+  return '__brand' in vm && vm.__brand === 'activityDecision';
+}
+
+export function isActivityForkJoinViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityForkJoinViewModel {
+  return '__brand' in vm && vm.__brand === 'activityForkJoin';
 }
 
 export function isContinuationViewModel(vm: AnyNodeViewModel): vm is ContinuationViewModel {

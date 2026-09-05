@@ -4,6 +4,8 @@ import type { SemanticModel, DiagramView } from '../../../../../core/domain/vfs/
 import type {
   ActivityActionViewModel,
   ActivityControlNodeViewModel,
+  ActivityDecisionViewModel,
+  ActivityForkJoinViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function model(over: Partial<SemanticModel> = {}): SemanticModel {
@@ -121,21 +123,57 @@ describe('buildActivityDiagramNodes', () => {
   });
 
   it('omits node types whose shapes do not exist yet', () => {
-    // Decision/merge/fork/join arrive in A2; drawing them as something else
-    // would misrepresent the model.
+    // OBJECT_NODE is v1.1 (A6); drawing it as something else would
+    // misrepresent the model.
     const m = model({
       activityNodes: {
-        d: irNode('d', 'DECISION'),
+        obj: irNode('obj', 'OBJECT_NODE'),
         ok: irNode('ok', 'ACTION'),
       } as never,
     });
 
     const built = buildActivityDiagramNodes(
-      ctx(m, view([{ id: 'v-d', elementId: 'd' }, { id: 'v-ok', elementId: 'ok' }])),
+      ctx(m, view([{ id: 'v-obj', elementId: 'obj' }, { id: 'v-ok', elementId: 'ok' }])),
     );
 
     expect(built).toHaveLength(1);
     expect((built[0] as { domainId?: string }).domainId).toBe('ok');
+  });
+
+  it('maps decision and merge to the same rhombus glyph (A2)', () => {
+    const m = model({
+      activityNodes: {
+        d: irNode('d', 'DECISION'),
+        mg: irNode('mg', 'MERGE'),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-d', elementId: 'd' }, { id: 'v-mg', elementId: 'mg' }])),
+    );
+
+    const vms = built.map((b) => b.data as ActivityDecisionViewModel);
+    expect(vms.map((vm) => vm.__brand)).toEqual(['activityDecision', 'activityDecision']);
+    expect(vms.map((vm) => vm.decisionKind)).toEqual(['DECISION', 'MERGE']);
+  });
+
+  it('maps fork and join to the same bar glyph, honoring bar orientation (A2)', () => {
+    const m = model({
+      activityNodes: {
+        fk: irNode('fk', 'FORK'),
+        jn: irNode('jn', 'JOIN', { barOrientation: 'VERTICAL' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-fk', elementId: 'fk' }, { id: 'v-jn', elementId: 'jn' }])),
+    );
+
+    const vms = built.map((b) => b.data as ActivityForkJoinViewModel);
+    expect(vms.map((vm) => vm.__brand)).toEqual(['activityForkJoin', 'activityForkJoin']);
+    expect(vms.map((vm) => vm.forkJoinKind)).toEqual(['FORK', 'JOIN']);
+    // Undeclared orientation defaults to HORIZONTAL, matching the registry factory.
+    expect(vms.map((vm) => vm.barOrientation)).toEqual(['HORIZONTAL', 'VERTICAL']);
   });
 
   it('still renders notes, which belong to every diagram type', () => {

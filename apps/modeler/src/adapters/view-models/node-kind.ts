@@ -31,7 +31,9 @@ export type NodeKind =
   | 'coregion'
   | 'continuation'
   | 'activityAction'
-  | 'activityControlNode';
+  | 'activityControlNode'
+  | 'activityDecision'
+  | 'activityForkJoin';
 
 /** Every kind, for exhaustiveness checks over descriptor tables. */
 export const ALL_NODE_KINDS: readonly NodeKind[] = [
@@ -56,6 +58,8 @@ export const ALL_NODE_KINDS: readonly NodeKind[] = [
   'continuation',
   'activityAction',
   'activityControlNode',
+  'activityDecision',
+  'activityForkJoin',
 ] as const;
 
 /**

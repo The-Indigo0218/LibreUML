@@ -24,6 +24,8 @@ import CoregionShape from '../shapes/CoregionShape';
 import ContinuationShape from '../shapes/ContinuationShape';
 import ActionShape from '../shapes/ActionShape';
 import ControlNodeShape from '../shapes/ControlNodeShape';
+import DecisionShape from '../shapes/DecisionShape';
+import ForkJoinShape from '../shapes/ForkJoinShape';
 
 /**
  * A0 (ADR-0009). The descriptor table is the canvas' extension point for node
@@ -104,6 +106,8 @@ describe('renderShape routing', () => {
     continuation: ContinuationShape,
     activityAction: ActionShape,
     activityControlNode: ControlNodeShape,
+    activityDecision: DecisionShape,
+    activityForkJoin: ForkJoinShape,
   };
 
   /** Minimal view model that resolves to `kind` — see `getNodeKind`. */
@@ -200,6 +204,20 @@ describe('node kind behaviour matrix', () => {
       resize: 'systemBoundary',
     },
     activityControlNode: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'systemBoundary',
+    },
+    // A2: decision/merge (rhombus) and fork/join (bar) — same free geometry
+    // as every other activity node, no label to derive anything from.
+    activityDecision: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'systemBoundary',
+    },
+    activityForkJoin: {
       draggable: true,
       dragAxis: 'free',
       dragEnd: 'node',

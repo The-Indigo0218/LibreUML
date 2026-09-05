@@ -42,6 +42,7 @@
 import { useMemo, useState, useRef } from 'react';
 import { Group, Line, Text, Label, Tag, Circle, Rect } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { formatActivityFlowLabel } from './activityFlowLabel';
 import type { RelationKind, NodeBorderStyle } from '../../core/domain/vfs/vfs.types';
 import { borderDash } from '../shapes/borderStyle';
 import {
@@ -218,6 +219,10 @@ export interface KonvaEdgeProps {
   label?: string;
   /** «extend» guard condition — rendered below the stereotype label */
   condition?: string;
+  /** CONTROL_FLOW/OBJECT_FLOW guard, e.g. 'balance > 0' — rendered as `[guard]` (A2). */
+  guard?: string;
+  /** CONTROL_FLOW/OBJECT_FLOW weight, e.g. '5' or '*' — rendered as `{weight}` (A2). */
+  weight?: string;
   /** Locked anchor mode — when true, use stored handles instead of closest-pair selection */
   anchorLocked?: boolean;
   sourceHandle?: string;
@@ -298,6 +303,8 @@ export default function KonvaEdge({
   onDblClick,
   label,
   condition,
+  guard,
+  weight,
   anchorLocked = false,
   sourceHandle,
   targetHandle,
@@ -555,6 +562,7 @@ export default function KonvaEdge({
   const labelSize      = 11 * labelScale;
   const labelFamily    = fontFamilyOverride;
   const kindLabel      = formatKindLabel(kind);
+  const flowLabel      = formatActivityFlowLabel(guard, weight);
   const labelTextColor = getLabelTextColor();
   const labelBgFill    = getLabelBg();
   const labelBorder    = 'rgba(148,163,184,0.18)';
@@ -837,6 +845,32 @@ export default function KonvaEdge({
               <Text
                 text={`[${condition}]`}
                 fontSize={10}
+                fontStyle="italic"
+                fill={labelTextColor}
+                padding={labelPad}
+                listening={false}
+              />
+            </Label>
+          )}
+
+          {/* Control/object flow guard + weight (A2, UML 2.5 §15.3) */}
+          {(kind === 'CONTROL_FLOW' || kind === 'OBJECT_FLOW') && flowLabel && (
+            <Label
+              x={labelPositions.centerX}
+              y={labelPositions.centerY + 20}
+              offsetX={Math.round(flowLabel.length * 3.2 * labelScale + labelPad)}
+              offsetY={Math.round((labelSize + labelPad * 2) / 2)}
+            >
+              <Tag
+                fill={labelBgFill}
+                stroke={labelBorder}
+                strokeWidth={0.5}
+                cornerRadius={3}
+              />
+              <Text
+                text={flowLabel}
+                fontSize={labelSize}
+                fontFamily={labelFamily}
                 fontStyle="italic"
                 fill={labelTextColor}
                 padding={labelPad}

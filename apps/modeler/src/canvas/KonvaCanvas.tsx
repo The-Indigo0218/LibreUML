@@ -71,6 +71,7 @@ import UseCaseHoverPopover from '../features/diagram/components/modals/UseCaseHo
 import UseCaseSpecModal from '../features/diagram/components/modals/UseCaseSpecModal';
 import ActorPropsModal from '../features/diagram/components/modals/ActorPropsModal';
 import ExtendEdgePropsModal from '../features/diagram/components/modals/ExtendEdgePropsModal';
+import ControlFlowPropsModal from '../features/diagram/components/modals/ControlFlowPropsModal';
 import FragmentPropertiesModal from '../features/diagram/components/modals/FragmentPropertiesModal';
 import MessagePropertiesModal from '../features/diagram/components/modals/MessagePropertiesModal';
 import StateInvariantPropertiesModal from '../features/diagram/components/modals/StateInvariantPropertiesModal';
@@ -1177,6 +1178,7 @@ export default function KonvaCanvas() {
     openMethodGenerator,
     openExtendProps,
     openDomainAssociationProps,
+    openControlFlowProps,
   } = useUiStore();
 
   const inlineEdgePanelId = useUiStore((s) => s.inlineEdgePanelId);
@@ -1768,6 +1770,10 @@ export default function KonvaCanvas() {
       const edge = edges.find((e) => e.id === edgeId);
       if (!edge) return;
       if (edge.kind === 'EXTEND') { openExtendProps(edgeId); return; }
+      if (edge.kind === 'CONTROL_FLOW' || edge.kind === 'OBJECT_FLOW') {
+        openControlFlowProps(edgeId);
+        return;
+      }
       // TODO: route through a ShapeRouter
       if (vfsController.vfsFile?.diagramType === 'DOMAIN_MODEL_DIAGRAM') {
         // Association-family edges have the verb·multiplicity·navigability modal;
@@ -1779,7 +1785,7 @@ export default function KonvaCanvas() {
         openVfsEdgeAction(edgeId, buildAnchorSnapshot(edgeId));
       }
     },
-    [edges, openExtendProps, openDomainAssociationProps, openVfsEdgeAction, buildAnchorSnapshot, vfsController.vfsFile?.diagramType, vfsController.edges],
+    [edges, openExtendProps, openControlFlowProps, openDomainAssociationProps, openVfsEdgeAction, buildAnchorSnapshot, vfsController.vfsFile?.diagramType, vfsController.edges],
   );
 
   const handleStageContextMenu = useCallback(
@@ -2741,6 +2747,8 @@ export default function KonvaCanvas() {
                 sourceRole={edge.sourceRole}
                 targetRole={edge.targetRole}
                 condition={edge.condition}
+                guard={edge.guard}
+                weight={edge.weight}
                 isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
@@ -3050,6 +3058,7 @@ export default function KonvaCanvas() {
       <UseCaseSpecModal />
       <ActorPropsModal />
       <ExtendEdgePropsModal />
+      <ControlFlowPropsModal />
       <DomainEntityPropsModal />
       <DomainAssociationPropsModal />
       <FragmentPropertiesModal />

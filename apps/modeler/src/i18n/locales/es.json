@@ -1534,6 +1534,13 @@
     "extensionPoint.placeholder": "Nombre del punto de extensión",
     "extensionPoint.hint": "Define puntos de extensión en «{{name}}» para seleccionar uno aquí"
   },
+  "controlFlow": {
+    "title": "Propiedades del flujo",
+    "guard": "Guarda",
+    "guard.placeholder": "ej. saldo > 0",
+    "weight": "Peso",
+    "weight.placeholder": "ej. 5 o *"
+  },
   "fragment": {
     "title": "Propiedades del Fragmento Combinado",
     "kind": "Tipo",

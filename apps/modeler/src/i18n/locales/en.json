@@ -1525,6 +1525,13 @@
     "extensionPoint.placeholder": "Extension point name",
     "extensionPoint.hint": "Define extension points in «{{name}}» to select one here"
   },
+  "controlFlow": {
+    "title": "Flow Properties",
+    "guard": "Guard",
+    "guard.placeholder": "e.g. balance > 0",
+    "weight": "Weight",
+    "weight.placeholder": "e.g. 5 or *"
+  },
   "fragment": {
     "title": "Combined Fragment Properties",
     "kind": "Kind",

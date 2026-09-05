@@ -120,6 +120,8 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
       targetAnchor: e.targetAnchor,
       condition: e.data.condition,
       extensionPoint: e.data.extensionPoint,
+      guard: e.data.guard,
+      weight: e.data.weight,
       waypoints: e.waypoints,
       routingMode: e.routingMode,
       color: e.color,

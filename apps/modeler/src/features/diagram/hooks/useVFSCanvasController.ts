@@ -106,6 +106,9 @@ export interface VFSCanvasEdge {
     anchorLocked?: boolean;
     condition?: string;
     extensionPoint?: string;
+    /** CONTROL_FLOW/OBJECT_FLOW guard/weight (A2). */
+    guard?: string;
+    weight?: string;
   };
 }
 
@@ -393,6 +396,8 @@ export function useVFSCanvasController(): VFSCanvasResult {
           anchorLocked: viewEdge.anchorLocked,
           condition: relation.condition,
           extensionPoint: relation.extensionPoint,
+          guard: relation.guard,
+          weight: relation.weight,
         },
       });
     }

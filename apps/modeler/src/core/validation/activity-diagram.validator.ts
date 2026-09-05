@@ -2,6 +2,7 @@ import type { DomainNode } from '../domain/models/nodes';
 import type { DomainEdge } from '../domain/models/edges';
 import type { BaseValidator } from './base-validator.types';
 import type { ValidationResult } from '../registry/diagram-registry.types';
+import type { SemanticModel } from '../domain/vfs/vfs.types';
 
 const ok: ValidationResult = { isValid: true };
 
@@ -96,6 +97,50 @@ export class ActivityDiagramValidator implements BaseValidator {
 
   validateEdge(edge: DomainEdge, sourceNode: DomainNode, targetNode: DomainNode): ValidationResult {
     return this.validateConnection(sourceNode, targetNode, edge.type, undefined, undefined);
+  }
+
+  /**
+   * Fan-out/fan-in rules for decision, merge, fork and join (A2). These need
+   * every CONTROL_FLOW/OBJECT_FLOW relation touching a node, which the
+   * BaseValidator interface never hands a single node at a time — same
+   * reasoning as SequenceDiagramValidator.validateMessage(). Not wired to the
+   * Problems Panel yet (that cabling is A5, §16); exercised directly by tests
+   * for now.
+   */
+  validateActivityStructure(activityId: string, model: SemanticModel): ValidationResult {
+    const warnings: string[] = [];
+    const nodes = Object.values(model.activityNodes ?? {}).filter(
+      (n) => n.activityId === activityId,
+    );
+    const flows = Object.values(model.relations ?? {}).filter(
+      (r) => r.kind === 'CONTROL_FLOW' || r.kind === 'OBJECT_FLOW',
+    );
+    const outgoing = (id: string) => flows.filter((r) => r.sourceId === id).length;
+    const incoming = (id: string) => flows.filter((r) => r.targetId === id).length;
+
+    // A fork with no join anywhere in the activity never rejoins the
+    // concurrent flows it opens — checked once per activity, not per node.
+    if (nodes.some((n) => n.activityType === 'FORK') && !nodes.some((n) => n.activityType === 'JOIN')) {
+      warnings.push('This activity forks concurrent flows but never joins them back');
+    }
+
+    for (const node of nodes) {
+      const label = node.name?.trim() || node.id;
+      if (node.activityType === 'DECISION' && outgoing(node.id) < 2) {
+        warnings.push(`Decision "${label}" has only one outgoing flow — nothing to branch on`);
+      }
+      if (node.activityType === 'FORK' && outgoing(node.id) < 2) {
+        warnings.push(`Fork "${label}" has only one outgoing flow — nothing to run concurrently`);
+      }
+      if (node.activityType === 'MERGE' && incoming(node.id) < 2) {
+        warnings.push(`Merge "${label}" has only one incoming flow — nothing to rejoin`);
+      }
+      if (node.activityType === 'JOIN' && incoming(node.id) < 2) {
+        warnings.push(`Join "${label}" has only one incoming flow — nothing to synchronize`);
+      }
+    }
+
+    return warnings.length ? { isValid: true, warnings } : ok;
   }
 }
 

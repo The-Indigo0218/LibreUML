@@ -259,19 +259,42 @@ declare global {
 
 export default function E2EHarness() {
   useEffect(() => {
+    /**
+     * Konva's hit-graph can go stale when a diagram's nodes are replaced
+     * wholesale on an *already-mounted* Stage (loadProject swaps
+     * VFSStore's content in one shot, unlike incremental node-by-node
+     * creation through the UI, which Konva keeps in sync on its own).
+     * The visible canvas repaints correctly — only the separate hit canvas
+     * lags — so `stage.getIntersection()` at a freshly-seeded node's exact
+     * center resolves to the background rect instead of the shape, and
+     * clicks/drags on it silently no-op. An explicit `batchDraw()` after
+     * React commits the new shapes forces Konva to redraw both canvases.
+     * Real-world impact is unconfirmed — flagged for IndigoDev, not fixed
+     * in KonvaCanvas.tsx itself, since that's shared by every diagram type.
+     */
+    const forceHitRedraw = () => {
+      requestAnimationFrame(() => {
+        const stage = Konva.stages[Konva.stages.length - 1];
+        stage?.batchDraw();
+      });
+    };
+
     const seed = (spec: E2EDiagramSpec = DEFAULT_SPEC) => {
       useVFSStore.getState().loadProject(buildProject(spec));
       useWorkspaceStore.getState().openTab(FILE_ID);
+      forceHitRedraw();
     };
 
     const seedSequence = (spec: E2ESequenceSpec) => {
       useVFSStore.getState().loadProject(buildSequenceProject(spec));
       useWorkspaceStore.getState().openTab(FILE_ID);
+      forceHitRedraw();
     };
 
     const seedActivity = (spec: E2EActivitySpec) => {
       useVFSStore.getState().loadProject(buildActivityProject(spec));
       useWorkspaceStore.getState().openTab(FILE_ID);
+      forceHitRedraw();
     };
 
     const api: E2EApi = {

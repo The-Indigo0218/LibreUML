@@ -6,6 +6,7 @@
  * /__e2e harness and reads the stage back.
  */
 import { test, expect } from '@playwright/test';
+import { dragFromTo, nodeCenter } from './fixtures';
 
 /** initial → "Validate cart" → final, the smallest complete flow. */
 const FLOW = {
@@ -60,20 +61,26 @@ test.describe('A1 — linear flow', () => {
   });
 
   test('a node can be dragged and the move is persisted', async ({ page }) => {
+    // Was flaky ~50% here: a single page.mouse.move(..., {steps: 8}) straight
+    // to the destination, then a flat 200ms wait before reading the model.
+    // dragFromTo emits two shorter legs via a midpoint (more intermediate
+    // dragmove events for Konva's drag threshold to catch), and expect.poll
+    // retries instead of racing a fixed timeout against the store commit —
+    // the same helpers nodeDrag.spec.ts already relies on without flaking.
     const before = (await page.evaluate(() => window.__libreumlE2E!.nodeRect('vn-act')))!;
+    const center = nodeCenter(before);
+    await dragFromTo(page, center, { x: center.x + 120, y: center.y + 60 });
 
-    await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(before.x + before.width / 2 + 120, before.y + before.height / 2 + 60, {
-      steps: 8,
-    });
-    await page.mouse.up();
-    await page.waitForTimeout(200);
+    // Free drag on both axes — nothing about an activity node is derived.
+    await expect
+      .poll(async () => {
+        const view = await page.evaluate(() => window.__libreumlE2E!.getView());
+        return view!.nodes.find((n) => n.id === 'vn-act')!.x;
+      })
+      .toBeGreaterThan(200);
 
     const view = await page.evaluate(() => window.__libreumlE2E!.getView());
     const moved = view!.nodes.find((n) => n.id === 'vn-act')!;
-    // Free drag on both axes — nothing about an activity node is derived.
-    expect(moved.x).toBeGreaterThan(200);
     expect(moved.y).toBeGreaterThan(200);
   });
 

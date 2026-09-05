@@ -183,6 +183,8 @@
     "packageNameExists": "El nombre del paquete ya existe en este nivel",
     "packageCreated": "Paquete creado",
     "newPackagePrompt": "Nombre del paquete (ej. com.example.models):",
+    "newPackageTitle": "Nuevo paquete",
+    "createPackage": "Crear paquete",
     "expandAll": "Expandir Todo",
     "collapseAll": "Contraer Todo",
     "emptyPackage": "vacío",

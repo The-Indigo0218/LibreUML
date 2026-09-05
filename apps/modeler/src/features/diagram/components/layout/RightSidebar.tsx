@@ -22,6 +22,7 @@ import { useUiStore } from "../../../../store/uiStore";
 import { useToastStore } from "../../../../store/toast.store";
 import { standaloneModelOps } from "../../../../store/standaloneModelOps";
 import { DRAG_TYPE_EXISTING, getNextVFSName } from "../../../../canvas/hooks/useKonvaDnD";
+import CreatePackageModal from "./CreatePackageModal";
 import type {
   VFSFile,
   SemanticModel,
@@ -404,31 +405,30 @@ export default function RightSidebar() {
 
   // ── New package ────────────────────────────────────────────────────────────
 
+  const [newPackageModal, setNewPackageModal] = useState<{ standalone: boolean } | null>(null);
+
   const handleNewPackage = useCallback(() => {
-    const raw = window.prompt(t("sidebar.newPackagePrompt"));
-    if (!raw?.trim()) return;
-    const name = raw.trim();
-    if ((model?.packageNames ?? []).includes(name)) {
-      useToastStore.getState().show(t("sidebar.packageNameExists"));
-      return;
-    }
-    ensureModel();
-    addPackageName(name);
-    useToastStore.getState().show(t("sidebar.packageCreated"));
-  }, [model, ensureModel, addPackageName]);
+    setNewPackageModal({ standalone: false });
+  }, []);
 
   const handleStandaloneNewPackage = useCallback(() => {
     if (!activeTabId) return;
-    const raw = window.prompt(t("sidebar.newPackagePrompt"));
-    if (!raw?.trim()) return;
-    const name = raw.trim();
-    if ((localModel?.packageNames ?? []).includes(name)) {
-      useToastStore.getState().show(t("sidebar.packageNameExists"));
-      return;
+    setNewPackageModal({ standalone: true });
+  }, [activeTabId]);
+
+  const handleConfirmNewPackage = useCallback((name: string) => {
+    if (newPackageModal?.standalone) {
+      if (!activeTabId) return;
+      standaloneModelOps(activeTabId).addPackageName(name);
+    } else {
+      ensureModel();
+      addPackageName(name);
     }
-    standaloneModelOps(activeTabId).addPackageName(name);
     useToastStore.getState().show(t("sidebar.packageCreated"));
-  }, [activeTabId, localModel]);
+    setNewPackageModal(null);
+  }, [newPackageModal, activeTabId, ensureModel, addPackageName, t]);
+
+  const handleCancelNewPackage = useCallback(() => setNewPackageModal(null), []);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -788,6 +788,16 @@ export default function RightSidebar() {
           ))}
         </div>
       )}
+      <CreatePackageModal
+        isOpen={!!newPackageModal}
+        existingNames={
+          newPackageModal?.standalone
+            ? (localModel?.packageNames ?? [])
+            : (model?.packageNames ?? [])
+        }
+        onConfirm={handleConfirmNewPackage}
+        onClose={handleCancelNewPackage}
+      />
     </div>
   );
 }

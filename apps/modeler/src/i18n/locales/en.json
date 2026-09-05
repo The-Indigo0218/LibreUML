@@ -175,6 +175,8 @@
     "packageNameExists": "Package name already exists at this level",
     "packageCreated": "Package created",
     "newPackagePrompt": "Package name (e.g. com.example.models):",
+    "newPackageTitle": "New package",
+    "createPackage": "Create package",
     "expandAll": "Expand All",
     "collapseAll": "Collapse All",
     "emptyPackage": "empty",

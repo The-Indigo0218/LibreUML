@@ -26,6 +26,7 @@ interface Surface {
   name: string;
   action: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
   decision: (model: SemanticModel, id: string, existingViewNodes: { elementId: string }[]) => void;
+  partition: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
 }
 
 const SURFACES: Surface[] = [
@@ -33,11 +34,14 @@ const SURFACES: Surface[] = [
     name: 'applyToModelDraft (project-backed)',
     action: (m, id, name, vns) => VFS_DROP_CONFIG.action!.applyToModelDraft(m, id, name, undefined, vns),
     decision: (m, id, vns) => VFS_DROP_CONFIG.decision!.applyToModelDraft(m, id, '', undefined, vns),
+    partition: (m, id, name, vns) =>
+      VFS_DROP_CONFIG.activity_partition!.applyToModelDraft(m, id, name, undefined, vns),
   },
   {
     name: 'applyToLocalModelDraft (standalone)',
     action: (m, id, name, vns) => VFS_DROP_CONFIG.action!.applyToLocalModelDraft(m, id, name, vns),
     decision: (m, id, vns) => VFS_DROP_CONFIG.decision!.applyToLocalModelDraft(m, id, '', vns),
+    partition: (m, id, name, vns) => VFS_DROP_CONFIG.activity_partition!.applyToLocalModelDraft(m, id, name, vns),
   },
 ];
 
@@ -82,5 +86,41 @@ describe.each(SURFACES)('VFS_DROP_CONFIG — activity tools — $name', (surface
 
     expect(model.activityNodes!['n1'].activityId).not.toBe(otherActivityId);
     expect(Object.keys(model.activities!)).toHaveLength(2);
+  });
+
+  // A3 — swimlane creation, deferred out of A2.5 on purpose (no shape existed
+  // yet then). Same VFS_DROP_CONFIG shape as every other activity tool.
+  it('partition: creates an ACTIVITY_PARTITION at index 0 for a fresh Activity', () => {
+    const model = emptyModel();
+    surface.partition(model, 'p1', 'Lane 1', []);
+
+    expect(model.activityPartitions!['p1']).toMatchObject({ name: 'Lane 1', index: 0 });
+    const activityId = model.activityPartitions!['p1'].activityId;
+    expect(model.activities![activityId]).toBeTruthy();
+  });
+
+  it('partition: appends at the next index among siblings of the same Activity', () => {
+    const model = emptyModel();
+    surface.partition(model, 'p1', 'Lane 1', []);
+    const activityId = model.activityPartitions!['p1'].activityId;
+
+    surface.partition(model, 'p2', 'Lane 2', [{ elementId: 'p1' }]);
+
+    expect(model.activityPartitions!['p2']).toMatchObject({ activityId, index: 1 });
+  });
+
+  it('partition: does not count a sibling lane from an unrelated Activity toward its own index', () => {
+    const model = emptyModel();
+    // Another diagram's activity already has 2 lanes.
+    surface.partition(model, 'other-1', 'Lane A', []);
+    surface.partition(model, 'other-2', 'Lane B', [{ elementId: 'other-1' }]);
+
+    // This diagram has none of its own yet — must start at index 0, not 2.
+    surface.partition(model, 'p1', 'Lane 1', []);
+
+    expect(model.activityPartitions!['p1'].index).toBe(0);
+    expect(model.activityPartitions!['p1'].activityId).not.toBe(
+      model.activityPartitions!['other-1'].activityId,
+    );
   });
 });

@@ -11,6 +11,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useKonvaCanvasController } from './hooks/useKonvaCanvasController';
 import { useKonvaDnD } from './hooks/useKonvaDnD';
 import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
+import PartitionShape from './shapes/PartitionShape';
 import { SB_MIN_W, SB_MIN_H } from './shapes/SystemBoundaryShape';
 import { UCM_MIN_W, UCM_MIN_H } from './shapes/UCModuleShape';
 import { getShapeSize, renderShape, type NodeShapeRenderProps } from './ShapeRouter';
@@ -38,7 +39,9 @@ import { useConnectionDraw, type DropAnchoring } from './interactions/useConnect
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import { useRelationShortcuts } from './interactions/useRelationShortcuts';
 import { usePackageDrop } from './interactions/usePackageDrop';
+import { usePartitionDrop } from './interactions/usePartitionDrop';
 import { commitContainerResize } from './interactions/containerResize';
+import { relayoutPartitionViewNodes, layoutPartitionsHeight, DEFAULT_PARTITION_WIDTH, MIN_PARTITION_HEIGHT } from './engine/partitionLayout';
 import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
@@ -116,10 +119,12 @@ import {
   isGateViewModel,
   isContinuationViewModel,
   isActivityActionViewModel,
+  isActivityPartitionViewModel,
   type AnyNodeViewModel,
   type LifelineViewModel,
   type NodeViewModel,
   type PackageViewModel,
+  type ActivityPartitionViewModel,
 } from '../adapters/view-models/node.view-model';
 import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, ratioFromPoint, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
@@ -249,6 +254,11 @@ export default function KonvaCanvas() {
         const size = getPackageShapeSize(vm);
         width = size.width;
         height = size.height;
+      } else if (isActivityPartitionViewModel(vm)) {
+        // Same reasoning as the package branch above: a lane sizes itself
+        // from its row/children, not from `getShapeSize`'s ShapeRouter path.
+        width = vm.width;
+        height = MIN_PARTITION_HEIGHT;
       } else {
         ({ width, height } = getShapeSize(vm));
       }
@@ -592,7 +602,7 @@ export default function KonvaCanvas() {
   const boundsMap = useMemo((): Map<string, NodeBounds> => {
     const map = new Map<string, NodeBounds>();
     for (const shape of shapes) {
-      if (shape.type === 'package') continue;
+      if (shape.type === 'package' || isActivityPartitionViewModel(shape.data)) continue;
       const pos =
         dragPositions?.get(shape.id) ??
         positionOverrides.get(shape.id) ??
@@ -600,6 +610,29 @@ export default function KonvaCanvas() {
       const vm = shape.data;
       const { width, height } = getShapeSize(vm);
       map.set(shape.id, { x: pos.x, y: pos.y, width, height });
+    }
+
+    // Lanes: width is per-lane (stored), height is shared by the whole row,
+    // derived from the tallest content across ALL lanes (spec §4) — never
+    // just the one being measured.
+    const partitionShapes = shapes.filter((s) => isActivityPartitionViewModel(s.data));
+    if (partitionShapes.length > 0) {
+      const laneIds = new Set(partitionShapes.map((s) => s.id));
+      const allChildBounds: NodeBounds[] = [];
+      for (const child of shapes) {
+        if (!child.parentPackageId || !laneIds.has(child.parentPackageId)) continue;
+        const cb = map.get(child.id);
+        if (cb) allChildBounds.push(cb);
+      }
+      const sharedHeight = layoutPartitionsHeight(allChildBounds);
+      for (const shape of partitionShapes) {
+        const pos =
+          dragPositions?.get(shape.id) ??
+          positionOverrides.get(shape.id) ??
+          { x: shape.x, y: shape.y };
+        const width = shape.width ?? DEFAULT_PARTITION_WIDTH;
+        map.set(shape.id, { x: pos.x, y: pos.y, width, height: sharedHeight });
+      }
     }
 
     const pkgShapes = shapes
@@ -661,6 +694,17 @@ export default function KonvaCanvas() {
     isStandalone: vfsController.isStandalone,
   });
 
+  const {
+    hoveredPartitionId,
+    onDragMoveDetectPartition,
+    onDragEndWithPartitionDetection,
+  } = usePartitionDrop({
+    shapes,
+    boundsMap,
+    activeTabId: activeTabId ?? '',
+    isStandalone: vfsController.isStandalone,
+  });
+
   const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap, viewportCulling);
 
   const [cullingWarningOpen, setCullingWarningOpen] = useState(false);
@@ -693,15 +737,17 @@ export default function KonvaCanvas() {
     (e: KonvaEventObject<MouseEvent>) => {
       dragHandlers.onDragEnd(e);
       onDragEndWithPackageDetection(e);
+      onDragEndWithPartitionDetection(e);
       setHoveredPackageId(null);
       setIsHoverValid(true);
     },
-    [dragHandlers, onDragEndWithPackageDetection],
+    [dragHandlers, onDragEndWithPackageDetection, onDragEndWithPartitionDetection],
   );
 
   const handleDragMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
       dragHandlers.onDragMove(e);
+      onDragMoveDetectPartition(e);
 
       const nodeId = e.target.id();
       if (!nodeId) return;
@@ -743,7 +789,7 @@ export default function KonvaCanvas() {
         setIsHoverValid(!excludeIds.has(foundContainer ?? ''));
       }
     },
-    [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId],
+    [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId, onDragMoveDetectPartition],
   );
 
   const handleMessageDragEnd = useCallback(
@@ -1052,9 +1098,24 @@ export default function KonvaCanvas() {
 
   const handleDeleteNodes = useCallback(
     (nodeIds: string[]) => {
-      onNodeChange(nodeIds.map((id): KonvaNodeChange => ({ type: 'remove', id })));
+      // A lane isn't a plain ViewNode removal: the generic path clears
+      // children's parentPackageId but never re-derives the row's x, which
+      // would leave a gap where the deleted lane used to be. Route it through
+      // its own onDelete (model cleanup + reparent + relayout) instead.
+      const rest: string[] = [];
+      for (const id of nodeIds) {
+        const shape = shapes.find((s) => s.id === id);
+        if (shape && isActivityPartitionViewModel(shape.data)) {
+          (shape.data as ActivityPartitionViewModel).onDelete?.();
+        } else {
+          rest.push(id);
+        }
+      }
+      if (rest.length > 0) {
+        onNodeChange(rest.map((id): KonvaNodeChange => ({ type: 'remove', id })));
+      }
     },
-    [onNodeChange],
+    [onNodeChange, shapes],
   );
 
   const handleDeleteEdges = useCallback(
@@ -1249,6 +1310,54 @@ export default function KonvaCanvas() {
   // (inline panel) from interfaces/enums (full modal) and to resolve the panel.
   const globalModel = useModelStore((s) => s.model);
   const activeModel = vfsController.isStandalone ? vfsController.localModel : globalModel;
+
+  const handlePartitionResizeEnd = useCallback(
+    (partitionId: string, newWidth: number) => {
+      if (!activeTabId) return;
+      // Width is the only thing a lane resize changes on the model side — index
+      // (and therefore order) is untouched, so this is a single 'vfs' mutation.
+      const partitionsById: Record<string, { index: number }> = {};
+      for (const p of Object.values(activeModel?.activityPartitions ?? {})) {
+        partitionsById[p.id] = { index: p.index };
+      }
+      withUndo('vfs', 'Resize Lane', activeTabId, (draft: any) => {
+        const file = draft.project?.nodes[activeTabId];
+        if (!file || !isDiagramView(file.content)) return;
+        const vn = file.content.nodes.find((n: any) => n.id === partitionId);
+        if (!vn) return;
+        vn.width = newWidth;
+        relayoutPartitionViewNodes(file.content.nodes, partitionsById);
+      });
+    },
+    [activeTabId, activeModel],
+  );
+
+  const handlePartitionDblClick = useCallback(
+    (shapeId: string) => {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape || !isActivityPartitionViewModel(shape.data)) return;
+      const vm = shape.data as ActivityPartitionViewModel;
+      const stage = stageRef.current;
+      if (!stage) return;
+      const pos = positionOverrides.get(shapeId) ?? { x: shape.x, y: shape.y };
+      const bounds = boundsMap.get(shapeId);
+      const transform = stage.getAbsoluteTransform().copy();
+      const screenPos = transform.point({ x: pos.x, y: pos.y });
+      const scale = stage.scaleX();
+      const width = (bounds?.width ?? vm.width) * scale;
+      if (vm.onRename) {
+        startInlineEditing(
+          shapeId,
+          vm.name,
+          'name',
+          { x: screenPos.x, y: screenPos.y },
+          { width, height: 28 * scale },
+          (text) => vm.onRename!(text),
+        );
+      }
+    },
+    [shapes, stageRef, positionOverrides, boundsMap, startInlineEditing],
+  );
 
   const startUseCaseInlineEdit = useCallback(
     (shapeId: string) => {
@@ -2438,6 +2547,7 @@ export default function KonvaCanvas() {
       note: handleNoteResizeEnd,
       ucModule: handleUCModuleResizeEnd,
       package: handlePackageResizeEnd,
+      activityPartition: handlePartitionResizeEnd,
       systemBoundary: handleSystemBoundaryResizeEnd,
     }),
     [
@@ -2448,6 +2558,7 @@ export default function KonvaCanvas() {
       handleNoteResizeEnd,
       handleUCModuleResizeEnd,
       handlePackageResizeEnd,
+      handlePartitionResizeEnd,
       handleSystemBoundaryResizeEnd,
     ],
   );
@@ -2560,6 +2671,35 @@ export default function KonvaCanvas() {
             )}
           </Layer>
 
+          <Layer name="partitions">
+            {sortedShapes
+              .filter((shape) => isActivityPartitionViewModel(shape.data))
+              .map((shape) => {
+                const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
+                const vm = shape.data as ActivityPartitionViewModel;
+                const isVisible = visibleNodeIds.has(shape.id);
+                const bounds = boundsMap.get(shape.id);
+                const dropHighlight = hoveredPartitionId === shape.id ? 'valid' : null;
+
+                return (
+                  <PartitionShape
+                    key={shape.id}
+                    viewModel={vm}
+                    x={pos.x}
+                    y={pos.y}
+                    width={bounds?.width ?? vm.width}
+                    height={bounds?.height ?? 200}
+                    selected={selectedIds.has(shape.id)}
+                    dropHighlight={dropHighlight}
+                    onDblClick={() => handlePartitionDblClick(shape.id)}
+                    onContextMenu={handleNodeContextMenu}
+                    onResizeEnd={handlePartitionResizeEnd}
+                    visible={isVisible}
+                  />
+                );
+              })}
+          </Layer>
+
           <Layer name="packages">
             {sortedShapes
               .filter((shape) => isPackageViewModel(shape.data))
@@ -2655,7 +2795,7 @@ export default function KonvaCanvas() {
 
           <Layer name="nodes">
             {sortedShapes
-              .filter((shape) => !isPackageViewModel(shape.data))
+              .filter((shape) => !isPackageViewModel(shape.data) && !isActivityPartitionViewModel(shape.data))
               .map((shape) => {
                 const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
                 const vm = shape.data;

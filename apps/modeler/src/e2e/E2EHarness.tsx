@@ -19,6 +19,7 @@ import { useVFSStore } from '../store/project-vfs.store';
 import { useWorkspaceStore } from '../store/workspace.store';
 import { useAuthStore } from '../features/auth/store/auth.store';
 import { useSettingsStore } from '../store/settingsStore';
+import { layoutPartitions } from '../canvas/engine/partitionLayout';
 import type {
   LibreUMLProject,
   SemanticModel,
@@ -63,13 +64,17 @@ export interface E2ESequenceSpec {
 }
 
 
-/** Minimal activity-diagram seed (A1). */
+/** Minimal activity-diagram seed (A1, partitions added in A3). */
 export interface E2EActivitySpec {
   activityName?: string;
   nodes: {
     id: string; vnId: string; x: number; y: number;
     activityType: string; name?: string;
+    /** Which lane (by its IR partition id, from `partitions` below) it starts in. */
+    partitionId?: string;
   }[];
+  /** Swimlanes (A3) — `x` is derived from `index`/`width`, like the real app. */
+  partitions?: { id: string; vnId: string; name: string; index: number; width?: number }[];
   flows?: { id: string; source: string; target: string; guard?: string }[];
 }
 
@@ -191,10 +196,16 @@ function buildActivityProject(spec: E2EActivitySpec): LibreUMLProject {
   };
   model.activityNodes = {};
   model.activityPartitions = {};
+  for (const p of spec.partitions ?? []) {
+    (model.activityPartitions as Record<string, unknown>)[p.id] = {
+      id: p.id, kind: 'ACTIVITY_PARTITION', activityId: ACTIVITY_ID, name: p.name, index: p.index,
+    };
+  }
   for (const n of spec.nodes) {
     (model.activityNodes as Record<string, unknown>)[n.id] = {
       id: n.id, kind: 'ACTIVITY_NODE', name: n.name ?? '',
       activityType: n.activityType, activityId: ACTIVITY_ID,
+      ...(n.partitionId ? { partitionId: n.partitionId } : {}),
     };
   }
   for (const f of spec.flows ?? []) {
@@ -204,7 +215,23 @@ function buildActivityProject(spec: E2EActivitySpec): LibreUMLProject {
     };
   }
 
-  const viewNodes: ViewNode[] = spec.nodes.map((n) => ({ id: n.vnId, elementId: n.id, x: n.x, y: n.y }));
+  // Lane x is derived from index/width, same source of truth the real app
+  // uses (`layoutPartitions`) — seeding a stale x here would just paint over
+  // the bug on the next render.
+  const laneXById = layoutPartitions(
+    (spec.partitions ?? []).map((p) => ({ id: p.vnId, index: p.index, width: p.width })),
+  );
+  const partitionViewNodes: ViewNode[] = (spec.partitions ?? []).map((p) => ({
+    id: p.vnId, elementId: p.id, x: laneXById.get(p.vnId) ?? 0, y: 0, width: p.width,
+  }));
+  const nodeViewNodes: ViewNode[] = spec.nodes.map((n) => {
+    const lane = n.partitionId ? spec.partitions?.find((p) => p.id === n.partitionId) : undefined;
+    return {
+      id: n.vnId, elementId: n.id, x: n.x, y: n.y,
+      ...(lane ? { parentPackageId: lane.vnId } : {}),
+    };
+  });
+  const viewNodes: ViewNode[] = [...partitionViewNodes, ...nodeViewNodes];
   const viewEdges = (spec.flows ?? []).map((f) => ({ id: `ve-${f.id}`, relationId: f.id, waypoints: [] }));
   const content: DiagramView = {
     diagramId: FILE_ID, nodes: viewNodes, edges: viewEdges as DiagramView['edges'],

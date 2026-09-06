@@ -392,6 +392,31 @@ export interface ActivityForkJoinViewModel {
   onOpenProps?: () => void;
 }
 
+/**
+ * Swimlane (A3): a band, not a free container (spec §4). `index` is the only
+ * source of truth for order — its own `x` is derived from the whole row's
+ * widths (`partitionLayout.ts`), never dragged. `width` is the one thing the
+ * user resizes by hand; `representsId` (A4) traces the lane to its
+ * responsible class/actor and stays optional until then.
+ */
+export interface ActivityPartitionViewModel {
+  __brand: 'activityPartition';
+  id: string;
+  domainId: string;
+  name: string;
+  index: number;
+  width: number;
+  representsId?: string;
+  colorOverride?: string;
+  /** Whether a left/right neighbour exists — drives the reorder buttons. */
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  onRename?: (name: string) => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  onDelete?: () => void;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -415,7 +440,8 @@ export type AnyNodeViewModel =
   | ActivityActionViewModel
   | ActivityControlNodeViewModel
   | ActivityDecisionViewModel
-  | ActivityForkJoinViewModel;
+  | ActivityForkJoinViewModel
+  | ActivityPartitionViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -514,4 +540,10 @@ export function isActivityForkJoinViewModel(
 
 export function isContinuationViewModel(vm: AnyNodeViewModel): vm is ContinuationViewModel {
   return '__brand' in vm && vm.__brand === 'continuation';
+}
+
+export function isActivityPartitionViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityPartitionViewModel {
+  return '__brand' in vm && vm.__brand === 'activityPartition';
 }

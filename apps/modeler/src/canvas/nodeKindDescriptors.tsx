@@ -88,6 +88,8 @@ export type NodeResize =
   | 'ucModule'
   /** Applied by the package layer, which resizes outside the main render loop. */
   | 'package'
+  /** Applied by the partition layer — same reasoning as `'package'`. */
+  | 'activityPartition'
   /** The historical default for every kind without one of its own. */
   | 'systemBoundary';
 
@@ -456,6 +458,22 @@ export const NODE_KIND_DESCRIPTORS: Record<NodeKind, NodeKindDescriptor> = {
     editor: 'none',
     resize: 'systemBoundary',
     draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (A3) ────────────────────────────────────────────────
+  // A swimlane is a band whose x is derived from the whole row (partitionLayout.ts),
+  // not dragged — same reasoning as the package: it draws in its own layer,
+  // outside the ShapeRouter path and the main render loop, and reorders through
+  // its own header buttons instead of a drag gesture.
+  activityPartition: describe({
+    size: null,
+    render: null,
+    editor: 'none',
+    resize: 'activityPartition',
+    draggable: false,
     dragAxis: 'free',
     dragEnd: 'node',
     resetTimeline: false,

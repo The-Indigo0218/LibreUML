@@ -26,6 +26,7 @@ export const CLASS_ICON_CONFIG: Record<stereotype, { bg: string; letter: string;
   merge: { bg: "#0EA5E9", letter: "M", color: "#FFFFFF" },
   fork: { bg: "#0EA5E9", letter: "F", color: "#FFFFFF" },
   join: { bg: "#0EA5E9", letter: "J", color: "#FFFFFF" },
+  activity_partition: { bg: "#0EA5E9", letter: "L", color: "#FFFFFF" },
 };
 
 export const THEME_COLORS = {

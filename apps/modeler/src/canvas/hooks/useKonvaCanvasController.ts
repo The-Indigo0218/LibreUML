@@ -16,7 +16,7 @@
 
 import { useMemo } from 'react';
 import { useVFSCanvasController } from '../../features/diagram/hooks/useVFSCanvasController';
-import { isNoteViewModel, isPackageViewModel, isSystemBoundaryViewModel, isUCModuleViewModel } from '../../adapters/view-models/node.view-model';
+import { isNoteViewModel, isPackageViewModel, isSystemBoundaryViewModel, isUCModuleViewModel, isActivityPartitionViewModel } from '../../adapters/view-models/node.view-model';
 import type {
   ShapeDescriptor,
   EdgeDescriptor,
@@ -75,6 +75,21 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
         };
       }
       
+      // A lane needs its own stored width (resizable, same as a package) but
+      // never a stored height — that's shared across the whole row and
+      // recomputed from content, not persisted per lane.
+      if (isActivityPartitionViewModel(n.data)) {
+        return {
+          id: n.id,
+          type: 'class' as const,
+          x: n.position.x,
+          y: n.position.y,
+          data: n.data,
+          parentPackageId,
+          width: viewNode?.width,
+        };
+      }
+
       // System boundaries and UC modules need stored dimensions (same as packages)
       if (isSystemBoundaryViewModel(n.data) || isUCModuleViewModel(n.data)) {
         return {

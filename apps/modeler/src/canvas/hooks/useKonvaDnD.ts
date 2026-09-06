@@ -7,7 +7,12 @@ import { useModelStore } from '../../store/model.store';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useToastStore } from '../../store/toast.store';
 import { getLocalModel } from '../../store/standaloneModelOps';
-import { getOrCreateActivityId, applyCreateActivityNode } from '../../store/activityModelOps';
+import {
+  getOrCreateActivityId,
+  applyCreateActivityNode,
+  applyCreateActivityPartition,
+} from '../../store/activityModelOps';
+import { DEFAULT_PARTITION_WIDTH } from '../engine/partitionLayout';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 import { getAbsolutePosition } from '../../features/diagram/hooks/controllers/sharedNodeBuilders';
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
@@ -321,6 +326,32 @@ export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
   merge: controlNodeDropConfig('MERGE'),
   fork: controlNodeDropConfig('FORK'),
   join: controlNodeDropConfig('JOIN'),
+  // ── Activity Diagram (A3) ────────────────────────────────────────────────
+  // `object_node` stays unwired — no shape yet (A6), same reasoning as A2.5.
+  activity_partition: {
+    getNextName: (model: SemanticModel) =>
+      getNextVFSName(
+        Object.values(model.activityPartitions ?? {}).map((p) => p.name),
+        'Lane',
+      ),
+    applyToModelDraft: (m: SemanticModel, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      const index = Object.values(m.activityPartitions ?? {}).filter(
+        (p) => p.activityId === activityId,
+      ).length;
+      applyCreateActivityPartition(m, id, { activityId, name, index });
+    },
+    applyToLocalModelDraft: (lm: SemanticModel, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      const index = Object.values(lm.activityPartitions ?? {}).filter(
+        (p) => p.activityId === activityId,
+      ).length;
+      applyCreateActivityPartition(lm, id, { activityId, name, index });
+    },
+    // Height is never read for a lane (shared/derived, see partitionLayout.ts)
+    // — only `width` matters here, but the shape requires both.
+    initialDimensions: { width: DEFAULT_PARTITION_WIDTH, height: 200 },
+  },
 };
 
 function getParentContent(

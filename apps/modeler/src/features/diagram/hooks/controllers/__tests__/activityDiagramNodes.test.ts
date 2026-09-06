@@ -7,6 +7,7 @@ import type {
   ActivityDecisionViewModel,
   ActivityForkJoinViewModel,
   ActivityObjectNodeViewModel,
+  ActivityPinViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function model(over: Partial<SemanticModel> = {}): SemanticModel {
@@ -170,6 +171,61 @@ describe('buildActivityDiagramNodes', () => {
     const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'vn1', elementId: 'n1' }])));
 
     expect((built.data as ActivityObjectNodeViewModel).classifierName).toBeUndefined();
+  });
+
+  it('builds input/output pins carrying their kind and owner (A6.2)', () => {
+    const m = model({
+      activityNodes: {
+        action1: irNode('action1', 'ACTION', { name: 'Pay' }),
+        p1: irNode('p1', 'INPUT_PIN', { name: '', ownerActionId: 'action1' }),
+        p2: irNode('p2', 'OUTPUT_PIN', { name: '', ownerActionId: 'action1' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([
+        { id: 'v-action1', elementId: 'action1' },
+        { id: 'v-p1', elementId: 'p1' },
+        { id: 'v-p2', elementId: 'p2' },
+      ])),
+    );
+
+    const pins = built.slice(1).map((b) => b.data as ActivityPinViewModel);
+    expect(pins.map((p) => p.__brand)).toEqual(['activityPin', 'activityPin']);
+    expect(pins.map((p) => p.pinKind)).toEqual(['INPUT_PIN', 'OUTPUT_PIN']);
+  });
+
+  it('shows the parameter a pin is traced to (ADR-0010)', () => {
+    const m = model({
+      operations: {
+        op1: { id: 'op1', kind: 'OPERATION', name: 'pay', parameters: [{ name: 'amount', type: 'number', direction: 'in' }] },
+      } as never,
+      activityNodes: {
+        action1: irNode('action1', 'CALL_OPERATION', { name: 'Pay', callsOperationId: 'op1' }),
+        p1: irNode('p1', 'INPUT_PIN', { name: '', ownerActionId: 'action1', parameterName: 'amount' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-action1', elementId: 'action1' }, { id: 'v-p1', elementId: 'p1' }])),
+    );
+
+    expect((built[1].data as ActivityPinViewModel).parameterLabel).toBe('amount: number');
+  });
+
+  it('leaves the parameter caption empty when the pin has no trace', () => {
+    const m = model({
+      activityNodes: {
+        action1: irNode('action1', 'ACTION', { name: 'Pay' }),
+        p1: irNode('p1', 'INPUT_PIN', { name: '', ownerActionId: 'action1' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-action1', elementId: 'action1' }, { id: 'v-p1', elementId: 'p1' }])),
+    );
+
+    expect((built[1].data as ActivityPinViewModel).parameterLabel).toBeUndefined();
   });
 
   it('maps decision and merge to the same rhombus glyph (A2)', () => {

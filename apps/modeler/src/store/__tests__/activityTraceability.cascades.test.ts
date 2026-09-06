@@ -15,8 +15,12 @@ import {
   clearRepresentsRef,
   clearObjectNodeClassifierRefs,
   resolveObjectNodeClassifierLabel,
+  getPinParameterCandidates,
+  resolvePinParameterLabel,
+  applyDeleteActivityNode,
+  PIN_RETURN_VALUE,
 } from '../activityModelOps';
-import type { SemanticModel } from '../../core/domain/vfs/vfs.types';
+import type { SemanticModel, IRActivityNode } from '../../core/domain/vfs/vfs.types';
 
 function emptyModel(): SemanticModel {
   return {
@@ -144,5 +148,158 @@ describe('resolveObjectNodeClassifierLabel', () => {
   it('returns undefined when the classifier does not resolve', () => {
     const model = emptyModel();
     expect(resolveObjectNodeClassifierLabel(model, 'ghost')).toBeUndefined();
+  });
+});
+
+// A6.2/v1.1 — pins traced to a parameter of their owner action's linked
+// operation (ADR-0010). By name, not id: `IRParameter` carries no id.
+describe('getPinParameterCandidates', () => {
+  function modelWithOwner(): { model: SemanticModel } {
+    const model = emptyModel();
+    model.operations!['op1'] = {
+      id: 'op1',
+      kind: 'OPERATION',
+      name: 'pay',
+      returnType: 'Receipt',
+      parameters: [
+        { name: 'amount', type: 'number', direction: 'in' },
+        { name: 'account', type: 'Account' },
+        { name: 'log', type: 'Logger', direction: 'out' },
+        { name: 'ledger', type: 'Ledger', direction: 'inout' },
+        { name: 'legacy', type: 'string', direction: 'return' },
+      ],
+    };
+    model.activityNodes['action1'] = {
+      id: 'action1', kind: 'ACTIVITY_NODE', activityType: 'CALL_OPERATION',
+      activityId: 'a1', name: 'Pay', callsOperationId: 'op1',
+    };
+    return { model };
+  }
+
+  it('lists in/inout parameters (and the undefined-direction default) for an input pin', () => {
+    const { model } = modelWithOwner();
+    const values = getPinParameterCandidates(model, 'action1', 'INPUT_PIN').map((c) => c.value);
+    expect(values).toEqual(['amount', 'account', 'ledger']);
+  });
+
+  it('lists out/inout parameters plus a synthetic return entry for an output pin', () => {
+    const { model } = modelWithOwner();
+    const values = getPinParameterCandidates(model, 'action1', 'OUTPUT_PIN').map((c) => c.value);
+    expect(values).toEqual(['log', 'ledger', PIN_RETURN_VALUE]);
+  });
+
+  it('omits the return entry when the operation has no return type', () => {
+    const { model } = modelWithOwner();
+    model.operations!['op1'].returnType = undefined;
+    const values = getPinParameterCandidates(model, 'action1', 'OUTPUT_PIN').map((c) => c.value);
+    expect(values).not.toContain(PIN_RETURN_VALUE);
+  });
+
+  it('returns nothing when the owner has no linked operation', () => {
+    const model = emptyModel();
+    model.activityNodes['action1'] = {
+      id: 'action1', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1', name: 'Pay',
+    };
+    expect(getPinParameterCandidates(model, 'action1', 'INPUT_PIN')).toEqual([]);
+  });
+
+  it('returns nothing when there is no owner at all', () => {
+    const model = emptyModel();
+    expect(getPinParameterCandidates(model, undefined, 'INPUT_PIN')).toEqual([]);
+  });
+});
+
+describe('resolvePinParameterLabel', () => {
+  function modelWithOwner(): SemanticModel {
+    const model = emptyModel();
+    model.operations!['op1'] = {
+      id: 'op1', kind: 'OPERATION', name: 'pay', returnType: 'Receipt',
+      parameters: [{ name: 'amount', type: 'number', direction: 'in' }],
+    };
+    model.activityNodes['action1'] = {
+      id: 'action1', kind: 'ACTIVITY_NODE', activityType: 'CALL_OPERATION',
+      activityId: 'a1', name: 'Pay', callsOperationId: 'op1',
+    };
+    return model;
+  }
+
+  it('resolves a linked parameter to "name: type"', () => {
+    const model = modelWithOwner();
+    const pin: IRActivityNode = {
+      id: 'p1', kind: 'ACTIVITY_NODE', activityType: 'INPUT_PIN', activityId: 'a1',
+      name: '', ownerActionId: 'action1', parameterName: 'amount',
+    };
+    expect(resolvePinParameterLabel(model, pin)).toBe('amount: number');
+  });
+
+  it('resolves the return sentinel against the operation\'s return type', () => {
+    const model = modelWithOwner();
+    const pin: IRActivityNode = {
+      id: 'p1', kind: 'ACTIVITY_NODE', activityType: 'OUTPUT_PIN', activityId: 'a1',
+      name: '', ownerActionId: 'action1', parameterName: PIN_RETURN_VALUE,
+    };
+    expect(resolvePinParameterLabel(model, pin)).toBe('(return): Receipt');
+  });
+
+  it('stops resolving once the parameter it traced is gone — self-healing, not cascaded', () => {
+    const model = modelWithOwner();
+    model.operations!['op1'].parameters = [];
+    const pin: IRActivityNode = {
+      id: 'p1', kind: 'ACTIVITY_NODE', activityType: 'INPUT_PIN', activityId: 'a1',
+      name: '', ownerActionId: 'action1', parameterName: 'amount',
+    };
+    expect(resolvePinParameterLabel(model, pin)).toBeUndefined();
+  });
+
+  it('returns undefined when the pin has no trace set', () => {
+    const model = modelWithOwner();
+    const pin: IRActivityNode = {
+      id: 'p1', kind: 'ACTIVITY_NODE', activityType: 'INPUT_PIN', activityId: 'a1',
+      name: '', ownerActionId: 'action1',
+    };
+    expect(resolvePinParameterLabel(model, pin)).toBeUndefined();
+  });
+});
+
+describe('applyDeleteActivityNode — pin cascade (A6.2)', () => {
+  it('deletes every pin owned by the action being deleted', () => {
+    const model = emptyModel();
+    model.activityNodes['action1'] = {
+      id: 'action1', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1', name: 'Pay',
+    };
+    model.activityNodes['pin1'] = {
+      id: 'pin1', kind: 'ACTIVITY_NODE', activityType: 'INPUT_PIN', activityId: 'a1',
+      name: '', ownerActionId: 'action1',
+    };
+    model.activityNodes['pin2'] = {
+      id: 'pin2', kind: 'ACTIVITY_NODE', activityType: 'OUTPUT_PIN', activityId: 'a1',
+      name: '', ownerActionId: 'action1',
+    };
+    model.activityNodes['other'] = {
+      id: 'other', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1', name: 'Ship',
+    };
+
+    applyDeleteActivityNode(model, 'action1');
+
+    expect(model.activityNodes['action1']).toBeUndefined();
+    expect(model.activityNodes['pin1']).toBeUndefined();
+    expect(model.activityNodes['pin2']).toBeUndefined();
+    expect(model.activityNodes['other']).toBeDefined();
+  });
+
+  it('deleting a pin directly does not touch its owner or siblings', () => {
+    const model = emptyModel();
+    model.activityNodes['action1'] = {
+      id: 'action1', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1', name: 'Pay',
+    };
+    model.activityNodes['pin1'] = {
+      id: 'pin1', kind: 'ACTIVITY_NODE', activityType: 'INPUT_PIN', activityId: 'a1',
+      name: '', ownerActionId: 'action1',
+    };
+
+    applyDeleteActivityNode(model, 'pin1');
+
+    expect(model.activityNodes['pin1']).toBeUndefined();
+    expect(model.activityNodes['action1']).toBeDefined();
   });
 });

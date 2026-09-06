@@ -339,7 +339,9 @@ export type ActivityNodeKind =
   | 'JOIN'
   // v1.1
   | 'FLOW_FINAL'
-  | 'OBJECT_NODE';
+  | 'OBJECT_NODE'
+  | 'INPUT_PIN'
+  | 'OUTPUT_PIN';
 
 export interface IRActivityNode extends IRElement {
   kind: 'ACTIVITY_NODE';
@@ -354,6 +356,18 @@ export interface IRActivityNode extends IRElement {
   classifierId?: string;
   /** FORK/JOIN only: bar axis. Defaults to HORIZONTAL. */
   barOrientation?: 'HORIZONTAL' | 'VERTICAL';
+  /**
+   * INPUT_PIN/OUTPUT_PIN only: the action (ACTION/CALL_OPERATION) this pin
+   * belongs to (A6.2). A pin has no meaning without an owner.
+   */
+  ownerActionId?: string;
+  /**
+   * INPUT_PIN/OUTPUT_PIN only: trace to a parameter of the owner's linked
+   * operation (ADR-0010). By name, not id — `IRParameter` carries no id of
+   * its own. The sentinel `'return'` traces an output pin to the operation's
+   * return value instead of a parameter.
+   */
+  parameterName?: string;
 }
 
 /**

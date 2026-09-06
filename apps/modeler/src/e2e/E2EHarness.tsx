@@ -71,7 +71,12 @@ export interface E2EActivitySpec {
   realizesUseCaseId?: string;
   /** Traceability (A4): classes/actors/use-cases an action or lane can trace to. */
   classes?: { id: string; name: string; operationIds?: string[] }[];
-  operations?: { id: string; name: string }[];
+  operations?: {
+    id: string; name: string;
+    /** Pin→parameter trace (A6.2/v1.1). */
+    parameters?: { name: string; type: string; direction?: 'in' | 'out' | 'inout' }[];
+    returnType?: string;
+  }[];
   actors?: { id: string; name: string }[];
   useCases?: { id: string; name: string }[];
   nodes: {
@@ -221,7 +226,11 @@ function buildActivityProject(spec: E2EActivitySpec): LibreUMLProject {
     // `parameters` is required on IROperation — the signature formatter (RightSidebar's
     // member list, always mounted) crashes with "Cannot read properties of undefined
     // (reading 'map')" without it.
-    (model.operations as Record<string, unknown>)[o.id] = { id: o.id, kind: 'OPERATION', name: o.name, parameters: [] };
+    (model.operations as Record<string, unknown>)[o.id] = {
+      id: o.id, kind: 'OPERATION', name: o.name,
+      parameters: o.parameters ?? [],
+      ...(o.returnType ? { returnType: o.returnType } : {}),
+    };
   }
   for (const a of spec.actors ?? []) {
     (model.actors as Record<string, unknown>)[a.id] = { id: a.id, kind: 'ACTOR', name: a.name };

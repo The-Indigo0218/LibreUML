@@ -1028,6 +1028,10 @@ function createActivityDiagramNode(type: string, partial?: Partial<DomainNode>):
       return { ...baseNode, type: 'JOIN', barOrientation: 'HORIZONTAL' } as DomainNode;
     case 'OBJECT_NODE':
       return { ...baseNode, type: 'OBJECT_NODE', name: named('Object') } as DomainNode;
+    case 'INPUT_PIN':
+      return { ...baseNode, type: 'INPUT_PIN', name: named('') } as DomainNode;
+    case 'OUTPUT_PIN':
+      return { ...baseNode, type: 'OUTPUT_PIN', name: named('') } as DomainNode;
     case 'ACTIVITY_PARTITION':
       return {
         ...baseNode, type: 'ACTIVITY_PARTITION', name: named('Partition'), index: 0,
@@ -1080,6 +1084,7 @@ const activityDiagramRegistry: DiagramTypeRegistry = {
   supportedNodeTypes: [
     'ACTION', 'CALL_OPERATION', 'INITIAL_NODE', 'ACTIVITY_FINAL',
     'DECISION', 'MERGE', 'FORK', 'JOIN', 'FLOW_FINAL', 'OBJECT_NODE',
+    'INPUT_PIN', 'OUTPUT_PIN',
     'ACTIVITY_PARTITION', 'NOTE',
   ],
   supportedEdgeTypes: ['CONTROL_FLOW', 'OBJECT_FLOW'],

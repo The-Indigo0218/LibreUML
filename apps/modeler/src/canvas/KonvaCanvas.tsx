@@ -92,6 +92,7 @@ import ActivityActionPropsModal from '../features/diagram/components/modals/Acti
 import ActivityPartitionPropsModal from '../features/diagram/components/modals/ActivityPartitionPropsModal';
 import ActivityPropertiesModal from '../features/diagram/components/modals/ActivityPropertiesModal';
 import ActivityObjectNodePropsModal from '../features/diagram/components/modals/ActivityObjectNodePropsModal';
+import ActivityPinPropsModal from '../features/diagram/components/modals/ActivityPinPropsModal';
 import { openDiagramContainingElement } from '../features/diagram/hooks/controllers/traceabilityNav';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
@@ -126,6 +127,7 @@ import {
   isActivityActionViewModel,
   isActivityPartitionViewModel,
   isActivityObjectNodeViewModel,
+  isActivityPinViewModel,
   type AnyNodeViewModel,
   type LifelineViewModel,
   type NodeViewModel,
@@ -1481,6 +1483,19 @@ export default function KonvaCanvas() {
             { width: width - 16, height: fontSize + 6 },
             (text) => vm.onRename!(text));
         }
+      } else if (isActivityPinViewModel(vm)) {
+        // The caption sits below the pin square, not centred inside a box
+        // (PinShape) — position the editor there instead of reusing the
+        // action/object-node box layout.
+        const { width, height } = getShapeSize(vm);
+        const fontSize = vm.fontSizeOverride ?? 11;
+        const screenPos = transform.point({ x: pos.x, y: pos.y + height - fontSize });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.label, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width, height: fontSize + 6 },
+            (text) => vm.onRename!(text));
+        }
       } else {
         (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
       }
@@ -1736,7 +1751,7 @@ export default function KonvaCanvas() {
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (nodeId) => {
       const shape = shapes.find((s) => s.id === nodeId);
-      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data) || isActivityActionViewModel(shape.data) || isActivityObjectNodeViewModel(shape.data))) {
+      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data) || isActivityActionViewModel(shape.data) || isActivityObjectNodeViewModel(shape.data) || isActivityPinViewModel(shape.data))) {
         startUseCaseInlineEdit(nodeId);
         closeMenu();
         return;
@@ -3286,6 +3301,7 @@ export default function KonvaCanvas() {
       <ActivityPartitionPropsModal />
       <ActivityPropertiesModal />
       <ActivityObjectNodePropsModal />
+      <ActivityPinPropsModal />
     </div>
   );
 }

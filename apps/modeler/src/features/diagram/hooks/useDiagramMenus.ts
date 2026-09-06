@@ -8,7 +8,7 @@ import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../st
 import { isDiagramView } from "./useVFSCanvasController";
 import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
 import { undoTransaction } from "../../../core/undo/undoBridge";
-import { getOrCreateActivityId } from "../../../store/activityModelOps";
+import { getOrCreateActivityId, applyCreateActivityNode } from "../../../store/activityModelOps";
 import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from "../../../canvas/shapes/UCModuleShape";
 import type { DiagramView, ViewNode, VFSFile, FragmentKind } from "../../../core/domain/vfs/vfs.types";
@@ -313,6 +313,106 @@ export const useDiagramMenus = ({
     [getElementId],
   );
 
+  // ── Input/output pin insertion (activity diagrams, A6.2) ──────────────────
+  //
+  // Unlike every other activity node, a pin is never dragged from the
+  // palette (VFS_DROP_CONFIG has no entry for it) — it has no meaning without
+  // an owner, so it is created from the owner action's own context menu
+  // instead, one undo step covering both the IR node and its ViewNode, same
+  // bridging pattern as `reorderActivityPartition`.
+
+  const addActivityPin = useCallback(
+    (actionNodeId: string, pinKind: 'INPUT_PIN' | 'OUTPUT_PIN') => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
+
+      const ownerActionId = getElementId(actionNodeId);
+      if (!ownerActionId) return;
+
+      const project = useVFSStore.getState().project;
+      if (!project) return;
+      const fileNode = project.nodes[tabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      const currentView = (fileNode as VFSFile).content;
+      if (!isDiagramView(currentView)) return;
+
+      const ownerViewNode = currentView.nodes.find((vn) => vn.id === actionNodeId);
+      if (!ownerViewNode) return;
+
+      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+      const activeModel = isStandaloneFile ? getLocalModel(tabId) : useModelStore.getState().model;
+      if (!activeModel) return;
+
+      const siblingCount = currentView.nodes.filter(
+        (vn) => activeModel.activityNodes?.[vn.elementId]?.ownerActionId === ownerActionId
+          && activeModel.activityNodes?.[vn.elementId]?.activityType === pinKind,
+      ).length;
+      const position = {
+        x: ownerViewNode.x + (pinKind === 'INPUT_PIN' ? -36 : 140),
+        y: ownerViewNode.y + siblingCount * 26,
+      };
+
+      const pinId = crypto.randomUUID();
+      const viewNode: ViewNode = { id: crypto.randomUUID(), elementId: pinId, ...position };
+      const label = pinKind === 'INPUT_PIN' ? 'Add Input Pin' : 'Add Output Pin';
+
+      if (isStandaloneFile) {
+        undoTransaction({
+          label,
+          scope: tabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const file = draft.project?.nodes[tabId];
+              if (!file || !isDiagramView(file.content) || !file.localModel) return;
+              const activityId = getOrCreateActivityId(file.localModel, file.content.nodes, 'Activity');
+              applyCreateActivityNode(file.localModel, pinId, {
+                activityType: pinKind,
+                activityId,
+                name: '',
+                ownerActionId,
+              });
+              file.content.nodes = [...file.content.nodes, viewNode];
+            },
+          }],
+        });
+      } else {
+        undoTransaction({
+          label,
+          scope: 'global',
+          mutations: [
+            {
+              store: 'model',
+              mutate: (draft: any) => {
+                if (!draft.model) return;
+                const activityId = getOrCreateActivityId(draft.model, currentView.nodes, 'Activity');
+                applyCreateActivityNode(draft.model, pinId, {
+                  activityType: pinKind,
+                  activityId,
+                  name: '',
+                  ownerActionId,
+                });
+              },
+            },
+            {
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const file = draft.project?.nodes[tabId];
+                if (!file || !isDiagramView(file.content)) return;
+                file.content.nodes = [...file.content.nodes, viewNode];
+              },
+            },
+          ],
+        });
+      }
+
+      // Open the parameter picker immediately, same as state invariant opens
+      // its editor right after creation.
+      useUiStore.getState().openActivityPinProps(pinId);
+    },
+    [getElementId],
+  );
+
   // ── Found / Lost message insertion (sequence diagrams) ────────────────────
 
   const addEndpointMessage = useCallback(
@@ -496,6 +596,7 @@ export const useDiagramMenus = ({
         const isActivityPartitionType = effectiveType === "ACTIVITY_PARTITION";
         const isActivityActionType = effectiveType === "ACTION" || effectiveType === "CALL_OPERATION";
         const isActivityObjectNodeType = effectiveType === "OBJECT_NODE";
+        const isActivityPinType = effectiveType === "INPUT_PIN" || effectiveType === "OUTPUT_PIN";
         // Control/decision/fork-join glyphs carry no label (nodeKindDescriptors:
         // "a filled circle has nothing to edit") — nothing for this item to open.
         const isLabellessActivityType = [
@@ -507,7 +608,7 @@ export const useDiagramMenus = ({
 
         if (!isPackageType && !isNoteType && !isLifelineType && !isActivityPartitionType && !isLabellessActivityType) {
           baseOptions.push({
-            label: (isUseCaseNodeType || isDomainEntityType || isActivityActionType || isActivityObjectNodeType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
+            label: (isUseCaseNodeType || isDomainEntityType || isActivityActionType || isActivityObjectNodeType || isActivityPinType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
           });
         }
@@ -550,6 +651,26 @@ export const useDiagramMenus = ({
             baseOptions.push({
               label: t("contextMenu.node.linkOperation"),
               onClick: () => useUiStore.getState().openActivityActionProps(elementId),
+            });
+          }
+          // A6.2: pins have no palette tool — an owner is what gives one
+          // meaning, so it is created from here instead of dragged in.
+          baseOptions.push({
+            label: t("contextMenu.node.addInputPin"),
+            onClick: () => addActivityPin(nodeId, 'INPUT_PIN'),
+          });
+          baseOptions.push({
+            label: t("contextMenu.node.addOutputPin"),
+            onClick: () => addActivityPin(nodeId, 'OUTPUT_PIN'),
+          });
+        }
+
+        if (isActivityPinType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.linkParameter"),
+              onClick: () => useUiStore.getState().openActivityPinProps(elementId),
             });
           }
         }
@@ -734,6 +855,7 @@ export const useDiagramMenus = ({
       getIsNodeExternal,
       getElementId,
       addStateInvariant,
+      addActivityPin,
       addInteractionUse,
       addEndpointMessage,
       addSelfMessage,

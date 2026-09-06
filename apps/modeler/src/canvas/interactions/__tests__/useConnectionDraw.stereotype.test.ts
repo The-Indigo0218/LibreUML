@@ -9,6 +9,7 @@ import type {
   ActivityDecisionViewModel,
   ActivityForkJoinViewModel,
   ActivityObjectNodeViewModel,
+  ActivityPinViewModel,
 } from '../../../adapters/view-models/node.view-model';
 
 function makeLifelineVM(): LifelineViewModel {
@@ -51,6 +52,10 @@ function makeForkJoinVM(): ActivityForkJoinViewModel {
 
 function makeObjectNodeVM(): ActivityObjectNodeViewModel {
   return { __brand: 'activityObjectNode', id: 'vm-obj', domainId: 'ir-obj', label: 'Order' };
+}
+
+function makePinVM(): ActivityPinViewModel {
+  return { __brand: 'activityPin', id: 'vm-pin', domainId: 'ir-pin', pinKind: 'INPUT_PIN', label: '' };
 }
 
 function makeClassVM(): NodeViewModel {
@@ -103,6 +108,11 @@ describe('resolveStereotype', () => {
   // as a class relation instead of deferring to the activity registry.
   it('returns "activity_node" for ActivityObjectNodeViewModel, not "class"', () => {
     expect(resolveStereotype(makeObjectNodeVM() as AnyNodeViewModel)).toBe('activity_node');
+  });
+
+  // A6.2 — same sibling-bug shape again, for the pin view model.
+  it('returns "activity_node" for ActivityPinViewModel, not "class"', () => {
+    expect(resolveStereotype(makePinVM() as AnyNodeViewModel)).toBe('activity_node');
   });
 });
 

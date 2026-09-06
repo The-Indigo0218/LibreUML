@@ -67,6 +67,8 @@ describe('buildActivityDiagramXmi', () => {
         af: node('af', 'ACTIVITY_FINAL'),
         ff: node('ff', 'FLOW_FINAL'),
         on: node('on', 'OBJECT_NODE'),
+        ip: node('ip', 'INPUT_PIN'),
+        op: node('op', 'OUTPUT_PIN'),
       },
     });
     const xmi = buildActivityDiagramXmi(model, null, 'Flow');
@@ -79,6 +81,8 @@ describe('buildActivityDiagramXmi', () => {
     expect(xmi).toContain('xmi:type="uml:ActivityFinalNode"');
     expect(xmi).toContain('xmi:type="uml:FlowFinalNode"');
     expect(xmi).toContain('xmi:type="uml:ObjectNode"');
+    expect(xmi).toContain('xmi:type="uml:InputPin"');
+    expect(xmi).toContain('xmi:type="uml:OutputPin"');
   });
 
   it('emits a CallOperationAction with operation idref when it resolves', () => {

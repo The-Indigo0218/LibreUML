@@ -416,6 +416,33 @@ export interface ActivityObjectNodeViewModel {
   onOpenProps?: () => void;
 }
 
+/** Input or output pin (A6.2/v1.1). */
+export type ActivityPinKindVM = 'INPUT_PIN' | 'OUTPUT_PIN';
+
+/**
+ * Input/output pin (A6.2): a small square on an action's boundary in real
+ * UML, drawn here as a free-standing node near its owner — same engineering
+ * effort as the object node, which also free-floats rather than snapping to
+ * a border. `parameterLabel` is the resolved half of the parameter trace
+ * (`IRActivityNode.parameterName`, ADR-0010), same pattern as
+ * `classifierName` on the object node.
+ */
+export interface ActivityPinViewModel {
+  __brand: 'activityPin';
+  id: string;
+  domainId: string;
+  pinKind: ActivityPinKindVM;
+  label: string;
+  parameterLabel?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
 /**
  * Swimlane (A3): a band, not a free container (spec §4). `index` is the only
  * source of truth for order — its own `x` is derived from the whole row's
@@ -471,7 +498,8 @@ export type AnyNodeViewModel =
   | ActivityDecisionViewModel
   | ActivityForkJoinViewModel
   | ActivityPartitionViewModel
-  | ActivityObjectNodeViewModel;
+  | ActivityObjectNodeViewModel
+  | ActivityPinViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -582,4 +610,8 @@ export function isActivityPartitionViewModel(
   vm: AnyNodeViewModel,
 ): vm is ActivityPartitionViewModel {
   return '__brand' in vm && vm.__brand === 'activityPartition';
+}
+
+export function isActivityPinViewModel(vm: AnyNodeViewModel): vm is ActivityPinViewModel {
+  return '__brand' in vm && vm.__brand === 'activityPin';
 }

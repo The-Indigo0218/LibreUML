@@ -237,7 +237,10 @@
       "decomposeLifeline": "Decompose…",
       "linkOperation": "Link Operation…",
       "editActivityPartitionProperties": "Lane Properties…",
-      "linkClassifier": "Link Classifier…"
+      "linkClassifier": "Link Classifier…",
+      "addInputPin": "Add Input Pin",
+      "addOutputPin": "Add Output Pin",
+      "linkParameter": "Link Parameter…"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",

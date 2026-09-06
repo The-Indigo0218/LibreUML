@@ -16,6 +16,7 @@ import {
   applyDeleteActivityPartition,
   resolveCallsOperationLabel,
   resolveObjectNodeClassifierLabel,
+  resolvePinParameterLabel,
 } from '../../../../store/activityModelOps';
 import type {
   IRActivityNode,
@@ -32,6 +33,8 @@ import type {
   ActivityForkJoinKindVM,
   ActivityPartitionViewModel,
   ActivityObjectNodeViewModel,
+  ActivityPinViewModel,
+  ActivityPinKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
   resolveSemanticElement,
@@ -60,6 +63,12 @@ const DECISION_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityDec
 const FORK_JOIN_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityForkJoinKindVM>> = {
   FORK: 'FORK',
   JOIN: 'JOIN',
+};
+
+/** IR activity types that render as a pin square (A6.2). */
+const PIN_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityPinKindVM>> = {
+  INPUT_PIN: 'INPUT_PIN',
+  OUTPUT_PIN: 'OUTPUT_PIN',
 };
 
 function makeActionNode(
@@ -185,6 +194,38 @@ function makeObjectNode(
   return {
     id: viewNode.id,
     type: 'umlActivityObjectNode',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
+function makePinNode(
+  viewNode: ViewNode,
+  node: IRActivityNode,
+  pinKind: ActivityPinKindVM,
+  allViewNodes: ViewNode[],
+  parameterLabel: string | undefined,
+  onRename: (name: string) => void,
+) {
+  const vm: ActivityPinViewModel = {
+    __brand: 'activityPin',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    pinKind,
+    label: node.name,
+    parameterLabel,
+    colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
+    onRename,
+    onOpenProps: () => useUiStore.getState().openActivityPinProps(viewNode.elementId),
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlActivityPin',
     position: getAbsolutePosition(viewNode, allViewNodes),
     data: vm,
     domainId: viewNode.elementId,
@@ -461,6 +502,19 @@ export function buildActivityDiagramNodes(ctx: NodeBuilderContext) {
         ? resolveObjectNodeClassifierLabel(model, node.classifierId)
         : undefined;
       return makeObjectNode(viewNode, node, diagramView.nodes, classifierName, onRename);
+    }
+
+    const pinKind = PIN_TYPES[node.activityType];
+    if (pinKind) {
+      const onRename = (name: string) => {
+        if (isStandalone && activeTabId) {
+          standaloneModelOps(activeTabId).updateActivityNode(viewNode.elementId, { name });
+        } else {
+          useModelStore.getState().updateActivityNode(viewNode.elementId, { name });
+        }
+      };
+      const parameterLabel = resolvePinParameterLabel(model, node);
+      return makePinNode(viewNode, node, pinKind, diagramView.nodes, parameterLabel, onRename);
     }
 
     return null;

@@ -174,6 +174,7 @@ export function resolvedElementToDomainNode(
         callsOperationId: n.callsOperationId,
         classifierId: n.classifierId,
         barOrientation: n.barOrientation,
+        ownerActionId: n.ownerActionId,
         documentation: n.documentation,
         createdAt: NOW,
         updatedAt: NOW,

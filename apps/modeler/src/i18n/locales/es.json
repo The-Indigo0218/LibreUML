@@ -237,7 +237,10 @@
       "decomposeLifeline": "Descomponer…",
       "linkOperation": "Vincular Operación…",
       "editActivityPartitionProperties": "Propiedades del Carril…",
-      "linkClassifier": "Vincular Clasificador…"
+      "linkClassifier": "Vincular Clasificador…",
+      "addInputPin": "Añadir Pin de Entrada",
+      "addOutputPin": "Añadir Pin de Salida",
+      "linkParameter": "Vincular Parámetro…"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",

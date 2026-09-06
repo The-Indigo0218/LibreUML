@@ -25,6 +25,7 @@ import ControlNodeShape, { getControlNodeShapeSize } from './shapes/ControlNodeS
 import DecisionShape, { getDecisionShapeSize } from './shapes/DecisionShape';
 import ForkJoinShape, { getForkJoinShapeSize } from './shapes/ForkJoinShape';
 import ObjectNodeShape, { getObjectNodeShapeSize } from './shapes/ObjectNodeShape';
+import PinShape, { getPinShapeSize } from './shapes/PinShape';
 
 export interface NodeSize {
   width: number;
@@ -487,6 +488,22 @@ export const NODE_KIND_DESCRIPTORS: Record<NodeKind, NodeKindDescriptor> = {
   activityObjectNode: describe({
     size: getObjectNodeShapeSize,
     render: (vm, { key, common }) => <ObjectNodeShape key={key} viewModel={vm} {...common} />,
+    editor: 'inlineRename',
+    resize: 'systemBoundary',
+    draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (A6.2/v1.1) ────────────────────────────────────────
+  // Input/output pin: created from its owner action's context menu, not
+  // dragged from the palette (a pin with no owner means nothing), but once on
+  // the canvas it is a free-floating node like the object node — same
+  // rename-in-place, same "own menu item for the trace" pattern (ADR-0010).
+  activityPin: describe({
+    size: getPinShapeSize,
+    render: (vm, { key, common }) => <PinShape key={key} viewModel={vm} {...common} />,
     editor: 'inlineRename',
     resize: 'systemBoundary',
     draggable: true,

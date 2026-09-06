@@ -49,6 +49,11 @@ const NODE_METACLASS: Record<ActivityNodeKind, string> = {
   JOIN: 'uml:JoinNode',
   FLOW_FINAL: 'uml:FlowFinalNode',
   OBJECT_NODE: 'uml:ObjectNode',
+  // Pins (A6.2): exported flat like every other node here, not nested under
+  // their owning action's `input`/`output` — same conformance/archival
+  // scope cut as the rest of this file (spec §14.3, D6).
+  INPUT_PIN: 'uml:InputPin',
+  OUTPUT_PIN: 'uml:OutputPin',
 };
 
 /** Resolves an id against every classifier/actor collection a `represents` trace can point to. */

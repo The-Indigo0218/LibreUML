@@ -27,6 +27,7 @@ import ControlNodeShape from '../shapes/ControlNodeShape';
 import DecisionShape from '../shapes/DecisionShape';
 import ForkJoinShape from '../shapes/ForkJoinShape';
 import ObjectNodeShape from '../shapes/ObjectNodeShape';
+import PinShape from '../shapes/PinShape';
 
 /**
  * A0 (ADR-0009). The descriptor table is the canvas' extension point for node
@@ -110,6 +111,7 @@ describe('renderShape routing', () => {
     activityDecision: DecisionShape,
     activityForkJoin: ForkJoinShape,
     activityObjectNode: ObjectNodeShape,
+    activityPin: PinShape,
   };
 
   /** Minimal view model that resolves to `kind` — see `getNodeKind`. */
@@ -241,6 +243,15 @@ describe('node kind behaviour matrix', () => {
     // A6/v1.1: same free geometry as the action box, which it shares its
     // rename editor with.
     activityObjectNode: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'systemBoundary',
+    },
+    // A6.2/v1.1: same free geometry, created from its owner's context menu
+    // rather than the palette, which is not something this behaviour matrix
+    // (drag/resize only) has any way to distinguish.
+    activityPin: {
       draggable: true,
       dragAxis: 'free',
       dragEnd: 'node',

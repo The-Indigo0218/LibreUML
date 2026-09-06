@@ -100,6 +100,70 @@ export function resolveObjectNodeClassifierLabel(model: SemanticModel, classifie
   );
 }
 
+/**
+ * Sentinel `parameterName` for an output pin traced to the operation's return
+ * value rather than an `out`/`inout` parameter — the return type lives on
+ * `IROperation.returnType`, not as an entry in `parameters` (A6.2). Chosen
+ * over an empty string so "not linked" and "linked to the return value" stay
+ * distinguishable.
+ */
+export const PIN_RETURN_VALUE = '__return__';
+
+/**
+ * Candidate parameters for a pin's "Link Parameter…" modal (A6.2, ADR-0010):
+ * the owner action's linked operation, filtered by direction — `in`/`inout`
+ * (plus undefined, the editor's default) for an input pin, `out`/`inout` for
+ * an output pin, which also gets a synthetic entry for the return value when
+ * the operation has one. A `direction: 'return'` parameter is skipped: it
+ * only appears on operations round-tripped through XMI import and would
+ * otherwise double up with the synthetic return entry (same filter
+ * `vfsExport.service.ts` applies when serializing parameters).
+ */
+export function getPinParameterCandidates(
+  model: SemanticModel,
+  ownerActionId: string | undefined,
+  pinKind: 'INPUT_PIN' | 'OUTPUT_PIN',
+): Array<{ value: string; label: string }> {
+  if (!ownerActionId) return [];
+  const owner = model.activityNodes?.[ownerActionId];
+  const op = owner?.callsOperationId ? model.operations?.[owner.callsOperationId] : undefined;
+  if (!op) return [];
+
+  const wantsIn = pinKind === 'INPUT_PIN';
+  const candidates = op.parameters
+    .filter((p) => p.direction !== 'return')
+    .filter((p) => (wantsIn ? p.direction !== 'out' : p.direction === 'out' || p.direction === 'inout'))
+    .map((p) => ({ value: p.name, label: `${p.name}: ${p.type}` }));
+
+  if (!wantsIn && op.returnType) {
+    candidates.push({ value: PIN_RETURN_VALUE, label: `(return): ${op.returnType}` });
+  }
+
+  return candidates;
+}
+
+/**
+ * Resolves a pin's parameter trace to a display label (ADR-0010) — the
+ * visible half of `IRActivityNode.parameterName`. Self-healing rather than
+ * cascaded: if the owner's operation link changes or the parameter is
+ * renamed/removed, this simply stops resolving instead of leaving a stale
+ * cascade to maintain (no cascade runs today when an operation's parameters
+ * change — same accepted-gap shape as `clearCallsOperationRefs` not reaching
+ * per-parameter edits).
+ */
+export function resolvePinParameterLabel(model: SemanticModel, node: IRActivityNode): string | undefined {
+  if (!node.parameterName || !node.ownerActionId) return undefined;
+  const owner = model.activityNodes?.[node.ownerActionId];
+  const op = owner?.callsOperationId ? model.operations?.[owner.callsOperationId] : undefined;
+  if (!op) return undefined;
+
+  if (node.parameterName === PIN_RETURN_VALUE) {
+    return op.returnType ? `(return): ${op.returnType}` : undefined;
+  }
+  const param = op.parameters.find((p) => p.name === node.parameterName && p.direction !== 'return');
+  return param ? `${param.name}: ${param.type}` : undefined;
+}
+
 export function applyCreateActivity(
   model: SemanticModel,
   id: string,
@@ -199,11 +263,22 @@ export function applyUpdateActivityNode(
   model.updatedAt = Date.now();
 }
 
-/** Deleting a node takes the flows in and out of it with it. */
+/**
+ * Deleting a node takes the flows in and out of it with it — and, if it owns
+ * pins (A6.2), the pins themselves: unlike an object node, a pin has no
+ * standing of its own once its action is gone, so it does not become an
+ * orphan the way a dangling `classifierId`/`callsOperationId` trace does.
+ */
 export function applyDeleteActivityNode(model: SemanticModel, id: string): void {
   if (!model.activityNodes?.[id]) return;
-  delete model.activityNodes[id];
-  cascadeDeleteRelations(model, new Set([id]));
+
+  const removedIds = new Set([id]);
+  for (const [pinId, node] of Object.entries(model.activityNodes)) {
+    if (node.ownerActionId === id) removedIds.add(pinId);
+  }
+
+  for (const removedId of removedIds) delete model.activityNodes[removedId];
+  cascadeDeleteRelations(model, removedIds);
   model.updatedAt = Date.now();
 }
 

@@ -19,6 +19,8 @@ export type ActivityDiagramNodeType =
   | 'JOIN'
   | 'FLOW_FINAL'
   | 'OBJECT_NODE'
+  | 'INPUT_PIN'
+  | 'OUTPUT_PIN'
   | 'ACTIVITY_PARTITION'
   | 'NOTE';
 
@@ -66,6 +68,19 @@ export interface ObjectFlowNode extends BaseDomainNode, Documentable {
   classifierId?: string;
 }
 
+/**
+ * An input or output pin on an action (A6.2/v1.1). Owned by exactly one
+ * action — `ownerActionId` — and optionally traces to a parameter of that
+ * action's linked operation (ADR-0010).
+ */
+export interface PinNode extends BaseDomainNode, Documentable {
+  type: 'INPUT_PIN' | 'OUTPUT_PIN';
+  name: string;
+  activityId: string;
+  ownerActionId?: string;
+  parameterName?: string;
+}
+
 /** A swimlane (A3). Ordering comes from `index`, never from pixels (ADR-0008). */
 export interface ActivityPartitionNode extends BaseDomainNode, Documentable {
   type: 'ACTIVITY_PARTITION';
@@ -81,6 +96,7 @@ export type ActivityDiagramNode =
   | DecisionNode
   | BarNode
   | ObjectFlowNode
+  | PinNode
   | ActivityPartitionNode;
 
 export type { ActivityNodeKind };
@@ -101,6 +117,8 @@ export const ACTIVITY_NODE_TYPE_TO_IR: Record<string, ActivityNodeKind> = {
   JOIN: 'JOIN',
   FLOW_FINAL: 'FLOW_FINAL',
   OBJECT_NODE: 'OBJECT_NODE',
+  INPUT_PIN: 'INPUT_PIN',
+  OUTPUT_PIN: 'OUTPUT_PIN',
 };
 
 /** The inverse of `ACTIVITY_NODE_TYPE_TO_IR`. */

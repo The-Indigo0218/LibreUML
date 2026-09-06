@@ -18,7 +18,11 @@ const SOURCE_ONLY_TYPES = new Set(['INITIAL_NODE']);
 const ACTIVITY_NODE_TYPES = new Set([
   'ACTION', 'CALL_OPERATION', 'INITIAL_NODE', 'ACTIVITY_FINAL',
   'DECISION', 'MERGE', 'FORK', 'JOIN', 'FLOW_FINAL', 'OBJECT_NODE',
+  'INPUT_PIN', 'OUTPUT_PIN',
 ]);
+
+/** An object flow terminating here carries a value, same as an object node (A6.2). */
+const OBJECT_FLOW_ENDPOINT_TYPES = new Set(['OBJECT_NODE', 'INPUT_PIN', 'OUTPUT_PIN']);
 
 /**
  * Activity diagram rules (A1).
@@ -60,11 +64,28 @@ export class ActivityDiagramValidator implements BaseValidator {
       return { isValid: false, errors: ['A node cannot flow into itself'] };
     }
 
+    // A pin has a direction (A6.2): a value only ever leaves an input pin's
+    // owner through it backwards, never out of the pin itself, and never
+    // into an output pin. Checked before the generic object-node-at-one-end
+    // rule below so a pin-to-pin flow gets the more specific message.
+    if (edgeType === 'OBJECT_FLOW' && sourceNode.type === 'INPUT_PIN') {
+      return {
+        isValid: true,
+        warnings: ['An input pin receives a value — nothing should flow out of it'],
+      };
+    }
+    if (edgeType === 'OBJECT_FLOW' && targetNode.type === 'OUTPUT_PIN') {
+      return {
+        isValid: true,
+        warnings: ['An output pin produces a value — nothing should flow into it'],
+      };
+    }
+
     // An object flow carries a value, so at least one end should be an object
-    // node. Warn rather than block: the modeller may be sketching.
+    // node or a pin. Warn rather than block: the modeller may be sketching.
     if (edgeType === 'OBJECT_FLOW'
-      && sourceNode.type !== 'OBJECT_NODE'
-      && targetNode.type !== 'OBJECT_NODE') {
+      && !OBJECT_FLOW_ENDPOINT_TYPES.has(sourceNode.type)
+      && !OBJECT_FLOW_ENDPOINT_TYPES.has(targetNode.type)) {
       return {
         isValid: true,
         warnings: ['An object flow usually has an object node at one end'],
@@ -90,6 +111,13 @@ export class ActivityDiagramValidator implements BaseValidator {
     // connected to the model and is not (ADR-0010).
     if (node.type === 'CALL_OPERATION' && !(node as { callsOperationId?: string }).callsOperationId) {
       warnings.push('This call action does not reference an operation');
+    }
+
+    // A pin with no owner (A6.2) is structurally broken — it can only exist
+    // through the "Add Input/Output Pin" menu item, which always sets one.
+    if ((node.type === 'INPUT_PIN' || node.type === 'OUTPUT_PIN')
+      && !(node as { ownerActionId?: string }).ownerActionId) {
+      warnings.push('This pin has no owning action');
     }
 
     return warnings.length ? { isValid: true, warnings } : ok;

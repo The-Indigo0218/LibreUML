@@ -107,6 +107,61 @@ describe('useProjectProblems', () => {
     expect(result.current.problems.length).toBeLessThan(before);
   });
 
+  it('surfaces a registry-validator warning for a known Activity Diagram violation (§16)', () => {
+    const model = emptyModel('global');
+    model.activities = { act1: { id: 'act1', kind: 'ACTIVITY', name: 'Flow' } as never };
+    model.activityNodes = {
+      d1: { id: 'd1', kind: 'ACTIVITY_NODE', activityType: 'DECISION', name: 'Paid?', activityId: 'act1' } as never,
+    };
+    const file: VFSFile = {
+      id: 'f1', type: 'FILE', name: 'Flow', parentId: null, extension: '.luml',
+      diagramType: 'ACTIVITY_DIAGRAM', isExternal: false, standalone: false,
+      content: { diagramId: 'f1', nodes: [{ id: 'v1', elementId: 'd1', x: 0, y: 0 }], edges: [] },
+      createdAt: 1, updatedAt: 1,
+    } as VFSFile;
+    act(() => useVFSStore.getState().loadProject({
+      id: 'p1', projectName: 'P', version: '1.0.0', domainModelId: 'global',
+      semanticModel: model, nodes: { [file.id]: file }, createdAt: 1, updatedAt: 1,
+    }));
+
+    const { result } = renderHook(() => useProjectProblems());
+
+    // A decision with zero outgoing flows: both the per-node rule (validateNode
+    // has nothing to say about DECISION — it's unnamed-type-agnostic here) and
+    // the structural rule (validateActivityStructure) should fire.
+    expect(result.current.problems).toContainEqual(
+      expect.objectContaining({
+        category: 'validation',
+        severity: 'warning',
+        diagramId: 'f1',
+        message: 'Decision "Paid?" has only one outgoing flow — nothing to branch on',
+      }),
+    );
+  });
+
+  it('surfaces a registry-validator error for a known Class Diagram violation (§16)', () => {
+    const model = emptyModel('global');
+    model.classes = {
+      c1: { id: 'c1', kind: 'CLASS', name: '', attributeIds: [], operationIds: [] } as never,
+    };
+    const file: VFSFile = {
+      id: 'f1', type: 'FILE', name: 'Model', parentId: null, extension: '.luml',
+      diagramType: 'CLASS_DIAGRAM', isExternal: false, standalone: false,
+      content: { diagramId: 'f1', nodes: [{ id: 'v1', elementId: 'c1', x: 0, y: 0 }], edges: [] },
+      createdAt: 1, updatedAt: 1,
+    } as VFSFile;
+    act(() => useVFSStore.getState().loadProject({
+      id: 'p1', projectName: 'P', version: '1.0.0', domainModelId: 'global',
+      semanticModel: model, nodes: { [file.id]: file }, createdAt: 1, updatedAt: 1,
+    }));
+
+    const { result } = renderHook(() => useProjectProblems());
+
+    expect(result.current.problems).toContainEqual(
+      expect.objectContaining({ category: 'validation', severity: 'error', diagramId: 'f1' }),
+    );
+  });
+
   it('returns empty for a project with no diagram files', () => {
     act(() => useVFSStore.getState().loadProject({
       id: 'p2', projectName: 'P', version: '1.0.0', domainModelId: 'global',

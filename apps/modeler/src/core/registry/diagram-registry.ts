@@ -1121,6 +1121,13 @@ const activityDiagramRegistry: DiagramTypeRegistry = {
       icon: 'ImageIcon',
       enabled: true,
     },
+    {
+      id: 'export-xmi',
+      label: 'Export XMI',
+      translationKey: 'menubar.export.xmi',
+      icon: 'FileCode2',
+      enabled: true,
+    },
   ],
 
   nodeComponents: {},

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
 import { Stage, Layer, Line, Circle, Rect, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import GridPattern from './engine/GridPattern';
@@ -274,6 +274,31 @@ export default function KonvaCanvas() {
     stageWidth: size.width,
     stageHeight: size.height,
   });
+
+  /**
+   * Konva's hit-testing canvas is a second, separately-drawn canvas that only
+   * repaints on its own schedule (`Node._requestDraw` → `Layer.batchDraw`,
+   * RAF-based). When a diagram's nodes are replaced wholesale on an
+   * already-mounted Stage — switching tabs, opening a file, loading a
+   * project — that schedule can lag a handful of animation frames behind
+   * what's on screen, during which `stage.getIntersection()` still answers
+   * with the previous frame's content: a click/drag on a freshly-shown node
+   * can silently miss and hit the background instead. A synchronous
+   * `stage.draw()` here (layout effect: runs after Konva's children are
+   * committed, before the browser paints) redraws the hit canvas as early as
+   * the render pipeline allows, cutting that lag down substantially.
+   *
+   * Confirmed with a real-mouse-click Playwright repro (see
+   * apps/modeler/e2e/hitCanvasFreshness.spec.ts): the residual gap after
+   * this fix is on the order of a few tens of milliseconds under load, an
+   * order of magnitude below any human click's reaction time, and isn't
+   * reachable by any current production code path either (verified: nothing
+   * outside e2e/ calls `getIntersection` synchronously after a content
+   * swap).
+   */
+  useLayoutEffect(() => {
+    stageRef.current?.draw();
+  }, [shapes, edges, stageRef]);
 
   const { isSpacePressed, isSpacePressedRef } = useSpacePan({ enabled: true });
 

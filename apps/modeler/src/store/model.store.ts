@@ -44,6 +44,7 @@ import {
   applyDeleteActivityPartition,
   clearCallsOperationRefs,
   clearRepresentsRef,
+  clearObjectNodeClassifierRefs,
 } from './activityModelOps';
 
 /**
@@ -597,6 +598,7 @@ export const useModelStore = create<ModelStoreState>()(
         delete draft.model.classes[id];
         cascadeDeleteRelations(draft.model, id);
         clearRepresentsRef(draft.model, id);
+        clearObjectNodeClassifierRefs(draft.model, id);
         draft.model.updatedAt = Date.now();
       });
     },

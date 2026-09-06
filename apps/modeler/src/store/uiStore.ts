@@ -43,6 +43,7 @@ export type ActiveModal =
   | "activity-action-props"
   | "activity-partition-props"
   | "activity-props"
+  | "activity-objectnode-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -111,6 +112,8 @@ interface UiStoreState {
   openActivityPartitionProps: (elementId: string) => void;
   /** Activity (diagram-level): pick the use case it realizes (ADR-0010). */
   openActivityProps: (activityId: string) => void;
+  /** Object node: pick the classifier of the value that flows through it (ADR-0010). */
+  openActivityObjectNodeProps: (elementId: string) => void;
   openDomainEntityProps: (elementId: string) => void;
   openDomainAssociationProps: (edgeId: string) => void;
   openFragmentProps: (fragmentId: string) => void;
@@ -241,6 +244,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openActivityActionProps: (elementId) => set({ activeModal: "activity-action-props", editingId: elementId }),
   openActivityPartitionProps: (elementId) => set({ activeModal: "activity-partition-props", editingId: elementId }),
   openActivityProps: (activityId) => set({ activeModal: "activity-props", editingId: activityId }),
+  openActivityObjectNodeProps: (elementId) => set({ activeModal: "activity-objectnode-props", editingId: elementId }),
   openDomainEntityProps: (elementId) => set({ activeModal: "domain-entity-props", editingId: elementId }),
   openDomainAssociationProps: (edgeId) => set({ activeModal: "domain-association-props", editingId: edgeId }),
   openFragmentProps: (fragmentId) => set({ activeModal: "fragment-props", editingId: fragmentId }),

@@ -13,6 +13,8 @@ import {
   clearCallsOperationRefs,
   clearRealizesUseCaseRef,
   clearRepresentsRef,
+  clearObjectNodeClassifierRefs,
+  resolveObjectNodeClassifierLabel,
 } from '../activityModelOps';
 import type { SemanticModel } from '../../core/domain/vfs/vfs.types';
 
@@ -93,5 +95,54 @@ describe('clearRepresentsRef', () => {
 
     expect(model.activityPartitions!['p1'].representsId).toBeUndefined();
     expect(model.activityPartitions!['p2'].representsId).toBe('actor1');
+  });
+});
+
+// A6/v1.1 — the classifier trace on object nodes (ADR-0010), same cascade
+// shape as clearRepresentsRef, scoped the same way (see that function's own
+// comment: interfaces/enums/data types have no delete-cascade of their own
+// references either, so classes are the only source this clears against).
+describe('clearObjectNodeClassifierRefs', () => {
+  it('clears classifierId on every object node whose classifier was deleted', () => {
+    const model = emptyModel();
+    model.activityNodes['n1'] = { id: 'n1', kind: 'ACTIVITY_NODE', activityType: 'OBJECT_NODE', activityId: 'a1', name: 'order', classifierId: 'class1' };
+    model.activityNodes['n2'] = { id: 'n2', kind: 'ACTIVITY_NODE', activityType: 'OBJECT_NODE', activityId: 'a1', name: 'invoice', classifierId: 'class2' };
+
+    clearObjectNodeClassifierRefs(model, 'class1');
+
+    expect(model.activityNodes['n1'].classifierId).toBeUndefined();
+    expect(model.activityNodes['n2'].classifierId).toBe('class2');
+  });
+
+  it('is a no-op when nothing references the deleted classifier', () => {
+    const model = emptyModel();
+    model.activityNodes['n1'] = { id: 'n1', kind: 'ACTIVITY_NODE', activityType: 'OBJECT_NODE', activityId: 'a1', name: 'order' };
+
+    expect(() => clearObjectNodeClassifierRefs(model, 'class-ghost')).not.toThrow();
+    expect(model.activityNodes['n1'].classifierId).toBeUndefined();
+  });
+});
+
+describe('resolveObjectNodeClassifierLabel', () => {
+  it('resolves a class', () => {
+    const model = emptyModel();
+    model.classes['c1'] = { id: 'c1', kind: 'CLASS', name: 'Order', attributeIds: [], operationIds: [] } as never;
+    expect(resolveObjectNodeClassifierLabel(model, 'c1')).toBe('Order');
+  });
+
+  it('resolves an interface, enum or data type', () => {
+    const model = emptyModel();
+    model.interfaces['i1'] = { id: 'i1', kind: 'INTERFACE', name: 'Payable', operationIds: [] } as never;
+    model.enums['e1'] = { id: 'e1', kind: 'ENUM', name: 'Status', values: [] } as never;
+    model.dataTypes['d1'] = { id: 'd1', kind: 'DATA_TYPE', name: 'Money' } as never;
+
+    expect(resolveObjectNodeClassifierLabel(model, 'i1')).toBe('Payable');
+    expect(resolveObjectNodeClassifierLabel(model, 'e1')).toBe('Status');
+    expect(resolveObjectNodeClassifierLabel(model, 'd1')).toBe('Money');
+  });
+
+  it('returns undefined when the classifier does not resolve', () => {
+    const model = emptyModel();
+    expect(resolveObjectNodeClassifierLabel(model, 'ghost')).toBeUndefined();
   });
 });

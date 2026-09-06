@@ -393,6 +393,30 @@ export interface ActivityForkJoinViewModel {
 }
 
 /**
+ * Object node (A6/v1.1): the rectangle a value flows through between actions.
+ * Square corners distinguish it from the rounded `ActivityActionViewModel`
+ * box. `classifierName` is the resolved half of the classifier trace
+ * (`IRActivityNode.classifierId`, ADR-0010) — same pattern as
+ * `callsOperationName` on the action.
+ */
+export interface ActivityObjectNodeViewModel {
+  __brand: 'activityObjectNode';
+  id: string;
+  domainId: string;
+  label: string;
+  manualWidth?: number;
+  manualHeight?: number;
+  classifierName?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
+/**
  * Swimlane (A3): a band, not a free container (spec §4). `index` is the only
  * source of truth for order — its own `x` is derived from the whole row's
  * widths (`partitionLayout.ts`), never dragged. `width` is the one thing the
@@ -446,7 +470,8 @@ export type AnyNodeViewModel =
   | ActivityControlNodeViewModel
   | ActivityDecisionViewModel
   | ActivityForkJoinViewModel
-  | ActivityPartitionViewModel;
+  | ActivityPartitionViewModel
+  | ActivityObjectNodeViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -545,6 +570,12 @@ export function isActivityForkJoinViewModel(
 
 export function isContinuationViewModel(vm: AnyNodeViewModel): vm is ContinuationViewModel {
   return '__brand' in vm && vm.__brand === 'continuation';
+}
+
+export function isActivityObjectNodeViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityObjectNodeViewModel {
+  return '__brand' in vm && vm.__brand === 'activityObjectNode';
 }
 
 export function isActivityPartitionViewModel(

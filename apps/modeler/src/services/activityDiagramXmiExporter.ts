@@ -6,7 +6,8 @@
  *    `operation` attribute only when callsOperationId resolves in the model)
  *  - uml:InitialNode / uml:ActivityFinalNode / uml:FlowFinalNode
  *  - uml:DecisionNode / uml:MergeNode / uml:ForkNode / uml:JoinNode
- *  - uml:ObjectNode (v1.1, exported defensively if present)
+ *  - uml:ObjectNode (v1.1), `type` referencing its classifier trace (A6,
+ *    ADR-0010) when it resolves
  *  - uml:ControlFlow / uml:ObjectFlow, with guard → OpaqueExpression and
  *    weight → LiteralString children (C8-style: metamodel fields, not folded
  *    into the name — unlike sequence's per-message guard, ActivityEdge.guard
@@ -59,6 +60,16 @@ function representsName(model: SemanticModel, id: string): string | undefined {
   );
 }
 
+/** Resolves an id against every classifier collection an object node's `classifierId` can point to. */
+function classifierName(model: SemanticModel, id: string): string | undefined {
+  return (
+    model.classes[id]?.name ??
+    model.interfaces[id]?.name ??
+    model.enums[id]?.name ??
+    model.dataTypes[id]?.name
+  );
+}
+
 function serializeNode(node: IRActivityNode, model: SemanticModel): string {
   const xmiType = NODE_METACLASS[node.activityType];
   const attrs = [
@@ -72,6 +83,14 @@ function serializeNode(node: IRActivityNode, model: SemanticModel): string {
   if (node.activityType === 'CALL_OPERATION' && node.callsOperationId) {
     if (model.operations?.[node.callsOperationId]) {
       attrs.push(`operation="${xmiId(node.callsOperationId)}"`);
+    }
+  }
+
+  // OBJECT_NODE: `type` references the classifier of the value in flow
+  // (UML 2.5.1 ObjectNode.type), same dangling-trace rule as CALL_OPERATION.
+  if (node.activityType === 'OBJECT_NODE' && node.classifierId) {
+    if (classifierName(model, node.classifierId) !== undefined) {
+      attrs.push(`type="${xmiId(node.classifierId)}"`);
     }
   }
 

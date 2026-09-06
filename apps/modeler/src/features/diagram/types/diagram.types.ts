@@ -5,8 +5,10 @@ export type stereotype = "class" | "interface" | "abstract" | "note" | "enum" | 
   // which classifies an *existing* node for connection validation; these are
   // the palette drop stereotypes that pick which ActivityNodeKind to create.
   | "action" | "call_operation" | "initial_node" | "activity_final" | "flow_final" | "decision" | "merge" | "fork" | "join"
-  // A3: the swimlane tool id — object_node stays unwired (A6, no shape yet).
-  | "activity_partition";
+  // A3: the swimlane tool id.
+  | "activity_partition"
+  // A6/v1.1: the object node tool id.
+  | "object_node";
 export type UmlRelationType =
   | "association"
   | "inheritance"

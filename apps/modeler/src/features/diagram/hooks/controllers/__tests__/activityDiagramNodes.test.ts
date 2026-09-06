@@ -6,6 +6,7 @@ import type {
   ActivityControlNodeViewModel,
   ActivityDecisionViewModel,
   ActivityForkJoinViewModel,
+  ActivityObjectNodeViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
 
 function model(over: Partial<SemanticModel> = {}): SemanticModel {
@@ -136,22 +137,39 @@ describe('buildActivityDiagramNodes', () => {
     expect((built[0] as { domainId?: string }).domainId).toBe('n1');
   });
 
-  it('omits node types whose shapes do not exist yet', () => {
-    // OBJECT_NODE is v1.1 (A6); drawing it as something else would
-    // misrepresent the model.
+  it('builds an object node carrying its label (A6/v1.1)', () => {
+    const m = model({ activityNodes: { n1: irNode('n1', 'OBJECT_NODE', { name: 'Order' }) } as never });
+    const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'vn1', elementId: 'n1' }])));
+
+    const vm = built.data as ActivityObjectNodeViewModel;
+    expect(vm.__brand).toBe('activityObjectNode');
+    expect(vm.label).toBe('Order');
+    expect((built as { domainId?: string }).domainId).toBe('n1');
+  });
+
+  it('shows the classifier an object node is traced to (ADR-0010)', () => {
     const m = model({
+      classes: { c1: { id: 'c1', kind: 'CLASS', name: 'Order', attributeIds: [], operationIds: [] } } as never,
       activityNodes: {
-        obj: irNode('obj', 'OBJECT_NODE'),
-        ok: irNode('ok', 'ACTION'),
+        n1: irNode('n1', 'OBJECT_NODE', { name: 'order', classifierId: 'c1' }),
       } as never,
     });
 
-    const built = buildActivityDiagramNodes(
-      ctx(m, view([{ id: 'v-obj', elementId: 'obj' }, { id: 'v-ok', elementId: 'ok' }])),
-    );
+    const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'vn1', elementId: 'n1' }])));
 
-    expect(built).toHaveLength(1);
-    expect((built[0] as { domainId?: string }).domainId).toBe('ok');
+    expect((built.data as ActivityObjectNodeViewModel).classifierName).toBe('Order');
+  });
+
+  it('leaves the classifier subtitle empty when the traced classifier is gone', () => {
+    const m = model({
+      activityNodes: {
+        n1: irNode('n1', 'OBJECT_NODE', { name: 'order', classifierId: 'deleted' }),
+      } as never,
+    });
+
+    const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'vn1', elementId: 'n1' }])));
+
+    expect((built.data as ActivityObjectNodeViewModel).classifierName).toBeUndefined();
   });
 
   it('maps decision and merge to the same rhombus glyph (A2)', () => {

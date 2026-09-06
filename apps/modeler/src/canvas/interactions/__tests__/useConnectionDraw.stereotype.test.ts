@@ -8,6 +8,7 @@ import type {
   NodeViewModel,
   ActivityDecisionViewModel,
   ActivityForkJoinViewModel,
+  ActivityObjectNodeViewModel,
 } from '../../../adapters/view-models/node.view-model';
 
 function makeLifelineVM(): LifelineViewModel {
@@ -46,6 +47,10 @@ function makeForkJoinVM(): ActivityForkJoinViewModel {
     __brand: 'activityForkJoin', id: 'vm-fork', domainId: 'ir-fork',
     forkJoinKind: 'FORK', barOrientation: 'HORIZONTAL',
   };
+}
+
+function makeObjectNodeVM(): ActivityObjectNodeViewModel {
+  return { __brand: 'activityObjectNode', id: 'vm-obj', domainId: 'ir-obj', label: 'Order' };
 }
 
 function makeClassVM(): NodeViewModel {
@@ -90,6 +95,14 @@ describe('resolveStereotype', () => {
 
   it('returns "activity_node" for ActivityForkJoinViewModel, not "class"', () => {
     expect(resolveStereotype(makeForkJoinVM() as AnyNodeViewModel)).toBe('activity_node');
+  });
+
+  // A6/v1.1 — same sibling-bug shape as A2.5's decision/fork-join fix: a new
+  // activity view model that resolveStereotype doesn't know about falls
+  // through to "class", and an object flow drawn to/from it would validate
+  // as a class relation instead of deferring to the activity registry.
+  it('returns "activity_node" for ActivityObjectNodeViewModel, not "class"', () => {
+    expect(resolveStereotype(makeObjectNodeVM() as AnyNodeViewModel)).toBe('activity_node');
   });
 });
 

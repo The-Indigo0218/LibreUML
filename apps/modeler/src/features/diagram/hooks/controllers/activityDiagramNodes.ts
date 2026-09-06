@@ -15,6 +15,7 @@ import {
   applyUpdateActivityPartition,
   applyDeleteActivityPartition,
   resolveCallsOperationLabel,
+  resolveObjectNodeClassifierLabel,
 } from '../../../../store/activityModelOps';
 import type {
   IRActivityNode,
@@ -30,6 +31,7 @@ import type {
   ActivityForkJoinViewModel,
   ActivityForkJoinKindVM,
   ActivityPartitionViewModel,
+  ActivityObjectNodeViewModel,
 } from '../../../../adapters/view-models/node.view-model';
 import {
   resolveSemanticElement,
@@ -151,6 +153,38 @@ function makeForkJoinNode(
   return {
     id: viewNode.id,
     type: 'umlActivityForkJoin',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
+function makeObjectNode(
+  viewNode: ViewNode,
+  node: IRActivityNode,
+  allViewNodes: ViewNode[],
+  classifierName: string | undefined,
+  onRename: (name: string) => void,
+) {
+  const vm: ActivityObjectNodeViewModel = {
+    __brand: 'activityObjectNode',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    label: node.name,
+    manualWidth: viewNode.width,
+    manualHeight: viewNode.height,
+    classifierName,
+    colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
+    onRename,
+    onOpenProps: () => useUiStore.getState().openActivityObjectNodeProps(viewNode.elementId),
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlActivityObjectNode',
     position: getAbsolutePosition(viewNode, allViewNodes),
     data: vm,
     domainId: viewNode.elementId,
@@ -415,8 +449,20 @@ export function buildActivityDiagramNodes(ctx: NodeBuilderContext) {
       return makeForkJoinNode(viewNode, forkJoinKind, node.barOrientation ?? 'HORIZONTAL', diagramView.nodes);
     }
 
-    // OBJECT_NODE (v1.1) lands in A6; until its shape exists, drawing it as
-    // something else would misrepresent the model.
+    if (node.activityType === 'OBJECT_NODE') {
+      const onRename = (name: string) => {
+        if (isStandalone && activeTabId) {
+          standaloneModelOps(activeTabId).updateActivityNode(viewNode.elementId, { name });
+        } else {
+          useModelStore.getState().updateActivityNode(viewNode.elementId, { name });
+        }
+      };
+      const classifierName = node.classifierId
+        ? resolveObjectNodeClassifierLabel(model, node.classifierId)
+        : undefined;
+      return makeObjectNode(viewNode, node, diagramView.nodes, classifierName, onRename);
+    }
+
     return null;
   });
 

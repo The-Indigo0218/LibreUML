@@ -57,6 +57,7 @@ import {
   applyDeleteActivityPartition,
   clearCallsOperationRefs,
   clearRepresentsRef,
+  clearObjectNodeClassifierRefs,
 } from './activityModelOps';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -382,6 +383,7 @@ export function standaloneModelOps(fileId: string) {
         delete m.classes[id];
         cascadeDeleteRelations(m, id);
         clearRepresentsRef(m, id);
+        clearObjectNodeClassifierRefs(m, id);
         m.updatedAt = Date.now();
       });
     },

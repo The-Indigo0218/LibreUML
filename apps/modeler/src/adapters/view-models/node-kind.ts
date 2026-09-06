@@ -34,7 +34,8 @@ export type NodeKind =
   | 'activityControlNode'
   | 'activityDecision'
   | 'activityForkJoin'
-  | 'activityPartition';
+  | 'activityPartition'
+  | 'activityObjectNode';
 
 /** Every kind, for exhaustiveness checks over descriptor tables. */
 export const ALL_NODE_KINDS: readonly NodeKind[] = [
@@ -62,6 +63,7 @@ export const ALL_NODE_KINDS: readonly NodeKind[] = [
   'activityDecision',
   'activityForkJoin',
   'activityPartition',
+  'activityObjectNode',
 ] as const;
 
 /**

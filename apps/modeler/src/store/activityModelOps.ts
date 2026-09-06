@@ -59,6 +59,19 @@ export function clearRepresentsRef(model: SemanticModel, deletedElementId: strin
 }
 
 /**
+ * Clears `classifierId` on every object node whose classifier is the given
+ * (deleted) element (A6, same reasoning as `clearRepresentsRef`). Scoped to
+ * `deleteClass`, same as `representsId` — interfaces/enums/data types have
+ * no delete-cascade for their own references either; pre-existing gap, not
+ * one this trace introduces.
+ */
+export function clearObjectNodeClassifierRefs(model: SemanticModel, deletedClassifierId: string): void {
+  for (const node of Object.values(model.activityNodes ?? {})) {
+    if (node.classifierId === deletedClassifierId) delete node.classifierId;
+  }
+}
+
+/**
  * Formats a called operation as `Class::op()` (spec §5) — the visible half of
  * the action→operation trace, next to the modal's own selector labels
  * (`ActivityActionPropsModal`), which use the same format.
@@ -70,6 +83,21 @@ export function resolveCallsOperationLabel(model: SemanticModel, operationId: st
     Object.values(model.classes).find((c) => c.operationIds?.includes(operationId)) ??
     Object.values(model.interfaces).find((i) => i.operationIds?.includes(operationId));
   return owner ? `${owner.name}::${op.name}()` : `${op.name}()`;
+}
+
+/**
+ * Resolves an object node's classifier trace to a display name (ADR-0010) —
+ * the visible half of `IRActivityNode.classifierId`. Checked against every
+ * collection a classifier can come from, same shape as `representsName` in
+ * `activityDiagramXmiExporter.ts`, plus data types and enums.
+ */
+export function resolveObjectNodeClassifierLabel(model: SemanticModel, classifierId: string): string | undefined {
+  return (
+    model.classes[classifierId]?.name ??
+    model.interfaces[classifierId]?.name ??
+    model.enums[classifierId]?.name ??
+    model.dataTypes[classifierId]?.name
+  );
 }
 
 export function applyCreateActivity(

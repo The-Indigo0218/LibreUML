@@ -171,4 +171,54 @@ test.describe('A2.5 — activity node creation via the real tool palette', () =>
     const relation = Object.values(relations ?? {})[0] as { kind: string };
     expect(relation.kind).toBe('CONTROL_FLOW');
   });
+
+  // A6/v1.1 — object node creation, deferred out of A2.5 on purpose (no shape
+  // existed yet then). Same broken-until-wired path as every tool above.
+  test('dragging "Object" from the palette onto the canvas creates a real, named object node', async ({ page }) => {
+    expect((await getView(page))!.nodes.length).toBe(0);
+
+    await dragToolOntoCanvas(page, 'Object', { x: 300, y: 200 });
+
+    await expect.poll(async () => (await getView(page))!.nodes.length).toBe(1);
+
+    const nodes = await modelDump(page, 'activityNodes');
+    const created = Object.values(nodes ?? {})[0] as { activityType: string; activityId: string; name: string };
+    expect(created.activityType).toBe('OBJECT_NODE');
+    expect(created.activityId).toBeTruthy();
+    expect(created.name).toBe('Object 1');
+
+    const texts = await page.evaluate(() => window.__libreumlE2E!.stageTexts());
+    expect(texts.some((t) => t.includes('Object 1'))).toBe(true);
+  });
+
+  test('a real drag-connection from an Action to an Object node is accepted, not rejected as a class relation', async ({ page }) => {
+    // Same resolveStereotype regression class as the Decision test above,
+    // now for ActivityObjectNodeViewModel: without the fix, the object node
+    // falls through to "class" and the flow validates (and is usually
+    // rejected) as a class-diagram relation instead of an activity flow.
+    // The default connection mode is CONTROL_FLOW (registry.defaultEdgeType);
+    // picking OBJECT_FLOW is a separate, explicit gesture this test doesn't
+    // exercise.
+    await dragToolOntoCanvas(page, 'Action', { x: 250, y: 140 });
+    await expect.poll(async () => (await getView(page))!.nodes.length).toBe(1);
+    await dragToolOntoCanvas(page, 'Object', { x: 250, y: 320 });
+    await expect.poll(async () => (await getView(page))!.nodes.length).toBe(2);
+
+    const view = (await getView(page))!;
+    const actionRect = await page.evaluate((id) => window.__libreumlE2E!.nodeRect(id), view.nodes[0].id);
+    const objectRect = await page.evaluate((id) => window.__libreumlE2E!.nodeRect(id), view.nodes[1].id);
+    if (!actionRect || !objectRect) throw new Error('nodes not painted');
+
+    const from = { x: actionRect.x + actionRect.width / 2, y: actionRect.y + actionRect.height };
+    const to = { x: objectRect.x + objectRect.width / 2, y: objectRect.y };
+
+    await page.mouse.move(from.x, from.y); // hover to arm nearAnchorRef
+    await page.waitForTimeout(80);
+    await dragFromTo(page, from, to);
+
+    await expect.poll(async () => (await getView(page))!.edges.length).toBe(1);
+    const relations = await modelDump(page, 'relations');
+    const relation = Object.values(relations ?? {})[0] as { kind: string };
+    expect(relation.kind).toBe('CONTROL_FLOW');
+  });
 });

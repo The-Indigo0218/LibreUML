@@ -24,6 +24,7 @@ import ActionShape, { getActionShapeSize } from './shapes/ActionShape';
 import ControlNodeShape, { getControlNodeShapeSize } from './shapes/ControlNodeShape';
 import DecisionShape, { getDecisionShapeSize } from './shapes/DecisionShape';
 import ForkJoinShape, { getForkJoinShapeSize } from './shapes/ForkJoinShape';
+import ObjectNodeShape, { getObjectNodeShapeSize } from './shapes/ObjectNodeShape';
 
 export interface NodeSize {
   width: number;
@@ -474,6 +475,21 @@ export const NODE_KIND_DESCRIPTORS: Record<NodeKind, NodeKindDescriptor> = {
     editor: 'none',
     resize: 'activityPartition',
     draggable: false,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (A6/v1.1) ──────────────────────────────────────────
+  // Same free-geometry reasoning as the action box; the classifier trace is
+  // set through its own menu item, same pattern as the action's operation
+  // trace (ADR-0010).
+  activityObjectNode: describe({
+    size: getObjectNodeShapeSize,
+    render: (vm, { key, common }) => <ObjectNodeShape key={key} viewModel={vm} {...common} />,
+    editor: 'inlineRename',
+    resize: 'systemBoundary',
+    draggable: true,
     dragAxis: 'free',
     dragEnd: 'node',
     resetTimeline: false,

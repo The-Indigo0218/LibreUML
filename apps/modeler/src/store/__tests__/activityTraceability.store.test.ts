@@ -129,4 +129,17 @@ describe.each(SURFACES)('A4 traceability cascades — $name', (surface) => {
 
     expect(surface.model().activityPartitions![laneId].representsId).toBeUndefined();
   });
+
+  // A6/v1.1
+  it('deleteClass clears classifierId on any object node traced to the deleted class', () => {
+    const classId = surface.ops().createClass({ name: 'Order', attributeIds: [], operationIds: [] } as never);
+    const activityId = surface.ops().createActivity({ name: 'Checkout' } as never);
+    const nodeId = surface.ops().createActivityNode({
+      name: 'order', activityType: 'OBJECT_NODE', activityId, classifierId: classId,
+    } as never);
+
+    surface.ops().deleteClass(classId);
+
+    expect(surface.model().activityNodes[nodeId].classifierId).toBeUndefined();
+  });
 });

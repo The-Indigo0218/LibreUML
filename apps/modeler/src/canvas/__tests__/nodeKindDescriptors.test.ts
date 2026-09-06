@@ -26,6 +26,7 @@ import ActionShape from '../shapes/ActionShape';
 import ControlNodeShape from '../shapes/ControlNodeShape';
 import DecisionShape from '../shapes/DecisionShape';
 import ForkJoinShape from '../shapes/ForkJoinShape';
+import ObjectNodeShape from '../shapes/ObjectNodeShape';
 
 /**
  * A0 (ADR-0009). The descriptor table is the canvas' extension point for node
@@ -108,6 +109,7 @@ describe('renderShape routing', () => {
     activityControlNode: ControlNodeShape,
     activityDecision: DecisionShape,
     activityForkJoin: ForkJoinShape,
+    activityObjectNode: ObjectNodeShape,
   };
 
   /** Minimal view model that resolves to `kind` — see `getNodeKind`. */
@@ -235,6 +237,14 @@ describe('node kind behaviour matrix', () => {
       dragAxis: 'free',
       dragEnd: 'node',
       resize: 'activityPartition',
+    },
+    // A6/v1.1: same free geometry as the action box, which it shares its
+    // rename editor with.
+    activityObjectNode: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'systemBoundary',
     },
   };
 

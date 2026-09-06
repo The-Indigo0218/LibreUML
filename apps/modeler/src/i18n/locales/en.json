@@ -236,7 +236,8 @@
       "addLostMessage": "Add Lost Message",
       "decomposeLifeline": "Decompose…",
       "linkOperation": "Link Operation…",
-      "editActivityPartitionProperties": "Lane Properties…"
+      "editActivityPartitionProperties": "Lane Properties…",
+      "linkClassifier": "Link Classifier…"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",

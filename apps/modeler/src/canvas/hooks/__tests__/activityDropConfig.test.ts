@@ -27,6 +27,7 @@ interface Surface {
   action: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
   decision: (model: SemanticModel, id: string, existingViewNodes: { elementId: string }[]) => void;
   partition: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
+  objectNode: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
 }
 
 const SURFACES: Surface[] = [
@@ -36,12 +37,15 @@ const SURFACES: Surface[] = [
     decision: (m, id, vns) => VFS_DROP_CONFIG.decision!.applyToModelDraft(m, id, '', undefined, vns),
     partition: (m, id, name, vns) =>
       VFS_DROP_CONFIG.activity_partition!.applyToModelDraft(m, id, name, undefined, vns),
+    objectNode: (m, id, name, vns) =>
+      VFS_DROP_CONFIG.object_node!.applyToModelDraft(m, id, name, undefined, vns),
   },
   {
     name: 'applyToLocalModelDraft (standalone)',
     action: (m, id, name, vns) => VFS_DROP_CONFIG.action!.applyToLocalModelDraft(m, id, name, vns),
     decision: (m, id, vns) => VFS_DROP_CONFIG.decision!.applyToLocalModelDraft(m, id, '', vns),
     partition: (m, id, name, vns) => VFS_DROP_CONFIG.activity_partition!.applyToLocalModelDraft(m, id, name, vns),
+    objectNode: (m, id, name, vns) => VFS_DROP_CONFIG.object_node!.applyToLocalModelDraft(m, id, name, vns),
   },
 ];
 
@@ -122,5 +126,28 @@ describe.each(SURFACES)('VFS_DROP_CONFIG — activity tools — $name', (surface
     expect(model.activityPartitions!['p1'].activityId).not.toBe(
       model.activityPartitions!['other-1'].activityId,
     );
+  });
+
+  // A6/v1.1 — object node creation, deferred out of A2.5 on purpose (no shape
+  // existed yet then). Same VFS_DROP_CONFIG shape as every other activity tool.
+  it('objectNode: creates an ACTIVITY_NODE and a fresh Activity when the diagram has none', () => {
+    const model = emptyModel();
+    surface.objectNode(model, 'n1', 'Order', []);
+
+    expect(model.activityNodes!['n1']).toMatchObject({ activityType: 'OBJECT_NODE', name: 'Order' });
+    const activityId = model.activityNodes!['n1'].activityId;
+    expect(activityId).toBeTruthy();
+    expect(model.activities![activityId]).toBeTruthy();
+  });
+
+  it('objectNode: reuses the Activity a sibling node in the same diagram already belongs to', () => {
+    const model = emptyModel();
+    surface.action(model, 'n1', 'Action 1', []);
+    const activityId = model.activityNodes!['n1'].activityId;
+
+    surface.objectNode(model, 'n2', 'Order', [{ elementId: 'n1' }]);
+
+    expect(model.activityNodes!['n2'].activityId).toBe(activityId);
+    expect(Object.keys(model.activities!)).toHaveLength(1);
   });
 });

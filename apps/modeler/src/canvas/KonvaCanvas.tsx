@@ -91,6 +91,7 @@ import DomainAssociationPropsModal from '../features/diagram/components/modals/D
 import ActivityActionPropsModal from '../features/diagram/components/modals/ActivityActionPropsModal';
 import ActivityPartitionPropsModal from '../features/diagram/components/modals/ActivityPartitionPropsModal';
 import ActivityPropertiesModal from '../features/diagram/components/modals/ActivityPropertiesModal';
+import ActivityObjectNodePropsModal from '../features/diagram/components/modals/ActivityObjectNodePropsModal';
 import { openDiagramContainingElement } from '../features/diagram/hooks/controllers/traceabilityNav';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
@@ -124,6 +125,7 @@ import {
   isContinuationViewModel,
   isActivityActionViewModel,
   isActivityPartitionViewModel,
+  isActivityObjectNodeViewModel,
   type AnyNodeViewModel,
   type LifelineViewModel,
   type NodeViewModel,
@@ -1464,8 +1466,9 @@ export default function KonvaCanvas() {
               (text) => vm.onRename!(text));
           }
         }
-      } else if (isActivityActionViewModel(vm)) {
-        // The label is centred in the box; edit it in place.
+      } else if (isActivityActionViewModel(vm) || isActivityObjectNodeViewModel(vm)) {
+        // The label is centred in the box; edit it in place. Same box layout
+        // as the action, so the same positioning applies to the object node.
         const { width, height } = getShapeSize(vm);
         const fontSize = vm.fontSizeOverride ?? 13;
         const screenPos = transform.point({
@@ -1733,7 +1736,7 @@ export default function KonvaCanvas() {
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (nodeId) => {
       const shape = shapes.find((s) => s.id === nodeId);
-      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data) || isActivityActionViewModel(shape.data))) {
+      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data) || isActivityActionViewModel(shape.data) || isActivityObjectNodeViewModel(shape.data))) {
         startUseCaseInlineEdit(nodeId);
         closeMenu();
         return;
@@ -3282,6 +3285,7 @@ export default function KonvaCanvas() {
       <ActivityActionPropsModal />
       <ActivityPartitionPropsModal />
       <ActivityPropertiesModal />
+      <ActivityObjectNodePropsModal />
     </div>
   );
 }

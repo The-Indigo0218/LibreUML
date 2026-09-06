@@ -236,7 +236,8 @@
       "addLostMessage": "Añadir Mensaje Perdido",
       "decomposeLifeline": "Descomponer…",
       "linkOperation": "Vincular Operación…",
-      "editActivityPartitionProperties": "Propiedades del Carril…"
+      "editActivityPartitionProperties": "Propiedades del Carril…",
+      "linkClassifier": "Vincular Clasificador…"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",

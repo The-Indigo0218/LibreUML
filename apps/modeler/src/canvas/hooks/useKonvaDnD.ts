@@ -326,8 +326,25 @@ export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
   merge: controlNodeDropConfig('MERGE'),
   fork: controlNodeDropConfig('FORK'),
   join: controlNodeDropConfig('JOIN'),
+  // ── Activity Diagram (A6/v1.1) ───────────────────────────────────────────
+  object_node: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'OBJECT_NODE')
+          .map((n) => n.name),
+        'Object',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'OBJECT_NODE', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'OBJECT_NODE', activityId, name });
+    },
+  },
   // ── Activity Diagram (A3) ────────────────────────────────────────────────
-  // `object_node` stays unwired — no shape yet (A6), same reasoning as A2.5.
   activity_partition: {
     getNextName: (model: SemanticModel) =>
       getNextVFSName(

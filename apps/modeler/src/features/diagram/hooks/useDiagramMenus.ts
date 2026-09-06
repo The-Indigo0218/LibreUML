@@ -495,6 +495,7 @@ export const useDiagramMenus = ({
         // double-click (usePartitionDrop/PartitionShape), not through this menu.
         const isActivityPartitionType = effectiveType === "ACTIVITY_PARTITION";
         const isActivityActionType = effectiveType === "ACTION" || effectiveType === "CALL_OPERATION";
+        const isActivityObjectNodeType = effectiveType === "OBJECT_NODE";
         // Control/decision/fork-join glyphs carry no label (nodeKindDescriptors:
         // "a filled circle has nothing to edit") — nothing for this item to open.
         const isLabellessActivityType = [
@@ -506,7 +507,7 @@ export const useDiagramMenus = ({
 
         if (!isPackageType && !isNoteType && !isLifelineType && !isActivityPartitionType && !isLabellessActivityType) {
           baseOptions.push({
-            label: (isUseCaseNodeType || isDomainEntityType || isActivityActionType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
+            label: (isUseCaseNodeType || isDomainEntityType || isActivityActionType || isActivityObjectNodeType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
           });
         }
@@ -559,6 +560,16 @@ export const useDiagramMenus = ({
             baseOptions.push({
               label: t("contextMenu.node.editActivityPartitionProperties"),
               onClick: () => useUiStore.getState().openActivityPartitionProps(elementId),
+            });
+          }
+        }
+
+        if (isActivityObjectNodeType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.linkClassifier"),
+              onClick: () => useUiStore.getState().openActivityObjectNodeProps(elementId),
             });
           }
         }

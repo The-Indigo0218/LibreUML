@@ -16,6 +16,7 @@ import { useEffect } from 'react';
 import Konva from 'konva';
 import DiagramEditor from '../features/diagram/components/layout/DiagramEditor';
 import { useVFSStore } from '../store/project-vfs.store';
+import { useModelStore } from '../store/model.store';
 import { useWorkspaceStore } from '../store/workspace.store';
 import { useAuthStore } from '../features/auth/store/auth.store';
 import { useSettingsStore } from '../store/settingsStore';
@@ -66,6 +67,16 @@ export interface E2ESequenceSpec {
 
 /** Minimal activity-diagram seed (A1, partitions added in A3). */
 export interface E2EActivitySpec {
+  /**
+   * Project-backed instead of standalone (default: standalone). Every other
+   * seed spec is standalone-only — added here because some behavior is
+   * gated on it directly (e.g. "Delete from Model" only appears in the
+   * context menu `if (!isStandalone)`), so a project-backed-only bug can
+   * live for phases without any e2e ever exercising that path. When false,
+   * the model loads into `useModelStore` (the shared global model) instead
+   * of the file's own `localModel`, same as a real multi-file project.
+   */
+  standalone?: boolean;
   activityName?: string;
   /** Traceability (A4/ADR-0010): the use case this activity realizes. */
   realizesUseCaseId?: string;
@@ -205,7 +216,7 @@ function buildSequenceProject(spec: E2ESequenceSpec): LibreUMLProject {
 }
 
 /** Builds an ACTIVITY_DIAGRAM project from an activity seed spec. */
-function buildActivityProject(spec: E2EActivitySpec): LibreUMLProject {
+function buildActivityProject(spec: E2EActivitySpec): { project: LibreUMLProject; model: SemanticModel } {
   const now = Date.now();
   const model = emptyModel() as unknown as Record<string, unknown>;
   const ACTIVITY_ID = 'e2e-activity';
@@ -281,18 +292,26 @@ function buildActivityProject(spec: E2EActivitySpec): LibreUMLProject {
     diagramId: FILE_ID, nodes: viewNodes, edges: viewEdges as DiagramView['edges'],
   };
 
-  return {
+  const isStandalone = spec.standalone !== false;
+
+  const project = {
     id: 'e2e-project', projectName: 'E2E', version: '1.0.0', domainModelId: 'e2e-dm',
     nodes: {
       [FILE_ID]: {
         id: FILE_ID, name: 'E2E.luml', type: 'FILE', parentId: null,
         diagramType: 'ACTIVITY_DIAGRAM', extension: '.luml', isExternal: false,
-        standalone: true, content, localModel: model,
+        standalone: isStandalone, content,
+        // A project-backed file carries no localModel of its own — the
+        // canvas reads `useModelStore`'s global model instead, same as a
+        // real multi-file project (ADR-0001).
+        ...(isStandalone ? { localModel: model } : {}),
         createdAt: now, updatedAt: now,
       },
     },
     createdAt: now, updatedAt: now,
   } as unknown as LibreUMLProject;
+
+  return { project, model: model as unknown as SemanticModel };
 }
 
 export interface E2ENodeRect { x: number; y: number; width: number; height: number; }
@@ -363,7 +382,11 @@ export default function E2EHarness() {
     };
 
     const seedActivity = (spec: E2EActivitySpec) => {
-      useVFSStore.getState().loadProject(buildActivityProject(spec));
+      const { project, model } = buildActivityProject(spec);
+      useVFSStore.getState().loadProject(project);
+      // Project-backed: the model lives in the shared store, not the file's
+      // own localModel (see E2EActivitySpec.standalone).
+      if (spec.standalone === false) useModelStore.getState().loadModel(model);
       useWorkspaceStore.getState().openTab(FILE_ID);
       forceHitRedraw();
     };
@@ -374,7 +397,13 @@ export default function E2EHarness() {
       seedActivity,
       modelDump: (collection) => {
         const node = useVFSStore.getState().project?.nodes[FILE_ID];
-        const lm = node && node.type === 'FILE' ? (node as { localModel?: Record<string, unknown> }).localModel : null;
+        if (!node || node.type !== 'FILE') return null;
+        // Project-backed files read from the shared model store instead of
+        // their own localModel (see E2EActivitySpec.standalone).
+        const isStandaloneFile = (node as { standalone?: boolean }).standalone !== false;
+        const lm = isStandaloneFile
+          ? (node as { localModel?: Record<string, unknown> }).localModel
+          : (useModelStore.getState().model as unknown as Record<string, unknown> | null);
         return (lm?.[collection] as Record<string, unknown>) ?? null;
       },
       stageTexts: () => {

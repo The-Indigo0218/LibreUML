@@ -84,3 +84,8 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+
+# Graphify knowledge graph (regenerable local artifact, like dist/ or .turbo/;
+# run `graphify extract .` to rebuild, see memory/project_graphify_setup.md)
+graphify-out/
+.graphify-venv/

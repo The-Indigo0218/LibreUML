@@ -18,6 +18,7 @@
     "i18n:check": "node scripts/i18n-check.mjs"
   },
   "dependencies": {
+    "@sentry/react": "^10.73.0",
     "@types/dompurify": "^3.0.5",
     "@vercel/analytics": "^1.6.1",
     "axios": "^1.15.0",

@@ -11,7 +11,11 @@ export default defineConfig({
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline'",
         "style-src 'self' 'unsafe-inline'",
-        "connect-src 'self' http://localhost:8080 ws://localhost:5173 https://app.posthog.com",
+        // Sentry ingest hosts are org-region-specific (*.ingest.sentry.io or
+        // *.ingest.<region>.sentry.io) — once a project exists, replace this
+        // wildcard with the exact host from the DSN. Until VITE_SENTRY_DSN is
+        // set, sentry.client.ts no-ops and nothing calls this host anyway.
+        "connect-src 'self' http://localhost:8080 ws://localhost:5173 https://app.posthog.com https://*.ingest.sentry.io https://*.ingest.us.sentry.io",
         "img-src 'self' data: blob:",
         "font-src 'self' data:",
       ].join('; '),

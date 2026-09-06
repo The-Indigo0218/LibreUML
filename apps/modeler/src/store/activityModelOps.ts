@@ -264,6 +264,21 @@ export function applyUpdateActivityNode(
 }
 
 /**
+ * IDs `applyDeleteActivityNode` removes from `model.activityNodes` for `id`:
+ * itself plus any pins it owns (A6.2). Exposed so a caller that also has to
+ * prune `ViewNode`s (e.g. "Delete from Model") knows the *full* set — the
+ * pins' own ViewNodes are just as orphaned as the action's once this runs,
+ * and nothing else derives that set independently.
+ */
+export function activityNodeDeleteCascadeIds(model: SemanticModel, id: string): Set<string> {
+  const removedIds = new Set([id]);
+  for (const [pinId, node] of Object.entries(model.activityNodes ?? {})) {
+    if (node.ownerActionId === id) removedIds.add(pinId);
+  }
+  return removedIds;
+}
+
+/**
  * Deleting a node takes the flows in and out of it with it — and, if it owns
  * pins (A6.2), the pins themselves: unlike an object node, a pin has no
  * standing of its own once its action is gone, so it does not become an
@@ -272,11 +287,7 @@ export function applyUpdateActivityNode(
 export function applyDeleteActivityNode(model: SemanticModel, id: string): void {
   if (!model.activityNodes?.[id]) return;
 
-  const removedIds = new Set([id]);
-  for (const [pinId, node] of Object.entries(model.activityNodes)) {
-    if (node.ownerActionId === id) removedIds.add(pinId);
-  }
-
+  const removedIds = activityNodeDeleteCascadeIds(model, id);
   for (const removedId of removedIds) delete model.activityNodes[removedId];
   cascadeDeleteRelations(model, removedIds);
   model.updatedAt = Date.now();

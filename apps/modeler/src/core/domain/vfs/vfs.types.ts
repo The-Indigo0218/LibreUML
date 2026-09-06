@@ -364,8 +364,9 @@ export interface IRActivityNode extends IRElement {
   /**
    * INPUT_PIN/OUTPUT_PIN only: trace to a parameter of the owner's linked
    * operation (ADR-0010). By name, not id — `IRParameter` carries no id of
-   * its own. The sentinel `'return'` traces an output pin to the operation's
-   * return value instead of a parameter.
+   * its own. The sentinel `PIN_RETURN_VALUE` ('__return__', see
+   * `activityModelOps.ts`) traces an output pin to the operation's return
+   * value instead of a parameter.
    */
   parameterName?: string;
 }

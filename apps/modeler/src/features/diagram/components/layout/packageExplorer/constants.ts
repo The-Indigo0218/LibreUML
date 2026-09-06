@@ -14,6 +14,7 @@ export const CLASS_ICON_CONFIG: Record<stereotype, { bg: string; letter: string;
   uc_module: { bg: "#5C7CFA", letter: "M", color: "#FFFFFF" },
   lifeline: { bg: "#6366F1", letter: "L", color: "#FFFFFF" },
   actor_lifeline: { bg: "#6366F1", letter: "A", color: "#FFFFFF" },
+  activity_node: { bg: "#0EA5E9", letter: "A", color: "#FFFFFF" },
 };
 
 export const THEME_COLORS = {

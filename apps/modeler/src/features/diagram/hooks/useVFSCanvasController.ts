@@ -32,6 +32,7 @@ import { buildClassDiagramNodes } from './controllers/classDiagramNodes';
 import { buildUseCaseDiagramNodes } from './controllers/useCaseDiagramNodes';
 import { buildDomainModelNodes } from './controllers/domainModelNodes';
 import { buildSequenceDiagramNodes } from './controllers/sequenceDiagramNodes';
+import { buildActivityDiagramNodes } from './controllers/activityDiagramNodes';
 import {
   resolveSemanticElement,
   type NodeBuilderContext,
@@ -105,6 +106,9 @@ export interface VFSCanvasEdge {
     anchorLocked?: boolean;
     condition?: string;
     extensionPoint?: string;
+    /** CONTROL_FLOW/OBJECT_FLOW guard/weight (A2). */
+    guard?: string;
+    weight?: string;
   };
 }
 
@@ -239,6 +243,7 @@ const NODE_BUILDERS: Partial<Record<string, NodeBuilder>> = {
   USE_CASE_DIAGRAM:  (ctx) => buildUseCaseDiagramNodes(ctx) as VFSCanvasNode[],
   DOMAIN_MODEL_DIAGRAM: (ctx) => buildDomainModelNodes(ctx) as VFSCanvasNode[],
   SEQUENCE_DIAGRAM:  (ctx) => buildSequenceDiagramNodes(ctx) as VFSCanvasNode[],
+  ACTIVITY_DIAGRAM:  (ctx) => buildActivityDiagramNodes(ctx) as VFSCanvasNode[],
 };
 
 function routeNodes(vfsFile: VFSFile, ctx: NodeBuilderContext): VFSCanvasNode[] {
@@ -391,6 +396,8 @@ export function useVFSCanvasController(): VFSCanvasResult {
           anchorLocked: viewEdge.anchorLocked,
           condition: relation.condition,
           extensionPoint: relation.extensionPoint,
+          guard: relation.guard,
+          weight: relation.weight,
         },
       });
     }

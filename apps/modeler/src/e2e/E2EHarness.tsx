@@ -18,6 +18,7 @@ import DiagramEditor from '../features/diagram/components/layout/DiagramEditor';
 import { useVFSStore } from '../store/project-vfs.store';
 import { useWorkspaceStore } from '../store/workspace.store';
 import { useAuthStore } from '../features/auth/store/auth.store';
+import { useSettingsStore } from '../store/settingsStore';
 import type {
   LibreUMLProject,
   SemanticModel,
@@ -59,6 +60,17 @@ export interface E2ESequenceSpec {
     id: string; fragmentKind: string; coveredLifelineIds: string[];
     messageIds?: string[]; messageSet?: string[];
   }[];
+}
+
+
+/** Minimal activity-diagram seed (A1). */
+export interface E2EActivitySpec {
+  activityName?: string;
+  nodes: {
+    id: string; vnId: string; x: number; y: number;
+    activityType: string; name?: string;
+  }[];
+  flows?: { id: string; source: string; target: string; guard?: string }[];
 }
 
 export interface E2EDiagramSpec {
@@ -169,12 +181,57 @@ function buildSequenceProject(spec: E2ESequenceSpec): LibreUMLProject {
   } as unknown as LibreUMLProject;
 }
 
+/** Builds an ACTIVITY_DIAGRAM project from an activity seed spec. */
+function buildActivityProject(spec: E2EActivitySpec): LibreUMLProject {
+  const now = Date.now();
+  const model = emptyModel() as unknown as Record<string, unknown>;
+  const ACTIVITY_ID = 'e2e-activity';
+  model.activities = {
+    [ACTIVITY_ID]: { id: ACTIVITY_ID, kind: 'ACTIVITY', name: spec.activityName ?? 'Flow' },
+  };
+  model.activityNodes = {};
+  model.activityPartitions = {};
+  for (const n of spec.nodes) {
+    (model.activityNodes as Record<string, unknown>)[n.id] = {
+      id: n.id, kind: 'ACTIVITY_NODE', name: n.name ?? '',
+      activityType: n.activityType, activityId: ACTIVITY_ID,
+    };
+  }
+  for (const f of spec.flows ?? []) {
+    (model.relations as Record<string, unknown>)[f.id] = {
+      id: f.id, kind: 'CONTROL_FLOW', sourceId: f.source, targetId: f.target,
+      ...(f.guard ? { guard: f.guard } : {}),
+    };
+  }
+
+  const viewNodes: ViewNode[] = spec.nodes.map((n) => ({ id: n.vnId, elementId: n.id, x: n.x, y: n.y }));
+  const viewEdges = (spec.flows ?? []).map((f) => ({ id: `ve-${f.id}`, relationId: f.id, waypoints: [] }));
+  const content: DiagramView = {
+    diagramId: FILE_ID, nodes: viewNodes, edges: viewEdges as DiagramView['edges'],
+  };
+
+  return {
+    id: 'e2e-project', projectName: 'E2E', version: '1.0.0', domainModelId: 'e2e-dm',
+    nodes: {
+      [FILE_ID]: {
+        id: FILE_ID, name: 'E2E.luml', type: 'FILE', parentId: null,
+        diagramType: 'ACTIVITY_DIAGRAM', extension: '.luml', isExternal: false,
+        standalone: true, content, localModel: model,
+        createdAt: now, updatedAt: now,
+      },
+    },
+    createdAt: now, updatedAt: now,
+  } as unknown as LibreUMLProject;
+}
+
 export interface E2ENodeRect { x: number; y: number; width: number; height: number; }
 
 export interface E2EApi {
   seed: (spec?: E2EDiagramSpec) => void;
   /** Seed a sequence diagram (verification harness). */
   seedSequence: (spec: E2ESequenceSpec) => void;
+  /** Seed an activity diagram (A1). */
+  seedActivity: (spec: E2EActivitySpec) => void;
   /** Read a collection of the active file's localModel back (lifelines/messages/…). */
   modelDump: (collection: string) => Record<string, unknown> | null;
   /** All Konva Text strings currently painted on the stage (render assertions). */
@@ -186,6 +243,14 @@ export interface E2EApi {
   edgeMidpoint: (edgeId: string) => { x: number; y: number } | null;
   /** Page-space coords of an edge line's source (first) or target (last) point. */
   edgeEndpoint: (edgeId: string, end: 'source' | 'target') => { x: number; y: number } | null;
+  /**
+   * Viewport culling on/off, plus silencing the warning modal that would
+   * otherwise cover the canvas past 20 shapes. A0-bis (ADR-0014) measures the
+   * canvas with culling both ways, so the budget can say what it buys.
+   */
+  setCulling: (on: boolean) => void;
+  /** How many shape groups the stage is actually painting right now. */
+  renderedShapeCount: () => number;
 }
 
 declare global {
@@ -194,19 +259,48 @@ declare global {
 
 export default function E2EHarness() {
   useEffect(() => {
+    /**
+     * Konva's hit-graph can go stale when a diagram's nodes are replaced
+     * wholesale on an *already-mounted* Stage (loadProject swaps
+     * VFSStore's content in one shot, unlike incremental node-by-node
+     * creation through the UI, which Konva keeps in sync on its own).
+     * The visible canvas repaints correctly — only the separate hit canvas
+     * lags — so `stage.getIntersection()` at a freshly-seeded node's exact
+     * center resolves to the background rect instead of the shape, and
+     * clicks/drags on it silently no-op. An explicit `batchDraw()` after
+     * React commits the new shapes forces Konva to redraw both canvases.
+     * Real-world impact is unconfirmed — flagged for IndigoDev, not fixed
+     * in KonvaCanvas.tsx itself, since that's shared by every diagram type.
+     */
+    const forceHitRedraw = () => {
+      requestAnimationFrame(() => {
+        const stage = Konva.stages[Konva.stages.length - 1];
+        stage?.batchDraw();
+      });
+    };
+
     const seed = (spec: E2EDiagramSpec = DEFAULT_SPEC) => {
       useVFSStore.getState().loadProject(buildProject(spec));
       useWorkspaceStore.getState().openTab(FILE_ID);
+      forceHitRedraw();
     };
 
     const seedSequence = (spec: E2ESequenceSpec) => {
       useVFSStore.getState().loadProject(buildSequenceProject(spec));
       useWorkspaceStore.getState().openTab(FILE_ID);
+      forceHitRedraw();
+    };
+
+    const seedActivity = (spec: E2EActivitySpec) => {
+      useVFSStore.getState().loadProject(buildActivityProject(spec));
+      useWorkspaceStore.getState().openTab(FILE_ID);
+      forceHitRedraw();
     };
 
     const api: E2EApi = {
       seed,
       seedSequence,
+      seedActivity,
       modelDump: (collection) => {
         const node = useVFSStore.getState().project?.nodes[FILE_ID];
         const lm = node && node.type === 'FILE' ? (node as { localModel?: Record<string, unknown> }).localModel : null;
@@ -252,6 +346,16 @@ export default function E2EHarness() {
         const screen = stage.getAbsoluteTransform().point(pt);
         const c = stage.container().getBoundingClientRect();
         return { x: c.left + screen.x, y: c.top + screen.y };
+      },
+      setCulling: (on) => {
+        useSettingsStore.setState({ viewportCulling: on, suppressCullingWarning: true });
+      },
+      renderedShapeCount: () => {
+        const stage = Konva.stages[Konva.stages.length - 1];
+        if (!stage) return 0;
+        // Culling hides shapes rather than unmounting them, so count the ones
+        // actually being painted.
+        return stage.find('Group').filter((g) => g.isVisible()).length;
       },
     };
 

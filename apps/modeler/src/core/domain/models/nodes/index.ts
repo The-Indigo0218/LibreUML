@@ -3,17 +3,20 @@ export * from './class-diagram.types';
 export * from './use-case.types';
 export * from './domain-model.types';
 export * from './sequence-diagram.types';
+export * from './activity-diagram.types';
 
 import type { ClassDiagramNode } from './class-diagram.types';
 import type { UseCaseDiagramNode } from './use-case.types';
 import type { DomainModelDiagramNode } from './domain-model.types';
 import type { SequenceDiagramNode } from './sequence-diagram.types';
+import type { ActivityDiagramNode } from './activity-diagram.types';
 
 export type DomainNode =
   | ClassDiagramNode
   | UseCaseDiagramNode
   | DomainModelDiagramNode
-  | SequenceDiagramNode;
+  | SequenceDiagramNode
+  | ActivityDiagramNode;
 
 export const isClassDiagramNode = (node: DomainNode): node is ClassDiagramNode => {
   return ['CLASS', 'INTERFACE', 'ABSTRACT_CLASS', 'ENUM', 'NOTE'].includes(node.type);
@@ -29,4 +32,12 @@ export const isDomainModelDiagramNode = (node: DomainNode): node is DomainModelD
 
 export const isSequenceDiagramNode = (node: DomainNode): node is SequenceDiagramNode => {
   return ['LIFELINE', 'ACTIVATION', 'FRAGMENT'].includes(node.type);
+};
+
+export const isActivityDiagramNode = (node: DomainNode): node is ActivityDiagramNode => {
+  return [
+    'ACTION', 'CALL_OPERATION', 'INITIAL_NODE', 'ACTIVITY_FINAL',
+    'DECISION', 'MERGE', 'FORK', 'JOIN', 'FLOW_FINAL', 'OBJECT_NODE',
+    'ACTIVITY_PARTITION',
+  ].includes(node.type);
 };

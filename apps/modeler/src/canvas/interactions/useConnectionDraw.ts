@@ -50,6 +50,8 @@ import {
   isSystemBoundaryViewModel,
   isDomainEntityViewModel,
   isLifelineViewModel,
+  isActivityActionViewModel,
+  isActivityControlNodeViewModel,
   type NodeViewModel,
 } from '../../adapters/view-models/node.view-model';
 import { validateConnection } from '../../util/connectionValidator';
@@ -57,6 +59,7 @@ import type { stereotype, UmlRelationType } from '../../features/diagram/types/d
 import type { RelationKind } from '../../core/domain/vfs/vfs.types';
 import { useToastStore } from '../../store/toast.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
+import { TOOL_TO_RELATION_KIND } from './relationKinds';
 
 /** Cursor must be within this radius (world px) of an anchor to activate connection mode. */
 const ANCHOR_DETECT_R = 16;
@@ -72,20 +75,6 @@ const RELATION_TO_UML: Partial<Record<RelationKind, UmlRelationType>> = {
   COMPOSITION:    'composition',
 };
 
-const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
-  ASSOCIATION:    'ASSOCIATION',
-  INHERITANCE:    'GENERALIZATION',
-  IMPLEMENTATION: 'REALIZATION',
-  DEPENDENCY:     'DEPENDENCY',
-  AGGREGATION:    'AGGREGATION',
-  COMPOSITION:    'COMPOSITION',
-  GENERALIZATION: 'GENERALIZATION',
-  INCLUDE:        'INCLUDE',
-  EXTEND:         'EXTEND',
-  PACKAGE_IMPORT: 'PACKAGE_IMPORT',
-  PACKAGE_MERGE:  'PACKAGE_MERGE',
-  PACKAGE_ACCESS: 'PACKAGE_ACCESS',
-};
 
 /** Relation types offered for class-diagram connections (picker + validity). */
 const CLASS_RELATION_TYPES: UmlRelationType[] = [
@@ -95,6 +84,12 @@ const CLASS_RELATION_TYPES: UmlRelationType[] = [
 const USE_CASE_STEREOTYPES = new Set<stereotype>(['actor', 'use_case', 'system_boundary']);
 const DOMAIN_MODEL_STEREOTYPES = new Set<stereotype>(['domain_entity']);
 export const SEQUENCE_STEREOTYPES = new Set<stereotype>(['lifeline']);
+/**
+ * Activity nodes validate through the activity registry's validator, not the
+ * class-diagram stereotype rules, so the draw path stays neutral and defers to
+ * onConnect (same arrangement as sequence).
+ */
+export const ACTIVITY_STEREOTYPES = new Set<stereotype>(['activity_node']);
 
 /**
  * Node kinds for which a self-loop (src === tgt) is a meaningful UI gesture.
@@ -148,6 +143,7 @@ export function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   // TODO: route through a ShapeRouter
   if (isDomainEntityViewModel(vm)) return 'domain_entity';
   if (isLifelineViewModel(vm)) return 'lifeline';
+  if (isActivityActionViewModel(vm) || isActivityControlNodeViewModel(vm)) return 'activity_node';
   const nvm = vm as NodeViewModel;
   const s = nvm.stereotype;
   if (s === 'abstract' || s === 'interface' || s === 'enum') return s;
@@ -530,6 +526,7 @@ export function useConnectionDraw({
       if (USE_CASE_STEREOTYPES.has(s) || USE_CASE_STEREOTYPES.has(t)) return null;
       if (DOMAIN_MODEL_STEREOTYPES.has(s) || DOMAIN_MODEL_STEREOTYPES.has(t)) return null;
       if (SEQUENCE_STEREOTYPES.has(s) || SEQUENCE_STEREOTYPES.has(t)) return null;
+      if (ACTIVITY_STEREOTYPES.has(s) || ACTIVITY_STEREOTYPES.has(t)) return null;
       return validateConnection(s, t, getActiveUmlType());
     },
     [nodes, getActiveUmlType],
@@ -690,6 +687,8 @@ export function useConnectionDraw({
               } else if (DOMAIN_MODEL_STEREOTYPES.has(srcStereotype) || DOMAIN_MODEL_STEREOTYPES.has(tgtStereotype)) {
                 onConnect(src.nodeId, tgtNodeId, anchoring, dropPoint);
               } else if (SEQUENCE_STEREOTYPES.has(srcStereotype) || SEQUENCE_STEREOTYPES.has(tgtStereotype)) {
+                onConnect(src.nodeId, tgtNodeId, anchoring, dropPoint);
+              } else if (ACTIVITY_STEREOTYPES.has(srcStereotype) || ACTIVITY_STEREOTYPES.has(tgtStereotype)) {
                 onConnect(src.nodeId, tgtNodeId, anchoring, dropPoint);
               } else {
                 const wsState = useWorkspaceStore.getState();

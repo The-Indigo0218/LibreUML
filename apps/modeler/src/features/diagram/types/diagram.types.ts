@@ -1,6 +1,10 @@
 import type { CSSProperties } from "react";
 
-export type stereotype = "class" | "interface" | "abstract" | "note" | "enum" | "package" | "actor" | "use_case" | "system_boundary" | "uc_module" | "domain_entity" | "lifeline" | "actor_lifeline" | "activity_node";
+export type stereotype = "class" | "interface" | "abstract" | "note" | "enum" | "package" | "actor" | "use_case" | "system_boundary" | "uc_module" | "domain_entity" | "lifeline" | "actor_lifeline" | "activity_node"
+  // Activity Diagram tool ids (A2.5) — distinct from "activity_node" above,
+  // which classifies an *existing* node for connection validation; these are
+  // the palette drop stereotypes that pick which ActivityNodeKind to create.
+  | "action" | "call_operation" | "initial_node" | "activity_final" | "flow_final" | "decision" | "merge" | "fork" | "join";
 export type UmlRelationType =
   | "association"
   | "inheritance"

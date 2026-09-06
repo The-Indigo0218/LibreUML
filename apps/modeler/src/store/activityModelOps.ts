@@ -35,6 +35,35 @@ export function applyCreateActivity(
   model.updatedAt = Date.now();
 }
 
+/**
+ * Resolves the Activity that owns a diagram file's nodes, creating one if the
+ * file doesn't have any yet (its first node/partition being placed).
+ *
+ * A node's `activityId` is not optional — it always belongs to exactly one
+ * Activity, unlike a Sequence lifeline, which can be reused across diagrams.
+ * v1 assumes one Activity per Activity Diagram file, so the owner has to be
+ * found by looking at what *this* diagram already contains, never by reading
+ * `Object.keys(model.activities)[0]`: when the model is the shared
+ * project-backed one (ADR-0001), it can hold other Activity Diagram files'
+ * activities too, and grabbing "the first one" would silently file a new
+ * node under the wrong diagram's activity.
+ */
+export function getOrCreateActivityId(
+  model: SemanticModel,
+  diagramViewNodes: readonly { elementId: string }[],
+  activityName: string,
+): string {
+  for (const vn of diagramViewNodes) {
+    const activityId =
+      model.activityNodes?.[vn.elementId]?.activityId ??
+      model.activityPartitions?.[vn.elementId]?.activityId;
+    if (activityId) return activityId;
+  }
+  const id = crypto.randomUUID();
+  applyCreateActivity(model, id, { name: activityName });
+  return id;
+}
+
 export function applyUpdateActivity(
   model: SemanticModel,
   id: string,

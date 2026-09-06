@@ -52,6 +52,8 @@ import {
   isLifelineViewModel,
   isActivityActionViewModel,
   isActivityControlNodeViewModel,
+  isActivityDecisionViewModel,
+  isActivityForkJoinViewModel,
   type NodeViewModel,
 } from '../../adapters/view-models/node.view-model';
 import { validateConnection } from '../../util/connectionValidator';
@@ -143,7 +145,12 @@ export function resolveStereotype(vm: AnyNodeViewModel): stereotype {
   // TODO: route through a ShapeRouter
   if (isDomainEntityViewModel(vm)) return 'domain_entity';
   if (isLifelineViewModel(vm)) return 'lifeline';
-  if (isActivityActionViewModel(vm) || isActivityControlNodeViewModel(vm)) return 'activity_node';
+  if (
+    isActivityActionViewModel(vm) ||
+    isActivityControlNodeViewModel(vm) ||
+    isActivityDecisionViewModel(vm) ||
+    isActivityForkJoinViewModel(vm)
+  ) return 'activity_node';
   const nvm = vm as NodeViewModel;
   const s = nvm.stereotype;
   if (s === 'abstract' || s === 'interface' || s === 'enum') return s;

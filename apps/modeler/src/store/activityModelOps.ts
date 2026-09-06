@@ -25,6 +25,53 @@ function cascadeDeleteRelations(model: SemanticModel, elementIds: Set<string>) {
   }
 }
 
+// ─── Traceability cascades (ADR-0010) ──────────────────────────────────────
+//
+// All three traces are plain ids, so nothing needs to happen when the target
+// is renamed. What has to happen is cleanup when the target is *deleted* —
+// otherwise the reference dangles and a later lookup resolves to nothing (or
+// worse, to a different element that later reuses the id). Same reasoning as
+// `clearGeneralOrderingsForMessages` in `model.store.ts`, kept here instead
+// because both store surfaces need it (see file header).
+
+/** Clears `callsOperationId` on every action that calls one of the given (deleted) operations. */
+export function clearCallsOperationRefs(model: SemanticModel, deletedOperationIds: Set<string>): void {
+  if (deletedOperationIds.size === 0) return;
+  for (const node of Object.values(model.activityNodes ?? {})) {
+    if (node.callsOperationId && deletedOperationIds.has(node.callsOperationId)) {
+      delete node.callsOperationId;
+    }
+  }
+}
+
+/** Clears `realizesUseCaseId` on every activity that realizes the given (deleted) use case. */
+export function clearRealizesUseCaseRef(model: SemanticModel, deletedUseCaseId: string): void {
+  for (const activity of Object.values(model.activities ?? {})) {
+    if (activity.realizesUseCaseId === deletedUseCaseId) delete activity.realizesUseCaseId;
+  }
+}
+
+/** Clears `representsId` on every lane whose responsible class/actor is the given (deleted) element. */
+export function clearRepresentsRef(model: SemanticModel, deletedElementId: string): void {
+  for (const partition of Object.values(model.activityPartitions ?? {})) {
+    if (partition.representsId === deletedElementId) delete partition.representsId;
+  }
+}
+
+/**
+ * Formats a called operation as `Class::op()` (spec §5) — the visible half of
+ * the action→operation trace, next to the modal's own selector labels
+ * (`ActivityActionPropsModal`), which use the same format.
+ */
+export function resolveCallsOperationLabel(model: SemanticModel, operationId: string): string | undefined {
+  const op = model.operations?.[operationId];
+  if (!op) return undefined;
+  const owner =
+    Object.values(model.classes).find((c) => c.operationIds?.includes(operationId)) ??
+    Object.values(model.interfaces).find((i) => i.operationIds?.includes(operationId));
+  return owner ? `${owner.name}::${op.name}()` : `${op.name}()`;
+}
+
 export function applyCreateActivity(
   model: SemanticModel,
   id: string,

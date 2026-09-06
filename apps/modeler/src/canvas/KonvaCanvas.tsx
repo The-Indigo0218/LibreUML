@@ -88,6 +88,10 @@ import ContinuationPropertiesModal from '../features/diagram/components/modals/C
 import SelfMessageWarningModal from '../features/diagram/components/modals/SelfMessageWarningModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
+import ActivityActionPropsModal from '../features/diagram/components/modals/ActivityActionPropsModal';
+import ActivityPartitionPropsModal from '../features/diagram/components/modals/ActivityPartitionPropsModal';
+import ActivityPropertiesModal from '../features/diagram/components/modals/ActivityPropertiesModal';
+import { openDiagramContainingElement } from '../features/diagram/hooks/controllers/traceabilityNav';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
 import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
@@ -1311,6 +1315,23 @@ export default function KonvaCanvas() {
   const globalModel = useModelStore((s) => s.model);
   const activeModel = vfsController.isStandalone ? vfsController.localModel : globalModel;
 
+  // ADR-0010: activity→use-case trace. An Activity has no node of its own, so
+  // this reads it off whatever node/lane the diagram already has, purely for
+  // display — creating one (if the canvas is still empty) only happens when
+  // the "Activity Properties" pane-menu item is actually clicked.
+  const activityTraceChip = useMemo(() => {
+    if (vfsController.vfsFile?.diagramType !== 'ACTIVITY_DIAGRAM' || !activeModel) return null;
+    const activityId = vfsController.diagramView?.nodes
+      ?.map((vn) => activeModel.activityNodes?.[vn.elementId]?.activityId ?? activeModel.activityPartitions?.[vn.elementId]?.activityId)
+      .find((id): id is string => !!id);
+    if (!activityId) return null;
+    const activity = activeModel.activities?.[activityId];
+    if (!activity?.realizesUseCaseId) return null;
+    const useCaseName = activeModel.useCases?.[activity.realizesUseCaseId]?.name;
+    if (!useCaseName) return null;
+    return { activityId, useCaseName, useCaseId: activity.realizesUseCaseId };
+  }, [vfsController.vfsFile?.diagramType, vfsController.diagramView, activeModel]);
+
   const handlePartitionResizeEnd = useCallback(
     (partitionId: string, newWidth: number) => {
       if (!activeTabId) return;
@@ -1712,7 +1733,7 @@ export default function KonvaCanvas() {
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (nodeId) => {
       const shape = shapes.find((s) => s.id === nodeId);
-      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data))) {
+      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data) || isActivityActionViewModel(shape.data))) {
         startUseCaseInlineEdit(nodeId);
         closeMenu();
         return;
@@ -1834,6 +1855,12 @@ export default function KonvaCanvas() {
       if (activeModel.ucModules?.[viewNode.elementId]) return 'UC_MODULE';
       if (activeModel.domainEntities?.[viewNode.elementId]) return 'DOMAIN_ENTITY';
       if (activeModel.lifelines?.[viewNode.elementId]) return 'LIFELINE';
+      // Activity diagrams (A4): was falling through to 'NOTE' below, which fed
+      // every activity node/lane into the note-editing menu branch by mistake
+      // — nothing in A0-A3 needed the context menu to tell them apart.
+      const activityNode = activeModel.activityNodes?.[viewNode.elementId];
+      if (activityNode) return activityNode.activityType;
+      if (activeModel.activityPartitions?.[viewNode.elementId]) return 'ACTIVITY_PARTITION';
       return 'NOTE';
     },
     getIsNodeExternal: (nodeId) => {
@@ -2637,6 +2664,21 @@ export default function KonvaCanvas() {
           {t('sidebar.fragments.drawHint', { kind: armedFragmentKind?.toLowerCase() })}
         </div>
       )}
+      {activityTraceChip && (
+        // ADR-0010: activity→use-case trace, read-only here — set via the
+        // canvas background context menu's "Activity Properties".
+        <button
+          type="button"
+          onClick={() => openDiagramContainingElement(activityTraceChip.useCaseId)}
+          className="absolute top-3 right-3 z-20 flex items-center gap-1 px-2.5 py-1 rounded-full
+                     bg-[#0c2a3a]/90 border border-[#38bdf8]/50 text-[#7dd3fc] text-xs font-medium
+                     shadow-lg hover:bg-[#0c2a3a] transition-colors"
+          title={t('activityDiagram.realizesUseCase', { name: activityTraceChip.useCaseName })}
+        >
+          <span aria-hidden="true">↗</span>
+          {t('activityDiagram.realizes', { name: activityTraceChip.useCaseName })}
+        </button>
+      )}
       {size.width > 0 && size.height > 0 && (
         <Stage
           ref={stageRef}
@@ -3237,6 +3279,9 @@ export default function KonvaCanvas() {
       <LifelinePropertiesModal />
       <ContinuationPropertiesModal />
       <SelfMessageWarningModal />
+      <ActivityActionPropsModal />
+      <ActivityPartitionPropsModal />
+      <ActivityPropertiesModal />
     </div>
   );
 }

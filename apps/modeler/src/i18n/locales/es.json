@@ -220,7 +220,8 @@
       "insertSeqFragment": "Insertar Fragmento SEQ",
       "insertBreakFragment": "Insertar Fragmento BREAK",
       "insertCriticalFragment": "Insertar Fragmento CRITICAL",
-      "insertInteractionUse": "Insertar Referencia (ref)"
+      "insertInteractionUse": "Insertar Referencia (ref)",
+      "activityProperties": "Propiedades de la Actividad"
     },
     "node": {
       "duplicate": "Duplicar",
@@ -240,7 +241,9 @@
       "addStateInvariant": "Añadir Invariante de Estado",
       "addFoundMessage": "Añadir Mensaje Encontrado",
       "addLostMessage": "Añadir Mensaje Perdido",
-      "decomposeLifeline": "Descomponer…"
+      "decomposeLifeline": "Descomponer…",
+      "linkOperation": "Vincular Operación…",
+      "editActivityPartitionProperties": "Propiedades del Carril…"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",
@@ -1540,6 +1543,10 @@
     "guard.placeholder": "ej. saldo > 0",
     "weight": "Peso",
     "weight.placeholder": "ej. 5 o *"
+  },
+  "activityDiagram": {
+    "realizes": "realiza: {{name}}",
+    "realizesUseCase": "Esta actividad realiza el caso de uso \"{{name}}\" — clic para abrirlo"
   },
   "fragment": {
     "title": "Propiedades del Fragmento Combinado",

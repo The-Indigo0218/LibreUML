@@ -82,9 +82,23 @@ describe('buildActivityDiagramNodes', () => {
     expect(kinds).toEqual(['INITIAL', 'ACTIVITY_FINAL', 'FLOW_FINAL']);
   });
 
-  it('shows the operation a call action is traced to', () => {
+  it('shows the operation a call action is traced to, as Class::op() (ADR-0010)', () => {
     const m = model({
-      operations: { op1: { id: 'op1', kind: 'OPERATION', name: 'charge()' } } as never,
+      classes: { c1: { id: 'c1', kind: 'CLASS', name: 'PaymentService', attributeIds: [], operationIds: ['op1'] } } as never,
+      operations: { op1: { id: 'op1', kind: 'OPERATION', name: 'charge', parameters: [] } } as never,
+      activityNodes: {
+        n1: irNode('n1', 'CALL_OPERATION', { name: 'Charge card', callsOperationId: 'op1' }),
+      } as never,
+    });
+
+    const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'vn1', elementId: 'n1' }])));
+
+    expect((built.data as ActivityActionViewModel).callsOperationName).toBe('PaymentService::charge()');
+  });
+
+  it('falls back to a bare op() label when no class/interface owns the operation', () => {
+    const m = model({
+      operations: { op1: { id: 'op1', kind: 'OPERATION', name: 'charge', parameters: [] } } as never,
       activityNodes: {
         n1: irNode('n1', 'CALL_OPERATION', { name: 'Charge card', callsOperationId: 'op1' }),
       } as never,

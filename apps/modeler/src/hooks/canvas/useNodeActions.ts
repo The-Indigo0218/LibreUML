@@ -4,6 +4,7 @@ import { useModelStore } from '../../store/model.store';
 import { useToastStore } from '../../store/toast.store';
 import { useSelectionStore } from '../../store/selection.store';
 import { getLocalModel } from '../../store/standaloneModelOps';
+import { clearRealizesUseCaseRef, clearRepresentsRef } from '../../store/activityModelOps';
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type {
   DiagramView,
@@ -153,6 +154,10 @@ export function useNodeActions({
               else if (lm.systemBoundaries?.[elementId])   { delete lm.systemBoundaries![elementId]; }
               else if (lm.ucModules?.[elementId])          { delete lm.ucModules![elementId]; }
               cascadeDeleteRelations(lm, elementId);
+              // ADR-0010: a deleted class/actor/use case can't stay traced from a
+              // lane or an activity — same reasoning as cascadeDeleteRelations above.
+              clearRepresentsRef(lm, elementId);
+              clearRealizesUseCaseRef(lm, elementId);
               lm.updatedAt = Date.now();
               if (isDiagramView(node.content)) {
                 node.content.nodes = node.content.nodes.filter((vn: ViewNode) => vn.elementId !== elementId);
@@ -199,6 +204,9 @@ export function useNodeActions({
                 else if (draft.model.systemBoundaries?.[elementId])   { delete draft.model.systemBoundaries![elementId]; }
                 else if (draft.model.ucModules?.[elementId])          { delete draft.model.ucModules![elementId]; }
                 cascadeDeleteRelations(draft.model, elementId);
+                // ADR-0010: same cascade as the standalone branch above.
+                clearRepresentsRef(draft.model, elementId);
+                clearRealizesUseCaseRef(draft.model, elementId);
                 draft.model.updatedAt = Date.now();
               },
             },

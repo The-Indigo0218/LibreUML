@@ -40,6 +40,9 @@ export type ActiveModal =
   | "continuation-props"
   | "self-message-warning"
   | "control-flow-props"
+  | "activity-action-props"
+  | "activity-partition-props"
+  | "activity-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -102,6 +105,12 @@ interface UiStoreState {
   openActorProps: (elementId: string) => void;
   openExtendProps: (edgeId: string) => void;
   openControlFlowProps: (edgeId: string) => void;
+  /** Action/CallOperation node: pick the operation it invokes (ADR-0010). */
+  openActivityActionProps: (elementId: string) => void;
+  /** Swimlane header: pick the class/actor responsible for the lane (ADR-0010). */
+  openActivityPartitionProps: (elementId: string) => void;
+  /** Activity (diagram-level): pick the use case it realizes (ADR-0010). */
+  openActivityProps: (activityId: string) => void;
   openDomainEntityProps: (elementId: string) => void;
   openDomainAssociationProps: (edgeId: string) => void;
   openFragmentProps: (fragmentId: string) => void;
@@ -229,6 +238,9 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openActorProps: (elementId) => set({ activeModal: "actor-props", editingId: elementId }),
   openExtendProps: (edgeId) => set({ activeModal: "extend-props", editingId: edgeId }),
   openControlFlowProps: (edgeId) => set({ activeModal: "control-flow-props", editingId: edgeId }),
+  openActivityActionProps: (elementId) => set({ activeModal: "activity-action-props", editingId: elementId }),
+  openActivityPartitionProps: (elementId) => set({ activeModal: "activity-partition-props", editingId: elementId }),
+  openActivityProps: (activityId) => set({ activeModal: "activity-props", editingId: activityId }),
   openDomainEntityProps: (elementId) => set({ activeModal: "domain-entity-props", editingId: elementId }),
   openDomainAssociationProps: (edgeId) => set({ activeModal: "domain-association-props", editingId: edgeId }),
   openFragmentProps: (fragmentId) => set({ activeModal: "fragment-props", editingId: fragmentId }),

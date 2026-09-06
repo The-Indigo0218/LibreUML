@@ -1,6 +1,8 @@
 import { standaloneModelOps } from '../../../../store/standaloneModelOps';
 import { useModelStore } from '../../../../store/model.store';
+import { useUiStore } from '../../../../store/uiStore';
 import { undoTransaction } from '../../../../core/undo/undoBridge';
+import { openDiagramContainingElement } from './traceabilityNav';
 import { isDiagramView } from '../useVFSCanvasController';
 import { reparentViewNodeCoords } from '../../../../canvas/interactions/usePackageDrop';
 import {
@@ -12,6 +14,7 @@ import {
 import {
   applyUpdateActivityPartition,
   applyDeleteActivityPartition,
+  resolveCallsOperationLabel,
 } from '../../../../store/activityModelOps';
 import type {
   IRActivityNode,
@@ -78,6 +81,7 @@ function makeActionNode(
     fontFamilyOverride: viewNode.fontFamily,
     fontSizeOverride: viewNode.fontSize,
     onRename,
+    onOpenProps: () => useUiStore.getState().openActivityActionProps(viewNode.elementId),
   };
   return {
     id: viewNode.id,
@@ -308,6 +312,11 @@ function makePartitionNode(
   const sorted = [...siblings].sort((a, b) => a.index - b.index);
   const pos = sorted.findIndex((p) => p.id === partition.id);
 
+  const representative = partition.representsId
+    ? ctx.model.classes[partition.representsId]?.name ??
+      ctx.model.actors?.[partition.representsId]?.name
+    : undefined;
+
   const vm: ActivityPartitionViewModel = {
     __brand: 'activityPartition',
     id: viewNode.id,
@@ -316,6 +325,10 @@ function makePartitionNode(
     index: partition.index,
     width: viewNode.width ?? DEFAULT_PARTITION_WIDTH,
     representsId: partition.representsId,
+    representsName: representative,
+    onNavigateToRepresents: partition.representsId
+      ? () => openDiagramContainingElement(partition.representsId!)
+      : undefined,
     canMoveLeft: pos > 0,
     canMoveRight: pos !== -1 && pos < sorted.length - 1,
     onRename: (name) => {
@@ -328,6 +341,7 @@ function makePartitionNode(
     onMoveLeft: () => reorderActivityPartition(ctx, partition.activityId, partition.id, 'left'),
     onMoveRight: () => reorderActivityPartition(ctx, partition.activityId, partition.id, 'right'),
     onDelete: () => deleteActivityPartition(ctx, viewNode),
+    onOpenProps: () => useUiStore.getState().openActivityPartitionProps(viewNode.elementId),
   };
 
   return {
@@ -379,11 +393,11 @@ export function buildActivityDiagramNodes(ctx: NodeBuilderContext) {
         }
       };
 
-      const operation = node.callsOperationId
-        ? model.operations?.[node.callsOperationId]
+      const callsOperationLabel = node.callsOperationId
+        ? resolveCallsOperationLabel(model, node.callsOperationId)
         : undefined;
 
-      return makeActionNode(viewNode, node, diagramView.nodes, operation?.name, onRename);
+      return makeActionNode(viewNode, node, diagramView.nodes, callsOperationLabel, onRename);
     }
 
     const controlKind = CONTROL_TYPES[node.activityType];

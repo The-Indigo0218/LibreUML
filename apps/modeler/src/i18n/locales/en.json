@@ -212,7 +212,8 @@
       "insertSeqFragment": "Insert SEQ Fragment",
       "insertBreakFragment": "Insert BREAK Fragment",
       "insertCriticalFragment": "Insert CRITICAL Fragment",
-      "insertInteractionUse": "Insert Reference (ref)"
+      "insertInteractionUse": "Insert Reference (ref)",
+      "activityProperties": "Activity Properties"
     },
     "node": {
       "duplicate": "Duplicate",
@@ -232,7 +233,9 @@
       "addStateInvariant": "Add State Invariant",
       "addFoundMessage": "Add Found Message",
       "addLostMessage": "Add Lost Message",
-      "decomposeLifeline": "Decompose…"
+      "decomposeLifeline": "Decompose…",
+      "linkOperation": "Link Operation…",
+      "editActivityPartitionProperties": "Lane Properties…"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",
@@ -1531,6 +1534,10 @@
     "guard.placeholder": "e.g. balance > 0",
     "weight": "Weight",
     "weight.placeholder": "e.g. 5 or *"
+  },
+  "activityDiagram": {
+    "realizes": "realizes: {{name}}",
+    "realizesUseCase": "This activity realizes the \"{{name}}\" use case — click to open it"
   },
   "fragment": {
     "title": "Combined Fragment Properties",

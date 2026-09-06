@@ -6,6 +6,10 @@ import { borderDash } from './borderStyle';
 
 const BORDER_W = 2;
 const FONT_SIZE = 12;
+/** Name font shrinks to this when a trace subtitle needs the second line. */
+const FONT_SIZE_WITH_TRACE = 11;
+const TRACE_FONT_SIZE = 9;
+const TRACE_COLOR = '#38bdf8';
 const FONT_FAMILY = 'Inter, ui-sans-serif, system-ui, sans-serif';
 const BUTTON_SIZE = 16;
 const BUTTON_GAP = 2;
@@ -113,19 +117,57 @@ export default function PartitionShape({
         }}
       />
 
-      <Text
-        x={buttonX + 4}
-        y={PARTITION_HEADER_H / 2 - FONT_SIZE / 2}
-        width={Math.max(0, W - buttonX - 8)}
-        text={vm.name}
-        fontSize={FONT_SIZE}
-        fontFamily={FONT_FAMILY}
-        fontStyle="bold"
-        fill={colors.text}
-        align="center"
-        listening={false}
-        perfectDrawEnabled={false}
-      />
+      {vm.representsName ? (
+        <>
+          <Text
+            x={buttonX + 4}
+            y={4}
+            width={Math.max(0, W - buttonX - 8)}
+            text={vm.name}
+            fontSize={FONT_SIZE_WITH_TRACE}
+            fontFamily={FONT_FAMILY}
+            fontStyle="bold"
+            fill={colors.text}
+            align="center"
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+          {/* ADR-0010: the lane's responsible class/actor. Clicking jumps to
+              wherever that element is drawn — same idea as Lifeline.decomposedAs. */}
+          <Text
+            x={buttonX + 4}
+            y={PARTITION_HEADER_H - TRACE_FONT_SIZE - 3}
+            width={Math.max(0, W - buttonX - 8)}
+            text={`↗ ${vm.representsName}`}
+            fontSize={TRACE_FONT_SIZE}
+            fontFamily={FONT_FAMILY}
+            fontStyle="italic"
+            fill={TRACE_COLOR}
+            align="center"
+            ellipsis
+            wrap="none"
+            onClick={(e) => {
+              e.cancelBubble = true;
+              vm.onNavigateToRepresents?.();
+            }}
+            perfectDrawEnabled={false}
+          />
+        </>
+      ) : (
+        <Text
+          x={buttonX + 4}
+          y={PARTITION_HEADER_H / 2 - FONT_SIZE / 2}
+          width={Math.max(0, W - buttonX - 8)}
+          text={vm.name}
+          fontSize={FONT_SIZE}
+          fontFamily={FONT_FAMILY}
+          fontStyle="bold"
+          fill={colors.text}
+          align="center"
+          listening={false}
+          perfectDrawEnabled={false}
+        />
+      )}
 
       {moveLeftX !== null && (
         <Text

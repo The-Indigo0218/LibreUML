@@ -67,14 +67,27 @@ export interface E2ESequenceSpec {
 /** Minimal activity-diagram seed (A1, partitions added in A3). */
 export interface E2EActivitySpec {
   activityName?: string;
+  /** Traceability (A4/ADR-0010): the use case this activity realizes. */
+  realizesUseCaseId?: string;
+  /** Traceability (A4): classes/actors/use-cases an action or lane can trace to. */
+  classes?: { id: string; name: string; operationIds?: string[] }[];
+  operations?: { id: string; name: string }[];
+  actors?: { id: string; name: string }[];
+  useCases?: { id: string; name: string }[];
   nodes: {
     id: string; vnId: string; x: number; y: number;
     activityType: string; name?: string;
     /** Which lane (by its IR partition id, from `partitions` below) it starts in. */
     partitionId?: string;
+    /** Traceability (A4): the operation a CALL_OPERATION action invokes. */
+    callsOperationId?: string;
   }[];
   /** Swimlanes (A3) — `x` is derived from `index`/`width`, like the real app. */
-  partitions?: { id: string; vnId: string; name: string; index: number; width?: number }[];
+  partitions?: {
+    id: string; vnId: string; name: string; index: number; width?: number;
+    /** Traceability (A4): the class/actor responsible for the lane. */
+    representsId?: string;
+  }[];
   flows?: { id: string; source: string; target: string; guard?: string }[];
 }
 
@@ -192,13 +205,34 @@ function buildActivityProject(spec: E2EActivitySpec): LibreUMLProject {
   const model = emptyModel() as unknown as Record<string, unknown>;
   const ACTIVITY_ID = 'e2e-activity';
   model.activities = {
-    [ACTIVITY_ID]: { id: ACTIVITY_ID, kind: 'ACTIVITY', name: spec.activityName ?? 'Flow' },
+    [ACTIVITY_ID]: {
+      id: ACTIVITY_ID, kind: 'ACTIVITY', name: spec.activityName ?? 'Flow',
+      ...(spec.realizesUseCaseId ? { realizesUseCaseId: spec.realizesUseCaseId } : {}),
+    },
   };
   model.activityNodes = {};
   model.activityPartitions = {};
+  for (const c of spec.classes ?? []) {
+    (model.classes as Record<string, unknown>)[c.id] = {
+      id: c.id, kind: 'CLASS', name: c.name, attributeIds: [], operationIds: c.operationIds ?? [],
+    };
+  }
+  for (const o of spec.operations ?? []) {
+    // `parameters` is required on IROperation — the signature formatter (RightSidebar's
+    // member list, always mounted) crashes with "Cannot read properties of undefined
+    // (reading 'map')" without it.
+    (model.operations as Record<string, unknown>)[o.id] = { id: o.id, kind: 'OPERATION', name: o.name, parameters: [] };
+  }
+  for (const a of spec.actors ?? []) {
+    (model.actors as Record<string, unknown>)[a.id] = { id: a.id, kind: 'ACTOR', name: a.name };
+  }
+  for (const uc of spec.useCases ?? []) {
+    (model.useCases as Record<string, unknown>)[uc.id] = { id: uc.id, kind: 'USECASE', name: uc.name };
+  }
   for (const p of spec.partitions ?? []) {
     (model.activityPartitions as Record<string, unknown>)[p.id] = {
       id: p.id, kind: 'ACTIVITY_PARTITION', activityId: ACTIVITY_ID, name: p.name, index: p.index,
+      ...(p.representsId ? { representsId: p.representsId } : {}),
     };
   }
   for (const n of spec.nodes) {
@@ -206,6 +240,7 @@ function buildActivityProject(spec: E2EActivitySpec): LibreUMLProject {
       id: n.id, kind: 'ACTIVITY_NODE', name: n.name ?? '',
       activityType: n.activityType, activityId: ACTIVITY_ID,
       ...(n.partitionId ? { partitionId: n.partitionId } : {}),
+      ...(n.callsOperationId ? { callsOperationId: n.callsOperationId } : {}),
     };
   }
   for (const f of spec.flows ?? []) {

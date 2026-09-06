@@ -8,6 +8,7 @@ import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../st
 import { isDiagramView } from "./useVFSCanvasController";
 import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
 import { undoTransaction } from "../../../core/undo/undoBridge";
+import { getOrCreateActivityId } from "../../../store/activityModelOps";
 import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from "../../../canvas/shapes/UCModuleShape";
 import type { DiagramView, ViewNode, VFSFile, FragmentKind } from "../../../core/domain/vfs/vfs.types";
@@ -80,6 +81,7 @@ export const useDiagramMenus = ({
   const isUseCaseDiagram = diagramType === 'USE_CASE_DIAGRAM';
   const isDomainModelDiagram = diagramType === 'DOMAIN_MODEL_DIAGRAM';
   const isSequenceDiagram = diagramType === 'SEQUENCE_DIAGRAM';
+  const isActivityDiagram = diagramType === 'ACTIVITY_DIAGRAM';
   const { t } = useTranslation();
 
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator);
@@ -325,6 +327,49 @@ export const useDiagramMenus = ({
     [getElementId],
   );
 
+  // ── Activity (diagram-level) properties (ADR-0010) ─────────────────────────
+
+  /**
+   * Opens the modal for the Activity behind the active diagram file. Reads
+   * first, without touching the undo stack — an empty canvas has no Activity
+   * yet, and only then does this fall back to creating one (getOrCreateActivityId,
+   * same helper the palette-drop path uses), wrapped in its own transaction.
+   */
+  const openActivityDiagramProps = useCallback(() => {
+    const tabId = useWorkspaceStore.getState().activeTabId;
+    if (!tabId) return;
+    const project = useVFSStore.getState().project;
+    const fileNode = project?.nodes[tabId];
+    if (!fileNode || fileNode.type !== 'FILE' || !isDiagramView((fileNode as VFSFile).content)) return;
+    const view = (fileNode as VFSFile).content as DiagramView;
+    const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+    const model = isStandaloneFile ? getLocalModel(tabId) : useModelStore.getState().model;
+    if (!model) return;
+
+    const existingId = view.nodes
+      .map((vn) => model.activityNodes?.[vn.elementId]?.activityId ?? model.activityPartitions?.[vn.elementId]?.activityId)
+      .find((id): id is string => !!id);
+    if (existingId) {
+      useUiStore.getState().openActivityProps(existingId);
+      return;
+    }
+
+    let createdId = '';
+    undoTransaction({
+      label: 'Create Activity',
+      scope: isStandaloneFile ? tabId : 'global',
+      mutations: [{
+        store: isStandaloneFile ? 'vfs' : 'model',
+        mutate: (draft: any) => {
+          const m = isStandaloneFile ? draft.project?.nodes[tabId]?.localModel : draft.model;
+          if (!m) return;
+          createdId = getOrCreateActivityId(m, view.nodes, 'Activity');
+        },
+      }],
+    });
+    if (createdId) useUiStore.getState().openActivityProps(createdId);
+  }, []);
+
   // ── getMenuOptions ────────────────────────────────────────────────────────
 
   const getMenuOptions = useCallback(
@@ -348,6 +393,13 @@ export const useDiagramMenus = ({
             { label: t("contextMenu.pane.addDomainEntity"), onClick: () => addVFSNode("DOMAIN_ENTITY", pos()) },
             { label: t("contextMenu.pane.addNote"),         onClick: () => addVFSNode("NOTE", pos()) },
             { label: t("contextMenu.pane.cleanCanvas"),     onClick: onClearCanvas, danger: true },
+          ];
+        }
+        if (isActivityDiagram) {
+          return [
+            { label: t("contextMenu.pane.activityProperties"), onClick: openActivityDiagramProps },
+            { label: t("contextMenu.pane.addNote"),             onClick: () => addVFSNode("NOTE", pos()) },
+            { label: t("contextMenu.pane.cleanCanvas"),         onClick: onClearCanvas, danger: true },
           ];
         }
         if (isSequenceDiagram) {
@@ -439,13 +491,22 @@ export const useDiagramMenus = ({
           effectiveType === "UC_MODULE";
         const isDomainEntityType = effectiveType === "DOMAIN_ENTITY";
         const isLifelineType = effectiveType === "LIFELINE";
+        // Activity diagrams (A4): the lane renames through its own header
+        // double-click (usePartitionDrop/PartitionShape), not through this menu.
+        const isActivityPartitionType = effectiveType === "ACTIVITY_PARTITION";
+        const isActivityActionType = effectiveType === "ACTION" || effectiveType === "CALL_OPERATION";
+        // Control/decision/fork-join glyphs carry no label (nodeKindDescriptors:
+        // "a filled circle has nothing to edit") — nothing for this item to open.
+        const isLabellessActivityType = [
+          "INITIAL", "ACTIVITY_FINAL", "FLOW_FINAL", "DECISION", "MERGE", "FORK", "JOIN",
+        ].includes(effectiveType ?? "");
         const isNodeExternal = getIsNodeExternal(nodeId);
 
         const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [];
 
-        if (!isPackageType && !isNoteType && !isLifelineType) {
+        if (!isPackageType && !isNoteType && !isLifelineType && !isActivityPartitionType && !isLabellessActivityType) {
           baseOptions.push({
-            label: (isUseCaseNodeType || isDomainEntityType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
+            label: (isUseCaseNodeType || isDomainEntityType || isActivityActionType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
           });
         }
@@ -476,6 +537,28 @@ export const useDiagramMenus = ({
             baseOptions.push({
               label: t("contextMenu.node.editActorProperties"),
               onClick: () => useUiStore.getState().openActorProps(elementId),
+            });
+          }
+        }
+
+        // ADR-0010 traceability: action→operation and lane→responsible are
+        // set through their own selector modal, not the inline rename above.
+        if (isActivityActionType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.linkOperation"),
+              onClick: () => useUiStore.getState().openActivityActionProps(elementId),
+            });
+          }
+        }
+
+        if (isActivityPartitionType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.editActivityPartitionProperties"),
+              onClick: () => useUiStore.getState().openActivityPartitionProps(elementId),
             });
           }
         }
@@ -644,6 +727,8 @@ export const useDiagramMenus = ({
       addEndpointMessage,
       addSelfMessage,
       isStandalone,
+      isActivityDiagram,
+      openActivityDiagramProps,
       t,
     ]
   );

@@ -407,6 +407,10 @@ export interface ActivityPartitionViewModel {
   index: number;
   width: number;
   representsId?: string;
+  /** Resolved name of the class/actor this lane represents (ADR-0010), if any. */
+  representsName?: string;
+  /** Jumps to the diagram where the represented class/actor lives, when one is open. */
+  onNavigateToRepresents?: () => void;
   colorOverride?: string;
   /** Whether a left/right neighbour exists — drives the reorder buttons. */
   canMoveLeft: boolean;
@@ -415,6 +419,7 @@ export interface ActivityPartitionViewModel {
   onMoveLeft?: () => void;
   onMoveRight?: () => void;
   onDelete?: () => void;
+  onOpenProps?: () => void;
 }
 
 export type AnyNodeViewModel =

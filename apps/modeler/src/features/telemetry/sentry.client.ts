@@ -8,10 +8,11 @@
 //     stay always-on so every user's failures are visible, not just the ones
 //     who opted into analytics.
 //   • sendDefaultPii is explicitly off — no IP, no cookies, no request headers.
-//   • No-ops entirely when VITE_SENTRY_DSN is unset (true today: no Sentry
-//     project exists yet). Logs a console.warn so the gap isn't silently
-//     missed — see the pending TODO in the Obsidian vault
-//     (Proyectos/01-LibreUML-Modeler/TODO-sentry-setup.md).
+//   • Mirrors posthog.client.ts: no-ops in development (same as PostHog) so
+//     local dev noise never lands in the Sentry project — only VITE_E2E-free
+//     production builds report.
+//   • No-ops entirely when VITE_SENTRY_DSN is unset. Logs a console.warn so
+//     the gap isn't silently missed.
 
 import * as Sentry from '@sentry/react';
 
@@ -20,9 +21,9 @@ const IS_DEV = import.meta.env.DEV;
 
 let _initialized = false;
 
-/** Call once at app boot (main.tsx), before rendering. */
+/** Call once at app boot (main.tsx), before rendering. No-ops in dev. */
 export function initSentry(): void {
-  if (_initialized) return;
+  if (_initialized || IS_DEV) return;
   _initialized = true;
 
   if (!SENTRY_DSN) {
@@ -37,7 +38,7 @@ export function initSentry(): void {
 
   Sentry.init({
     dsn: SENTRY_DSN,
-    environment: IS_DEV ? 'development' : 'production',
+    environment: 'production',
     // Error capture only — no session replay, no performance tracing.
     // Kept deliberately minimal since this runs without user consent.
     sendDefaultPii: false,

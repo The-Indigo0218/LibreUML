@@ -1032,6 +1032,12 @@ function createActivityDiagramNode(type: string, partial?: Partial<DomainNode>):
       return { ...baseNode, type: 'INPUT_PIN', name: named('') } as DomainNode;
     case 'OUTPUT_PIN':
       return { ...baseNode, type: 'OUTPUT_PIN', name: named('') } as DomainNode;
+    case 'LOOP_NODE':
+      return { ...baseNode, type: 'LOOP_NODE', name: named('Loop') } as DomainNode;
+    case 'CONDITIONAL_NODE':
+      return { ...baseNode, type: 'CONDITIONAL_NODE', name: named('Conditional') } as DomainNode;
+    case 'SEQUENCE_NODE':
+      return { ...baseNode, type: 'SEQUENCE_NODE', name: named('Sequence') } as DomainNode;
     case 'ACTIVITY_PARTITION':
       return {
         ...baseNode, type: 'ACTIVITY_PARTITION', name: named('Partition'), index: 0,
@@ -1085,6 +1091,7 @@ const activityDiagramRegistry: DiagramTypeRegistry = {
     'ACTION', 'CALL_OPERATION', 'INITIAL_NODE', 'ACTIVITY_FINAL',
     'DECISION', 'MERGE', 'FORK', 'JOIN', 'FLOW_FINAL', 'OBJECT_NODE',
     'INPUT_PIN', 'OUTPUT_PIN',
+    'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE',
     'ACTIVITY_PARTITION', 'NOTE',
   ],
   supportedEdgeTypes: ['CONTROL_FLOW', 'OBJECT_FLOW'],
@@ -1108,6 +1115,9 @@ const activityDiagramRegistry: DiagramTypeRegistry = {
       { id: 'call_operation', type: 'NODE', category: 'advanced', label: 'Call Operation', icon: 'SquareFunction', color: '#38BDF8', translationKey: 'sidebar.nodes.callOperation' },
       { id: 'flow_final', type: 'NODE', category: 'advanced', label: 'Flow Final', icon: 'CircleX', color: '#38BDF8', translationKey: 'sidebar.nodes.flowFinal' },
       { id: 'object_node', type: 'NODE', category: 'advanced', label: 'Object', icon: 'Package', color: '#38BDF8', translationKey: 'sidebar.nodes.objectNode' },
+      { id: 'loop_node', type: 'NODE', category: 'advanced', label: 'Loop', icon: 'Repeat', color: '#38BDF8', translationKey: 'sidebar.nodes.loopNode' },
+      { id: 'conditional_node', type: 'NODE', category: 'advanced', label: 'Conditional', icon: 'GitBranch', color: '#38BDF8', translationKey: 'sidebar.nodes.conditionalNode' },
+      { id: 'sequence_node', type: 'NODE', category: 'advanced', label: 'Sequence', icon: 'ListOrdered', color: '#38BDF8', translationKey: 'sidebar.nodes.sequenceNode' },
       { id: 'note', type: 'NODE', category: 'common', label: 'Note', icon: 'StickyNote', color: 'var(--color-uml-note-border)', translationKey: 'sidebar.nodes.note' },
     ],
     edges: [

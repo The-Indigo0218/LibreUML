@@ -54,6 +54,12 @@ const NODE_METACLASS: Record<ActivityNodeKind, string> = {
   // scope cut as the rest of this file (spec §14.3, D6).
   INPUT_PIN: 'uml:InputPin',
   OUTPUT_PIN: 'uml:OutputPin',
+  // Structured nodes (v1.1): same flat scope cut — a real StructuredActivityNode
+  // contains its body as owned nodes/edges, which this exporter's flat <node>
+  // list does not model for anything (spec §14.3, D6).
+  LOOP_NODE: 'uml:LoopNode',
+  CONDITIONAL_NODE: 'uml:ConditionalNode',
+  SEQUENCE_NODE: 'uml:SequenceNode',
 };
 
 /** Resolves an id against every classifier/actor collection a `represents` trace can point to. */

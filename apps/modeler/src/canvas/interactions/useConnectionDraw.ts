@@ -56,6 +56,7 @@ import {
   isActivityForkJoinViewModel,
   isActivityObjectNodeViewModel,
   isActivityPinViewModel,
+  isActivityStructuredViewModel,
   type NodeViewModel,
 } from '../../adapters/view-models/node.view-model';
 import { validateConnection } from '../../util/connectionValidator';
@@ -153,7 +154,8 @@ export function resolveStereotype(vm: AnyNodeViewModel): stereotype {
     isActivityDecisionViewModel(vm) ||
     isActivityForkJoinViewModel(vm) ||
     isActivityObjectNodeViewModel(vm) ||
-    isActivityPinViewModel(vm)
+    isActivityPinViewModel(vm) ||
+    isActivityStructuredViewModel(vm)
   ) return 'activity_node';
   const nvm = vm as NodeViewModel;
   const s = nvm.stereotype;

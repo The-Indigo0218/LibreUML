@@ -597,6 +597,10 @@ export const useDiagramMenus = ({
         const isActivityActionType = effectiveType === "ACTION" || effectiveType === "CALL_OPERATION";
         const isActivityObjectNodeType = effectiveType === "OBJECT_NODE";
         const isActivityPinType = effectiveType === "INPUT_PIN" || effectiveType === "OUTPUT_PIN";
+        const isActivityStructuredType =
+          effectiveType === "LOOP_NODE" || effectiveType === "CONDITIONAL_NODE" || effectiveType === "SEQUENCE_NODE";
+        // SEQUENCE_NODE has nothing to test — only these two get the modal.
+        const isTestableStructuredType = effectiveType === "LOOP_NODE" || effectiveType === "CONDITIONAL_NODE";
         // Control/decision/fork-join glyphs carry no label (nodeKindDescriptors:
         // "a filled circle has nothing to edit") — nothing for this item to open.
         const isLabellessActivityType = [
@@ -608,7 +612,7 @@ export const useDiagramMenus = ({
 
         if (!isPackageType && !isNoteType && !isLifelineType && !isActivityPartitionType && !isLabellessActivityType) {
           baseOptions.push({
-            label: (isUseCaseNodeType || isDomainEntityType || isActivityActionType || isActivityObjectNodeType || isActivityPinType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
+            label: (isUseCaseNodeType || isDomainEntityType || isActivityActionType || isActivityObjectNodeType || isActivityPinType || isActivityStructuredType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
           });
         }
@@ -671,6 +675,19 @@ export const useDiagramMenus = ({
             baseOptions.push({
               label: t("contextMenu.node.linkParameter"),
               onClick: () => useUiStore.getState().openActivityPinProps(elementId),
+            });
+          }
+        }
+
+        // Structured nodes (v1.1): the test/guard is free text, set through
+        // its own modal — same reasoning as the pin's parameter trace above.
+        // SEQUENCE_NODE has nothing to test, so it never gets this item.
+        if (isTestableStructuredType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.editTestCondition"),
+              onClick: () => useUiStore.getState().openActivityStructuredProps(elementId),
             });
           }
         }

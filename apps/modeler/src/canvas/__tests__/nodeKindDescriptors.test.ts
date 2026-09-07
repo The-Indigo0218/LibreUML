@@ -257,6 +257,15 @@ describe('node kind behaviour matrix', () => {
       dragEnd: 'node',
       resize: 'systemBoundary',
     },
+    // Structured nodes (v1.1): unlike the pin/object node above, this one
+    // really does resize (a free container, Transformer-driven like the
+    // system boundary) — hence its own resize kind, not the generic one.
+    activityStructured: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'activityStructured',
+    },
   };
 
   it.each(ALL_NODE_KINDS)('%s behaves as it did before the table', (kind) => {

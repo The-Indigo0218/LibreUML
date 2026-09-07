@@ -341,7 +341,10 @@ export type ActivityNodeKind =
   | 'FLOW_FINAL'
   | 'OBJECT_NODE'
   | 'INPUT_PIN'
-  | 'OUTPUT_PIN';
+  | 'OUTPUT_PIN'
+  | 'LOOP_NODE'
+  | 'CONDITIONAL_NODE'
+  | 'SEQUENCE_NODE';
 
 export interface IRActivityNode extends IRElement {
   kind: 'ACTIVITY_NODE';
@@ -369,6 +372,21 @@ export interface IRActivityNode extends IRElement {
    * value instead of a parameter.
    */
   parameterName?: string;
+  /**
+   * LOOP_NODE/CONDITIONAL_NODE/SEQUENCE_NODE only: the structured node that
+   * contains this node, if any (nesting is allowed — a structured node can
+   * itself sit inside another). Distinct from `partitionId`: a node can be
+   * inside a lane AND inside a structured node at the same time, same as
+   * real UML allows a structured activity node to cross swimlanes.
+   */
+  containerId?: string;
+  /**
+   * LOOP_NODE/CONDITIONAL_NODE only: the test/guard condition shown in the
+   * header (e.g. "i < 10", "amount > 1000"). Free text, not modeled as a
+   * real `OpaqueExpression` graph — same conformance scope cut as guard/
+   * weight on `IRRelation`. Unused for SEQUENCE_NODE (no branching to test).
+   */
+  testExpression?: string;
 }
 
 /**

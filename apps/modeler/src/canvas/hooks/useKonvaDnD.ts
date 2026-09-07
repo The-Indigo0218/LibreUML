@@ -13,6 +13,7 @@ import {
   applyCreateActivityPartition,
 } from '../../store/activityModelOps';
 import { DEFAULT_PARTITION_WIDTH } from '../engine/partitionLayout';
+import { SN_DEFAULT_W, SN_DEFAULT_H } from '../shapes/StructuredNodeShape';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 import { getAbsolutePosition } from '../../features/diagram/hooks/controllers/sharedNodeBuilders';
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
@@ -368,6 +369,64 @@ export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
     // Height is never read for a lane (shared/derived, see partitionLayout.ts)
     // — only `width` matters here, but the shape requires both.
     initialDimensions: { width: DEFAULT_PARTITION_WIDTH, height: 200 },
+  },
+  // ── Activity Diagram (structured nodes, v1.1) ────────────────────────────
+  // Unlike pins/object nodes, these DO get a palette tool: an empty
+  // loop/conditional/sequence box is meaningful on its own — drop it, then
+  // drop other tools inside it.
+  loop_node: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'LOOP_NODE')
+          .map((n) => n.name),
+        'Loop',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'LOOP_NODE', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'LOOP_NODE', activityId, name });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
+  },
+  conditional_node: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'CONDITIONAL_NODE')
+          .map((n) => n.name),
+        'Conditional',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'CONDITIONAL_NODE', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'CONDITIONAL_NODE', activityId, name });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
+  },
+  sequence_node: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'SEQUENCE_NODE')
+          .map((n) => n.name),
+        'Sequence',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'SEQUENCE_NODE', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'SEQUENCE_NODE', activityId, name });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
   },
 };
 

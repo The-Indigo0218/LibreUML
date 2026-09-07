@@ -26,6 +26,7 @@ import DecisionShape, { getDecisionShapeSize } from './shapes/DecisionShape';
 import ForkJoinShape, { getForkJoinShapeSize } from './shapes/ForkJoinShape';
 import ObjectNodeShape, { getObjectNodeShapeSize } from './shapes/ObjectNodeShape';
 import PinShape, { getPinShapeSize } from './shapes/PinShape';
+import StructuredNodeShape, { getStructuredNodeShapeSize } from './shapes/StructuredNodeShape';
 
 export interface NodeSize {
   width: number;
@@ -92,6 +93,8 @@ export type NodeResize =
   | 'package'
   /** Applied by the partition layer — same reasoning as `'package'`. */
   | 'activityPartition'
+  /** A structured node's own min size (v1.1) — smaller than a system boundary's. */
+  | 'activityStructured'
   /** The historical default for every kind without one of its own. */
   | 'systemBoundary';
 
@@ -506,6 +509,30 @@ export const NODE_KIND_DESCRIPTORS: Record<NodeKind, NodeKindDescriptor> = {
     render: (vm, { key, common }) => <PinShape key={key} viewModel={vm} {...common} />,
     editor: 'inlineRename',
     resize: 'systemBoundary',
+    draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (structured nodes, v1.1) ──────────────────────────
+  // Loop/conditional/sequence: unlike pins and object nodes, this one DOES
+  // get a palette tool — an empty box is meaningful (drop it, then drop
+  // children inside it) — and it DOES really resize, same Transformer
+  // mechanic as the system boundary, with its own smaller minimum size.
+  activityStructured: describe({
+    size: getStructuredNodeShapeSize,
+    render: (vm, { key, common, onResizeEnd, isDropTarget }) => (
+      <StructuredNodeShape
+        key={key}
+        viewModel={vm}
+        {...common}
+        onResizeEnd={onResizeEnd}
+        isDropTarget={isDropTarget}
+      />
+    ),
+    editor: 'inlineRename',
+    resize: 'activityStructured',
     draggable: true,
     dragAxis: 'free',
     dragEnd: 'node',

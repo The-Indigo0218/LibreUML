@@ -7,7 +7,13 @@ import type { SemanticModel } from '../domain/vfs/vfs.types';
 const ok: ValidationResult = { isValid: true };
 
 /** Node types that carry a user-facing name. Control nodes deliberately do not. */
-const NAMED_TYPES = new Set(['ACTION', 'CALL_OPERATION', 'OBJECT_NODE', 'ACTIVITY_PARTITION']);
+const NAMED_TYPES = new Set([
+  'ACTION', 'CALL_OPERATION', 'OBJECT_NODE', 'ACTIVITY_PARTITION',
+  'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE',
+]);
+
+/** LOOP_NODE/CONDITIONAL_NODE only — SEQUENCE_NODE has nothing to test. */
+const TESTABLE_STRUCTURED_TYPES = new Set(['LOOP_NODE', 'CONDITIONAL_NODE']);
 
 /** Nothing may flow out of a final node — it ends the flow (UML 2.5 §15.3). */
 const TERMINAL_TYPES = new Set(['ACTIVITY_FINAL', 'FLOW_FINAL']);
@@ -19,6 +25,9 @@ const ACTIVITY_NODE_TYPES = new Set([
   'ACTION', 'CALL_OPERATION', 'INITIAL_NODE', 'ACTIVITY_FINAL',
   'DECISION', 'MERGE', 'FORK', 'JOIN', 'FLOW_FINAL', 'OBJECT_NODE',
   'INPUT_PIN', 'OUTPUT_PIN',
+  // A structured node participates in control flow as a single step, same as
+  // an action — flow enters/exits it as a whole (v1.1).
+  'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE',
 ]);
 
 /** An object flow terminating here carries a value, same as an object node (A6.2). */
@@ -118,6 +127,13 @@ export class ActivityDiagramValidator implements BaseValidator {
     if ((node.type === 'INPUT_PIN' || node.type === 'OUTPUT_PIN')
       && !(node as { ownerActionId?: string }).ownerActionId) {
       warnings.push('This pin has no owning action');
+    }
+
+    // A loop/conditional with no test reads as unconditional — probably not
+    // what the modeller meant to draw (structured nodes, v1.1).
+    if (TESTABLE_STRUCTURED_TYPES.has(node.type)
+      && !(node as { testExpression?: string }).testExpression?.trim()) {
+      warnings.push('This node has no test condition');
     }
 
     return warnings.length ? { isValid: true, warnings } : ok;

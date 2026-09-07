@@ -21,6 +21,9 @@ export type ActivityDiagramNodeType =
   | 'OBJECT_NODE'
   | 'INPUT_PIN'
   | 'OUTPUT_PIN'
+  | 'LOOP_NODE'
+  | 'CONDITIONAL_NODE'
+  | 'SEQUENCE_NODE'
   | 'ACTIVITY_PARTITION'
   | 'NOTE';
 
@@ -81,6 +84,26 @@ export interface PinNode extends BaseDomainNode, Documentable {
   parameterName?: string;
 }
 
+/**
+ * A structured activity node — loop, conditional or sequence (v1.1). Groups
+ * other activity nodes (`containerId` on the children) without modelling the
+ * real UML sub-regions (setup/test/body for a loop, per-clause test+body for
+ * a conditional): a single free-text `testExpression` stands in for all of
+ * that, same conformance scope cut as guard/weight on `IRRelation`. Unlike a
+ * partition, it is a free-floating resizable container, not a row in a fixed
+ * axis — same containment mechanism as a package (`parentPackageId` at the
+ * view level, `containerId` at the model level for the semantic side).
+ */
+export interface StructuredActivityNode extends BaseDomainNode, Documentable {
+  type: 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE';
+  name: string;
+  activityId: string;
+  partitionId?: string;
+  containerId?: string;
+  /** LOOP_NODE/CONDITIONAL_NODE only. */
+  testExpression?: string;
+}
+
 /** A swimlane (A3). Ordering comes from `index`, never from pixels (ADR-0008). */
 export interface ActivityPartitionNode extends BaseDomainNode, Documentable {
   type: 'ACTIVITY_PARTITION';
@@ -97,6 +120,7 @@ export type ActivityDiagramNode =
   | BarNode
   | ObjectFlowNode
   | PinNode
+  | StructuredActivityNode
   | ActivityPartitionNode;
 
 export type { ActivityNodeKind };
@@ -119,6 +143,9 @@ export const ACTIVITY_NODE_TYPE_TO_IR: Record<string, ActivityNodeKind> = {
   OBJECT_NODE: 'OBJECT_NODE',
   INPUT_PIN: 'INPUT_PIN',
   OUTPUT_PIN: 'OUTPUT_PIN',
+  LOOP_NODE: 'LOOP_NODE',
+  CONDITIONAL_NODE: 'CONDITIONAL_NODE',
+  SEQUENCE_NODE: 'SEQUENCE_NODE',
 };
 
 /** The inverse of `ACTIVITY_NODE_TYPE_TO_IR`. */

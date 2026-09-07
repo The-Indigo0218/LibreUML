@@ -45,6 +45,7 @@ export type ActiveModal =
   | "activity-props"
   | "activity-objectnode-props"
   | "activity-pin-props"
+  | "activity-structured-props"
   | null;
 
 export interface AnchorSnapshot {
@@ -116,6 +117,8 @@ interface UiStoreState {
   /** Object node: pick the classifier of the value that flows through it (ADR-0010). */
   openActivityObjectNodeProps: (elementId: string) => void;
   openActivityPinProps: (elementId: string) => void;
+  /** Structured node: edit its test/guard condition (loop/conditional, v1.1). */
+  openActivityStructuredProps: (elementId: string) => void;
   openDomainEntityProps: (elementId: string) => void;
   openDomainAssociationProps: (edgeId: string) => void;
   openFragmentProps: (fragmentId: string) => void;
@@ -248,6 +251,7 @@ export const useUiStore = create<UiStoreState>((set) => ({
   openActivityProps: (activityId) => set({ activeModal: "activity-props", editingId: activityId }),
   openActivityObjectNodeProps: (elementId) => set({ activeModal: "activity-objectnode-props", editingId: elementId }),
   openActivityPinProps: (elementId) => set({ activeModal: "activity-pin-props", editingId: elementId }),
+  openActivityStructuredProps: (elementId) => set({ activeModal: "activity-structured-props", editingId: elementId }),
   openDomainEntityProps: (elementId) => set({ activeModal: "domain-entity-props", editingId: elementId }),
   openDomainAssociationProps: (edgeId) => set({ activeModal: "domain-association-props", editingId: edgeId }),
   openFragmentProps: (fragmentId) => set({ activeModal: "fragment-props", editingId: fragmentId }),

@@ -283,12 +283,20 @@ export function activityNodeDeleteCascadeIds(model: SemanticModel, id: string): 
  * pins (A6.2), the pins themselves: unlike an object node, a pin has no
  * standing of its own once its action is gone, so it does not become an
  * orphan the way a dangling `classifierId`/`callsOperationId` trace does.
+ *
+ * A structured node's children (v1.1) are the opposite case, same reasoning
+ * as `applyDeleteActivityPartition`: they are independent nodes that happen
+ * to be grouped, not owned — deleting the loop/conditional/sequence ungroups
+ * them (clears `containerId`) instead of taking them down with it.
  */
 export function applyDeleteActivityNode(model: SemanticModel, id: string): void {
   if (!model.activityNodes?.[id]) return;
 
   const removedIds = activityNodeDeleteCascadeIds(model, id);
   for (const removedId of removedIds) delete model.activityNodes[removedId];
+  for (const node of Object.values(model.activityNodes)) {
+    if (node.containerId === id) delete node.containerId;
+  }
   cascadeDeleteRelations(model, removedIds);
   model.updatedAt = Date.now();
 }

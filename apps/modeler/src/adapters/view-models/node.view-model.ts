@@ -473,6 +473,36 @@ export interface ActivityPartitionViewModel {
   onOpenProps?: () => void;
 }
 
+/** Loop, conditional or sequence (structured nodes, v1.1). */
+export type ActivityStructuredKindVM = 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE';
+
+/**
+ * A structured activity node (v1.1): a free-floating, resizable container —
+ * unlike the partition above, it is not a row in a fixed axis, so its
+ * geometry follows the package/system-boundary pattern instead (`width`/
+ * `height` set by the user, contained nodes carry `parentPackageId`).
+ * `testExpression` is the free-text stand-in for the real UML sub-regions
+ * (setup/test/body for a loop, per-clause test+body for a conditional) —
+ * unused for SEQUENCE_NODE, which has nothing to test.
+ */
+export interface ActivityStructuredViewModel {
+  __brand: 'activityStructured';
+  id: string;
+  domainId: string;
+  structuredKind: ActivityStructuredKindVM;
+  name: string;
+  width: number;
+  height: number;
+  testExpression?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -499,7 +529,8 @@ export type AnyNodeViewModel =
   | ActivityForkJoinViewModel
   | ActivityPartitionViewModel
   | ActivityObjectNodeViewModel
-  | ActivityPinViewModel;
+  | ActivityPinViewModel
+  | ActivityStructuredViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -614,4 +645,8 @@ export function isActivityPartitionViewModel(
 
 export function isActivityPinViewModel(vm: AnyNodeViewModel): vm is ActivityPinViewModel {
   return '__brand' in vm && vm.__brand === 'activityPin';
+}
+
+export function isActivityStructuredViewModel(vm: AnyNodeViewModel): vm is ActivityStructuredViewModel {
+  return '__brand' in vm && vm.__brand === 'activityStructured';
 }

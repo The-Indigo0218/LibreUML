@@ -28,6 +28,7 @@ interface Surface {
   decision: (model: SemanticModel, id: string, existingViewNodes: { elementId: string }[]) => void;
   partition: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
   objectNode: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
+  loopNode: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
 }
 
 const SURFACES: Surface[] = [
@@ -39,6 +40,8 @@ const SURFACES: Surface[] = [
       VFS_DROP_CONFIG.activity_partition!.applyToModelDraft(m, id, name, undefined, vns),
     objectNode: (m, id, name, vns) =>
       VFS_DROP_CONFIG.object_node!.applyToModelDraft(m, id, name, undefined, vns),
+    loopNode: (m, id, name, vns) =>
+      VFS_DROP_CONFIG.loop_node!.applyToModelDraft(m, id, name, undefined, vns),
   },
   {
     name: 'applyToLocalModelDraft (standalone)',
@@ -46,6 +49,7 @@ const SURFACES: Surface[] = [
     decision: (m, id, vns) => VFS_DROP_CONFIG.decision!.applyToLocalModelDraft(m, id, '', vns),
     partition: (m, id, name, vns) => VFS_DROP_CONFIG.activity_partition!.applyToLocalModelDraft(m, id, name, vns),
     objectNode: (m, id, name, vns) => VFS_DROP_CONFIG.object_node!.applyToLocalModelDraft(m, id, name, vns),
+    loopNode: (m, id, name, vns) => VFS_DROP_CONFIG.loop_node!.applyToLocalModelDraft(m, id, name, vns),
   },
 ];
 
@@ -146,6 +150,31 @@ describe.each(SURFACES)('VFS_DROP_CONFIG — activity tools — $name', (surface
     const activityId = model.activityNodes!['n1'].activityId;
 
     surface.objectNode(model, 'n2', 'Order', [{ elementId: 'n1' }]);
+
+    expect(model.activityNodes!['n2'].activityId).toBe(activityId);
+    expect(Object.keys(model.activities!)).toHaveLength(1);
+  });
+
+  // v1.1 — structured node creation. Same VFS_DROP_CONFIG shape as every
+  // other activity tool; loop_node stands in for all three (conditional_node/
+  // sequence_node share the exact same factory shape, just a different
+  // activityType literal).
+  it('loopNode: creates an ACTIVITY_NODE and a fresh Activity when the diagram has none', () => {
+    const model = emptyModel();
+    surface.loopNode(model, 'n1', 'Loop 1', []);
+
+    expect(model.activityNodes!['n1']).toMatchObject({ activityType: 'LOOP_NODE', name: 'Loop 1' });
+    const activityId = model.activityNodes!['n1'].activityId;
+    expect(activityId).toBeTruthy();
+    expect(model.activities![activityId]).toBeTruthy();
+  });
+
+  it('loopNode: reuses the Activity a sibling node in the same diagram already belongs to', () => {
+    const model = emptyModel();
+    surface.action(model, 'n1', 'Action 1', []);
+    const activityId = model.activityNodes!['n1'].activityId;
+
+    surface.loopNode(model, 'n2', 'Loop 1', [{ elementId: 'n1' }]);
 
     expect(model.activityNodes!['n2'].activityId).toBe(activityId);
     expect(Object.keys(model.activities!)).toHaveLength(1);

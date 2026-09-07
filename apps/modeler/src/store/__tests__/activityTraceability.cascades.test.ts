@@ -303,3 +303,47 @@ describe('applyDeleteActivityNode — pin cascade (A6.2)', () => {
     expect(model.activityNodes['action1']).toBeDefined();
   });
 });
+
+describe('applyDeleteActivityNode — structured node ungroups its children (v1.1)', () => {
+  it('clears containerId on every member instead of deleting them', () => {
+    const model = emptyModel();
+    model.activityNodes['loop1'] = {
+      id: 'loop1', kind: 'ACTIVITY_NODE', activityType: 'LOOP_NODE', activityId: 'a1', name: 'Retry',
+    };
+    model.activityNodes['member1'] = {
+      id: 'member1', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1',
+      name: 'Step', containerId: 'loop1',
+    };
+    model.activityNodes['member2'] = {
+      id: 'member2', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1',
+      name: 'Step 2', containerId: 'loop1',
+    };
+    model.activityNodes['unrelated'] = {
+      id: 'unrelated', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1', name: 'Ship',
+    };
+
+    applyDeleteActivityNode(model, 'loop1');
+
+    expect(model.activityNodes['loop1']).toBeUndefined();
+    expect(model.activityNodes['member1']).toBeDefined();
+    expect(model.activityNodes['member1'].containerId).toBeUndefined();
+    expect(model.activityNodes['member2'].containerId).toBeUndefined();
+    expect(model.activityNodes['unrelated'].containerId).toBeUndefined();
+  });
+
+  it('deleting a member directly does not touch its container or siblings', () => {
+    const model = emptyModel();
+    model.activityNodes['loop1'] = {
+      id: 'loop1', kind: 'ACTIVITY_NODE', activityType: 'LOOP_NODE', activityId: 'a1', name: 'Retry',
+    };
+    model.activityNodes['member1'] = {
+      id: 'member1', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1',
+      name: 'Step', containerId: 'loop1',
+    };
+
+    applyDeleteActivityNode(model, 'member1');
+
+    expect(model.activityNodes['member1']).toBeUndefined();
+    expect(model.activityNodes['loop1']).toBeDefined();
+  });
+});

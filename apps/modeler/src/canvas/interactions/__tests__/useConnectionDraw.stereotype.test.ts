@@ -10,6 +10,7 @@ import type {
   ActivityForkJoinViewModel,
   ActivityObjectNodeViewModel,
   ActivityPinViewModel,
+  ActivityStructuredViewModel,
 } from '../../../adapters/view-models/node.view-model';
 
 function makeLifelineVM(): LifelineViewModel {
@@ -56,6 +57,13 @@ function makeObjectNodeVM(): ActivityObjectNodeViewModel {
 
 function makePinVM(): ActivityPinViewModel {
   return { __brand: 'activityPin', id: 'vm-pin', domainId: 'ir-pin', pinKind: 'INPUT_PIN', label: '' };
+}
+
+function makeStructuredVM(): ActivityStructuredViewModel {
+  return {
+    __brand: 'activityStructured', id: 'vm-struct', domainId: 'ir-struct',
+    structuredKind: 'LOOP_NODE', name: 'Retry', width: 320, height: 220,
+  };
 }
 
 function makeClassVM(): NodeViewModel {
@@ -113,6 +121,11 @@ describe('resolveStereotype', () => {
   // A6.2 — same sibling-bug shape again, for the pin view model.
   it('returns "activity_node" for ActivityPinViewModel, not "class"', () => {
     expect(resolveStereotype(makePinVM() as AnyNodeViewModel)).toBe('activity_node');
+  });
+
+  // v1.1 — same sibling-bug shape again, for the structured node view model.
+  it('returns "activity_node" for ActivityStructuredViewModel, not "class"', () => {
+    expect(resolveStereotype(makeStructuredVM() as AnyNodeViewModel)).toBe('activity_node');
   });
 });
 

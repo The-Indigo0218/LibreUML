@@ -140,6 +140,9 @@
       "fork": "Bifurcación",
       "join": "Sincronización",
       "objectNode": "Objeto",
+      "loopNode": "Bucle",
+      "conditionalNode": "Condicional",
+      "sequenceNode": "Secuencia",
       "activityPartition": "Partición"
     },
     "connections": {
@@ -240,7 +243,8 @@
       "linkClassifier": "Vincular Clasificador…",
       "addInputPin": "Añadir Pin de Entrada",
       "addOutputPin": "Añadir Pin de Salida",
-      "linkParameter": "Vincular Parámetro…"
+      "linkParameter": "Vincular Parámetro…",
+      "editTestCondition": "Editar Condición de Prueba…"
     },
     "edge": {
       "reverse": "Invertir Dirección ⇄",

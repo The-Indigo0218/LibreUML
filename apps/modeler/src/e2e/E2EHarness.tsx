@@ -97,6 +97,13 @@ export interface E2EActivitySpec {
     partitionId?: string;
     /** Traceability (A4): the operation a CALL_OPERATION action invokes. */
     callsOperationId?: string;
+    /** Structured nodes (v1.1): which sibling node (by its `id` above) contains this one. */
+    containerId?: string;
+    /** Structured nodes (v1.1): LOOP_NODE/CONDITIONAL_NODE test condition. */
+    testExpression?: string;
+    /** Structured nodes (v1.1): container geometry, defaults to SN_DEFAULT_W/H. */
+    width?: number;
+    height?: number;
   }[];
   /** Swimlanes (A3) — `x` is derived from `index`/`width`, like the real app. */
   partitions?: {
@@ -261,6 +268,8 @@ function buildActivityProject(spec: E2EActivitySpec): { project: LibreUMLProject
       activityType: n.activityType, activityId: ACTIVITY_ID,
       ...(n.partitionId ? { partitionId: n.partitionId } : {}),
       ...(n.callsOperationId ? { callsOperationId: n.callsOperationId } : {}),
+      ...(n.containerId ? { containerId: n.containerId } : {}),
+      ...(n.testExpression ? { testExpression: n.testExpression } : {}),
     };
   }
   for (const f of spec.flows ?? []) {
@@ -281,9 +290,16 @@ function buildActivityProject(spec: E2EActivitySpec): { project: LibreUMLProject
   }));
   const nodeViewNodes: ViewNode[] = spec.nodes.map((n) => {
     const lane = n.partitionId ? spec.partitions?.find((p) => p.id === n.partitionId) : undefined;
+    // A structured-node container takes priority as the immediate visual
+    // parent over a lane (v1.1) — the lane assignment still lives on the
+    // model via `partitionId` regardless of which one wins here.
+    const container = n.containerId ? spec.nodes.find((sib) => sib.id === n.containerId) : undefined;
+    const parentVnId = container?.vnId ?? lane?.vnId;
     return {
       id: n.vnId, elementId: n.id, x: n.x, y: n.y,
-      ...(lane ? { parentPackageId: lane.vnId } : {}),
+      ...(parentVnId ? { parentPackageId: parentVnId } : {}),
+      ...(n.width !== undefined ? { width: n.width } : {}),
+      ...(n.height !== undefined ? { height: n.height } : {}),
     };
   });
   const viewNodes: ViewNode[] = [...partitionViewNodes, ...nodeViewNodes];

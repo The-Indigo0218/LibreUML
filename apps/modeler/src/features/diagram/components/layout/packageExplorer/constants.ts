@@ -28,6 +28,9 @@ export const CLASS_ICON_CONFIG: Record<stereotype, { bg: string; letter: string;
   join: { bg: "#0EA5E9", letter: "J", color: "#FFFFFF" },
   activity_partition: { bg: "#0EA5E9", letter: "L", color: "#FFFFFF" },
   object_node: { bg: "#0EA5E9", letter: "O", color: "#FFFFFF" },
+  loop_node: { bg: "#0EA5E9", letter: "L", color: "#FFFFFF" },
+  conditional_node: { bg: "#0EA5E9", letter: "C", color: "#FFFFFF" },
+  sequence_node: { bg: "#0EA5E9", letter: "S", color: "#FFFFFF" },
 };
 
 export const THEME_COLORS = {

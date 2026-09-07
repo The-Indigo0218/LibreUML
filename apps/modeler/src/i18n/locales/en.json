@@ -140,6 +140,9 @@
       "fork": "Fork",
       "join": "Join",
       "objectNode": "Object",
+      "loopNode": "Loop",
+      "conditionalNode": "Conditional",
+      "sequenceNode": "Sequence",
       "activityPartition": "Partition"
     },
     "connections": {
@@ -240,7 +243,8 @@
       "linkClassifier": "Link Classifier…",
       "addInputPin": "Add Input Pin",
       "addOutputPin": "Add Output Pin",
-      "linkParameter": "Link Parameter…"
+      "linkParameter": "Link Parameter…",
+      "editTestCondition": "Edit Test Condition…"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",

@@ -35,6 +35,8 @@ import type {
   ActivityObjectNodeViewModel,
   ActivityPinViewModel,
   ActivityPinKindVM,
+  ActivityStructuredViewModel,
+  ActivityStructuredKindVM,
 } from '../../../../adapters/view-models/node.view-model';
 import {
   resolveSemanticElement,
@@ -42,6 +44,7 @@ import {
   makeNoteNode,
   type NodeBuilderContext,
 } from './sharedNodeBuilders';
+import { SN_DEFAULT_W, SN_DEFAULT_H } from '../../../../canvas/shapes/StructuredNodeShape';
 
 /** IR activity types that render as the rounded action box. */
 const ACTION_TYPES = new Set<IRActivityNode['activityType']>(['ACTION', 'CALL_OPERATION']);
@@ -69,6 +72,13 @@ const FORK_JOIN_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityFo
 const PIN_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityPinKindVM>> = {
   INPUT_PIN: 'INPUT_PIN',
   OUTPUT_PIN: 'OUTPUT_PIN',
+};
+
+/** IR activity types that render as a structured node container (v1.1). */
+const STRUCTURED_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityStructuredKindVM>> = {
+  LOOP_NODE: 'LOOP_NODE',
+  CONDITIONAL_NODE: 'CONDITIONAL_NODE',
+  SEQUENCE_NODE: 'SEQUENCE_NODE',
 };
 
 function makeActionNode(
@@ -226,6 +236,39 @@ function makePinNode(
   return {
     id: viewNode.id,
     type: 'umlActivityPin',
+    position: getAbsolutePosition(viewNode, allViewNodes),
+    data: vm,
+    domainId: viewNode.elementId,
+  };
+}
+
+function makeStructuredNode(
+  viewNode: ViewNode,
+  node: IRActivityNode,
+  structuredKind: ActivityStructuredKindVM,
+  allViewNodes: ViewNode[],
+  onRename: (name: string) => void,
+) {
+  const vm: ActivityStructuredViewModel = {
+    __brand: 'activityStructured',
+    id: viewNode.id,
+    domainId: viewNode.elementId,
+    structuredKind,
+    name: node.name,
+    width: viewNode.width ?? SN_DEFAULT_W,
+    height: viewNode.height ?? SN_DEFAULT_H,
+    testExpression: node.testExpression,
+    colorOverride: viewNode.color,
+    borderWidthOverride: viewNode.borderWidth,
+    borderStyleOverride: viewNode.borderStyle,
+    fontFamilyOverride: viewNode.fontFamily,
+    fontSizeOverride: viewNode.fontSize,
+    onRename,
+    onOpenProps: () => useUiStore.getState().openActivityStructuredProps(viewNode.elementId),
+  };
+  return {
+    id: viewNode.id,
+    type: 'umlActivityStructured',
     position: getAbsolutePosition(viewNode, allViewNodes),
     data: vm,
     domainId: viewNode.elementId,
@@ -515,6 +558,18 @@ export function buildActivityDiagramNodes(ctx: NodeBuilderContext) {
       };
       const parameterLabel = resolvePinParameterLabel(model, node);
       return makePinNode(viewNode, node, pinKind, diagramView.nodes, parameterLabel, onRename);
+    }
+
+    const structuredKind = STRUCTURED_TYPES[node.activityType];
+    if (structuredKind) {
+      const onRename = (name: string) => {
+        if (isStandalone && activeTabId) {
+          standaloneModelOps(activeTabId).updateActivityNode(viewNode.elementId, { name });
+        } else {
+          useModelStore.getState().updateActivityNode(viewNode.elementId, { name });
+        }
+      };
+      return makeStructuredNode(viewNode, node, structuredKind, diagramView.nodes, onRename);
     }
 
     return null;

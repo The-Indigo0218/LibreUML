@@ -8,7 +8,9 @@ import type {
   ActivityForkJoinViewModel,
   ActivityObjectNodeViewModel,
   ActivityPinViewModel,
+  ActivityStructuredViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
+import { SN_DEFAULT_W, SN_DEFAULT_H } from '../../../../../canvas/shapes/StructuredNodeShape';
 
 function model(over: Partial<SemanticModel> = {}): SemanticModel {
   return {
@@ -226,6 +228,49 @@ describe('buildActivityDiagramNodes', () => {
     );
 
     expect((built[1].data as ActivityPinViewModel).parameterLabel).toBeUndefined();
+  });
+
+  // Structured nodes (v1.1).
+  it('builds a loop/conditional/sequence node carrying its kind, name and test condition', () => {
+    const m = model({
+      activityNodes: {
+        l: irNode('l', 'LOOP_NODE', { name: 'Retry', testExpression: 'i < 3' }),
+        c: irNode('c', 'CONDITIONAL_NODE', { name: 'Check' }),
+        s: irNode('s', 'SEQUENCE_NODE', { name: 'Steps' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-l', elementId: 'l' }, { id: 'v-c', elementId: 'c' }, { id: 'v-s', elementId: 's' }])),
+    );
+
+    const vms = built.map((b) => b.data as ActivityStructuredViewModel);
+    expect(vms.map((vm) => vm.__brand)).toEqual(['activityStructured', 'activityStructured', 'activityStructured']);
+    expect(vms.map((vm) => vm.structuredKind)).toEqual(['LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE']);
+    expect(vms[0].testExpression).toBe('i < 3');
+    expect(vms[1].testExpression).toBeUndefined();
+  });
+
+  it('defaults a structured node to the standard container size, but respects a stored one', () => {
+    const m = model({
+      activityNodes: {
+        l: irNode('l', 'LOOP_NODE', { name: 'Retry' }),
+        c: irNode('c', 'CONDITIONAL_NODE', { name: 'Check' }),
+      } as never,
+    });
+    const v: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'v-l', elementId: 'l', x: 0, y: 0 },
+        { id: 'v-c', elementId: 'c', x: 0, y: 0, width: 500, height: 300 },
+      ],
+      edges: [],
+    } as DiagramView;
+
+    const built = buildActivityDiagramNodes(ctx(m, v));
+    const vms = built.map((b) => b.data as ActivityStructuredViewModel);
+    expect({ width: vms[0].width, height: vms[0].height }).toEqual({ width: SN_DEFAULT_W, height: SN_DEFAULT_H });
+    expect({ width: vms[1].width, height: vms[1].height }).toEqual({ width: 500, height: 300 });
   });
 
   it('maps decision and merge to the same rhombus glyph (A2)', () => {

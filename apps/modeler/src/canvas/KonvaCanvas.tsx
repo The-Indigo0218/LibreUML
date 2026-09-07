@@ -13,6 +13,7 @@ import { useKonvaDnD } from './hooks/useKonvaDnD';
 import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
 import PartitionShape from './shapes/PartitionShape';
 import { SB_MIN_W, SB_MIN_H } from './shapes/SystemBoundaryShape';
+import { SN_MIN_W, SN_MIN_H } from './shapes/StructuredNodeShape';
 import { UCM_MIN_W, UCM_MIN_H } from './shapes/UCModuleShape';
 import { getShapeSize, renderShape, type NodeShapeRenderProps } from './ShapeRouter';
 import {
@@ -40,6 +41,7 @@ import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import { useRelationShortcuts } from './interactions/useRelationShortcuts';
 import { usePackageDrop } from './interactions/usePackageDrop';
 import { usePartitionDrop } from './interactions/usePartitionDrop';
+import { useStructuredNodeDrop } from './interactions/useStructuredNodeDrop';
 import { commitContainerResize } from './interactions/containerResize';
 import { relayoutPartitionViewNodes, layoutPartitionsHeight, DEFAULT_PARTITION_WIDTH, MIN_PARTITION_HEIGHT } from './engine/partitionLayout';
 import { withUndo, undoTransaction } from '../core/undo/undoBridge';
@@ -93,6 +95,7 @@ import ActivityPartitionPropsModal from '../features/diagram/components/modals/A
 import ActivityPropertiesModal from '../features/diagram/components/modals/ActivityPropertiesModal';
 import ActivityObjectNodePropsModal from '../features/diagram/components/modals/ActivityObjectNodePropsModal';
 import ActivityPinPropsModal from '../features/diagram/components/modals/ActivityPinPropsModal';
+import ActivityStructuredNodePropsModal from '../features/diagram/components/modals/ActivityStructuredNodePropsModal';
 import { openDiagramContainingElement } from '../features/diagram/hooks/controllers/traceabilityNav';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
@@ -128,6 +131,7 @@ import {
   isActivityPartitionViewModel,
   isActivityObjectNodeViewModel,
   isActivityPinViewModel,
+  isActivityStructuredViewModel,
   type AnyNodeViewModel,
   type LifelineViewModel,
   type NodeViewModel,
@@ -713,6 +717,17 @@ export default function KonvaCanvas() {
     isStandalone: vfsController.isStandalone,
   });
 
+  const {
+    hoveredStructuredId,
+    onDragMoveDetectStructured,
+    onDragEndWithStructuredDetection,
+  } = useStructuredNodeDrop({
+    shapes,
+    boundsMap,
+    activeTabId: activeTabId ?? '',
+    isStandalone: vfsController.isStandalone,
+  });
+
   const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap, viewportCulling);
 
   const [cullingWarningOpen, setCullingWarningOpen] = useState(false);
@@ -746,16 +761,18 @@ export default function KonvaCanvas() {
       dragHandlers.onDragEnd(e);
       onDragEndWithPackageDetection(e);
       onDragEndWithPartitionDetection(e);
+      onDragEndWithStructuredDetection(e);
       setHoveredPackageId(null);
       setIsHoverValid(true);
     },
-    [dragHandlers, onDragEndWithPackageDetection, onDragEndWithPartitionDetection],
+    [dragHandlers, onDragEndWithPackageDetection, onDragEndWithPartitionDetection, onDragEndWithStructuredDetection],
   );
 
   const handleDragMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
       dragHandlers.onDragMove(e);
       onDragMoveDetectPartition(e);
+      onDragMoveDetectStructured(e);
 
       const nodeId = e.target.id();
       if (!nodeId) return;
@@ -797,7 +814,7 @@ export default function KonvaCanvas() {
         setIsHoverValid(!excludeIds.has(foundContainer ?? ''));
       }
     },
-    [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId, onDragMoveDetectPartition],
+    [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId, onDragMoveDetectPartition, onDragMoveDetectStructured],
   );
 
   const handleMessageDragEnd = useCallback(
@@ -1098,6 +1115,18 @@ export default function KonvaCanvas() {
       const w = Math.max(UCM_MIN_W, Math.round(newWidth));
       const h = Math.max(UCM_MIN_H, Math.round(newHeight));
       withUndo('vfs', 'Resize Module', activeTabId, (draft: any) => {
+        commitContainerResize(draft, activeTabId, shapeId, w, h, Math.round(dx), Math.round(dy));
+      });
+    },
+    [activeTabId],
+  );
+
+  const handleStructuredNodeResizeEnd = useCallback(
+    (shapeId: string, newWidth: number, newHeight: number, dx = 0, dy = 0) => {
+      if (!activeTabId) return;
+      const w = Math.max(SN_MIN_W, Math.round(newWidth));
+      const h = Math.max(SN_MIN_H, Math.round(newHeight));
+      withUndo('vfs', 'Resize Structured Node', activeTabId, (draft: any) => {
         commitContainerResize(draft, activeTabId, shapeId, w, h, Math.round(dx), Math.round(dy));
       });
     },
@@ -1483,6 +1512,16 @@ export default function KonvaCanvas() {
             { width: width - 16, height: fontSize + 6 },
             (text) => vm.onRename!(text));
         }
+      } else if (isActivityStructuredViewModel(vm)) {
+        // Header label, same padding as StructuredNodeShape's title Text.
+        const fontSize = vm.fontSizeOverride ?? 13;
+        const screenPos = transform.point({ x: pos.x + 10, y: pos.y + 4 });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.name, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width: vm.width - 20, height: fontSize + 6 },
+            (text) => vm.onRename!(text));
+        }
       } else if (isActivityPinViewModel(vm)) {
         // The caption sits below the pin square, not centred inside a box
         // (PinShape) — position the editor there instead of reusing the
@@ -1751,7 +1790,7 @@ export default function KonvaCanvas() {
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (nodeId) => {
       const shape = shapes.find((s) => s.id === nodeId);
-      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data) || isActivityActionViewModel(shape.data) || isActivityObjectNodeViewModel(shape.data) || isActivityPinViewModel(shape.data))) {
+      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data) || isActivityActionViewModel(shape.data) || isActivityObjectNodeViewModel(shape.data) || isActivityPinViewModel(shape.data) || isActivityStructuredViewModel(shape.data))) {
         startUseCaseInlineEdit(nodeId);
         closeMenu();
         return;
@@ -2593,6 +2632,7 @@ export default function KonvaCanvas() {
       ucModule: handleUCModuleResizeEnd,
       package: handlePackageResizeEnd,
       activityPartition: handlePartitionResizeEnd,
+      activityStructured: handleStructuredNodeResizeEnd,
       systemBoundary: handleSystemBoundaryResizeEnd,
     }),
     [
@@ -2604,6 +2644,7 @@ export default function KonvaCanvas() {
       handleUCModuleResizeEnd,
       handlePackageResizeEnd,
       handlePartitionResizeEnd,
+      handleStructuredNodeResizeEnd,
       handleSystemBoundaryResizeEnd,
     ],
   );
@@ -2935,7 +2976,7 @@ export default function KonvaCanvas() {
                   onResetTimeline: descriptor.resetTimeline
                     ? handleLifelineTimelineReset
                     : undefined,
-                  isDropTarget: hoveredPackageId === shape.id,
+                  isDropTarget: hoveredPackageId === shape.id || hoveredStructuredId === shape.id,
                 });
               })}
           </Layer>
@@ -3302,6 +3343,7 @@ export default function KonvaCanvas() {
       <ActivityPropertiesModal />
       <ActivityObjectNodePropsModal />
       <ActivityPinPropsModal />
+      <ActivityStructuredNodePropsModal />
     </div>
   );
 }

@@ -97,6 +97,47 @@ describe('ActivityDiagramValidator.validateConnection', () => {
     );
     expect(result.warnings).toBeUndefined();
   });
+
+  // A6.2 — pins as object-flow endpoints.
+  it('accepts an object flow between two pins with no "usually has an object node" nudge', () => {
+    const result = v.validateConnection(
+      node('OUTPUT_PIN', { id: 'op' }),
+      node('INPUT_PIN', { id: 'ip' }),
+      'OBJECT_FLOW',
+    );
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('warns about a flow leaving an input pin — it only receives', () => {
+    const result = v.validateConnection(
+      node('INPUT_PIN', { id: 'ip' }),
+      node('ACTION', { id: 'a' }),
+      'OBJECT_FLOW',
+    );
+    expect(result.isValid).toBe(true);
+    expect(result.warnings?.[0]).toMatch(/input pin receives/i);
+  });
+
+  it('warns about a flow entering an output pin — it only produces', () => {
+    const result = v.validateConnection(
+      node('ACTION', { id: 'a' }),
+      node('OUTPUT_PIN', { id: 'op' }),
+      'OBJECT_FLOW',
+    );
+    expect(result.isValid).toBe(true);
+    expect(result.warnings?.[0]).toMatch(/output pin produces/i);
+  });
+
+  // Structured nodes (v1.1) — a loop/conditional/sequence takes flow in and
+  // out of it as a single step, same as any activity node.
+  it('accepts a control flow into and out of a structured node', () => {
+    const into = v.validateConnection(node('ACTION', { id: 'a' }), node('LOOP_NODE', { id: 'l' }), 'CONTROL_FLOW');
+    const out = v.validateConnection(node('LOOP_NODE', { id: 'l' }), node('ACTION', { id: 'a' }), 'CONTROL_FLOW');
+    expect(into.isValid).toBe(true);
+    expect(into.warnings).toBeUndefined();
+    expect(out.isValid).toBe(true);
+    expect(out.warnings).toBeUndefined();
+  });
 });
 
 describe('ActivityDiagramValidator.validateNode', () => {
@@ -127,6 +168,46 @@ describe('ActivityDiagramValidator.validateNode', () => {
   it('ignores nodes belonging to other diagram types', () => {
     expect(v.validateNode(node('CLASS', { name: '' })).isValid).toBe(true);
     expect(v.validateNode(node('CLASS', { name: '' })).warnings).toBeUndefined();
+  });
+
+  // A6.2 — a pin's identity is its owner + trace, not a required name.
+  it('does not ask a pin for a name', () => {
+    expect(v.validateNode(node('INPUT_PIN', { ownerActionId: 'a1' })).warnings).toBeUndefined();
+  });
+
+  it('warns about a pin with no owning action', () => {
+    const result = v.validateNode(node('OUTPUT_PIN', {}));
+    expect(result.warnings?.[0]).toMatch(/no owning action/i);
+  });
+
+  it('is quiet about a pin with an owning action', () => {
+    expect(v.validateNode(node('INPUT_PIN', { ownerActionId: 'a1' })).warnings).toBeUndefined();
+  });
+
+  // Structured nodes (v1.1).
+  it('warns about an unnamed loop node, same as an unnamed action', () => {
+    const result = v.validateNode(node('LOOP_NODE', { name: '' }));
+    expect(result.warnings).toContain('This node has no name');
+  });
+
+  it('warns about a loop with no test condition', () => {
+    const result = v.validateNode(node('LOOP_NODE', { name: 'Loop', testExpression: '' }));
+    expect(result.warnings).toContain('This node has no test condition');
+  });
+
+  it('is quiet about a loop with a test condition', () => {
+    const result = v.validateNode(node('LOOP_NODE', { name: 'Loop', testExpression: 'i < 10' }));
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('warns about a conditional with no test condition', () => {
+    const result = v.validateNode(node('CONDITIONAL_NODE', { name: 'Cond', testExpression: undefined }));
+    expect(result.warnings).toContain('This node has no test condition');
+  });
+
+  it('never asks a sequence node for a test condition — nothing to test', () => {
+    const result = v.validateNode(node('SEQUENCE_NODE', { name: 'Seq' }));
+    expect(result.warnings).toBeUndefined();
   });
 });
 

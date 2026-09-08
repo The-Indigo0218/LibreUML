@@ -42,6 +42,9 @@ import {
   applyCreateActivityPartition,
   applyUpdateActivityPartition,
   applyDeleteActivityPartition,
+  clearCallsOperationRefs,
+  clearRepresentsRef,
+  clearObjectNodeClassifierRefs,
 } from './activityModelOps';
 
 /**
@@ -603,6 +606,8 @@ export const useModelStore = create<ModelStoreState>()(
         if (!draft.model) return;
         delete draft.model.classes[id];
         cascadeDeleteRelations(draft.model, id);
+        clearRepresentsRef(draft.model, id);
+        clearObjectNodeClassifierRefs(draft.model, id);
         draft.model.updatedAt = Date.now();
       });
     },
@@ -782,19 +787,25 @@ export const useModelStore = create<ModelStoreState>()(
         const cls = draft.model.classes[elementId];
         const iface = draft.model.interfaces[elementId];
         if (cls) {
+          const removedOpIds = new Set<string>(cls.operationIds);
           cls.attributeIds.forEach((id: string) => { delete draft.model.attributes[id]; });
           cls.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
           attributes.forEach((a: IRAttribute) => { draft.model.attributes[a.id] = a; });
           operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
           draft.model.classes[elementId].attributeIds = attributes.map((a: IRAttribute) => a.id);
           draft.model.classes[elementId].operationIds = operations.map((o: IROperation) => o.id);
+          operations.forEach((o) => removedOpIds.delete(o.id));
+          clearCallsOperationRefs(draft.model, removedOpIds);
         } else if (iface) {
+          const removedOpIds = new Set<string>(iface.operationIds);
           (iface.attributeIds ?? []).forEach((id: string) => { delete draft.model.attributes[id]; });
           iface.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
           attributes.forEach((a: IRAttribute) => { draft.model.attributes[a.id] = a; });
           operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
           draft.model.interfaces[elementId].attributeIds = attributes.map((a: IRAttribute) => a.id);
           draft.model.interfaces[elementId].operationIds = operations.map((o: IROperation) => o.id);
+          operations.forEach((o) => removedOpIds.delete(o.id));
+          clearCallsOperationRefs(draft.model, removedOpIds);
         }
         draft.model.updatedAt = Date.now();
       });

@@ -118,6 +118,38 @@ describe('activity diagram — store → builder → persist → reload', () => 
     expect(build()).toHaveLength(3);
   });
 
+  it('A3 — a partition, its width, and a node\'s membership all survive a round-trip', () => {
+    const { activityId, action } = seedLinearFlow();
+    const ops = standaloneModelOps(FILE_ID);
+    const laneId = ops.createActivityPartition({ activityId, name: 'Frontline', index: 0 } as never);
+    ops.updateActivityNode(action, { partitionId: laneId } as never);
+
+    useVFSStore.getState().updateFileContent(FILE_ID, {
+      ...(file().content as DiagramView),
+      nodes: [
+        { id: 'vn-lane', elementId: laneId, x: 0, y: 0, width: 260 },
+        ...(file().content as DiagramView).nodes.map((n) =>
+          n.elementId === action ? { ...n, parentPackageId: 'vn-lane' } : n,
+        ),
+      ],
+    } as never);
+
+    const serialised = JSON.parse(JSON.stringify(useVFSStore.getState().project)) as LibreUMLProject;
+    useVFSStore.getState().closeProject();
+    useVFSStore.getState().loadProject(serialised);
+
+    const model = getLocalModel(FILE_ID)!;
+    expect(model.activityPartitions![laneId]).toMatchObject({ name: 'Frontline', index: 0 });
+    expect(model.activityNodes[action].partitionId).toBe(laneId);
+    const laneVN = (file().content as DiagramView).nodes.find((n) => n.elementId === laneId)!;
+    expect(laneVN.width).toBe(260);
+    const actionVN = (file().content as DiagramView).nodes.find((n) => n.elementId === action)!;
+    expect(actionVN.parentPackageId).toBe('vn-lane');
+
+    // And the canvas rebuilds the lane alongside the three flow nodes.
+    expect(build()).toHaveLength(4);
+  });
+
   it('stamps the schema version on reload so the file is not migrated twice', () => {
     seedLinearFlow();
     const serialised = JSON.parse(JSON.stringify(useVFSStore.getState().project)) as LibreUMLProject;

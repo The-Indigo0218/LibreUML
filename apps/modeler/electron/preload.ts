@@ -27,7 +27,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   close: () => ipcRenderer.send("window-close"),
 
   onAppRequestClose: (callback: () => void) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const subscription = (_: IpcRendererEvent) => callback();
     ipcRenderer.on("app:request-close", subscription);
     return () => ipcRenderer.removeListener("app:request-close", subscription);

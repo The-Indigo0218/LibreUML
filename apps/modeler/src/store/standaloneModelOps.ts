@@ -55,6 +55,9 @@ import {
   applyCreateActivityPartition,
   applyUpdateActivityPartition,
   applyDeleteActivityPartition,
+  clearCallsOperationRefs,
+  clearRepresentsRef,
+  clearObjectNodeClassifierRefs,
 } from './activityModelOps';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -379,6 +382,8 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         delete m.classes[id];
         cascadeDeleteRelations(m, id);
+        clearRepresentsRef(m, id);
+        clearObjectNodeClassifierRefs(m, id);
         m.updatedAt = Date.now();
       });
     },
@@ -548,19 +553,25 @@ export function standaloneModelOps(fileId: string) {
         const cls = m.classes[elementId];
         const iface = m.interfaces[elementId];
         if (cls) {
+          const removedOpIds = new Set<string>(cls.operationIds);
           cls.attributeIds.forEach((aid) => { delete m.attributes[aid]; });
           cls.operationIds.forEach((oid) => { delete m.operations[oid]; });
           attributes.forEach((a) => { m.attributes[a.id] = a; });
           operations.forEach((o) => { m.operations[o.id] = o; });
           m.classes[elementId].attributeIds = attributes.map((a) => a.id);
           m.classes[elementId].operationIds = operations.map((o) => o.id);
+          operations.forEach((o) => removedOpIds.delete(o.id));
+          clearCallsOperationRefs(m, removedOpIds);
         } else if (iface) {
+          const removedOpIds = new Set<string>(iface.operationIds);
           (iface.attributeIds ?? []).forEach((aid) => { delete m.attributes[aid]; });
           iface.operationIds.forEach((oid) => { delete m.operations[oid]; });
           attributes.forEach((a) => { m.attributes[a.id] = a; });
           operations.forEach((o) => { m.operations[o.id] = o; });
           m.interfaces[elementId].attributeIds = attributes.map((a) => a.id);
           m.interfaces[elementId].operationIds = operations.map((o) => o.id);
+          operations.forEach((o) => removedOpIds.delete(o.id));
+          clearCallsOperationRefs(m, removedOpIds);
         }
         m.updatedAt = Date.now();
       });

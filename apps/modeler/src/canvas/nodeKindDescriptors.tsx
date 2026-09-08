@@ -24,6 +24,9 @@ import ActionShape, { getActionShapeSize } from './shapes/ActionShape';
 import ControlNodeShape, { getControlNodeShapeSize } from './shapes/ControlNodeShape';
 import DecisionShape, { getDecisionShapeSize } from './shapes/DecisionShape';
 import ForkJoinShape, { getForkJoinShapeSize } from './shapes/ForkJoinShape';
+import ObjectNodeShape, { getObjectNodeShapeSize } from './shapes/ObjectNodeShape';
+import PinShape, { getPinShapeSize } from './shapes/PinShape';
+import StructuredNodeShape, { getStructuredNodeShapeSize } from './shapes/StructuredNodeShape';
 
 export interface NodeSize {
   width: number;
@@ -88,6 +91,10 @@ export type NodeResize =
   | 'ucModule'
   /** Applied by the package layer, which resizes outside the main render loop. */
   | 'package'
+  /** Applied by the partition layer — same reasoning as `'package'`. */
+  | 'activityPartition'
+  /** A structured node's own min size (v1.1) — smaller than a system boundary's. */
+  | 'activityStructured'
   /** The historical default for every kind without one of its own. */
   | 'systemBoundary';
 
@@ -455,6 +462,77 @@ export const NODE_KIND_DESCRIPTORS: Record<NodeKind, NodeKindDescriptor> = {
     render: (vm, { key, common }) => <ForkJoinShape key={key} viewModel={vm} {...common} />,
     editor: 'none',
     resize: 'systemBoundary',
+    draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (A3) ────────────────────────────────────────────────
+  // A swimlane is a band whose x is derived from the whole row (partitionLayout.ts),
+  // not dragged — same reasoning as the package: it draws in its own layer,
+  // outside the ShapeRouter path and the main render loop, and reorders through
+  // its own header buttons instead of a drag gesture.
+  activityPartition: describe({
+    size: null,
+    render: null,
+    editor: 'none',
+    resize: 'activityPartition',
+    draggable: false,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (A6/v1.1) ──────────────────────────────────────────
+  // Same free-geometry reasoning as the action box; the classifier trace is
+  // set through its own menu item, same pattern as the action's operation
+  // trace (ADR-0010).
+  activityObjectNode: describe({
+    size: getObjectNodeShapeSize,
+    render: (vm, { key, common }) => <ObjectNodeShape key={key} viewModel={vm} {...common} />,
+    editor: 'inlineRename',
+    resize: 'systemBoundary',
+    draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (A6.2/v1.1) ────────────────────────────────────────
+  // Input/output pin: created from its owner action's context menu, not
+  // dragged from the palette (a pin with no owner means nothing), but once on
+  // the canvas it is a free-floating node like the object node — same
+  // rename-in-place, same "own menu item for the trace" pattern (ADR-0010).
+  activityPin: describe({
+    size: getPinShapeSize,
+    render: (vm, { key, common }) => <PinShape key={key} viewModel={vm} {...common} />,
+    editor: 'inlineRename',
+    resize: 'systemBoundary',
+    draggable: true,
+    dragAxis: 'free',
+    dragEnd: 'node',
+    resetTimeline: false,
+  }),
+
+  // ── Activity diagrams (structured nodes, v1.1) ──────────────────────────
+  // Loop/conditional/sequence: unlike pins and object nodes, this one DOES
+  // get a palette tool — an empty box is meaningful (drop it, then drop
+  // children inside it) — and it DOES really resize, same Transformer
+  // mechanic as the system boundary, with its own smaller minimum size.
+  activityStructured: describe({
+    size: getStructuredNodeShapeSize,
+    render: (vm, { key, common, onResizeEnd, isDropTarget }) => (
+      <StructuredNodeShape
+        key={key}
+        viewModel={vm}
+        {...common}
+        onResizeEnd={onResizeEnd}
+        isDropTarget={isDropTarget}
+      />
+    ),
+    editor: 'inlineRename',
+    resize: 'activityStructured',
     draggable: true,
     dragAxis: 'free',
     dragEnd: 'node',

@@ -339,7 +339,12 @@ export type ActivityNodeKind =
   | 'JOIN'
   // v1.1
   | 'FLOW_FINAL'
-  | 'OBJECT_NODE';
+  | 'OBJECT_NODE'
+  | 'INPUT_PIN'
+  | 'OUTPUT_PIN'
+  | 'LOOP_NODE'
+  | 'CONDITIONAL_NODE'
+  | 'SEQUENCE_NODE';
 
 export interface IRActivityNode extends IRElement {
   kind: 'ACTIVITY_NODE';
@@ -354,6 +359,34 @@ export interface IRActivityNode extends IRElement {
   classifierId?: string;
   /** FORK/JOIN only: bar axis. Defaults to HORIZONTAL. */
   barOrientation?: 'HORIZONTAL' | 'VERTICAL';
+  /**
+   * INPUT_PIN/OUTPUT_PIN only: the action (ACTION/CALL_OPERATION) this pin
+   * belongs to (A6.2). A pin has no meaning without an owner.
+   */
+  ownerActionId?: string;
+  /**
+   * INPUT_PIN/OUTPUT_PIN only: trace to a parameter of the owner's linked
+   * operation (ADR-0010). By name, not id — `IRParameter` carries no id of
+   * its own. The sentinel `PIN_RETURN_VALUE` ('__return__', see
+   * `activityModelOps.ts`) traces an output pin to the operation's return
+   * value instead of a parameter.
+   */
+  parameterName?: string;
+  /**
+   * LOOP_NODE/CONDITIONAL_NODE/SEQUENCE_NODE only: the structured node that
+   * contains this node, if any (nesting is allowed — a structured node can
+   * itself sit inside another). Distinct from `partitionId`: a node can be
+   * inside a lane AND inside a structured node at the same time, same as
+   * real UML allows a structured activity node to cross swimlanes.
+   */
+  containerId?: string;
+  /**
+   * LOOP_NODE/CONDITIONAL_NODE only: the test/guard condition shown in the
+   * header (e.g. "i < 10", "amount > 1000"). Free text, not modeled as a
+   * real `OpaqueExpression` graph — same conformance scope cut as guard/
+   * weight on `IRRelation`. Unused for SEQUENCE_NODE (no branching to test).
+   */
+  testExpression?: string;
 }
 
 /**

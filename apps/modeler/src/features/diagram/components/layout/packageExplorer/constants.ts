@@ -15,6 +15,22 @@ export const CLASS_ICON_CONFIG: Record<stereotype, { bg: string; letter: string;
   lifeline: { bg: "#6366F1", letter: "L", color: "#FFFFFF" },
   actor_lifeline: { bg: "#6366F1", letter: "A", color: "#FFFFFF" },
   activity_node: { bg: "#0EA5E9", letter: "A", color: "#FFFFFF" },
+  // Activity Diagram tool ids (A2.5) — never appear in the package tree (activity
+  // nodes carry no packageName), but the Record must stay exhaustive.
+  action: { bg: "#0EA5E9", letter: "A", color: "#FFFFFF" },
+  call_operation: { bg: "#0EA5E9", letter: "C", color: "#FFFFFF" },
+  initial_node: { bg: "#0EA5E9", letter: "I", color: "#FFFFFF" },
+  activity_final: { bg: "#0EA5E9", letter: "F", color: "#FFFFFF" },
+  flow_final: { bg: "#0EA5E9", letter: "F", color: "#FFFFFF" },
+  decision: { bg: "#0EA5E9", letter: "D", color: "#FFFFFF" },
+  merge: { bg: "#0EA5E9", letter: "M", color: "#FFFFFF" },
+  fork: { bg: "#0EA5E9", letter: "F", color: "#FFFFFF" },
+  join: { bg: "#0EA5E9", letter: "J", color: "#FFFFFF" },
+  activity_partition: { bg: "#0EA5E9", letter: "L", color: "#FFFFFF" },
+  object_node: { bg: "#0EA5E9", letter: "O", color: "#FFFFFF" },
+  loop_node: { bg: "#0EA5E9", letter: "L", color: "#FFFFFF" },
+  conditional_node: { bg: "#0EA5E9", letter: "C", color: "#FFFFFF" },
+  sequence_node: { bg: "#0EA5E9", letter: "S", color: "#FFFFFF" },
 };
 
 export const THEME_COLORS = {

@@ -392,6 +392,117 @@ export interface ActivityForkJoinViewModel {
   onOpenProps?: () => void;
 }
 
+/**
+ * Object node (A6/v1.1): the rectangle a value flows through between actions.
+ * Square corners distinguish it from the rounded `ActivityActionViewModel`
+ * box. `classifierName` is the resolved half of the classifier trace
+ * (`IRActivityNode.classifierId`, ADR-0010) — same pattern as
+ * `callsOperationName` on the action.
+ */
+export interface ActivityObjectNodeViewModel {
+  __brand: 'activityObjectNode';
+  id: string;
+  domainId: string;
+  label: string;
+  manualWidth?: number;
+  manualHeight?: number;
+  classifierName?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
+/** Input or output pin (A6.2/v1.1). */
+export type ActivityPinKindVM = 'INPUT_PIN' | 'OUTPUT_PIN';
+
+/**
+ * Input/output pin (A6.2): a small square on an action's boundary in real
+ * UML, drawn here as a free-standing node near its owner — same engineering
+ * effort as the object node, which also free-floats rather than snapping to
+ * a border. `parameterLabel` is the resolved half of the parameter trace
+ * (`IRActivityNode.parameterName`, ADR-0010), same pattern as
+ * `classifierName` on the object node.
+ */
+export interface ActivityPinViewModel {
+  __brand: 'activityPin';
+  id: string;
+  domainId: string;
+  pinKind: ActivityPinKindVM;
+  label: string;
+  parameterLabel?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
+/**
+ * Swimlane (A3): a band, not a free container (spec §4). `index` is the only
+ * source of truth for order — its own `x` is derived from the whole row's
+ * widths (`partitionLayout.ts`), never dragged. `width` is the one thing the
+ * user resizes by hand; `representsId` (A4) traces the lane to its
+ * responsible class/actor and stays optional until then.
+ */
+export interface ActivityPartitionViewModel {
+  __brand: 'activityPartition';
+  id: string;
+  domainId: string;
+  name: string;
+  index: number;
+  width: number;
+  representsId?: string;
+  /** Resolved name of the class/actor this lane represents (ADR-0010), if any. */
+  representsName?: string;
+  /** Jumps to the diagram where the represented class/actor lives, when one is open. */
+  onNavigateToRepresents?: () => void;
+  colorOverride?: string;
+  /** Whether a left/right neighbour exists — drives the reorder buttons. */
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  onRename?: (name: string) => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  onDelete?: () => void;
+  onOpenProps?: () => void;
+}
+
+/** Loop, conditional or sequence (structured nodes, v1.1). */
+export type ActivityStructuredKindVM = 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE';
+
+/**
+ * A structured activity node (v1.1): a free-floating, resizable container —
+ * unlike the partition above, it is not a row in a fixed axis, so its
+ * geometry follows the package/system-boundary pattern instead (`width`/
+ * `height` set by the user, contained nodes carry `parentPackageId`).
+ * `testExpression` is the free-text stand-in for the real UML sub-regions
+ * (setup/test/body for a loop, per-clause test+body for a conditional) —
+ * unused for SEQUENCE_NODE, which has nothing to test.
+ */
+export interface ActivityStructuredViewModel {
+  __brand: 'activityStructured';
+  id: string;
+  domainId: string;
+  structuredKind: ActivityStructuredKindVM;
+  name: string;
+  width: number;
+  height: number;
+  testExpression?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -415,7 +526,11 @@ export type AnyNodeViewModel =
   | ActivityActionViewModel
   | ActivityControlNodeViewModel
   | ActivityDecisionViewModel
-  | ActivityForkJoinViewModel;
+  | ActivityForkJoinViewModel
+  | ActivityPartitionViewModel
+  | ActivityObjectNodeViewModel
+  | ActivityPinViewModel
+  | ActivityStructuredViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -514,4 +629,24 @@ export function isActivityForkJoinViewModel(
 
 export function isContinuationViewModel(vm: AnyNodeViewModel): vm is ContinuationViewModel {
   return '__brand' in vm && vm.__brand === 'continuation';
+}
+
+export function isActivityObjectNodeViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityObjectNodeViewModel {
+  return '__brand' in vm && vm.__brand === 'activityObjectNode';
+}
+
+export function isActivityPartitionViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityPartitionViewModel {
+  return '__brand' in vm && vm.__brand === 'activityPartition';
+}
+
+export function isActivityPinViewModel(vm: AnyNodeViewModel): vm is ActivityPinViewModel {
+  return '__brand' in vm && vm.__brand === 'activityPin';
+}
+
+export function isActivityStructuredViewModel(vm: AnyNodeViewModel): vm is ActivityStructuredViewModel {
+  return '__brand' in vm && vm.__brand === 'activityStructured';
 }

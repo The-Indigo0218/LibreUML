@@ -26,6 +26,8 @@ import ActionShape from '../shapes/ActionShape';
 import ControlNodeShape from '../shapes/ControlNodeShape';
 import DecisionShape from '../shapes/DecisionShape';
 import ForkJoinShape from '../shapes/ForkJoinShape';
+import ObjectNodeShape from '../shapes/ObjectNodeShape';
+import PinShape from '../shapes/PinShape';
 
 /**
  * A0 (ADR-0009). The descriptor table is the canvas' extension point for node
@@ -48,9 +50,9 @@ describe('NODE_KIND_DESCRIPTORS', () => {
   it('gives every kind a renderer and a sizer, except the package', () => {
     for (const kind of ALL_NODE_KINDS) {
       const descriptor = NODE_KIND_DESCRIPTORS[kind];
-      if (kind === 'package') {
-        // The package sizes itself from its children and draws in the
-        // background layer; it deliberately opts out of the ShapeRouter path.
+      if (kind === 'package' || kind === 'activityPartition') {
+        // Both size themselves from their children/row and draw in their own
+        // background layer; they deliberately opt out of the ShapeRouter path.
         expect(descriptor.size).toBeNull();
         expect(descriptor.render).toBeNull();
         continue;
@@ -108,6 +110,8 @@ describe('renderShape routing', () => {
     activityControlNode: ControlNodeShape,
     activityDecision: DecisionShape,
     activityForkJoin: ForkJoinShape,
+    activityObjectNode: ObjectNodeShape,
+    activityPin: PinShape,
   };
 
   /** Minimal view model that resolves to `kind` — see `getNodeKind`. */
@@ -131,6 +135,11 @@ describe('renderShape routing', () => {
 
   it('falls back to the class box for the package, which draws in its own layer', () => {
     const element = renderShape({ __brand: 'package' } as never, props as never);
+    expect((element as { type: unknown }).type).toBe(ClassShape);
+  });
+
+  it('falls back to the class box for the partition, which also draws in its own layer', () => {
+    const element = renderShape({ __brand: 'activityPartition' } as never, props as never);
     expect((element as { type: unknown }).type).toBe(ClassShape);
   });
 });
@@ -223,6 +232,40 @@ describe('node kind behaviour matrix', () => {
       dragEnd: 'node',
       resize: 'systemBoundary',
     },
+    // A3: a lane's x is derived from the whole row, never dragged by hand —
+    // same reasoning as the package, which is why it shares its resize kind.
+    activityPartition: {
+      draggable: false,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'activityPartition',
+    },
+    // A6/v1.1: same free geometry as the action box, which it shares its
+    // rename editor with.
+    activityObjectNode: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'systemBoundary',
+    },
+    // A6.2/v1.1: same free geometry, created from its owner's context menu
+    // rather than the palette, which is not something this behaviour matrix
+    // (drag/resize only) has any way to distinguish.
+    activityPin: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'systemBoundary',
+    },
+    // Structured nodes (v1.1): unlike the pin/object node above, this one
+    // really does resize (a free container, Transformer-driven like the
+    // system boundary) — hence its own resize kind, not the generic one.
+    activityStructured: {
+      draggable: true,
+      dragAxis: 'free',
+      dragEnd: 'node',
+      resize: 'activityStructured',
+    },
   };
 
   it.each(ALL_NODE_KINDS)('%s behaves as it did before the table', (kind) => {
@@ -235,7 +278,7 @@ describe('node kind behaviour matrix', () => {
     // and coregions are anchored to occurrences.
     const undraggable = ALL_NODE_KINDS.filter((k) => !NODE_KIND_DESCRIPTORS[k].draggable);
     expect(undraggable.sort()).toEqual(
-      ['activation', 'coregion', 'generalOrdering', 'timeConstraint'].sort(),
+      ['activation', 'activityPartition', 'coregion', 'generalOrdering', 'timeConstraint'].sort(),
     );
   });
 

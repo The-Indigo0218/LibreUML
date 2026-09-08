@@ -35,7 +35,7 @@ export default function ApiKeyCreatedDialog({
       el.value = createdKey.key;
       document.body.appendChild(el);
       el.select();
-      document.execCommand('copy'); // eslint-disable-line
+      document.execCommand('copy');
       document.body.removeChild(el);
     }
     setCopied(true);

@@ -6,7 +6,11 @@ import type {
   ActivityControlNodeViewModel,
   ActivityDecisionViewModel,
   ActivityForkJoinViewModel,
+  ActivityObjectNodeViewModel,
+  ActivityPinViewModel,
+  ActivityStructuredViewModel,
 } from '../../../../../adapters/view-models/node.view-model';
+import { SN_DEFAULT_W, SN_DEFAULT_H } from '../../../../../canvas/shapes/StructuredNodeShape';
 
 function model(over: Partial<SemanticModel> = {}): SemanticModel {
   return {
@@ -82,9 +86,23 @@ describe('buildActivityDiagramNodes', () => {
     expect(kinds).toEqual(['INITIAL', 'ACTIVITY_FINAL', 'FLOW_FINAL']);
   });
 
-  it('shows the operation a call action is traced to', () => {
+  it('shows the operation a call action is traced to, as Class::op() (ADR-0010)', () => {
     const m = model({
-      operations: { op1: { id: 'op1', kind: 'OPERATION', name: 'charge()' } } as never,
+      classes: { c1: { id: 'c1', kind: 'CLASS', name: 'PaymentService', attributeIds: [], operationIds: ['op1'] } } as never,
+      operations: { op1: { id: 'op1', kind: 'OPERATION', name: 'charge', parameters: [] } } as never,
+      activityNodes: {
+        n1: irNode('n1', 'CALL_OPERATION', { name: 'Charge card', callsOperationId: 'op1' }),
+      } as never,
+    });
+
+    const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'vn1', elementId: 'n1' }])));
+
+    expect((built.data as ActivityActionViewModel).callsOperationName).toBe('PaymentService::charge()');
+  });
+
+  it('falls back to a bare op() label when no class/interface owns the operation', () => {
+    const m = model({
+      operations: { op1: { id: 'op1', kind: 'OPERATION', name: 'charge', parameters: [] } } as never,
       activityNodes: {
         n1: irNode('n1', 'CALL_OPERATION', { name: 'Charge card', callsOperationId: 'op1' }),
       } as never,
@@ -122,22 +140,137 @@ describe('buildActivityDiagramNodes', () => {
     expect((built[0] as { domainId?: string }).domainId).toBe('n1');
   });
 
-  it('omits node types whose shapes do not exist yet', () => {
-    // OBJECT_NODE is v1.1 (A6); drawing it as something else would
-    // misrepresent the model.
+  it('builds an object node carrying its label (A6/v1.1)', () => {
+    const m = model({ activityNodes: { n1: irNode('n1', 'OBJECT_NODE', { name: 'Order' }) } as never });
+    const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'vn1', elementId: 'n1' }])));
+
+    const vm = built.data as ActivityObjectNodeViewModel;
+    expect(vm.__brand).toBe('activityObjectNode');
+    expect(vm.label).toBe('Order');
+    expect((built as { domainId?: string }).domainId).toBe('n1');
+  });
+
+  it('shows the classifier an object node is traced to (ADR-0010)', () => {
+    const m = model({
+      classes: { c1: { id: 'c1', kind: 'CLASS', name: 'Order', attributeIds: [], operationIds: [] } } as never,
+      activityNodes: {
+        n1: irNode('n1', 'OBJECT_NODE', { name: 'order', classifierId: 'c1' }),
+      } as never,
+    });
+
+    const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'vn1', elementId: 'n1' }])));
+
+    expect((built.data as ActivityObjectNodeViewModel).classifierName).toBe('Order');
+  });
+
+  it('leaves the classifier subtitle empty when the traced classifier is gone', () => {
     const m = model({
       activityNodes: {
-        obj: irNode('obj', 'OBJECT_NODE'),
-        ok: irNode('ok', 'ACTION'),
+        n1: irNode('n1', 'OBJECT_NODE', { name: 'order', classifierId: 'deleted' }),
+      } as never,
+    });
+
+    const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'vn1', elementId: 'n1' }])));
+
+    expect((built.data as ActivityObjectNodeViewModel).classifierName).toBeUndefined();
+  });
+
+  it('builds input/output pins carrying their kind and owner (A6.2)', () => {
+    const m = model({
+      activityNodes: {
+        action1: irNode('action1', 'ACTION', { name: 'Pay' }),
+        p1: irNode('p1', 'INPUT_PIN', { name: '', ownerActionId: 'action1' }),
+        p2: irNode('p2', 'OUTPUT_PIN', { name: '', ownerActionId: 'action1' }),
       } as never,
     });
 
     const built = buildActivityDiagramNodes(
-      ctx(m, view([{ id: 'v-obj', elementId: 'obj' }, { id: 'v-ok', elementId: 'ok' }])),
+      ctx(m, view([
+        { id: 'v-action1', elementId: 'action1' },
+        { id: 'v-p1', elementId: 'p1' },
+        { id: 'v-p2', elementId: 'p2' },
+      ])),
     );
 
-    expect(built).toHaveLength(1);
-    expect((built[0] as { domainId?: string }).domainId).toBe('ok');
+    const pins = built.slice(1).map((b) => b.data as ActivityPinViewModel);
+    expect(pins.map((p) => p.__brand)).toEqual(['activityPin', 'activityPin']);
+    expect(pins.map((p) => p.pinKind)).toEqual(['INPUT_PIN', 'OUTPUT_PIN']);
+  });
+
+  it('shows the parameter a pin is traced to (ADR-0010)', () => {
+    const m = model({
+      operations: {
+        op1: { id: 'op1', kind: 'OPERATION', name: 'pay', parameters: [{ name: 'amount', type: 'number', direction: 'in' }] },
+      } as never,
+      activityNodes: {
+        action1: irNode('action1', 'CALL_OPERATION', { name: 'Pay', callsOperationId: 'op1' }),
+        p1: irNode('p1', 'INPUT_PIN', { name: '', ownerActionId: 'action1', parameterName: 'amount' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-action1', elementId: 'action1' }, { id: 'v-p1', elementId: 'p1' }])),
+    );
+
+    expect((built[1].data as ActivityPinViewModel).parameterLabel).toBe('amount: number');
+  });
+
+  it('leaves the parameter caption empty when the pin has no trace', () => {
+    const m = model({
+      activityNodes: {
+        action1: irNode('action1', 'ACTION', { name: 'Pay' }),
+        p1: irNode('p1', 'INPUT_PIN', { name: '', ownerActionId: 'action1' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-action1', elementId: 'action1' }, { id: 'v-p1', elementId: 'p1' }])),
+    );
+
+    expect((built[1].data as ActivityPinViewModel).parameterLabel).toBeUndefined();
+  });
+
+  // Structured nodes (v1.1).
+  it('builds a loop/conditional/sequence node carrying its kind, name and test condition', () => {
+    const m = model({
+      activityNodes: {
+        l: irNode('l', 'LOOP_NODE', { name: 'Retry', testExpression: 'i < 3' }),
+        c: irNode('c', 'CONDITIONAL_NODE', { name: 'Check' }),
+        s: irNode('s', 'SEQUENCE_NODE', { name: 'Steps' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-l', elementId: 'l' }, { id: 'v-c', elementId: 'c' }, { id: 'v-s', elementId: 's' }])),
+    );
+
+    const vms = built.map((b) => b.data as ActivityStructuredViewModel);
+    expect(vms.map((vm) => vm.__brand)).toEqual(['activityStructured', 'activityStructured', 'activityStructured']);
+    expect(vms.map((vm) => vm.structuredKind)).toEqual(['LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE']);
+    expect(vms[0].testExpression).toBe('i < 3');
+    expect(vms[1].testExpression).toBeUndefined();
+  });
+
+  it('defaults a structured node to the standard container size, but respects a stored one', () => {
+    const m = model({
+      activityNodes: {
+        l: irNode('l', 'LOOP_NODE', { name: 'Retry' }),
+        c: irNode('c', 'CONDITIONAL_NODE', { name: 'Check' }),
+      } as never,
+    });
+    const v: DiagramView = {
+      diagramId: 'd1',
+      nodes: [
+        { id: 'v-l', elementId: 'l', x: 0, y: 0 },
+        { id: 'v-c', elementId: 'c', x: 0, y: 0, width: 500, height: 300 },
+      ],
+      edges: [],
+    } as DiagramView;
+
+    const built = buildActivityDiagramNodes(ctx(m, v));
+    const vms = built.map((b) => b.data as ActivityStructuredViewModel);
+    expect({ width: vms[0].width, height: vms[0].height }).toEqual({ width: SN_DEFAULT_W, height: SN_DEFAULT_H });
+    expect({ width: vms[1].width, height: vms[1].height }).toEqual({ width: 500, height: 300 });
   });
 
   it('maps decision and merge to the same rhombus glyph (A2)', () => {

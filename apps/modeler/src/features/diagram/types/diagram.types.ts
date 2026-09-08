@@ -10,7 +10,9 @@ export type stereotype = "class" | "interface" | "abstract" | "note" | "enum" | 
   // A6/v1.1: the object node tool id.
   | "object_node"
   // Structured nodes (v1.1): loop/conditional/sequence tool ids.
-  | "loop_node" | "conditional_node" | "sequence_node";
+  | "loop_node" | "conditional_node" | "sequence_node"
+  // v1.1: the interruptible region tool id.
+  | "interruptible_region";
 export type UmlRelationType =
   | "association"
   | "inheritance"

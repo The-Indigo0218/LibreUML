@@ -151,6 +151,17 @@ describe('relationToDomainEdge', () => {
     expect(edge).toMatchObject({ type: 'CONTROL_FLOW', guard: '[x>0]', weight: '2' });
   });
 
+  // v1.1 — interrupting edge flag + the new EXCEPTION_HANDLER relation kind.
+  it('ACTIVITY_DIAGRAM passes isInterrupting through on a CONTROL_FLOW', () => {
+    const edge = relationToDomainEdge(rel('CONTROL_FLOW', { isInterrupting: true }), 'ACTIVITY_DIAGRAM');
+    expect(edge).toMatchObject({ type: 'CONTROL_FLOW', isInterrupting: true });
+  });
+
+  it('ACTIVITY_DIAGRAM passes EXCEPTION_HANDLER through', () => {
+    const edge = relationToDomainEdge(rel('EXCEPTION_HANDLER'), 'ACTIVITY_DIAGRAM');
+    expect(edge).toMatchObject({ type: 'EXCEPTION_HANDLER', sourceNodeId: 'a', targetNodeId: 'b' });
+  });
+
   it('drops a relation kind the target diagram type has no opinion on', () => {
     // A control flow has no meaning on a Class Diagram.
     expect(relationToDomainEdge(rel('CONTROL_FLOW'), 'CLASS_DIAGRAM')).toBeNull();

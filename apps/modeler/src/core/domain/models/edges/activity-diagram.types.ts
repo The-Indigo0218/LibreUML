@@ -1,6 +1,6 @@
 import type { BaseDomainEdge, Labelable } from './base.types';
 
-export type ActivityDiagramEdgeType = 'CONTROL_FLOW' | 'OBJECT_FLOW';
+export type ActivityDiagramEdgeType = 'CONTROL_FLOW' | 'OBJECT_FLOW' | 'EXCEPTION_HANDLER';
 
 /**
  * Guard and weight are properties of the flow, not of the node it leaves —
@@ -11,6 +11,11 @@ interface ActivityFlowProps {
   guard?: string;
   /** '*', '1', or an expression. Defaults to 1 when absent. */
   weight?: string;
+  /**
+   * v1.1: marks this flow as the interrupting edge leaving an
+   * INTERRUPTIBLE_REGION (UML 2.5 §15.3).
+   */
+  isInterrupting?: boolean;
 }
 
 /** Sequencing between two activity nodes: when this finishes, that starts. */
@@ -23,4 +28,15 @@ export interface ObjectFlowEdge extends BaseDomainEdge, Labelable, ActivityFlowP
   type: 'OBJECT_FLOW';
 }
 
-export type ActivityDiagramEdge = ControlFlowEdge | ObjectFlowEdge;
+/**
+ * Protected node → handler action (v1.1, UML 2.5 §15.3). Real UML models
+ * `ExceptionHandler` as its own element (with `exceptionInput`), not an
+ * `ActivityEdge` — collapsed here to a plain directional edge between two
+ * ordinary activity nodes, same conformance scope cut as the rest of this
+ * file (no `exceptionInput` typing).
+ */
+export interface ExceptionHandlerEdge extends BaseDomainEdge {
+  type: 'EXCEPTION_HANDLER';
+}
+
+export type ActivityDiagramEdge = ControlFlowEdge | ObjectFlowEdge | ExceptionHandlerEdge;

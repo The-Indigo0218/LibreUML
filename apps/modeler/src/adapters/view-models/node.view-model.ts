@@ -473,8 +473,9 @@ export interface ActivityPartitionViewModel {
   onOpenProps?: () => void;
 }
 
-/** Loop, conditional or sequence (structured nodes, v1.1). */
-export type ActivityStructuredKindVM = 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE';
+/** Loop, conditional, sequence, or interruptible region (structured nodes, v1.1). */
+export type ActivityStructuredKindVM =
+  | 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE' | 'INTERRUPTIBLE_REGION';
 
 /**
  * A structured activity node (v1.1): a free-floating, resizable container —
@@ -483,7 +484,8 @@ export type ActivityStructuredKindVM = 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUE
  * `height` set by the user, contained nodes carry `parentPackageId`).
  * `testExpression` is the free-text stand-in for the real UML sub-regions
  * (setup/test/body for a loop, per-clause test+body for a conditional) —
- * unused for SEQUENCE_NODE, which has nothing to test.
+ * unused for SEQUENCE_NODE/INTERRUPTIBLE_REGION, neither of which has
+ * anything to test.
  */
 export interface ActivityStructuredViewModel {
   __brand: 'activityStructured';

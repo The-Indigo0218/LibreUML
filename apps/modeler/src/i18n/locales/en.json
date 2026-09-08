@@ -143,6 +143,7 @@
       "loopNode": "Loop",
       "conditionalNode": "Conditional",
       "sequenceNode": "Sequence",
+      "interruptibleRegion": "Interruptible Region",
       "activityPartition": "Partition"
     },
     "connections": {
@@ -162,7 +163,8 @@
       "messageCreate": "Create Message",
       "messageDestroy": "Destroy Message",
       "controlFlow": "Control Flow",
-      "objectFlow": "Object Flow"
+      "objectFlow": "Object Flow",
+      "exceptionHandler": "Exception Handler"
     },
     "otherDiagram": "from another diagram",
     "fragments": {
@@ -1542,7 +1544,8 @@
     "guard": "Guard",
     "guard.placeholder": "e.g. balance > 0",
     "weight": "Weight",
-    "weight.placeholder": "e.g. 5 or *"
+    "weight.placeholder": "e.g. 5 or *",
+    "interrupting": "Interrupting"
   },
   "activityDiagram": {
     "realizes": "realizes: {{name}}",

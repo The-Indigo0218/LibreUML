@@ -143,6 +143,7 @@
       "loopNode": "Bucle",
       "conditionalNode": "Condicional",
       "sequenceNode": "Secuencia",
+      "interruptibleRegion": "Región Interrumpible",
       "activityPartition": "Partición"
     },
     "connections": {
@@ -162,7 +163,8 @@
       "messageCreate": "Mensaje de Creación",
       "messageDestroy": "Mensaje de Destrucción",
       "controlFlow": "Flujo de Control",
-      "objectFlow": "Flujo de Objeto"
+      "objectFlow": "Flujo de Objeto",
+      "exceptionHandler": "Manejador de Excepción"
     },
     "otherDiagram": "de otro diagrama",
     "fragments": {
@@ -1542,7 +1544,8 @@
     "guard": "Guarda",
     "guard.placeholder": "ej. saldo > 0",
     "weight": "Peso",
-    "weight.placeholder": "ej. 5 o *"
+    "weight.placeholder": "ej. 5 o *",
+    "interrupting": "Interrumpe"
   },
   "activityDiagram": {
     "realizes": "realiza: {{name}}",

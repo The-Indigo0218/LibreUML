@@ -137,6 +137,7 @@ export function useKonvaCanvasController(): KonvaCanvasControllerResult {
       extensionPoint: e.data.extensionPoint,
       guard: e.data.guard,
       weight: e.data.weight,
+      isInterrupting: e.data.isInterrupting,
       waypoints: e.waypoints,
       routingMode: e.routingMode,
       color: e.color,

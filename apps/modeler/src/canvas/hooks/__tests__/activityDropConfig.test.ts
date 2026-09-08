@@ -29,6 +29,7 @@ interface Surface {
   partition: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
   objectNode: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
   loopNode: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
+  interruptibleRegion: (model: SemanticModel, id: string, name: string, existingViewNodes: { elementId: string }[]) => void;
 }
 
 const SURFACES: Surface[] = [
@@ -42,6 +43,8 @@ const SURFACES: Surface[] = [
       VFS_DROP_CONFIG.object_node!.applyToModelDraft(m, id, name, undefined, vns),
     loopNode: (m, id, name, vns) =>
       VFS_DROP_CONFIG.loop_node!.applyToModelDraft(m, id, name, undefined, vns),
+    interruptibleRegion: (m, id, name, vns) =>
+      VFS_DROP_CONFIG.interruptible_region!.applyToModelDraft(m, id, name, undefined, vns),
   },
   {
     name: 'applyToLocalModelDraft (standalone)',
@@ -50,6 +53,8 @@ const SURFACES: Surface[] = [
     partition: (m, id, name, vns) => VFS_DROP_CONFIG.activity_partition!.applyToLocalModelDraft(m, id, name, vns),
     objectNode: (m, id, name, vns) => VFS_DROP_CONFIG.object_node!.applyToLocalModelDraft(m, id, name, vns),
     loopNode: (m, id, name, vns) => VFS_DROP_CONFIG.loop_node!.applyToLocalModelDraft(m, id, name, vns),
+    interruptibleRegion: (m, id, name, vns) =>
+      VFS_DROP_CONFIG.interruptible_region!.applyToLocalModelDraft(m, id, name, vns),
   },
 ];
 
@@ -175,6 +180,32 @@ describe.each(SURFACES)('VFS_DROP_CONFIG — activity tools — $name', (surface
     const activityId = model.activityNodes!['n1'].activityId;
 
     surface.loopNode(model, 'n2', 'Loop 1', [{ elementId: 'n1' }]);
+
+    expect(model.activityNodes!['n2'].activityId).toBe(activityId);
+    expect(Object.keys(model.activities!)).toHaveLength(1);
+  });
+
+  // v1.1 — interruptible region creation. Same VFS_DROP_CONFIG shape as
+  // loop/conditional/sequence; it just collapses UML's ActivityGroup onto the
+  // same structured-node mechanism (§8.1 A6.4 decision log).
+  it('interruptibleRegion: creates an ACTIVITY_NODE and a fresh Activity when the diagram has none', () => {
+    const model = emptyModel();
+    surface.interruptibleRegion(model, 'n1', 'Checkout region', []);
+
+    expect(model.activityNodes!['n1']).toMatchObject({
+      activityType: 'INTERRUPTIBLE_REGION', name: 'Checkout region',
+    });
+    const activityId = model.activityNodes!['n1'].activityId;
+    expect(activityId).toBeTruthy();
+    expect(model.activities![activityId]).toBeTruthy();
+  });
+
+  it('interruptibleRegion: reuses the Activity a sibling node in the same diagram already belongs to', () => {
+    const model = emptyModel();
+    surface.action(model, 'n1', 'Action 1', []);
+    const activityId = model.activityNodes!['n1'].activityId;
+
+    surface.interruptibleRegion(model, 'n2', 'Checkout region', [{ elementId: 'n1' }]);
 
     expect(model.activityNodes!['n2'].activityId).toBe(activityId);
     expect(Object.keys(model.activities!)).toHaveLength(1);

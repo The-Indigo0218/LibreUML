@@ -598,7 +598,8 @@ export const useDiagramMenus = ({
         const isActivityObjectNodeType = effectiveType === "OBJECT_NODE";
         const isActivityPinType = effectiveType === "INPUT_PIN" || effectiveType === "OUTPUT_PIN";
         const isActivityStructuredType =
-          effectiveType === "LOOP_NODE" || effectiveType === "CONDITIONAL_NODE" || effectiveType === "SEQUENCE_NODE";
+          effectiveType === "LOOP_NODE" || effectiveType === "CONDITIONAL_NODE" || effectiveType === "SEQUENCE_NODE" ||
+          effectiveType === "INTERRUPTIBLE_REGION";
         // SEQUENCE_NODE has nothing to test — only these two get the modal.
         const isTestableStructuredType = effectiveType === "LOOP_NODE" || effectiveType === "CONDITIONAL_NODE";
         // Control/decision/fork-join glyphs carry no label (nodeKindDescriptors:

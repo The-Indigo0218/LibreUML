@@ -138,6 +138,31 @@ describe('ActivityDiagramValidator.validateConnection', () => {
     expect(out.isValid).toBe(true);
     expect(out.warnings).toBeUndefined();
   });
+
+  // Exception handler (v1.1) — protectedNode → handlerBody, own rules.
+  it('accepts an exception handler from any activity node to an action', () => {
+    const result = v.validateConnection(node('LOOP_NODE', { id: 'l' }), node('ACTION', { id: 'a' }), 'EXCEPTION_HANDLER');
+    expect(result.isValid).toBe(true);
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('warns, but allows, an exception handler whose body is not an action', () => {
+    const result = v.validateConnection(node('ACTION', { id: 'a' }), node('DECISION', { id: 'd' }), 'EXCEPTION_HANDLER');
+    expect(result.isValid).toBe(true);
+    expect(result.warnings?.[0]).toMatch(/handler body is usually an action/i);
+  });
+
+  it('refuses an exception handler from something that is not an activity node', () => {
+    const result = v.validateConnection(node('CLASS', { id: 'c' }), node('ACTION', { id: 'a' }), 'EXCEPTION_HANDLER');
+    expect(result.isValid).toBe(false);
+  });
+
+  it('refuses a node handling its own exception', () => {
+    const self = node('ACTION', { id: 'same' });
+    const result = v.validateConnection(self, self, 'EXCEPTION_HANDLER');
+    expect(result.isValid).toBe(false);
+    expect(result.errors?.[0]).toMatch(/cannot handle its own exception/i);
+  });
 });
 
 describe('ActivityDiagramValidator.validateNode', () => {
@@ -207,6 +232,16 @@ describe('ActivityDiagramValidator.validateNode', () => {
 
   it('never asks a sequence node for a test condition — nothing to test', () => {
     const result = v.validateNode(node('SEQUENCE_NODE', { name: 'Seq' }));
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('warns about an unnamed interruptible region, same as any other structured node', () => {
+    const result = v.validateNode(node('INTERRUPTIBLE_REGION', { name: '' }));
+    expect(result.warnings).toContain('This node has no name');
+  });
+
+  it('never asks an interruptible region for a test condition — nothing to test', () => {
+    const result = v.validateNode(node('INTERRUPTIBLE_REGION', { name: 'Checkout region' }));
     expect(result.warnings).toBeUndefined();
   });
 });
@@ -326,6 +361,51 @@ describe('ActivityDiagramValidator.validateActivityStructure', () => {
     );
     // No nodes belong to a1, so nothing to warn about.
     expect(v.validateActivityStructure('a1', m).isValid).toBe(true);
+    expect(v.validateActivityStructure('a1', m).warnings).toBeUndefined();
+  });
+
+  // Interrupting edge (v1.1, UML 2.5 §15.3).
+  it('warns when an interrupting flow does not leave an interruptible region at all', () => {
+    const m = model(
+      { a: actNode('a', 'ACTION'), b: actNode('b', 'ACTION') },
+      { f1: { ...flow('f1', 'a', 'b'), isInterrupting: true } },
+    );
+    expect(v.validateActivityStructure('a1', m).warnings?.[0]).toMatch(/does not leave an interruptible region/i);
+  });
+
+  it('warns when an interrupting flow stays inside the same region', () => {
+    const m = model(
+      {
+        r: actNode('r', 'INTERRUPTIBLE_REGION'),
+        a: actNode('a', 'ACTION', { containerId: 'r' }),
+        b: actNode('b', 'ACTION', { containerId: 'r' }),
+      },
+      { f1: { ...flow('f1', 'a', 'b'), isInterrupting: true } },
+    );
+    expect(v.validateActivityStructure('a1', m).warnings?.[0]).toMatch(/never actually leaves its interruptible region/i);
+  });
+
+  it('is quiet about an interrupting flow that leaves its interruptible region', () => {
+    const m = model(
+      {
+        r: actNode('r', 'INTERRUPTIBLE_REGION'),
+        a: actNode('a', 'ACTION', { containerId: 'r' }),
+        b: actNode('b', 'ACTION'),
+      },
+      { f1: { ...flow('f1', 'a', 'b'), isInterrupting: true } },
+    );
+    expect(v.validateActivityStructure('a1', m).warnings).toBeUndefined();
+  });
+
+  it('is quiet about a plain (non-interrupting) flow leaving a region', () => {
+    const m = model(
+      {
+        r: actNode('r', 'INTERRUPTIBLE_REGION'),
+        a: actNode('a', 'ACTION', { containerId: 'r' }),
+        b: actNode('b', 'ACTION'),
+      },
+      { f1: flow('f1', 'a', 'b') },
+    );
     expect(v.validateActivityStructure('a1', m).warnings).toBeUndefined();
   });
 });

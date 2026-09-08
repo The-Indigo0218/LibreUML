@@ -1038,6 +1038,8 @@ function createActivityDiagramNode(type: string, partial?: Partial<DomainNode>):
       return { ...baseNode, type: 'CONDITIONAL_NODE', name: named('Conditional') } as DomainNode;
     case 'SEQUENCE_NODE':
       return { ...baseNode, type: 'SEQUENCE_NODE', name: named('Sequence') } as DomainNode;
+    case 'INTERRUPTIBLE_REGION':
+      return { ...baseNode, type: 'INTERRUPTIBLE_REGION', name: named('Interruptible Region') } as DomainNode;
     case 'ACTIVITY_PARTITION':
       return {
         ...baseNode, type: 'ACTIVITY_PARTITION', name: named('Partition'), index: 0,
@@ -1074,6 +1076,8 @@ function createActivityDiagramEdge(
       return { ...baseEdge, type: 'CONTROL_FLOW' } as DomainEdge;
     case 'OBJECT_FLOW':
       return { ...baseEdge, type: 'OBJECT_FLOW' } as DomainEdge;
+    case 'EXCEPTION_HANDLER':
+      return { ...baseEdge, type: 'EXCEPTION_HANDLER' } as DomainEdge;
     default:
       throw new Error(`Unknown Activity Diagram edge type: ${type}`);
   }
@@ -1091,10 +1095,10 @@ const activityDiagramRegistry: DiagramTypeRegistry = {
     'ACTION', 'CALL_OPERATION', 'INITIAL_NODE', 'ACTIVITY_FINAL',
     'DECISION', 'MERGE', 'FORK', 'JOIN', 'FLOW_FINAL', 'OBJECT_NODE',
     'INPUT_PIN', 'OUTPUT_PIN',
-    'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE',
+    'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE', 'INTERRUPTIBLE_REGION',
     'ACTIVITY_PARTITION', 'NOTE',
   ],
-  supportedEdgeTypes: ['CONTROL_FLOW', 'OBJECT_FLOW'],
+  supportedEdgeTypes: ['CONTROL_FLOW', 'OBJECT_FLOW', 'EXCEPTION_HANDLER'],
 
   defaultNodeType: 'ACTION',
   defaultEdgeType: 'CONTROL_FLOW',
@@ -1118,11 +1122,13 @@ const activityDiagramRegistry: DiagramTypeRegistry = {
       { id: 'loop_node', type: 'NODE', category: 'advanced', label: 'Loop', icon: 'Repeat', color: '#38BDF8', translationKey: 'sidebar.nodes.loopNode' },
       { id: 'conditional_node', type: 'NODE', category: 'advanced', label: 'Conditional', icon: 'GitBranch', color: '#38BDF8', translationKey: 'sidebar.nodes.conditionalNode' },
       { id: 'sequence_node', type: 'NODE', category: 'advanced', label: 'Sequence', icon: 'ListOrdered', color: '#38BDF8', translationKey: 'sidebar.nodes.sequenceNode' },
+      { id: 'interruptible_region', type: 'NODE', category: 'advanced', label: 'Interruptible Region', icon: 'Octagon', color: '#38BDF8', translationKey: 'sidebar.nodes.interruptibleRegion' },
       { id: 'note', type: 'NODE', category: 'common', label: 'Note', icon: 'StickyNote', color: 'var(--color-uml-note-border)', translationKey: 'sidebar.nodes.note' },
     ],
     edges: [
       { id: 'control_flow', type: 'EDGE', category: 'common', label: 'Control Flow', icon: 'ArrowRight', translationKey: 'sidebar.connections.controlFlow' },
       { id: 'object_flow', type: 'EDGE', category: 'advanced', label: 'Object Flow', icon: 'MoveRight', translationKey: 'sidebar.connections.objectFlow' },
+      { id: 'exception_handler', type: 'EDGE', category: 'advanced', label: 'Exception Handler', icon: 'Zap', translationKey: 'sidebar.connections.exceptionHandler' },
     ],
   },
 

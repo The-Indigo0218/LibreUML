@@ -25,4 +25,6 @@ export const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
   // Activity diagrams (A1)
   CONTROL_FLOW:   'CONTROL_FLOW',
   OBJECT_FLOW:    'OBJECT_FLOW',
+  // Activity diagrams (v1.1)
+  EXCEPTION_HANDLER: 'EXCEPTION_HANDLER',
 };

@@ -25,7 +25,7 @@ describe('activityDiagramRegistry', () => {
   it('declares control flow as its default edge and action as its default node', () => {
     expect(registry().defaultNodeType).toBe('ACTION');
     expect(registry().defaultEdgeType).toBe('CONTROL_FLOW');
-    expect(registry().supportedEdgeTypes).toEqual(['CONTROL_FLOW', 'OBJECT_FLOW']);
+    expect(registry().supportedEdgeTypes).toEqual(['CONTROL_FLOW', 'OBJECT_FLOW', 'EXCEPTION_HANDLER']);
   });
 
   it('supports every node type its tools offer', () => {
@@ -69,9 +69,16 @@ describe('activityDiagramRegistry.factories', () => {
     expect(() => registry().factories.createNode('LIFELINE')).toThrow(/Unknown Activity/);
   });
 
-  it('creates control and object flows', () => {
+  it('creates control, object and exception-handler flows', () => {
     expect(registry().factories.createEdge('CONTROL_FLOW', 'a', 'b').type).toBe('CONTROL_FLOW');
     expect(registry().factories.createEdge('OBJECT_FLOW', 'a', 'b').type).toBe('OBJECT_FLOW');
+    expect(registry().factories.createEdge('EXCEPTION_HANDLER', 'a', 'b').type).toBe('EXCEPTION_HANDLER');
+  });
+
+  it('creates an interruptible region with a default name', () => {
+    const region = registry().factories.createNode('INTERRUPTIBLE_REGION');
+    expect(region.type).toBe('INTERRUPTIBLE_REGION');
+    expect((region as { name: string }).name).toBe('Interruptible Region');
   });
 
   it('rejects an edge type it does not own', () => {

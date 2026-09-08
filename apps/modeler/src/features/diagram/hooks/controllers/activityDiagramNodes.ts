@@ -79,6 +79,7 @@ const STRUCTURED_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityS
   LOOP_NODE: 'LOOP_NODE',
   CONDITIONAL_NODE: 'CONDITIONAL_NODE',
   SEQUENCE_NODE: 'SEQUENCE_NODE',
+  INTERRUPTIBLE_REGION: 'INTERRUPTIBLE_REGION',
 };
 
 function makeActionNode(

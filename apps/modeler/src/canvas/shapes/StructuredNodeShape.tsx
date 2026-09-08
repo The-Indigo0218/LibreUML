@@ -6,12 +6,12 @@ import type { ActivityStructuredViewModel } from '../../adapters/view-models/nod
 import { resolveSystemBoundaryColors } from '../tokens/colors';
 
 /**
- * A structured activity node (loop / conditional / sequence, v1.1) — a
- * free-floating resizable container, same Transformer mechanic as
- * `SystemBoundaryShape` (this app's other free container). The three kinds
- * differ only in the header glyph and whether a test/guard subtitle shows —
- * one shape, not three, same reasoning as `ForkJoinShape` covering both
- * FORK/JOIN.
+ * A structured activity node (loop / conditional / sequence / interruptible
+ * region, v1.1) — a free-floating resizable container, same Transformer
+ * mechanic as `SystemBoundaryShape` (this app's other free container). The
+ * four kinds differ only in the header glyph and whether a test/guard
+ * subtitle shows — one shape, not four, same reasoning as `ForkJoinShape`
+ * covering both FORK/JOIN.
  */
 
 export const SN_DEFAULT_W = 320;
@@ -31,6 +31,7 @@ const KIND_GLYPH: Record<ActivityStructuredViewModel['structuredKind'], string> 
   LOOP_NODE: '↻',
   CONDITIONAL_NODE: '⑂',
   SEQUENCE_NODE: '→',
+  INTERRUPTIBLE_REGION: '↯',
 };
 
 export function getStructuredNodeShapeSize(

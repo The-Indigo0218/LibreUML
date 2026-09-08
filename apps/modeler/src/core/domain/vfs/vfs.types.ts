@@ -344,7 +344,8 @@ export type ActivityNodeKind =
   | 'OUTPUT_PIN'
   | 'LOOP_NODE'
   | 'CONDITIONAL_NODE'
-  | 'SEQUENCE_NODE';
+  | 'SEQUENCE_NODE'
+  | 'INTERRUPTIBLE_REGION';
 
 export interface IRActivityNode extends IRElement {
   kind: 'ACTIVITY_NODE';
@@ -373,11 +374,12 @@ export interface IRActivityNode extends IRElement {
    */
   parameterName?: string;
   /**
-   * LOOP_NODE/CONDITIONAL_NODE/SEQUENCE_NODE only: the structured node that
-   * contains this node, if any (nesting is allowed — a structured node can
-   * itself sit inside another). Distinct from `partitionId`: a node can be
-   * inside a lane AND inside a structured node at the same time, same as
-   * real UML allows a structured activity node to cross swimlanes.
+   * LOOP_NODE/CONDITIONAL_NODE/SEQUENCE_NODE/INTERRUPTIBLE_REGION only: the
+   * structured node (or region) that contains this node, if any (nesting is
+   * allowed — a structured node can itself sit inside another). Distinct
+   * from `partitionId`: a node can be inside a lane AND inside a structured
+   * node at the same time, same as real UML allows a structured activity
+   * node to cross swimlanes.
    */
   containerId?: string;
   /**
@@ -749,6 +751,7 @@ export type RelationKind =
   | 'TRANSITION'
   | 'CONTROL_FLOW'
   | 'OBJECT_FLOW'
+  | 'EXCEPTION_HANDLER'
   | 'DEPLOYMENT'
   | 'MANIFESTATION'
   | 'PACKAGE_IMPORT'
@@ -780,6 +783,14 @@ export interface IRRelation {
   guard?: string;
   /** CONTROL_FLOW / OBJECT_FLOW weight: '*', '1', or an expression. */
   weight?: string;
+  /**
+   * CONTROL_FLOW / OBJECT_FLOW only (v1.1): marks this flow as the
+   * interrupting edge of the INTERRUPTIBLE_REGION its source belongs to
+   * (`IRActivityNode.containerId`) — UML 2.5 §15.3's zigzag arrow. Rendered
+   * as a dashed line with a `↯` marker in the flow label rather than a real
+   * zigzag stroke; same conformance scope cut as guard/weight above.
+   */
+  isInterrupting?: boolean;
 }
 
 export interface SemanticModel {

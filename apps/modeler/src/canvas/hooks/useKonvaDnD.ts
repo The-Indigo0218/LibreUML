@@ -428,6 +428,24 @@ export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
     },
     initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
   },
+  interruptible_region: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'INTERRUPTIBLE_REGION')
+          .map((n) => n.name),
+        'Interruptible Region',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'INTERRUPTIBLE_REGION', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'INTERRUPTIBLE_REGION', activityId, name });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
+  },
 };
 
 function getParentContent(

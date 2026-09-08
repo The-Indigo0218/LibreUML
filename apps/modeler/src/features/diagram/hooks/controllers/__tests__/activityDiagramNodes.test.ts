@@ -231,24 +231,34 @@ describe('buildActivityDiagramNodes', () => {
   });
 
   // Structured nodes (v1.1).
-  it('builds a loop/conditional/sequence node carrying its kind, name and test condition', () => {
+  it('builds a loop/conditional/sequence/interruptible-region node carrying its kind, name and test condition', () => {
     const m = model({
       activityNodes: {
         l: irNode('l', 'LOOP_NODE', { name: 'Retry', testExpression: 'i < 3' }),
         c: irNode('c', 'CONDITIONAL_NODE', { name: 'Check' }),
         s: irNode('s', 'SEQUENCE_NODE', { name: 'Steps' }),
+        r: irNode('r', 'INTERRUPTIBLE_REGION', { name: 'Order flow' }),
       } as never,
     });
 
     const built = buildActivityDiagramNodes(
-      ctx(m, view([{ id: 'v-l', elementId: 'l' }, { id: 'v-c', elementId: 'c' }, { id: 'v-s', elementId: 's' }])),
+      ctx(m, view([
+        { id: 'v-l', elementId: 'l' }, { id: 'v-c', elementId: 'c' },
+        { id: 'v-s', elementId: 's' }, { id: 'v-r', elementId: 'r' },
+      ])),
     );
 
     const vms = built.map((b) => b.data as ActivityStructuredViewModel);
-    expect(vms.map((vm) => vm.__brand)).toEqual(['activityStructured', 'activityStructured', 'activityStructured']);
-    expect(vms.map((vm) => vm.structuredKind)).toEqual(['LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE']);
+    expect(vms.map((vm) => vm.__brand)).toEqual(
+      ['activityStructured', 'activityStructured', 'activityStructured', 'activityStructured'],
+    );
+    expect(vms.map((vm) => vm.structuredKind)).toEqual(
+      ['LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE', 'INTERRUPTIBLE_REGION'],
+    );
     expect(vms[0].testExpression).toBe('i < 3');
     expect(vms[1].testExpression).toBeUndefined();
+    // An interruptible region has nothing to test, same as a sequence node.
+    expect(vms[3].testExpression).toBeUndefined();
   });
 
   it('defaults a structured node to the standard container size, but respects a stored one', () => {

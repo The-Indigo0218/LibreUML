@@ -24,6 +24,7 @@ export type ActivityDiagramNodeType =
   | 'LOOP_NODE'
   | 'CONDITIONAL_NODE'
   | 'SEQUENCE_NODE'
+  | 'INTERRUPTIBLE_REGION'
   | 'ACTIVITY_PARTITION'
   | 'NOTE';
 
@@ -85,17 +86,25 @@ export interface PinNode extends BaseDomainNode, Documentable {
 }
 
 /**
- * A structured activity node — loop, conditional or sequence (v1.1). Groups
- * other activity nodes (`containerId` on the children) without modelling the
- * real UML sub-regions (setup/test/body for a loop, per-clause test+body for
- * a conditional): a single free-text `testExpression` stands in for all of
- * that, same conformance scope cut as guard/weight on `IRRelation`. Unlike a
- * partition, it is a free-floating resizable container, not a row in a fixed
- * axis — same containment mechanism as a package (`parentPackageId` at the
- * view level, `containerId` at the model level for the semantic side).
+ * A structured activity node — loop, conditional, sequence, or an
+ * interruptible region (v1.1). Groups other activity nodes (`containerId` on
+ * the children) without modelling the real UML sub-regions (setup/test/body
+ * for a loop, per-clause test+body for a conditional): a single free-text
+ * `testExpression` stands in for all of that, same conformance scope cut as
+ * guard/weight on `IRRelation` — unused for SEQUENCE_NODE/INTERRUPTIBLE_REGION,
+ * neither of which has anything to test. Unlike a partition, it is a
+ * free-floating resizable container, not a row in a fixed axis — same
+ * containment mechanism as a package (`parentPackageId` at the view level,
+ * `containerId` at the model level for the semantic side).
+ *
+ * INTERRUPTIBLE_REGION is UML's `ActivityGroup`, not really a `StructuredActivityNode`
+ * subtype — collapsed into this same shape/mechanism deliberately (same
+ * conformance cut as the rest of this file): its dashed boundary is the real
+ * UML notation for the construct, so nothing about the visual is a compromise,
+ * only the metamodel classification underneath it.
  */
 export interface StructuredActivityNode extends BaseDomainNode, Documentable {
-  type: 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE';
+  type: 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE' | 'INTERRUPTIBLE_REGION';
   name: string;
   activityId: string;
   partitionId?: string;
@@ -146,6 +155,7 @@ export const ACTIVITY_NODE_TYPE_TO_IR: Record<string, ActivityNodeKind> = {
   LOOP_NODE: 'LOOP_NODE',
   CONDITIONAL_NODE: 'CONDITIONAL_NODE',
   SEQUENCE_NODE: 'SEQUENCE_NODE',
+  INTERRUPTIBLE_REGION: 'INTERRUPTIBLE_REGION',
 };
 
 /** The inverse of `ACTIVITY_NODE_TYPE_TO_IR`. */

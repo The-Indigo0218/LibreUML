@@ -60,6 +60,11 @@ const NODE_METACLASS: Record<ActivityNodeKind, string> = {
   LOOP_NODE: 'uml:LoopNode',
   CONDITIONAL_NODE: 'uml:ConditionalNode',
   SEQUENCE_NODE: 'uml:SequenceNode',
+  // InterruptibleActivityRegion (v1.1): real UML models this as an
+  // ActivityGroup, not an ActivityNode — exported flat here alongside the
+  // rest anyway, same conformance/archival scope cut as everything else in
+  // this file (spec §14.3, D6).
+  INTERRUPTIBLE_REGION: 'uml:InterruptibleActivityRegion',
 };
 
 /** Resolves an id against every classifier/actor collection a `represents` trace can point to. */
@@ -121,20 +126,42 @@ function serializePartition(partition: IRActivityPartition, model: SemanticModel
   return `    <partition ${attrs.join(' ')}/>`;
 }
 
-function serializeFlow(rel: IRRelation): string {
+/**
+ * Resolves the INTERRUPTIBLE_REGION a flow's `isInterrupting` flag refers to
+ * (its source's `containerId`) — omitted, like every other trace in this
+ * file, when it doesn't resolve (spec §14.3, D6). Real UML's
+ * `ActivityEdge.interrupts` is an association to the region; folded here
+ * into a plain `interrupts` idref attribute on the `<edge>`.
+ */
+function resolveInterruptsRegionId(
+  rel: IRRelation,
+  nodesById: Map<string, IRActivityNode>,
+): string | undefined {
+  const source = nodesById.get(rel.sourceId);
+  const region = source?.containerId ? nodesById.get(source.containerId) : undefined;
+  return region?.activityType === 'INTERRUPTIBLE_REGION' ? region.id : undefined;
+}
+
+function serializeFlow(rel: IRRelation, nodesById: Map<string, IRActivityNode>): string {
   const xmiType = rel.kind === 'OBJECT_FLOW' ? 'uml:ObjectFlow' : 'uml:ControlFlow';
   const attrs = [
     `xmi:type="${xmiType}"`,
     `xmi:id="${xmiId(rel.id)}"`,
     `source="${xmiId(rel.sourceId)}"`,
     `target="${xmiId(rel.targetId)}"`,
-  ].join(' ');
+  ];
 
+  if (rel.isInterrupting) {
+    const regionId = resolveInterruptsRegionId(rel, nodesById);
+    if (regionId) attrs.push(`interrupts="${xmiId(regionId)}"`);
+  }
+
+  const attrsStr = attrs.join(' ');
   const guard = rel.guard?.trim();
   const weight = rel.weight?.trim();
-  if (!guard && !weight) return `    <edge ${attrs}/>`;
+  if (!guard && !weight) return `    <edge ${attrsStr}/>`;
 
-  const lines = [`    <edge ${attrs}>`];
+  const lines = [`    <edge ${attrsStr}>`];
   if (guard) {
     lines.push(
       `      <guard xmi:type="uml:OpaqueExpression" xmi:id="${xmiId(rel.id)}_guard">`,
@@ -149,6 +176,18 @@ function serializeFlow(rel: IRRelation): string {
   }
   lines.push(`    </edge>`);
   return lines.join('\n');
+}
+
+/**
+ * Protected node → handler action (v1.1). Collapsed to a flat `<edge>`, same
+ * scope cut as pins not nesting under `Action.input`/`Action.output` — real
+ * UML's `ExceptionHandler` is an owned element of the protected node, not a
+ * top-level edge, and has no `exceptionInput` here (spec §14.3, D6). Both
+ * endpoints always resolve — an EXCEPTION_HANDLER relation cannot exist with
+ * either endpoint missing — so there is no skip case to guard here.
+ */
+function serializeExceptionHandler(rel: IRRelation): string {
+  return `    <edge xmi:type="uml:ExceptionHandler" xmi:id="${xmiId(rel.id)}" protectedNode="${xmiId(rel.sourceId)}" handlerBody="${xmiId(rel.targetId)}"/>`;
 }
 
 /** Activity → UseCase realization (D4/ADR-0010) — omitted when the trace dangles. */
@@ -185,11 +224,15 @@ export function buildActivityDiagramXmi(
     activityIds.size > 0 ? model.activities?.[[...activityIds][0]] : undefined;
 
   const nodeIds = new Set(nodes.map((n) => n.id));
+  const nodesById = new Map(nodes.map((n) => [n.id, n]));
   const flows = Object.values(model.relations ?? {}).filter(
     (r) =>
       (r.kind === 'CONTROL_FLOW' || r.kind === 'OBJECT_FLOW') &&
       nodeIds.has(r.sourceId) &&
       nodeIds.has(r.targetId),
+  );
+  const exceptionHandlers = Object.values(model.relations ?? {}).filter(
+    (r) => r.kind === 'EXCEPTION_HANDLER' && nodeIds.has(r.sourceId) && nodeIds.has(r.targetId),
   );
 
   const activityName = activity?.name || diagramName;
@@ -202,7 +245,8 @@ export function buildActivityDiagramXmi(
 
   for (const p of partitions) lines.push(serializePartition(p, model));
   for (const n of nodes) lines.push(serializeNode(n, model));
-  for (const f of flows) lines.push(serializeFlow(f));
+  for (const f of flows) lines.push(serializeFlow(f, nodesById));
+  for (const h of exceptionHandlers) lines.push(serializeExceptionHandler(h));
 
   lines.push(`  </packagedElement>`);
 

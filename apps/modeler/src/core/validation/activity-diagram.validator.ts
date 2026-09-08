@@ -9,7 +9,7 @@ const ok: ValidationResult = { isValid: true };
 /** Node types that carry a user-facing name. Control nodes deliberately do not. */
 const NAMED_TYPES = new Set([
   'ACTION', 'CALL_OPERATION', 'OBJECT_NODE', 'ACTIVITY_PARTITION',
-  'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE',
+  'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE', 'INTERRUPTIBLE_REGION',
 ]);
 
 /** LOOP_NODE/CONDITIONAL_NODE only — SEQUENCE_NODE has nothing to test. */
@@ -27,8 +27,11 @@ const ACTIVITY_NODE_TYPES = new Set([
   'INPUT_PIN', 'OUTPUT_PIN',
   // A structured node participates in control flow as a single step, same as
   // an action — flow enters/exits it as a whole (v1.1).
-  'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE',
+  'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE', 'INTERRUPTIBLE_REGION',
 ]);
+
+/** Handler body types a well-formed exception handler should target (v1.1). */
+const HANDLER_BODY_TYPES = new Set(['ACTION', 'CALL_OPERATION']);
 
 /** An object flow terminating here carries a value, same as an object node (A6.2). */
 const OBJECT_FLOW_ENDPOINT_TYPES = new Set(['OBJECT_NODE', 'INPUT_PIN', 'OUTPUT_PIN']);
@@ -51,6 +54,22 @@ export class ActivityDiagramValidator implements BaseValidator {
     _existingEdges?: DomainEdge[],
     _allNodes?: Record<string, DomainNode>,
   ): ValidationResult {
+    // Exception handler (v1.1): protectedNode → handlerBody, own rules —
+    // kept out of the CONTROL_FLOW/OBJECT_FLOW branch below since it isn't a
+    // flow at all (no terminal/initial/self-loop reasoning applies the same way).
+    if (edgeType === 'EXCEPTION_HANDLER') {
+      if (!ACTIVITY_NODE_TYPES.has(sourceNode.type)) {
+        return { isValid: false, errors: ['An exception handler must protect an activity node'] };
+      }
+      if (sourceNode.id === targetNode.id) {
+        return { isValid: false, errors: ['A node cannot handle its own exception'] };
+      }
+      if (!HANDLER_BODY_TYPES.has(targetNode.type)) {
+        return { isValid: true, warnings: ['An exception handler body is usually an action'] };
+      }
+      return ok;
+    }
+
     if (edgeType !== 'CONTROL_FLOW' && edgeType !== 'OBJECT_FLOW') {
       return { isValid: false, errors: [`Unsupported flow type: ${edgeType}`] };
     }
@@ -181,6 +200,26 @@ export class ActivityDiagramValidator implements BaseValidator {
       }
       if (node.activityType === 'JOIN' && incoming(node.id) < 2) {
         warnings.push(`Join "${label}" has only one incoming flow — nothing to synchronize`);
+      }
+    }
+
+    // Interrupting edge (v1.1, UML 2.5 §15.3): must actually leave an
+    // INTERRUPTIBLE_REGION — needs containerId on both endpoints, which only
+    // this model-wide view has (BaseValidator's per-edge validateEdge never
+    // sees more than the two endpoints).
+    const nodeById = new Map(nodes.map((n) => [n.id, n]));
+    for (const flow of flows) {
+      if (!(flow as { isInterrupting?: boolean }).isInterrupting) continue;
+      const source = nodeById.get(flow.sourceId);
+      if (!source) continue;
+      const region = source.containerId ? nodeById.get(source.containerId) : undefined;
+      if (!region || region.activityType !== 'INTERRUPTIBLE_REGION') {
+        warnings.push('This interrupting flow does not leave an interruptible region');
+        continue;
+      }
+      const target = nodeById.get(flow.targetId);
+      if (target && target.containerId === source.containerId) {
+        warnings.push('This interrupting flow never actually leaves its interruptible region');
       }
     }
 

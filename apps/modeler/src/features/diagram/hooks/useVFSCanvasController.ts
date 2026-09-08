@@ -109,6 +109,8 @@ export interface VFSCanvasEdge {
     /** CONTROL_FLOW/OBJECT_FLOW guard/weight (A2). */
     guard?: string;
     weight?: string;
+    /** CONTROL_FLOW/OBJECT_FLOW interrupting-edge flag (v1.1). */
+    isInterrupting?: boolean;
   };
 }
 
@@ -398,6 +400,7 @@ export function useVFSCanvasController(): VFSCanvasResult {
           extensionPoint: relation.extensionPoint,
           guard: relation.guard,
           weight: relation.weight,
+          isInterrupting: relation.isInterrupting,
         },
       });
     }

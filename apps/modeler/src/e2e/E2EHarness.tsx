@@ -111,7 +111,13 @@ export interface E2EActivitySpec {
     /** Traceability (A4): the class/actor responsible for the lane. */
     representsId?: string;
   }[];
-  flows?: { id: string; source: string; target: string; guard?: string }[];
+  flows?: {
+    id: string; source: string; target: string; guard?: string; weight?: string;
+    /** Defaults to CONTROL_FLOW. v1.1: EXCEPTION_HANDLER for protectedNode→handler. */
+    kind?: 'CONTROL_FLOW' | 'OBJECT_FLOW' | 'EXCEPTION_HANDLER';
+    /** v1.1: marks this flow as an INTERRUPTIBLE_REGION's interrupting edge. */
+    isInterrupting?: boolean;
+  }[];
 }
 
 export interface E2EDiagramSpec {
@@ -274,8 +280,10 @@ function buildActivityProject(spec: E2EActivitySpec): { project: LibreUMLProject
   }
   for (const f of spec.flows ?? []) {
     (model.relations as Record<string, unknown>)[f.id] = {
-      id: f.id, kind: 'CONTROL_FLOW', sourceId: f.source, targetId: f.target,
+      id: f.id, kind: f.kind ?? 'CONTROL_FLOW', sourceId: f.source, targetId: f.target,
       ...(f.guard ? { guard: f.guard } : {}),
+      ...(f.weight ? { weight: f.weight } : {}),
+      ...(f.isInterrupting ? { isInterrupting: true } : {}),
     };
   }
 

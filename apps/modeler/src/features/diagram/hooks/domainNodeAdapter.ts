@@ -220,7 +220,7 @@ const CLASS_EDGE_KIND: Partial<Record<IRRelation['kind'], string>> = {
 const PASSTHROUGH_EDGE_KINDS: Partial<Record<DiagramType, Set<string>>> = {
   USE_CASE_DIAGRAM: new Set(['ASSOCIATION', 'INCLUDE', 'EXTEND', 'GENERALIZATION']),
   DOMAIN_MODEL_DIAGRAM: new Set(['ASSOCIATION', 'GENERALIZATION', 'AGGREGATION', 'COMPOSITION']),
-  ACTIVITY_DIAGRAM: new Set(['CONTROL_FLOW', 'OBJECT_FLOW']),
+  ACTIVITY_DIAGRAM: new Set(['CONTROL_FLOW', 'OBJECT_FLOW', 'EXCEPTION_HANDLER']),
 };
 
 /**
@@ -251,6 +251,7 @@ export function relationToDomainEdge(rel: IRRelation, diagramType: DiagramType):
     extensionPoint: rel.extensionPoint,
     guard: rel.guard,
     weight: rel.weight,
+    isInterrupting: rel.isInterrupting,
     createdAt: NOW,
     updatedAt: NOW,
   } as DomainEdge;

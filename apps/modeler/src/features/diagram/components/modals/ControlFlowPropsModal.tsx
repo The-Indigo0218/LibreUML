@@ -34,6 +34,7 @@ export default function ControlFlowPropsModal() {
 
   const [guard, setGuard] = useState('');
   const [weight, setWeight] = useState('');
+  const [isInterrupting, setIsInterrupting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -41,6 +42,7 @@ export default function ControlFlowPropsModal() {
     if (!rel) return;
     setGuard(rel.guard ?? '');
     setWeight(rel.weight ?? '');
+    setIsInterrupting(!!rel.isInterrupting);
   }, [isOpen, editingId]);
 
   if (!isOpen) return null;
@@ -53,6 +55,7 @@ export default function ControlFlowPropsModal() {
     const patch = {
       guard: guard.trim() || undefined,
       weight: weight.trim() || undefined,
+      isInterrupting: isInterrupting || undefined,
     };
     if (isStandalone && activeTabId) {
       standaloneModelOps(activeTabId).updateRelation(editingId, patch);
@@ -123,6 +126,17 @@ export default function ControlFlowPropsModal() {
               onChange={(e) => setWeight(e.target.value)}
             />
           </div>
+
+          {/* Interrupting (v1.1) */}
+          <label className="flex items-center gap-2 text-xs font-semibold text-[#94a3b8] cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-[#7C83FF]"
+              checked={isInterrupting}
+              onChange={(e) => setIsInterrupting(e.target.checked)}
+            />
+            {t('controlFlow.interrupting')}
+          </label>
         </div>
 
         {/* Footer */}

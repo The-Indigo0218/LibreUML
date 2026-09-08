@@ -76,7 +76,7 @@ import { resolveEndMarker, markerRetract } from './markers';
 
 const DASHED_KINDS = new Set<RelationKind>([
   'REALIZATION', 'DEPENDENCY', 'USAGE', 'INCLUDE', 'EXTEND',
-  'PACKAGE_IMPORT', 'PACKAGE_MERGE', 'PACKAGE_ACCESS',
+  'PACKAGE_IMPORT', 'PACKAGE_MERGE', 'PACKAGE_ACCESS', 'EXCEPTION_HANDLER',
 ]);
 
 // Maps RelationKind to CSS variable name (matches v1 useVFSEdgeStyling)
@@ -93,6 +93,7 @@ const KIND_COLOR_VAR: Partial<Record<RelationKind, string>> = {
   PACKAGE_IMPORT: '--edge-dependency',
   PACKAGE_MERGE:  '--edge-dependency',
   PACKAGE_ACCESS: '--edge-dependency',
+  EXCEPTION_HANDLER: '--edge-dependency',
 };
 
 function getEdgeColor(): string {
@@ -140,6 +141,8 @@ function getStereotypeLabel(kind: RelationKind): string | null {
       return '«merge»';
     case 'PACKAGE_ACCESS':
       return '«access»';
+    case 'EXCEPTION_HANDLER':
+      return '«handler»';
     default:
       return null;
   }
@@ -223,6 +226,12 @@ export interface KonvaEdgeProps {
   guard?: string;
   /** CONTROL_FLOW/OBJECT_FLOW weight, e.g. '5' or '*' — rendered as `{weight}` (A2). */
   weight?: string;
+  /**
+   * CONTROL_FLOW/OBJECT_FLOW only (v1.1): the interrupting edge of an
+   * INTERRUPTIBLE_REGION — dashes the line and prefixes the flow label
+   * with `↯`, same conformance cut as a real zigzag stroke.
+   */
+  isInterrupting?: boolean;
   /** Locked anchor mode — when true, use stored handles instead of closest-pair selection */
   anchorLocked?: boolean;
   sourceHandle?: string;
@@ -305,6 +314,7 @@ export default function KonvaEdge({
   condition,
   guard,
   weight,
+  isInterrupting,
   anchorLocked = false,
   sourceHandle,
   targetHandle,
@@ -345,7 +355,7 @@ export default function KonvaEdge({
   const isActive = isHighlighted || isHovered;
   const stroke = colorOverride ?? (isActive ? getEdgeColorByKind(kind) : getEdgeColor());
   const strokeWidth = lineWidthOverride ?? (isActive ? 3 : 2);
-  const dashed = DASHED_KINDS.has(kind);
+  const dashed = DASHED_KINDS.has(kind) || !!isInterrupting;
   // Effective dash: an explicit line-style override wins; else the kind default.
   const dashArray = lineStyleOverride
     ? borderDash(lineStyleOverride, strokeWidth)
@@ -562,7 +572,7 @@ export default function KonvaEdge({
   const labelSize      = 11 * labelScale;
   const labelFamily    = fontFamilyOverride;
   const kindLabel      = formatKindLabel(kind);
-  const flowLabel      = formatActivityFlowLabel(guard, weight);
+  const flowLabel      = formatActivityFlowLabel(guard, weight, isInterrupting);
   const labelTextColor = getLabelTextColor();
   const labelBgFill    = getLabelBg();
   const labelBorder    = 'rgba(148,163,184,0.18)';

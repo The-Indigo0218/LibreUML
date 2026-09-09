@@ -265,29 +265,35 @@ export function applyUpdateActivityNode(
 
 /**
  * IDs `applyDeleteActivityNode` removes from `model.activityNodes` for `id`:
- * itself plus any pins it owns (A6.2). Exposed so a caller that also has to
- * prune `ViewNode`s (e.g. "Delete from Model") knows the *full* set — the
- * pins' own ViewNodes are just as orphaned as the action's once this runs,
- * and nothing else derives that set independently.
+ * itself plus any pins it owns (A6.2) or, if `id` is an EXPANSION_REGION, any
+ * expansion nodes it owns (v1.1, same ownership shape one level up —
+ * `ownerRegionId` instead of `ownerActionId`). Exposed so a caller that also
+ * has to prune `ViewNode`s (e.g. "Delete from Model") knows the *full* set —
+ * the owned nodes' own ViewNodes are just as orphaned as the owner's once
+ * this runs, and nothing else derives that set independently.
  */
 export function activityNodeDeleteCascadeIds(model: SemanticModel, id: string): Set<string> {
   const removedIds = new Set([id]);
-  for (const [pinId, node] of Object.entries(model.activityNodes ?? {})) {
-    if (node.ownerActionId === id) removedIds.add(pinId);
+  for (const [ownedId, node] of Object.entries(model.activityNodes ?? {})) {
+    if (node.ownerActionId === id || node.ownerRegionId === id) removedIds.add(ownedId);
   }
   return removedIds;
 }
 
 /**
  * Deleting a node takes the flows in and out of it with it — and, if it owns
- * pins (A6.2), the pins themselves: unlike an object node, a pin has no
- * standing of its own once its action is gone, so it does not become an
- * orphan the way a dangling `classifierId`/`callsOperationId` trace does.
+ * pins (A6.2) or expansion nodes (v1.1), those themselves: unlike an object
+ * node, a pin/expansion node has no standing of its own once its owner is
+ * gone, so it does not become an orphan the way a dangling
+ * `classifierId`/`callsOperationId` trace does.
  *
  * A structured node's children (v1.1) are the opposite case, same reasoning
  * as `applyDeleteActivityPartition`: they are independent nodes that happen
- * to be grouped, not owned — deleting the loop/conditional/sequence ungroups
- * them (clears `containerId`) instead of taking them down with it.
+ * to be grouped, not owned — deleting the loop/conditional/sequence/
+ * expansion region ungroups them (clears `containerId`) instead of taking
+ * them down with it. This applies to an EXPANSION_REGION's *contained*
+ * nodes; its *owned* expansion nodes (the boundary squares) are owned, not
+ * merely grouped, so they go with it via the cascade above.
  */
 export function applyDeleteActivityNode(model: SemanticModel, id: string): void {
   if (!model.activityNodes?.[id]) return;

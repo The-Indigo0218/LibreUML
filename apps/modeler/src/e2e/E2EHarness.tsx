@@ -101,6 +101,12 @@ export interface E2EActivitySpec {
     containerId?: string;
     /** Structured nodes (v1.1): LOOP_NODE/CONDITIONAL_NODE test condition. */
     testExpression?: string;
+    /** EXPANSION_REGION only (v1.1). Defaults to PARALLEL when unset. */
+    mode?: 'PARALLEL' | 'ITERATIVE' | 'STREAM';
+    /** Expansion nodes (v1.1): which sibling EXPANSION_REGION (by its `id` above) owns this one. */
+    ownerRegionId?: string;
+    /** OBJECT_NODE, or an expansion node (v1.1): classifier trace (ADR-0010). */
+    classifierId?: string;
     /** Structured nodes (v1.1): container geometry, defaults to SN_DEFAULT_W/H. */
     width?: number;
     height?: number;
@@ -276,6 +282,9 @@ function buildActivityProject(spec: E2EActivitySpec): { project: LibreUMLProject
       ...(n.callsOperationId ? { callsOperationId: n.callsOperationId } : {}),
       ...(n.containerId ? { containerId: n.containerId } : {}),
       ...(n.testExpression ? { testExpression: n.testExpression } : {}),
+      ...(n.mode ? { mode: n.mode } : {}),
+      ...(n.ownerRegionId ? { ownerRegionId: n.ownerRegionId } : {}),
+      ...(n.classifierId ? { classifierId: n.classifierId } : {}),
     };
   }
   for (const f of spec.flows ?? []) {

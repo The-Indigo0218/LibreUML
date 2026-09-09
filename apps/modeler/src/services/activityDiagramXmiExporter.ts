@@ -8,6 +8,8 @@
  *  - uml:DecisionNode / uml:MergeNode / uml:ForkNode / uml:JoinNode
  *  - uml:ObjectNode (v1.1), `type` referencing its classifier trace (A6,
  *    ADR-0010) when it resolves
+ *  - uml:ExpansionRegion / uml:ExpansionNode (v1.1), the latter's `type`
+ *    traced the same way as an object node's classifier
  *  - uml:ControlFlow / uml:ObjectFlow, with guard → OpaqueExpression and
  *    weight → LiteralString children (C8-style: metamodel fields, not folded
  *    into the name — unlike sequence's per-message guard, ActivityEdge.guard
@@ -65,7 +67,22 @@ const NODE_METACLASS: Record<ActivityNodeKind, string> = {
   // rest anyway, same conformance/archival scope cut as everything else in
   // this file (spec §14.3, D6).
   INTERRUPTIBLE_REGION: 'uml:InterruptibleActivityRegion',
+  // ExpansionRegion (v1.1): a real StructuredActivityNode subtype in UML —
+  // unlike INTERRUPTIBLE_REGION above, no classification cut here, only the
+  // usual flat-body one every kind in this exporter already takes.
+  EXPANSION_REGION: 'uml:ExpansionRegion',
+  // Real UML has one metaclass for both directions (`uml:ExpansionNode`),
+  // distinguished by which collection it belongs to
+  // (`inputElement`/`outputElement` on the region), not by subclassing —
+  // both map to it here, direction is conveyed by the domain-node type only.
+  INPUT_EXPANSION_NODE: 'uml:ExpansionNode',
+  OUTPUT_EXPANSION_NODE: 'uml:ExpansionNode',
 };
+
+/** Node types whose `classifierId` trace is emitted as ObjectNode.type (A6.1/v1.1). */
+const CLASSIFIER_TRACED_TYPES = new Set<ActivityNodeKind>([
+  'OBJECT_NODE', 'INPUT_EXPANSION_NODE', 'OUTPUT_EXPANSION_NODE',
+]);
 
 /** Resolves an id against every classifier/actor collection a `represents` trace can point to. */
 function representsName(model: SemanticModel, id: string): string | undefined {
@@ -102,12 +119,20 @@ function serializeNode(node: IRActivityNode, model: SemanticModel): string {
     }
   }
 
-  // OBJECT_NODE: `type` references the classifier of the value in flow
-  // (UML 2.5.1 ObjectNode.type), same dangling-trace rule as CALL_OPERATION.
-  if (node.activityType === 'OBJECT_NODE' && node.classifierId) {
+  // OBJECT_NODE, or an expansion node (v1.1): `type` references the
+  // classifier of the value/element in flow (UML 2.5.1 ObjectNode.type,
+  // which ExpansionNode inherits), same dangling-trace rule as CALL_OPERATION.
+  if (CLASSIFIER_TRACED_TYPES.has(node.activityType) && node.classifierId) {
     if (classifierName(model, node.classifierId) !== undefined) {
       attrs.push(`type="${xmiId(node.classifierId)}"`);
     }
+  }
+
+  // EXPANSION_REGION: mode (UML 2.5.1 ExpansionRegion.mode, ExpansionKind
+  // literals are lowercase) — always emitted, defaulting the same way the
+  // model does when unset.
+  if (node.activityType === 'EXPANSION_REGION') {
+    attrs.push(`mode="${(node.mode ?? 'PARALLEL').toLowerCase()}"`);
   }
 
   return `    <node ${attrs.filter(Boolean).join(' ')}/>`;

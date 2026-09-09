@@ -446,6 +446,24 @@ export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
     },
     initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
   },
+  expansion_region: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'EXPANSION_REGION')
+          .map((n) => n.name),
+        'Expansion Region',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'EXPANSION_REGION', activityId, name, mode: 'PARALLEL' });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'EXPANSION_REGION', activityId, name, mode: 'PARALLEL' });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
+  },
 };
 
 function getParentContent(

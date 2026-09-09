@@ -10,6 +10,7 @@ import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
 import { undoTransaction } from "../../../core/undo/undoBridge";
 import { getOrCreateActivityId, applyCreateActivityNode } from "../../../store/activityModelOps";
 import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
+import { SN_DEFAULT_W } from "../../../canvas/shapes/StructuredNodeShape";
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from "../../../canvas/shapes/UCModuleShape";
 import type { DiagramView, ViewNode, VFSFile, FragmentKind } from "../../../core/domain/vfs/vfs.types";
 import {
@@ -413,6 +414,109 @@ export const useDiagramMenus = ({
     [getElementId],
   );
 
+  // ── Expansion node insertion (activity diagrams, v1.1) ─────────────────────
+  //
+  // Same reasoning as the pin above, one level up: an expansion node has no
+  // meaning without its region, so it is created from the region's own
+  // context menu instead of dragged from the palette (VFS_DROP_CONFIG has no
+  // entry for it) — `ownerRegionId` instead of `ownerActionId`, and it opens
+  // the classifier picker (reusing the object node's modal/field) instead of
+  // a parameter picker, since a region has no operation to pick parameters
+  // from.
+
+  const addActivityExpansionNode = useCallback(
+    (regionNodeId: string, expansionKind: 'INPUT_EXPANSION_NODE' | 'OUTPUT_EXPANSION_NODE') => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
+
+      const ownerRegionId = getElementId(regionNodeId);
+      if (!ownerRegionId) return;
+
+      const project = useVFSStore.getState().project;
+      if (!project) return;
+      const fileNode = project.nodes[tabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      const currentView = (fileNode as VFSFile).content;
+      if (!isDiagramView(currentView)) return;
+
+      const ownerViewNode = currentView.nodes.find((vn) => vn.id === regionNodeId);
+      if (!ownerViewNode) return;
+
+      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+      const activeModel = isStandaloneFile ? getLocalModel(tabId) : useModelStore.getState().model;
+      if (!activeModel) return;
+
+      const siblingCount = currentView.nodes.filter(
+        (vn) => activeModel.activityNodes?.[vn.elementId]?.ownerRegionId === ownerRegionId
+          && activeModel.activityNodes?.[vn.elementId]?.activityType === expansionKind,
+      ).length;
+      const regionWidth = ownerViewNode.width ?? SN_DEFAULT_W;
+      const position = {
+        x: ownerViewNode.x + (expansionKind === 'INPUT_EXPANSION_NODE' ? -36 : regionWidth + 20),
+        y: ownerViewNode.y + siblingCount * 26,
+      };
+
+      const nodeId = crypto.randomUUID();
+      const viewNode: ViewNode = { id: crypto.randomUUID(), elementId: nodeId, ...position };
+      const label = expansionKind === 'INPUT_EXPANSION_NODE' ? 'Add Input Expansion Node' : 'Add Output Expansion Node';
+
+      if (isStandaloneFile) {
+        undoTransaction({
+          label,
+          scope: tabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const file = draft.project?.nodes[tabId];
+              if (!file || !isDiagramView(file.content) || !file.localModel) return;
+              const activityId = getOrCreateActivityId(file.localModel, file.content.nodes, 'Activity');
+              applyCreateActivityNode(file.localModel, nodeId, {
+                activityType: expansionKind,
+                activityId,
+                name: '',
+                ownerRegionId,
+              });
+              file.content.nodes = [...file.content.nodes, viewNode];
+            },
+          }],
+        });
+      } else {
+        undoTransaction({
+          label,
+          scope: 'global',
+          mutations: [
+            {
+              store: 'model',
+              mutate: (draft: any) => {
+                if (!draft.model) return;
+                const activityId = getOrCreateActivityId(draft.model, currentView.nodes, 'Activity');
+                applyCreateActivityNode(draft.model, nodeId, {
+                  activityType: expansionKind,
+                  activityId,
+                  name: '',
+                  ownerRegionId,
+                });
+              },
+            },
+            {
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const file = draft.project?.nodes[tabId];
+                if (!file || !isDiagramView(file.content)) return;
+                file.content.nodes = [...file.content.nodes, viewNode];
+              },
+            },
+          ],
+        });
+      }
+
+      // Open the classifier picker immediately, same as the pin above opens
+      // its own parameter picker right after creation.
+      useUiStore.getState().openActivityObjectNodeProps(nodeId);
+    },
+    [getElementId],
+  );
+
   // ── Found / Lost message insertion (sequence diagrams) ────────────────────
 
   const addEndpointMessage = useCallback(
@@ -596,11 +700,22 @@ export const useDiagramMenus = ({
         const isActivityPartitionType = effectiveType === "ACTIVITY_PARTITION";
         const isActivityActionType = effectiveType === "ACTION" || effectiveType === "CALL_OPERATION";
         const isActivityObjectNodeType = effectiveType === "OBJECT_NODE";
-        const isActivityPinType = effectiveType === "INPUT_PIN" || effectiveType === "OUTPUT_PIN";
+        const isTrueActivityPinType = effectiveType === "INPUT_PIN" || effectiveType === "OUTPUT_PIN";
+        // Expansion nodes (v1.1) share the pin's shape/interaction (small
+        // square, owned, rename-only) but trace to a classifier, not a
+        // parameter — `isActivityPinType` below stays the broad "renders as
+        // a pin square" gate used by generic checks; the two are told apart
+        // below only where the context-menu item itself actually differs.
+        const isActivityExpansionNodeType =
+          effectiveType === "INPUT_EXPANSION_NODE" || effectiveType === "OUTPUT_EXPANSION_NODE";
+        const isActivityPinType = isTrueActivityPinType || isActivityExpansionNodeType;
+        const isActivityExpansionRegionType = effectiveType === "EXPANSION_REGION";
         const isActivityStructuredType =
           effectiveType === "LOOP_NODE" || effectiveType === "CONDITIONAL_NODE" || effectiveType === "SEQUENCE_NODE" ||
-          effectiveType === "INTERRUPTIBLE_REGION";
-        // SEQUENCE_NODE has nothing to test — only these two get the modal.
+          effectiveType === "INTERRUPTIBLE_REGION" || isActivityExpansionRegionType;
+        // SEQUENCE_NODE/INTERRUPTIBLE_REGION/EXPANSION_REGION have nothing to
+        // test — only these two get the modal (EXPANSION_REGION gets its own
+        // "Edit Mode" item below instead).
         const isTestableStructuredType = effectiveType === "LOOP_NODE" || effectiveType === "CONDITIONAL_NODE";
         // Control/decision/fork-join glyphs carry no label (nodeKindDescriptors:
         // "a filled circle has nothing to edit") — nothing for this item to open.
@@ -670,12 +785,24 @@ export const useDiagramMenus = ({
           });
         }
 
-        if (isActivityPinType) {
+        if (isTrueActivityPinType) {
           const elementId = getElementId(nodeId);
           if (elementId) {
             baseOptions.push({
               label: t("contextMenu.node.linkParameter"),
               onClick: () => useUiStore.getState().openActivityPinProps(elementId),
+            });
+          }
+        }
+
+        // Expansion nodes (v1.1) trace to a classifier, not a parameter —
+        // same field/modal as an object node's "Link Classifier…" below.
+        if (isActivityExpansionNodeType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.linkClassifier"),
+              onClick: () => useUiStore.getState().openActivityObjectNodeProps(elementId),
             });
           }
         }
@@ -691,6 +818,29 @@ export const useDiagramMenus = ({
               onClick: () => useUiStore.getState().openActivityStructuredProps(elementId),
             });
           }
+        }
+
+        // EXPANSION_REGION (v1.1): mode (parallel/iterative/stream) instead
+        // of a test condition, same modal as above, plus the two menu items
+        // that give its boundary expansion nodes a reason to exist — same
+        // "an owner is what gives one meaning" reasoning as the action's pin
+        // items above.
+        if (isActivityExpansionRegionType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.editExpansionMode"),
+              onClick: () => useUiStore.getState().openActivityStructuredProps(elementId),
+            });
+          }
+          baseOptions.push({
+            label: t("contextMenu.node.addInputExpansionNode"),
+            onClick: () => addActivityExpansionNode(nodeId, 'INPUT_EXPANSION_NODE'),
+          });
+          baseOptions.push({
+            label: t("contextMenu.node.addOutputExpansionNode"),
+            onClick: () => addActivityExpansionNode(nodeId, 'OUTPUT_EXPANSION_NODE'),
+          });
         }
 
         if (isActivityPartitionType) {
@@ -874,6 +1024,7 @@ export const useDiagramMenus = ({
       getElementId,
       addStateInvariant,
       addActivityPin,
+      addActivityExpansionNode,
       addInteractionUse,
       addEndpointMessage,
       addSelfMessage,

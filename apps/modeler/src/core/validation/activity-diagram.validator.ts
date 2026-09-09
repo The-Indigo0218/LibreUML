@@ -10,6 +10,7 @@ const ok: ValidationResult = { isValid: true };
 const NAMED_TYPES = new Set([
   'ACTION', 'CALL_OPERATION', 'OBJECT_NODE', 'ACTIVITY_PARTITION',
   'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE', 'INTERRUPTIBLE_REGION',
+  'EXPANSION_REGION',
 ]);
 
 /** LOOP_NODE/CONDITIONAL_NODE only — SEQUENCE_NODE has nothing to test. */
@@ -28,13 +29,23 @@ const ACTIVITY_NODE_TYPES = new Set([
   // A structured node participates in control flow as a single step, same as
   // an action — flow enters/exits it as a whole (v1.1).
   'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE', 'INTERRUPTIBLE_REGION',
+  'EXPANSION_REGION', 'INPUT_EXPANSION_NODE', 'OUTPUT_EXPANSION_NODE',
 ]);
 
 /** Handler body types a well-formed exception handler should target (v1.1). */
 const HANDLER_BODY_TYPES = new Set(['ACTION', 'CALL_OPERATION']);
 
-/** An object flow terminating here carries a value, same as an object node (A6.2). */
-const OBJECT_FLOW_ENDPOINT_TYPES = new Set(['OBJECT_NODE', 'INPUT_PIN', 'OUTPUT_PIN']);
+/**
+ * An object flow terminating here carries a value, same as an object node
+ * (A6.2). Unlike a pin, an expansion node is deliberately NOT direction-
+ * restricted below — real UML has it carrying flow both ways at once (the
+ * whole collection in/out at the boundary, per-element values in/out on the
+ * inside), so forcing the pin's one-way rule onto it would be modelling a
+ * restriction that does not actually exist, not a useful conformance cut.
+ */
+const OBJECT_FLOW_ENDPOINT_TYPES = new Set([
+  'OBJECT_NODE', 'INPUT_PIN', 'OUTPUT_PIN', 'INPUT_EXPANSION_NODE', 'OUTPUT_EXPANSION_NODE',
+]);
 
 /**
  * Activity diagram rules (A1).
@@ -148,6 +159,13 @@ export class ActivityDiagramValidator implements BaseValidator {
       warnings.push('This pin has no owning action');
     }
 
+    // Same reasoning one level up: an expansion node (v1.1) only exists
+    // through its region's "Add Input/Output Expansion Node" menu item.
+    if ((node.type === 'INPUT_EXPANSION_NODE' || node.type === 'OUTPUT_EXPANSION_NODE')
+      && !(node as { ownerRegionId?: string }).ownerRegionId) {
+      warnings.push('This expansion node has no owning region');
+    }
+
     // A loop/conditional with no test reads as unconditional — probably not
     // what the modeller meant to draw (structured nodes, v1.1).
     if (TESTABLE_STRUCTURED_TYPES.has(node.type)
@@ -200,6 +218,13 @@ export class ActivityDiagramValidator implements BaseValidator {
       }
       if (node.activityType === 'JOIN' && incoming(node.id) < 2) {
         warnings.push(`Join "${label}" has only one incoming flow — nothing to synchronize`);
+      }
+      // An expansion region with no input expansion node has no collection to
+      // iterate over — same "fan" reasoning as decision/fork above, just
+      // measured over ownership (`ownerRegionId`) instead of flow (v1.1).
+      if (node.activityType === 'EXPANSION_REGION'
+        && !nodes.some((n) => n.ownerRegionId === node.id && n.activityType === 'INPUT_EXPANSION_NODE')) {
+        warnings.push(`Expansion region "${label}" has no input expansion node`);
       }
     }
 

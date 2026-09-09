@@ -345,7 +345,13 @@ export type ActivityNodeKind =
   | 'LOOP_NODE'
   | 'CONDITIONAL_NODE'
   | 'SEQUENCE_NODE'
-  | 'INTERRUPTIBLE_REGION';
+  | 'INTERRUPTIBLE_REGION'
+  | 'EXPANSION_REGION'
+  | 'INPUT_EXPANSION_NODE'
+  | 'OUTPUT_EXPANSION_NODE';
+
+/** EXPANSION_REGION only: how many times/how the body runs per input collection (UML 2.5 §15.6.4). */
+export type ActivityExpansionMode = 'PARALLEL' | 'ITERATIVE' | 'STREAM';
 
 export interface IRActivityNode extends IRElement {
   kind: 'ACTIVITY_NODE';
@@ -356,7 +362,12 @@ export interface IRActivityNode extends IRElement {
   partitionId?: string;
   /** CALL_OPERATION only: the operation this action invokes (ADR-0010). */
   callsOperationId?: string;
-  /** OBJECT_NODE only: classifier of the object that flows. */
+  /**
+   * OBJECT_NODE only, or an INPUT_EXPANSION_NODE/OUTPUT_EXPANSION_NODE
+   * (v1.1): classifier of the object/collection element that flows. An
+   * expansion node reuses this exact field — its "Link Classifier…" menu
+   * item opens the same modal an object node does (ADR-0010).
+   */
   classifierId?: string;
   /** FORK/JOIN only: bar axis. Defaults to HORIZONTAL. */
   barOrientation?: 'HORIZONTAL' | 'VERTICAL';
@@ -366,6 +377,13 @@ export interface IRActivityNode extends IRElement {
    */
   ownerActionId?: string;
   /**
+   * INPUT_EXPANSION_NODE/OUTPUT_EXPANSION_NODE only (v1.1): the
+   * EXPANSION_REGION this boundary node belongs to — same ownership shape as
+   * a pin's `ownerActionId`, one level up (a region instead of an action).
+   * An expansion node has no meaning without its region.
+   */
+  ownerRegionId?: string;
+  /**
    * INPUT_PIN/OUTPUT_PIN only: trace to a parameter of the owner's linked
    * operation (ADR-0010). By name, not id — `IRParameter` carries no id of
    * its own. The sentinel `PIN_RETURN_VALUE` ('__return__', see
@@ -374,12 +392,12 @@ export interface IRActivityNode extends IRElement {
    */
   parameterName?: string;
   /**
-   * LOOP_NODE/CONDITIONAL_NODE/SEQUENCE_NODE/INTERRUPTIBLE_REGION only: the
-   * structured node (or region) that contains this node, if any (nesting is
-   * allowed — a structured node can itself sit inside another). Distinct
-   * from `partitionId`: a node can be inside a lane AND inside a structured
-   * node at the same time, same as real UML allows a structured activity
-   * node to cross swimlanes.
+   * LOOP_NODE/CONDITIONAL_NODE/SEQUENCE_NODE/INTERRUPTIBLE_REGION/
+   * EXPANSION_REGION only: the structured node (or region) that contains
+   * this node, if any (nesting is allowed — a structured node can itself sit
+   * inside another). Distinct from `partitionId`: a node can be inside a
+   * lane AND inside a structured node at the same time, same as real UML
+   * allows a structured activity node to cross swimlanes.
    */
   containerId?: string;
   /**
@@ -389,6 +407,12 @@ export interface IRActivityNode extends IRElement {
    * weight on `IRRelation`. Unused for SEQUENCE_NODE (no branching to test).
    */
   testExpression?: string;
+  /**
+   * EXPANSION_REGION only (v1.1): its execution mode (UML 2.5 §15.6.4,
+   * `ExpansionKind`). Defaults to `PARALLEL` when unset — same "always has a
+   * sensible default" shape as `barOrientation`.
+   */
+  mode?: ActivityExpansionMode;
 }
 
 /**

@@ -81,6 +81,21 @@ describe('activityDiagramRegistry.factories', () => {
     expect((region as { name: string }).name).toBe('Interruptible Region');
   });
 
+  it('creates an expansion region with a default name and PARALLEL mode', () => {
+    const region = registry().factories.createNode('EXPANSION_REGION');
+    expect(region.type).toBe('EXPANSION_REGION');
+    expect((region as { name: string }).name).toBe('Expansion Region');
+    expect((region as { mode?: string }).mode).toBe('PARALLEL');
+  });
+
+  it('leaves expansion nodes unnamed, same as a pin', () => {
+    const input = registry().factories.createNode('INPUT_EXPANSION_NODE');
+    const output = registry().factories.createNode('OUTPUT_EXPANSION_NODE');
+    expect(input.type).toBe('INPUT_EXPANSION_NODE');
+    expect(output.type).toBe('OUTPUT_EXPANSION_NODE');
+    expect((input as { name?: string }).name).toBe('');
+  });
+
   it('rejects an edge type it does not own', () => {
     expect(() => registry().factories.createEdge('MESSAGE_SYNC', 'a', 'b')).toThrow(/Unknown Activity/);
   });

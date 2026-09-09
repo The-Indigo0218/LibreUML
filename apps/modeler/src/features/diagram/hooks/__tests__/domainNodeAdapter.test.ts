@@ -109,6 +109,28 @@ describe('resolvedElementToDomainNode', () => {
     expect(result.warnings).toContain('This call action does not reference an operation');
   });
 
+  it('ACTIVITY_NODE: passes ownerRegionId through, same "campo nuevo, lista vieja" risk as ownerActionId', () => {
+    const n: IRActivityNode = { id: 'ein1', kind: 'ACTIVITY_NODE', activityType: 'INPUT_EXPANSION_NODE', name: '', activityId: 'act1' };
+    const model = baseModel({ activityNodes: { ein1: n } });
+    const node = resolvedElementToDomainNode({ element: n, kind: 'ACTIVITY_NODE' }, model);
+    expect(node?.type).toBe('INPUT_EXPANSION_NODE');
+    // Proof the field actually landed on the DomainNode: the validator's
+    // "no owning region" rule reads it, same shape as the ACTIVITY_PARTITION
+    // "no name" proof above.
+    expect(activityDiagramValidator.validateNode(node!).warnings?.[0]).toMatch(/no owning region/i);
+
+    const owned: IRActivityNode = { ...n, ownerRegionId: 'r1' };
+    const ownedNode = resolvedElementToDomainNode({ element: owned, kind: 'ACTIVITY_NODE' }, model);
+    expect(activityDiagramValidator.validateNode(ownedNode!).warnings).toBeUndefined();
+  });
+
+  it('ACTIVITY_NODE: passes mode through for an expansion region', () => {
+    const n: IRActivityNode = { id: 'r1', kind: 'ACTIVITY_NODE', activityType: 'EXPANSION_REGION', name: 'Per item', activityId: 'act1', mode: 'STREAM' };
+    const model = baseModel({ activityNodes: { r1: n } });
+    const node = resolvedElementToDomainNode({ element: n, kind: 'ACTIVITY_NODE' }, model);
+    expect((node as unknown as { mode?: string })?.mode).toBe('STREAM');
+  });
+
   it('ACTIVITY_PARTITION carries its name through for the "no name" check', () => {
     const p: IRActivityPartition = { id: 'p1', kind: 'ACTIVITY_PARTITION', name: '', activityId: 'act1', index: 0 };
     const model = baseModel({ activityPartitions: { p1: p } });

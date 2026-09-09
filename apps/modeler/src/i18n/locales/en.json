@@ -144,6 +144,7 @@
       "conditionalNode": "Conditional",
       "sequenceNode": "Sequence",
       "interruptibleRegion": "Interruptible Region",
+      "expansionRegion": "Expansion Region",
       "activityPartition": "Partition"
     },
     "connections": {
@@ -246,7 +247,10 @@
       "addInputPin": "Add Input Pin",
       "addOutputPin": "Add Output Pin",
       "linkParameter": "Link Parameter…",
-      "editTestCondition": "Edit Test Condition…"
+      "editTestCondition": "Edit Test Condition…",
+      "editExpansionMode": "Edit Mode…",
+      "addInputExpansionNode": "Add Input Expansion Node",
+      "addOutputExpansionNode": "Add Output Expansion Node"
     },
     "edge": {
       "reverse": "Reverse Direction ⇄",

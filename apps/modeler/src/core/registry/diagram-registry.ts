@@ -1040,6 +1040,14 @@ function createActivityDiagramNode(type: string, partial?: Partial<DomainNode>):
       return { ...baseNode, type: 'SEQUENCE_NODE', name: named('Sequence') } as DomainNode;
     case 'INTERRUPTIBLE_REGION':
       return { ...baseNode, type: 'INTERRUPTIBLE_REGION', name: named('Interruptible Region') } as DomainNode;
+    case 'EXPANSION_REGION':
+      return {
+        ...baseNode, type: 'EXPANSION_REGION', name: named('Expansion Region'), mode: 'PARALLEL',
+      } as DomainNode;
+    case 'INPUT_EXPANSION_NODE':
+      return { ...baseNode, type: 'INPUT_EXPANSION_NODE', name: named('') } as DomainNode;
+    case 'OUTPUT_EXPANSION_NODE':
+      return { ...baseNode, type: 'OUTPUT_EXPANSION_NODE', name: named('') } as DomainNode;
     case 'ACTIVITY_PARTITION':
       return {
         ...baseNode, type: 'ACTIVITY_PARTITION', name: named('Partition'), index: 0,
@@ -1096,6 +1104,7 @@ const activityDiagramRegistry: DiagramTypeRegistry = {
     'DECISION', 'MERGE', 'FORK', 'JOIN', 'FLOW_FINAL', 'OBJECT_NODE',
     'INPUT_PIN', 'OUTPUT_PIN',
     'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE', 'INTERRUPTIBLE_REGION',
+    'EXPANSION_REGION', 'INPUT_EXPANSION_NODE', 'OUTPUT_EXPANSION_NODE',
     'ACTIVITY_PARTITION', 'NOTE',
   ],
   supportedEdgeTypes: ['CONTROL_FLOW', 'OBJECT_FLOW', 'EXCEPTION_HANDLER'],
@@ -1123,6 +1132,7 @@ const activityDiagramRegistry: DiagramTypeRegistry = {
       { id: 'conditional_node', type: 'NODE', category: 'advanced', label: 'Conditional', icon: 'GitBranch', color: '#38BDF8', translationKey: 'sidebar.nodes.conditionalNode' },
       { id: 'sequence_node', type: 'NODE', category: 'advanced', label: 'Sequence', icon: 'ListOrdered', color: '#38BDF8', translationKey: 'sidebar.nodes.sequenceNode' },
       { id: 'interruptible_region', type: 'NODE', category: 'advanced', label: 'Interruptible Region', icon: 'Octagon', color: '#38BDF8', translationKey: 'sidebar.nodes.interruptibleRegion' },
+      { id: 'expansion_region', type: 'NODE', category: 'advanced', label: 'Expansion Region', icon: 'Layers', color: '#38BDF8', translationKey: 'sidebar.nodes.expansionRegion' },
       { id: 'note', type: 'NODE', category: 'common', label: 'Note', icon: 'StickyNote', color: 'var(--color-uml-note-border)', translationKey: 'sidebar.nodes.note' },
     ],
     edges: [

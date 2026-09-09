@@ -14,6 +14,11 @@ import type { IRActivityNode } from '../../../../core/domain/vfs/vfs.types';
  * ObjectNodeShape; this is where it gets picked. Same shape as
  * `ActivityPartitionPropsModal`, one selector wider (classes, interfaces,
  * enums and data types are all legal classifiers for a value in flow).
+ *
+ * Also opened for an expansion node (v1.1, `useDiagramMenus.ts`'s "Link
+ * Classifier…") — it reuses this exact field/modal rather than a parallel
+ * one, since "classifier of the element that flows" is the same concept for
+ * both; only the modal title reflects which kind is open.
  */
 export default function ActivityObjectNodePropsModal() {
   const { activeModal, editingId, closeModals } = useUiStore();
@@ -60,6 +65,10 @@ export default function ActivityObjectNodePropsModal() {
   const node = getNode();
   if (!node) return null;
 
+  const titlePrefix = node.activityType === 'INPUT_EXPANSION_NODE' || node.activityType === 'OUTPUT_EXPANSION_NODE'
+    ? 'Expansion Node'
+    : 'Object Node';
+
   const handleSave = () => {
     if (!editingId) return;
     const patch = { classifierId: classifierId || undefined };
@@ -87,7 +96,7 @@ export default function ActivityObjectNodePropsModal() {
         <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-[#2a3358]">
           <div>
             <p className="text-xs text-[#475569] font-mono italic">classifierId</p>
-            <h2 className="text-sm font-semibold text-[#e2e8f0]">Object Node Properties — {node.name}</h2>
+            <h2 className="text-sm font-semibold text-[#e2e8f0]">{titlePrefix} Properties{node.name ? ` — ${node.name}` : ''}</h2>
           </div>
           <button
             onClick={closeModals}

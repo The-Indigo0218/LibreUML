@@ -416,16 +416,26 @@ export interface ActivityObjectNodeViewModel {
   onOpenProps?: () => void;
 }
 
-/** Input or output pin (A6.2/v1.1). */
-export type ActivityPinKindVM = 'INPUT_PIN' | 'OUTPUT_PIN';
+/**
+ * Input or output pin (A6.2/v1.1), or an expansion node (v1.1) — the two
+ * share the same shape/interaction (a small square, floating near an owner,
+ * an arrow glyph for direction, a caption below), so an expansion region's
+ * boundary node reuses this brand rather than growing a parallel one. The
+ * two pairs never mix ownership: a pin's owner is an action, an expansion
+ * node's owner is a region (see `ownerRegionId` on the IR).
+ */
+export type ActivityPinKindVM =
+  | 'INPUT_PIN' | 'OUTPUT_PIN' | 'INPUT_EXPANSION_NODE' | 'OUTPUT_EXPANSION_NODE';
 
 /**
  * Input/output pin (A6.2): a small square on an action's boundary in real
  * UML, drawn here as a free-standing node near its owner — same engineering
  * effort as the object node, which also free-floats rather than snapping to
- * a border. `parameterLabel` is the resolved half of the parameter trace
- * (`IRActivityNode.parameterName`, ADR-0010), same pattern as
- * `classifierName` on the object node.
+ * a border. `parameterLabel` is the resolved half of this node's ADR-0010
+ * trace: a pin's parameter (`IRActivityNode.parameterName`), or — when
+ * `pinKind` is one of the expansion-node kinds — an expansion node's
+ * classifier (`IRActivityNode.classifierId`, same field/modal the object
+ * node uses).
  */
 export interface ActivityPinViewModel {
   __brand: 'activityPin';
@@ -473,8 +483,13 @@ export interface ActivityPartitionViewModel {
   onOpenProps?: () => void;
 }
 
-/** Loop, conditional or sequence (structured nodes, v1.1). */
-export type ActivityStructuredKindVM = 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE';
+/** Loop, conditional, sequence, interruptible region, or expansion region (structured nodes, v1.1). */
+export type ActivityStructuredKindVM =
+  | 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE' | 'INTERRUPTIBLE_REGION'
+  | 'EXPANSION_REGION';
+
+/** EXPANSION_REGION only (v1.1). Mirrors `ActivityExpansionMode` on the IR. */
+export type ActivityExpansionModeVM = 'PARALLEL' | 'ITERATIVE' | 'STREAM';
 
 /**
  * A structured activity node (v1.1): a free-floating, resizable container —
@@ -483,7 +498,10 @@ export type ActivityStructuredKindVM = 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUE
  * `height` set by the user, contained nodes carry `parentPackageId`).
  * `testExpression` is the free-text stand-in for the real UML sub-regions
  * (setup/test/body for a loop, per-clause test+body for a conditional) —
- * unused for SEQUENCE_NODE, which has nothing to test.
+ * unused for SEQUENCE_NODE/INTERRUPTIBLE_REGION/EXPANSION_REGION, none of
+ * which has anything to test. `mode` is EXPANSION_REGION's own subtitle
+ * (parallel/iterative/stream) — the two subtitle fields are mutually
+ * exclusive by kind, same as `barOrientation` only ever applying to FORK/JOIN.
  */
 export interface ActivityStructuredViewModel {
   __brand: 'activityStructured';
@@ -494,6 +512,7 @@ export interface ActivityStructuredViewModel {
   width: number;
   height: number;
   testExpression?: string;
+  mode?: ActivityExpansionModeVM;
   colorOverride?: string;
   borderWidthOverride?: number;
   borderStyleOverride?: 'solid' | 'dashed' | 'dotted';

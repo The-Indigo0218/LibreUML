@@ -1987,9 +1987,35 @@ export default function KonvaCanvas() {
     (edgeId: string) => {
       const edge = edges.find((e) => e.id === edgeId);
       if (!edge) return;
-      if (edge.kind === 'EXTEND') { openExtendProps(edgeId); return; }
+      // KNOWN BUG, still open (found 2026-09-07 while building v1.1's
+      // interrupting-flow checkbox; see PLAN-activity-diagram.md §8.8):
+      // a genuine double-click on an *already-selected* edge never reaches
+      // this handler at all. Selecting an edge (its first click) mounts a
+      // waypoint/segment-drag overlay exactly on top of the line, and
+      // Konva's own dblclick synthesis requires the second click's
+      // hit-test to resolve to the *same* shape as the first
+      // (`Stage._pointerup`, `clickEndShape === shape` in
+      // konva/lib/Stage.js) — with the overlay in the way, it resolves to
+      // a different shape, so the browser never fires `dblclick` on the
+      // Line. Confirmed with a native-event trace, not just the app's own
+      // logs. This breaks double-click editing on *any* edge kind that has
+      // a props modal (guard/weight here, «extend»'s condition too), not
+      // just CONTROL_FLOW/OBJECT_FLOW — a cross-cutting fix (bypassing
+      // Konva's per-shape dblclick synthesis with a stage-level native
+      // listener + our own hit-test), not a one-line patch. Design proposed
+      // to IndigoDev, awaiting go-ahead before touching this shared file.
+      //
+      // The sibling bug (`edgeId` here is the ViewEdge id, but both modals
+      // key their lookup by relation id — production mints two separate
+      // UUIDs) is fixed below: resolve the real domainId first, same as the
+      // DOMAIN_MODEL branch further down already does via `vfsController.edges`.
+      const relationId = vfsController.edges.find((ve) => ve.id === edgeId)?.data.domainId;
+      if (edge.kind === 'EXTEND') {
+        if (relationId) openExtendProps(relationId);
+        return;
+      }
       if (edge.kind === 'CONTROL_FLOW' || edge.kind === 'OBJECT_FLOW') {
-        openControlFlowProps(edgeId);
+        if (relationId) openControlFlowProps(relationId);
         return;
       }
       // TODO: route through a ShapeRouter
@@ -2880,6 +2906,7 @@ export default function KonvaCanvas() {
                 lineStyleOverride={edge.lineStyle}
                 fontFamilyOverride={edge.fontFamily}
                 fontSizeOverride={edge.fontSize}
+                isInterrupting={edge.isInterrupting}
                 isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
@@ -3015,6 +3042,7 @@ export default function KonvaCanvas() {
                 condition={edge.condition}
                 guard={edge.guard}
                 weight={edge.weight}
+                isInterrupting={edge.isInterrupting}
                 isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}

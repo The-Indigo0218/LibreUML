@@ -68,17 +68,24 @@ const FORK_JOIN_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityFo
   JOIN: 'JOIN',
 };
 
-/** IR activity types that render as a pin square (A6.2). */
+/** IR activity types that render as a pin square (A6.2), or an expansion node's boundary square (v1.1). */
 const PIN_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityPinKindVM>> = {
   INPUT_PIN: 'INPUT_PIN',
   OUTPUT_PIN: 'OUTPUT_PIN',
+  INPUT_EXPANSION_NODE: 'INPUT_EXPANSION_NODE',
+  OUTPUT_EXPANSION_NODE: 'OUTPUT_EXPANSION_NODE',
 };
+
+/** Expansion-node kinds within `PIN_TYPES` — they trace to a classifier, not a parameter. */
+const EXPANSION_NODE_KINDS = new Set<ActivityPinKindVM>(['INPUT_EXPANSION_NODE', 'OUTPUT_EXPANSION_NODE']);
 
 /** IR activity types that render as a structured node container (v1.1). */
 const STRUCTURED_TYPES: Partial<Record<IRActivityNode['activityType'], ActivityStructuredKindVM>> = {
   LOOP_NODE: 'LOOP_NODE',
   CONDITIONAL_NODE: 'CONDITIONAL_NODE',
   SEQUENCE_NODE: 'SEQUENCE_NODE',
+  INTERRUPTIBLE_REGION: 'INTERRUPTIBLE_REGION',
+  EXPANSION_REGION: 'EXPANSION_REGION',
 };
 
 function makeActionNode(
@@ -218,6 +225,10 @@ function makePinNode(
   parameterLabel: string | undefined,
   onRename: (name: string) => void,
 ) {
+  // Pins open their own parameter-picker modal; expansion nodes reuse the
+  // object node's classifier-picker instead (same field, same modal — see
+  // `ExpansionNode.classifierId`), never both.
+  const isExpansionNode = EXPANSION_NODE_KINDS.has(pinKind);
   const vm: ActivityPinViewModel = {
     __brand: 'activityPin',
     id: viewNode.id,
@@ -231,7 +242,9 @@ function makePinNode(
     fontFamilyOverride: viewNode.fontFamily,
     fontSizeOverride: viewNode.fontSize,
     onRename,
-    onOpenProps: () => useUiStore.getState().openActivityPinProps(viewNode.elementId),
+    onOpenProps: () => (isExpansionNode
+      ? useUiStore.getState().openActivityObjectNodeProps(viewNode.elementId)
+      : useUiStore.getState().openActivityPinProps(viewNode.elementId)),
   };
   return {
     id: viewNode.id,
@@ -258,6 +271,7 @@ function makeStructuredNode(
     width: viewNode.width ?? SN_DEFAULT_W,
     height: viewNode.height ?? SN_DEFAULT_H,
     testExpression: node.testExpression,
+    mode: node.mode,
     colorOverride: viewNode.color,
     borderWidthOverride: viewNode.borderWidth,
     borderStyleOverride: viewNode.borderStyle,
@@ -556,7 +570,9 @@ export function buildActivityDiagramNodes(ctx: NodeBuilderContext) {
           useModelStore.getState().updateActivityNode(viewNode.elementId, { name });
         }
       };
-      const parameterLabel = resolvePinParameterLabel(model, node);
+      const parameterLabel = EXPANSION_NODE_KINDS.has(pinKind)
+        ? (node.classifierId ? resolveObjectNodeClassifierLabel(model, node.classifierId) : undefined)
+        : resolvePinParameterLabel(model, node);
       return makePinNode(viewNode, node, pinKind, diagramView.nodes, parameterLabel, onRename);
     }
 

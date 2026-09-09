@@ -128,6 +128,37 @@ describe('ActivityDiagramValidator.validateConnection', () => {
     expect(result.warnings?.[0]).toMatch(/output pin produces/i);
   });
 
+  // v1.1 — expansion nodes as object-flow endpoints: unlike a pin, NOT
+  // direction-restricted (real UML has them carrying flow both ways).
+  it('accepts an object flow leaving an input expansion node — unlike a pin, this is real UML', () => {
+    const result = v.validateConnection(
+      node('INPUT_EXPANSION_NODE', { id: 'ein' }),
+      node('ACTION', { id: 'a' }),
+      'OBJECT_FLOW',
+    );
+    expect(result.isValid).toBe(true);
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('accepts an object flow entering an output expansion node — unlike a pin, this is real UML', () => {
+    const result = v.validateConnection(
+      node('ACTION', { id: 'a' }),
+      node('OUTPUT_EXPANSION_NODE', { id: 'eout' }),
+      'OBJECT_FLOW',
+    );
+    expect(result.isValid).toBe(true);
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('accepts an object flow between two expansion nodes with no "usually has an object node" nudge', () => {
+    const result = v.validateConnection(
+      node('INPUT_EXPANSION_NODE', { id: 'ein' }),
+      node('OUTPUT_EXPANSION_NODE', { id: 'eout' }),
+      'OBJECT_FLOW',
+    );
+    expect(result.warnings).toBeUndefined();
+  });
+
   // Structured nodes (v1.1) — a loop/conditional/sequence takes flow in and
   // out of it as a single step, same as any activity node.
   it('accepts a control flow into and out of a structured node', () => {
@@ -137,6 +168,31 @@ describe('ActivityDiagramValidator.validateConnection', () => {
     expect(into.warnings).toBeUndefined();
     expect(out.isValid).toBe(true);
     expect(out.warnings).toBeUndefined();
+  });
+
+  // Exception handler (v1.1) — protectedNode → handlerBody, own rules.
+  it('accepts an exception handler from any activity node to an action', () => {
+    const result = v.validateConnection(node('LOOP_NODE', { id: 'l' }), node('ACTION', { id: 'a' }), 'EXCEPTION_HANDLER');
+    expect(result.isValid).toBe(true);
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('warns, but allows, an exception handler whose body is not an action', () => {
+    const result = v.validateConnection(node('ACTION', { id: 'a' }), node('DECISION', { id: 'd' }), 'EXCEPTION_HANDLER');
+    expect(result.isValid).toBe(true);
+    expect(result.warnings?.[0]).toMatch(/handler body is usually an action/i);
+  });
+
+  it('refuses an exception handler from something that is not an activity node', () => {
+    const result = v.validateConnection(node('CLASS', { id: 'c' }), node('ACTION', { id: 'a' }), 'EXCEPTION_HANDLER');
+    expect(result.isValid).toBe(false);
+  });
+
+  it('refuses a node handling its own exception', () => {
+    const self = node('ACTION', { id: 'same' });
+    const result = v.validateConnection(self, self, 'EXCEPTION_HANDLER');
+    expect(result.isValid).toBe(false);
+    expect(result.errors?.[0]).toMatch(/cannot handle its own exception/i);
   });
 });
 
@@ -208,6 +264,41 @@ describe('ActivityDiagramValidator.validateNode', () => {
   it('never asks a sequence node for a test condition — nothing to test', () => {
     const result = v.validateNode(node('SEQUENCE_NODE', { name: 'Seq' }));
     expect(result.warnings).toBeUndefined();
+  });
+
+  it('warns about an unnamed interruptible region, same as any other structured node', () => {
+    const result = v.validateNode(node('INTERRUPTIBLE_REGION', { name: '' }));
+    expect(result.warnings).toContain('This node has no name');
+  });
+
+  it('never asks an interruptible region for a test condition — nothing to test', () => {
+    const result = v.validateNode(node('INTERRUPTIBLE_REGION', { name: 'Checkout region' }));
+    expect(result.warnings).toBeUndefined();
+  });
+
+  // Expansion region + expansion nodes (v1.1).
+  it('warns about an unnamed expansion region, same as any other structured node', () => {
+    const result = v.validateNode(node('EXPANSION_REGION', { name: '' }));
+    expect(result.warnings).toContain('This node has no name');
+  });
+
+  it('never asks an expansion region for a test condition — it has a mode instead', () => {
+    const result = v.validateNode(node('EXPANSION_REGION', { name: 'Per-item region', mode: 'PARALLEL' }));
+    expect(result.warnings).toBeUndefined();
+  });
+
+  // Same reasoning as a pin one level up — identity is owner + trace, not name.
+  it('does not ask an expansion node for a name', () => {
+    expect(v.validateNode(node('INPUT_EXPANSION_NODE', { ownerRegionId: 'r1' })).warnings).toBeUndefined();
+  });
+
+  it('warns about an expansion node with no owning region', () => {
+    const result = v.validateNode(node('OUTPUT_EXPANSION_NODE', {}));
+    expect(result.warnings?.[0]).toMatch(/no owning region/i);
+  });
+
+  it('is quiet about an expansion node with an owning region', () => {
+    expect(v.validateNode(node('INPUT_EXPANSION_NODE', { ownerRegionId: 'r1' })).warnings).toBeUndefined();
   });
 });
 
@@ -327,5 +418,73 @@ describe('ActivityDiagramValidator.validateActivityStructure', () => {
     // No nodes belong to a1, so nothing to warn about.
     expect(v.validateActivityStructure('a1', m).isValid).toBe(true);
     expect(v.validateActivityStructure('a1', m).warnings).toBeUndefined();
+  });
+
+  // Interrupting edge (v1.1, UML 2.5 §15.3).
+  it('warns when an interrupting flow does not leave an interruptible region at all', () => {
+    const m = model(
+      { a: actNode('a', 'ACTION'), b: actNode('b', 'ACTION') },
+      { f1: { ...flow('f1', 'a', 'b'), isInterrupting: true } },
+    );
+    expect(v.validateActivityStructure('a1', m).warnings?.[0]).toMatch(/does not leave an interruptible region/i);
+  });
+
+  it('warns when an interrupting flow stays inside the same region', () => {
+    const m = model(
+      {
+        r: actNode('r', 'INTERRUPTIBLE_REGION'),
+        a: actNode('a', 'ACTION', { containerId: 'r' }),
+        b: actNode('b', 'ACTION', { containerId: 'r' }),
+      },
+      { f1: { ...flow('f1', 'a', 'b'), isInterrupting: true } },
+    );
+    expect(v.validateActivityStructure('a1', m).warnings?.[0]).toMatch(/never actually leaves its interruptible region/i);
+  });
+
+  it('is quiet about an interrupting flow that leaves its interruptible region', () => {
+    const m = model(
+      {
+        r: actNode('r', 'INTERRUPTIBLE_REGION'),
+        a: actNode('a', 'ACTION', { containerId: 'r' }),
+        b: actNode('b', 'ACTION'),
+      },
+      { f1: { ...flow('f1', 'a', 'b'), isInterrupting: true } },
+    );
+    expect(v.validateActivityStructure('a1', m).warnings).toBeUndefined();
+  });
+
+  it('is quiet about a plain (non-interrupting) flow leaving a region', () => {
+    const m = model(
+      {
+        r: actNode('r', 'INTERRUPTIBLE_REGION'),
+        a: actNode('a', 'ACTION', { containerId: 'r' }),
+        b: actNode('b', 'ACTION'),
+      },
+      { f1: flow('f1', 'a', 'b') },
+    );
+    expect(v.validateActivityStructure('a1', m).warnings).toBeUndefined();
+  });
+
+  // Expansion region fan check (v1.1) — same "fan" reasoning as
+  // decision/fork above, measured over ownership instead of flow.
+  it('warns when an expansion region has no input expansion node', () => {
+    const m = model({ r: actNode('r', 'EXPANSION_REGION') });
+    expect(v.validateActivityStructure('a1', m).warnings?.[0]).toMatch(/has no input expansion node/i);
+  });
+
+  it('is quiet about an expansion region with an input expansion node', () => {
+    const m = model({
+      r: actNode('r', 'EXPANSION_REGION'),
+      ein: actNode('ein', 'INPUT_EXPANSION_NODE', { ownerRegionId: 'r' }),
+    });
+    expect(v.validateActivityStructure('a1', m).warnings).toBeUndefined();
+  });
+
+  it('still warns when an expansion region only has an output expansion node', () => {
+    const m = model({
+      r: actNode('r', 'EXPANSION_REGION'),
+      eout: actNode('eout', 'OUTPUT_EXPANSION_NODE', { ownerRegionId: 'r' }),
+    });
+    expect(v.validateActivityStructure('a1', m).warnings?.[0]).toMatch(/has no input expansion node/i);
   });
 });

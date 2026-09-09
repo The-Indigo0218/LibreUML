@@ -6,12 +6,12 @@ import type { ActivityStructuredViewModel } from '../../adapters/view-models/nod
 import { resolveSystemBoundaryColors } from '../tokens/colors';
 
 /**
- * A structured activity node (loop / conditional / sequence, v1.1) — a
- * free-floating resizable container, same Transformer mechanic as
- * `SystemBoundaryShape` (this app's other free container). The three kinds
- * differ only in the header glyph and whether a test/guard subtitle shows —
- * one shape, not three, same reasoning as `ForkJoinShape` covering both
- * FORK/JOIN.
+ * A structured activity node (loop / conditional / sequence / interruptible
+ * region / expansion region, v1.1) — a free-floating resizable container,
+ * same Transformer mechanic as `SystemBoundaryShape` (this app's other free
+ * container). The five kinds differ only in the header glyph and what (if
+ * anything) shows as the subtitle — one shape, not five, same reasoning as
+ * `ForkJoinShape` covering both FORK/JOIN.
  */
 
 export const SN_DEFAULT_W = 320;
@@ -31,6 +31,8 @@ const KIND_GLYPH: Record<ActivityStructuredViewModel['structuredKind'], string> 
   LOOP_NODE: '↻',
   CONDITIONAL_NODE: '⑂',
   SEQUENCE_NODE: '→',
+  INTERRUPTIBLE_REGION: '↯',
+  EXPANSION_REGION: '⇉',
 };
 
 export function getStructuredNodeShapeSize(
@@ -78,7 +80,13 @@ export default function StructuredNodeShape({
   const colors = resolveSystemBoundaryColors();
   const W = vm.width;
   const H = vm.height;
-  const hasSubtitle = !!vm.testExpression?.trim();
+  // EXPANSION_REGION shows its mode (parallel/iterative/stream) where
+  // LOOP_NODE/CONDITIONAL_NODE show their test — the two subtitle sources
+  // never apply to the same kind, so one text node covers both.
+  const subtitleText = vm.structuredKind === 'EXPANSION_REGION'
+    ? (vm.mode ?? 'PARALLEL').toLowerCase()
+    : vm.testExpression;
+  const hasSubtitle = !!subtitleText?.trim();
   const headerH = TITLE_PAD_Y + TITLE_H + (hasSubtitle ? SUBTITLE_H : 0);
 
   const groupRef = useRef<Konva.Group>(null);
@@ -163,13 +171,13 @@ export default function StructuredNodeShape({
           perfectDrawEnabled={false}
         />
 
-        {/* ── Test/guard subtitle (LOOP_NODE/CONDITIONAL_NODE only) ─────────── */}
+        {/* ── Subtitle: test/guard (LOOP/CONDITIONAL) or mode (EXPANSION_REGION) ── */}
         {hasSubtitle && (
           <Text
             x={TITLE_PAD_X}
             y={TITLE_PAD_Y + TITLE_H}
             width={W - TITLE_PAD_X * 2}
-            text={vm.testExpression}
+            text={subtitleText}
             fontSize={SUBTITLE_FONT}
             fontFamily={FONT_SANS}
             fontStyle="italic"

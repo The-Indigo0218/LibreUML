@@ -56,14 +56,17 @@ interface PinShapeProps {
 }
 
 /**
- * UML 2.5 §15.3 InputPin/OutputPin (A6.2/v1.1) — a small square marking where
- * a value enters or leaves an action. Real UML glues it to the action's
- * border; here it free-floats near its owner, same engineering effort as the
- * object node (which also does not snap to anything). The glyph in the
- * square (▶ / ◀) is the only visual difference between the two kinds — both
- * read as "a pin" at a glance, the arrow says which way the value moves.
+ * UML 2.5 §15.3 InputPin/OutputPin (A6.2/v1.1), or an expansion node's
+ * boundary square (v1.1, §15.6.4) — a small square marking where a value
+ * enters or leaves an action (pin) or an expansion region (expansion node).
+ * Real UML glues both to their owner's border; here they free-float near it,
+ * same engineering effort as the object node (which also does not snap to
+ * anything). The glyph in the square (▶ / ◀) is the only visual difference
+ * between "in" and "out" kinds — all four read as "a pin-like boundary
+ * marker" at a glance, the arrow says which way the value moves.
  * `parameterLabel`, when set, replaces the free-typed name as the caption —
- * the parameter trace (ADR-0010) is the more informative of the two.
+ * the ADR-0010 trace (a pin's parameter, an expansion node's classifier) is
+ * the more informative of the two.
  */
 export default function PinShape({
   viewModel: vm,
@@ -86,6 +89,7 @@ export default function PinShape({
   const fontFamily = vm.fontFamilyOverride ?? FONT_SANS;
   const caption = vm.parameterLabel ?? vm.label;
   const boxX = (W - BOX) / 2;
+  const isOutput = vm.pinKind === 'OUTPUT_PIN' || vm.pinKind === 'OUTPUT_EXPANSION_NODE';
 
   return (
     <Group
@@ -130,7 +134,7 @@ export default function PinShape({
         width={BOX}
         y={0}
         height={BOX}
-        text={vm.pinKind === 'OUTPUT_PIN' ? '▶' : '◀'}
+        text={isOutput ? '▶' : '◀'}
         fontSize={10}
         fill={GLYPH}
         align="center"

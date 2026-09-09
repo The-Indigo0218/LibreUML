@@ -24,6 +24,10 @@ export type ActivityDiagramNodeType =
   | 'LOOP_NODE'
   | 'CONDITIONAL_NODE'
   | 'SEQUENCE_NODE'
+  | 'INTERRUPTIBLE_REGION'
+  | 'EXPANSION_REGION'
+  | 'INPUT_EXPANSION_NODE'
+  | 'OUTPUT_EXPANSION_NODE'
   | 'ACTIVITY_PARTITION'
   | 'NOTE';
 
@@ -85,23 +89,56 @@ export interface PinNode extends BaseDomainNode, Documentable {
 }
 
 /**
- * A structured activity node — loop, conditional or sequence (v1.1). Groups
- * other activity nodes (`containerId` on the children) without modelling the
- * real UML sub-regions (setup/test/body for a loop, per-clause test+body for
- * a conditional): a single free-text `testExpression` stands in for all of
- * that, same conformance scope cut as guard/weight on `IRRelation`. Unlike a
- * partition, it is a free-floating resizable container, not a row in a fixed
- * axis — same containment mechanism as a package (`parentPackageId` at the
- * view level, `containerId` at the model level for the semantic side).
+ * An expansion node (v1.1) — the boundary square where a collection enters or
+ * a per-element result leaves an EXPANSION_REGION. Same ownership shape as
+ * `PinNode` one level up (a region instead of an action, `ownerRegionId`
+ * instead of `ownerActionId`), and it reuses the object node's `classifierId`
+ * trace rather than inventing a third ADR-0010 trace shape — there is no
+ * "parameter" to link here, but "classifier of the element that flows" is
+ * exactly the same concept an object node already has.
+ */
+export interface ExpansionNode extends BaseDomainNode, Documentable {
+  type: 'INPUT_EXPANSION_NODE' | 'OUTPUT_EXPANSION_NODE';
+  name: string;
+  activityId: string;
+  ownerRegionId?: string;
+  classifierId?: string;
+}
+
+/**
+ * A structured activity node — loop, conditional, sequence, an interruptible
+ * region, or an expansion region (v1.1). Groups other activity nodes
+ * (`containerId` on the children) without modelling the real UML sub-regions
+ * (setup/test/body for a loop, per-clause test+body for a conditional): a
+ * single free-text `testExpression` stands in for all of that, same
+ * conformance scope cut as guard/weight on `IRRelation` — unused for
+ * SEQUENCE_NODE/INTERRUPTIBLE_REGION/EXPANSION_REGION, none of which has
+ * anything to test. Unlike a partition, it is a free-floating resizable
+ * container, not a row in a fixed axis — same containment mechanism as a
+ * package (`parentPackageId` at the view level, `containerId` at the model
+ * level for the semantic side).
+ *
+ * INTERRUPTIBLE_REGION is UML's `ActivityGroup`, not really a
+ * `StructuredActivityNode` subtype — collapsed into this same shape/mechanism
+ * deliberately (same conformance cut as the rest of this file): its dashed
+ * boundary is the real UML notation for the construct, so nothing about the
+ * visual is a compromise, only the metamodel classification underneath it.
+ * EXPANSION_REGION, unlike the interruptible region, *is* a real
+ * `StructuredActivityNode` subtype in UML — no classification cut needed for
+ * it, only the usual flat-body one every kind in this file already takes.
  */
 export interface StructuredActivityNode extends BaseDomainNode, Documentable {
-  type: 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE';
+  type:
+    | 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE' | 'INTERRUPTIBLE_REGION'
+    | 'EXPANSION_REGION';
   name: string;
   activityId: string;
   partitionId?: string;
   containerId?: string;
   /** LOOP_NODE/CONDITIONAL_NODE only. */
   testExpression?: string;
+  /** EXPANSION_REGION only. Defaults to PARALLEL when unset. */
+  mode?: 'PARALLEL' | 'ITERATIVE' | 'STREAM';
 }
 
 /** A swimlane (A3). Ordering comes from `index`, never from pixels (ADR-0008). */
@@ -120,6 +157,7 @@ export type ActivityDiagramNode =
   | BarNode
   | ObjectFlowNode
   | PinNode
+  | ExpansionNode
   | StructuredActivityNode
   | ActivityPartitionNode;
 
@@ -146,6 +184,10 @@ export const ACTIVITY_NODE_TYPE_TO_IR: Record<string, ActivityNodeKind> = {
   LOOP_NODE: 'LOOP_NODE',
   CONDITIONAL_NODE: 'CONDITIONAL_NODE',
   SEQUENCE_NODE: 'SEQUENCE_NODE',
+  INTERRUPTIBLE_REGION: 'INTERRUPTIBLE_REGION',
+  EXPANSION_REGION: 'EXPANSION_REGION',
+  INPUT_EXPANSION_NODE: 'INPUT_EXPANSION_NODE',
+  OUTPUT_EXPANSION_NODE: 'OUTPUT_EXPANSION_NODE',
 };
 
 /** The inverse of `ACTIVITY_NODE_TYPE_TO_IR`. */

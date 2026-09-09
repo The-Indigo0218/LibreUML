@@ -231,24 +231,98 @@ describe('buildActivityDiagramNodes', () => {
   });
 
   // Structured nodes (v1.1).
-  it('builds a loop/conditional/sequence node carrying its kind, name and test condition', () => {
+  it('builds a loop/conditional/sequence/interruptible-region/expansion-region node carrying its kind, name and test condition', () => {
     const m = model({
       activityNodes: {
         l: irNode('l', 'LOOP_NODE', { name: 'Retry', testExpression: 'i < 3' }),
         c: irNode('c', 'CONDITIONAL_NODE', { name: 'Check' }),
         s: irNode('s', 'SEQUENCE_NODE', { name: 'Steps' }),
+        r: irNode('r', 'INTERRUPTIBLE_REGION', { name: 'Order flow' }),
+        e: irNode('e', 'EXPANSION_REGION', { name: 'Per item', mode: 'ITERATIVE' }),
       } as never,
     });
 
     const built = buildActivityDiagramNodes(
-      ctx(m, view([{ id: 'v-l', elementId: 'l' }, { id: 'v-c', elementId: 'c' }, { id: 'v-s', elementId: 's' }])),
+      ctx(m, view([
+        { id: 'v-l', elementId: 'l' }, { id: 'v-c', elementId: 'c' },
+        { id: 'v-s', elementId: 's' }, { id: 'v-r', elementId: 'r' },
+        { id: 'v-e', elementId: 'e' },
+      ])),
     );
 
     const vms = built.map((b) => b.data as ActivityStructuredViewModel);
-    expect(vms.map((vm) => vm.__brand)).toEqual(['activityStructured', 'activityStructured', 'activityStructured']);
-    expect(vms.map((vm) => vm.structuredKind)).toEqual(['LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE']);
+    expect(vms.map((vm) => vm.__brand)).toEqual(
+      ['activityStructured', 'activityStructured', 'activityStructured', 'activityStructured', 'activityStructured'],
+    );
+    expect(vms.map((vm) => vm.structuredKind)).toEqual(
+      ['LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE', 'INTERRUPTIBLE_REGION', 'EXPANSION_REGION'],
+    );
     expect(vms[0].testExpression).toBe('i < 3');
     expect(vms[1].testExpression).toBeUndefined();
+    // An interruptible region has nothing to test, same as a sequence node.
+    expect(vms[3].testExpression).toBeUndefined();
+    // An expansion region has a mode instead of a test.
+    expect(vms[4].mode).toBe('ITERATIVE');
+    expect(vms[4].testExpression).toBeUndefined();
+  });
+
+  it('defaults an expansion region with no stored mode to undefined — the shape defaults it to PARALLEL', () => {
+    const m = model({ activityNodes: { e: irNode('e', 'EXPANSION_REGION', { name: 'Per item' }) } as never });
+    const [built] = buildActivityDiagramNodes(ctx(m, view([{ id: 'v-e', elementId: 'e' }])));
+    expect((built.data as ActivityStructuredViewModel).mode).toBeUndefined();
+  });
+
+  // Expansion nodes (v1.1) — same pin dispatch table as INPUT_PIN/OUTPUT_PIN,
+  // but traced to a classifier (ADR-0010), same field/modal as an object node.
+  it('builds input/output expansion nodes carrying their kind and owning region', () => {
+    const m = model({
+      activityNodes: {
+        r: irNode('r', 'EXPANSION_REGION', { name: 'Per item' }),
+        ein: irNode('ein', 'INPUT_EXPANSION_NODE', { name: '', ownerRegionId: 'r' }),
+        eout: irNode('eout', 'OUTPUT_EXPANSION_NODE', { name: '', ownerRegionId: 'r' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([
+        { id: 'v-r', elementId: 'r' }, { id: 'v-ein', elementId: 'ein' }, { id: 'v-eout', elementId: 'eout' },
+      ])),
+    );
+
+    const nodes = built.slice(1).map((b) => b.data as ActivityPinViewModel);
+    expect(nodes.map((n) => n.__brand)).toEqual(['activityPin', 'activityPin']);
+    expect(nodes.map((n) => n.pinKind)).toEqual(['INPUT_EXPANSION_NODE', 'OUTPUT_EXPANSION_NODE']);
+  });
+
+  it('shows the classifier an expansion node is traced to, same field as an object node (ADR-0010)', () => {
+    const m = model({
+      classes: { c1: { id: 'c1', kind: 'CLASS', name: 'Item', attributeIds: [], operationIds: [] } } as never,
+      activityNodes: {
+        r: irNode('r', 'EXPANSION_REGION', { name: 'Per item' }),
+        ein: irNode('ein', 'INPUT_EXPANSION_NODE', { name: '', ownerRegionId: 'r', classifierId: 'c1' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-r', elementId: 'r' }, { id: 'v-ein', elementId: 'ein' }])),
+    );
+
+    expect((built[1].data as ActivityPinViewModel).parameterLabel).toBe('Item');
+  });
+
+  it('never resolves a parameter trace for an expansion node, even if parameterName were somehow set', () => {
+    const m = model({
+      activityNodes: {
+        r: irNode('r', 'EXPANSION_REGION', { name: 'Per item' }),
+        ein: irNode('ein', 'INPUT_EXPANSION_NODE', { name: '', ownerRegionId: 'r', parameterName: 'amount' }),
+      } as never,
+    });
+
+    const built = buildActivityDiagramNodes(
+      ctx(m, view([{ id: 'v-r', elementId: 'r' }, { id: 'v-ein', elementId: 'ein' }])),
+    );
+
+    expect((built[1].data as ActivityPinViewModel).parameterLabel).toBeUndefined();
   });
 
   it('defaults a structured node to the standard container size, but respects a stored one', () => {

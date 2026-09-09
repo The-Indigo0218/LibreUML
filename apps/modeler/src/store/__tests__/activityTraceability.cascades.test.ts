@@ -304,6 +304,73 @@ describe('applyDeleteActivityNode — pin cascade (A6.2)', () => {
   });
 });
 
+describe('applyDeleteActivityNode — expansion node cascade (v1.1)', () => {
+  it('deletes every expansion node owned by the region being deleted', () => {
+    const model = emptyModel();
+    model.activityNodes['region1'] = {
+      id: 'region1', kind: 'ACTIVITY_NODE', activityType: 'EXPANSION_REGION', activityId: 'a1', name: 'Per item',
+    };
+    model.activityNodes['ein1'] = {
+      id: 'ein1', kind: 'ACTIVITY_NODE', activityType: 'INPUT_EXPANSION_NODE', activityId: 'a1',
+      name: '', ownerRegionId: 'region1',
+    };
+    model.activityNodes['eout1'] = {
+      id: 'eout1', kind: 'ACTIVITY_NODE', activityType: 'OUTPUT_EXPANSION_NODE', activityId: 'a1',
+      name: '', ownerRegionId: 'region1',
+    };
+    model.activityNodes['other'] = {
+      id: 'other', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1', name: 'Ship',
+    };
+
+    applyDeleteActivityNode(model, 'region1');
+
+    expect(model.activityNodes['region1']).toBeUndefined();
+    expect(model.activityNodes['ein1']).toBeUndefined();
+    expect(model.activityNodes['eout1']).toBeUndefined();
+    expect(model.activityNodes['other']).toBeDefined();
+  });
+
+  it('deleting an expansion node directly does not touch its region or siblings', () => {
+    const model = emptyModel();
+    model.activityNodes['region1'] = {
+      id: 'region1', kind: 'ACTIVITY_NODE', activityType: 'EXPANSION_REGION', activityId: 'a1', name: 'Per item',
+    };
+    model.activityNodes['ein1'] = {
+      id: 'ein1', kind: 'ACTIVITY_NODE', activityType: 'INPUT_EXPANSION_NODE', activityId: 'a1',
+      name: '', ownerRegionId: 'region1',
+    };
+
+    applyDeleteActivityNode(model, 'ein1');
+
+    expect(model.activityNodes['ein1']).toBeUndefined();
+    expect(model.activityNodes['region1']).toBeDefined();
+  });
+
+  it('ungroups contained members AND deletes owned expansion nodes at once — the two mechanisms coexist', () => {
+    const model = emptyModel();
+    model.activityNodes['region1'] = {
+      id: 'region1', kind: 'ACTIVITY_NODE', activityType: 'EXPANSION_REGION', activityId: 'a1', name: 'Per item',
+    };
+    model.activityNodes['ein1'] = {
+      id: 'ein1', kind: 'ACTIVITY_NODE', activityType: 'INPUT_EXPANSION_NODE', activityId: 'a1',
+      name: '', ownerRegionId: 'region1',
+    };
+    model.activityNodes['member1'] = {
+      id: 'member1', kind: 'ACTIVITY_NODE', activityType: 'ACTION', activityId: 'a1',
+      name: 'Process item', containerId: 'region1',
+    };
+
+    applyDeleteActivityNode(model, 'region1');
+
+    expect(model.activityNodes['region1']).toBeUndefined();
+    // Owned (boundary square): deleted with the region.
+    expect(model.activityNodes['ein1']).toBeUndefined();
+    // Contained (merely grouped): survives, ungrouped.
+    expect(model.activityNodes['member1']).toBeDefined();
+    expect(model.activityNodes['member1'].containerId).toBeUndefined();
+  });
+});
+
 describe('applyDeleteActivityNode — structured node ungroups its children (v1.1)', () => {
   it('clears containerId on every member instead of deleting them', () => {
     const model = emptyModel();

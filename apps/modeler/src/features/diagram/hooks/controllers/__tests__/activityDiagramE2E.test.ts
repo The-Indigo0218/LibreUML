@@ -150,6 +150,87 @@ describe('activity diagram — store → builder → persist → reload', () => 
     expect(build()).toHaveLength(4);
   });
 
+  it('v1.1 — an interruptible region, an interrupting flow, and an exception handler all survive a round-trip', () => {
+    const { action, final } = seedLinearFlow();
+    const ops = standaloneModelOps(FILE_ID);
+    const activityId = Object.values(getLocalModel(FILE_ID)!.activities!)[0].id;
+    const region = ops.createActivityNode({
+      activityType: 'INTERRUPTIBLE_REGION', activityId, name: 'Checkout region',
+    } as never);
+    ops.updateActivityNode(action, { containerId: region } as never);
+    const interrupting = ops.createRelation({
+      kind: 'CONTROL_FLOW', sourceId: action, targetId: final, isInterrupting: true,
+    } as never);
+    const handler = ops.createActivityNode({ activityType: 'ACTION', activityId, name: 'Handle failure' } as never);
+    const handlerRel = ops.createRelation({ kind: 'EXCEPTION_HANDLER', sourceId: action, targetId: handler } as never);
+
+    useVFSStore.getState().updateFileContent(FILE_ID, {
+      ...(file().content as DiagramView),
+      nodes: [
+        ...(file().content as DiagramView).nodes,
+        { id: 'vn-region', elementId: region, x: 0, y: 0 },
+        { id: 'vn-handler', elementId: handler, x: 400, y: 400 },
+      ],
+    } as never);
+
+    const serialised = JSON.parse(JSON.stringify(useVFSStore.getState().project)) as LibreUMLProject;
+    useVFSStore.getState().closeProject();
+    useVFSStore.getState().loadProject(serialised);
+
+    const model = getLocalModel(FILE_ID)!;
+    expect(model.activityNodes[region].activityType).toBe('INTERRUPTIBLE_REGION');
+    expect(model.activityNodes[action].containerId).toBe(region);
+    expect(model.relations[interrupting]).toMatchObject({ kind: 'CONTROL_FLOW', isInterrupting: true });
+    expect(model.relations[handlerRel]).toMatchObject({ kind: 'EXCEPTION_HANDLER', sourceId: action, targetId: handler });
+
+    // And the canvas rebuilds the region + handler alongside the linear flow.
+    expect(build()).toHaveLength(5);
+  });
+
+  it('v1.1 — an expansion region, its mode, and its owned expansion nodes all survive a round-trip', () => {
+    seedLinearFlow();
+    const ops = standaloneModelOps(FILE_ID);
+    const activityId = Object.values(getLocalModel(FILE_ID)!.activities!)[0].id;
+    const region = ops.createActivityNode({
+      activityType: 'EXPANSION_REGION', activityId, name: 'Per item', mode: 'ITERATIVE',
+    } as never);
+    // Classifier trace target, same store op the class diagram itself uses —
+    // the model is immer-frozen once loaded, so it cannot be written to directly.
+    const classId = ops.createClass({ name: 'Item', attributeIds: [], operationIds: [] } as never);
+    const inputNode = ops.createActivityNode({
+      activityType: 'INPUT_EXPANSION_NODE', activityId, name: '', ownerRegionId: region, classifierId: classId,
+    } as never);
+    const outputNode = ops.createActivityNode({
+      activityType: 'OUTPUT_EXPANSION_NODE', activityId, name: '', ownerRegionId: region,
+    } as never);
+
+    useVFSStore.getState().updateFileContent(FILE_ID, {
+      ...(file().content as DiagramView),
+      nodes: [
+        ...(file().content as DiagramView).nodes,
+        { id: 'vn-region', elementId: region, x: 0, y: 0, width: 320, height: 220 },
+        { id: 'vn-ein', elementId: inputNode, x: -36, y: 10 },
+        { id: 'vn-eout', elementId: outputNode, x: 340, y: 10 },
+      ],
+    } as never);
+
+    const serialised = JSON.parse(JSON.stringify(useVFSStore.getState().project)) as LibreUMLProject;
+    useVFSStore.getState().closeProject();
+    useVFSStore.getState().loadProject(serialised);
+
+    const model = getLocalModel(FILE_ID)!;
+    expect(model.activityNodes[region]).toMatchObject({ activityType: 'EXPANSION_REGION', mode: 'ITERATIVE' });
+    expect(model.activityNodes[inputNode]).toMatchObject({
+      activityType: 'INPUT_EXPANSION_NODE', ownerRegionId: region, classifierId: classId,
+    });
+    expect(model.activityNodes[outputNode]).toMatchObject({
+      activityType: 'OUTPUT_EXPANSION_NODE', ownerRegionId: region,
+    });
+
+    // And the canvas rebuilds the region + both expansion nodes alongside the linear flow.
+    expect(build()).toHaveLength(6);
+  });
+
   it('stamps the schema version on reload so the file is not migrated twice', () => {
     seedLinearFlow();
     const serialised = JSON.parse(JSON.stringify(useVFSStore.getState().project)) as LibreUMLProject;

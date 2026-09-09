@@ -36,7 +36,7 @@ const TRIANGLE_KINDS = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);
 const DIRECTIONAL_ARROW_KINDS = new Set<RelationKind>([
   'DEPENDENCY', 'USAGE', 'INCLUDE', 'EXTEND',
   'PACKAGE_IMPORT', 'PACKAGE_MERGE', 'PACKAGE_ACCESS',
-  'TRANSITION', 'CONTROL_FLOW', 'OBJECT_FLOW', 'DEPLOYMENT', 'MANIFESTATION',
+  'TRANSITION', 'CONTROL_FLOW', 'OBJECT_FLOW', 'EXCEPTION_HANDLER', 'DEPLOYMENT', 'MANIFESTATION',
 ]);
 
 /** Kinds whose ends carry navigability (arrow / ✕ / nothing) instead of a fixed glyph. */

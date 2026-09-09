@@ -138,6 +138,122 @@ describe('buildActivityDiagramXmi', () => {
     expect(xmi).toContain('xmi:type="uml:ObjectFlow"');
   });
 
+  // v1.1 — interruptible region, interrupting edge, exception handler.
+  it('maps INTERRUPTIBLE_REGION to its UML metaclass', () => {
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      activityNodes: { r: node('r', 'INTERRUPTIBLE_REGION', { name: 'Checkout region' }) },
+    });
+    const xmi = buildActivityDiagramXmi(model, null, 'Flow');
+    expect(xmi).toContain('xmi:type="uml:InterruptibleActivityRegion"');
+    expect(xmi).toContain('name="Checkout region"');
+  });
+
+  // v1.1 — expansion region + expansion nodes.
+  it('maps EXPANSION_REGION to its UML metaclass and emits its mode', () => {
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      activityNodes: { r: node('r', 'EXPANSION_REGION', { name: 'Per item', mode: 'STREAM' }) },
+    });
+    const xmi = buildActivityDiagramXmi(model, null, 'Flow');
+    expect(xmi).toContain('xmi:type="uml:ExpansionRegion"');
+    expect(xmi).toContain('name="Per item"');
+    expect(xmi).toContain('mode="stream"');
+  });
+
+  it('defaults an expansion region with no stored mode to parallel, same default the model uses', () => {
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      activityNodes: { r: node('r', 'EXPANSION_REGION') },
+    });
+    const xmi = buildActivityDiagramXmi(model, null, 'Flow');
+    expect(xmi).toContain('mode="parallel"');
+  });
+
+  it('maps both expansion node directions to the single real UML ExpansionNode metaclass', () => {
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      activityNodes: {
+        ein: node('ein', 'INPUT_EXPANSION_NODE', { ownerRegionId: 'r' }),
+        eout: node('eout', 'OUTPUT_EXPANSION_NODE', { ownerRegionId: 'r' }),
+      },
+    });
+    const xmi = buildActivityDiagramXmi(model, null, 'Flow');
+    const matches = xmi.match(/xmi:type="uml:ExpansionNode"/g) ?? [];
+    expect(matches).toHaveLength(2);
+  });
+
+  it('emits an expansion node\'s classifier trace as ObjectNode.type, same field as an object node', () => {
+    const cls: IRClass = { id: 'c1', kind: 'CLASS', name: 'Item', attributeIds: [], operationIds: [] };
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      classes: { c1: cls },
+      activityNodes: { ein: node('ein', 'INPUT_EXPANSION_NODE', { ownerRegionId: 'r', classifierId: 'c1' }) },
+    });
+    const xmi = buildActivityDiagramXmi(model, null, 'Flow');
+    expect(xmi).toContain('type="c1"');
+  });
+
+  it('skip case: a dangling classifierId on an expansion node omits the type attribute', () => {
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      activityNodes: { ein: node('ein', 'INPUT_EXPANSION_NODE', { ownerRegionId: 'r', classifierId: 'ghost' }) },
+    });
+    const xmi = buildActivityDiagramXmi(model, null, 'Flow');
+    expect(xmi).not.toContain('type="ghost"');
+    expect(xmi).not.toContain(' type="');
+  });
+
+  it('emits an interrupting flow with an interrupts idref when its source sits inside a region', () => {
+    const rel: IRRelation = { id: 'r1', kind: 'CONTROL_FLOW', sourceId: 'a', targetId: 'b', isInterrupting: true };
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      activityNodes: {
+        reg: node('reg', 'INTERRUPTIBLE_REGION'),
+        a: node('a', 'ACTION', { containerId: 'reg' }),
+        b: node('b', 'ACTION'),
+      },
+      relations: { r1: rel },
+    });
+    const xmi = buildActivityDiagramXmi(model, null, 'Flow');
+    expect(xmi).toContain('interrupts="reg"');
+  });
+
+  it('skip case: an interrupting flow whose source is not inside a region omits the interrupts attribute', () => {
+    const rel: IRRelation = { id: 'r1', kind: 'CONTROL_FLOW', sourceId: 'a', targetId: 'b', isInterrupting: true };
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      activityNodes: { a: node('a', 'ACTION'), b: node('b', 'ACTION') },
+      relations: { r1: rel },
+    });
+    const xmi = buildActivityDiagramXmi(model, null, 'Flow');
+    expect(xmi).not.toContain('interrupts=');
+  });
+
+  it('emits an exception handler as protectedNode/handlerBody idrefs', () => {
+    const rel: IRRelation = { id: 'r1', kind: 'EXCEPTION_HANDLER', sourceId: 'a', targetId: 'h' };
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      activityNodes: { a: node('a', 'ACTION'), h: node('h', 'ACTION', { name: 'Handle failure' }) },
+      relations: { r1: rel },
+    });
+    const xmi = buildActivityDiagramXmi(model, null, 'Flow');
+    expect(xmi).toContain('xmi:type="uml:ExceptionHandler"');
+    expect(xmi).toContain('protectedNode="a"');
+    expect(xmi).toContain('handlerBody="h"');
+  });
+
+  it('drops an exception handler whose endpoint falls outside the diagram view', () => {
+    const rel: IRRelation = { id: 'r1', kind: 'EXCEPTION_HANDLER', sourceId: 'a', targetId: 'h' };
+    const model = makeModel({
+      activities: { act1: activity('act1') },
+      activityNodes: { a: node('a', 'ACTION'), h: node('h', 'ACTION') },
+      relations: { r1: rel },
+    });
+    const xmi = buildActivityDiagramXmi(model, viewOf(['a']), 'Flow');
+    expect(xmi).not.toContain('uml:ExceptionHandler');
+  });
+
   it('emits a partition with represents when the trace resolves', () => {
     const cls: IRClass = { id: 'c1', kind: 'CLASS', name: 'Clerk', attributeIds: [], operationIds: [] };
     const partition: IRActivityPartition = {

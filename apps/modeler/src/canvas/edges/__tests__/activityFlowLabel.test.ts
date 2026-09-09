@@ -25,4 +25,18 @@ describe('formatActivityFlowLabel', () => {
   it('trims surrounding whitespace', () => {
     expect(formatActivityFlowLabel('  ok  ', undefined)).toBe('[ok]');
   });
+
+  // v1.1 — interrupting edge marker.
+  it('prefixes the interrupting glyph on its own', () => {
+    expect(formatActivityFlowLabel(undefined, undefined, true)).toBe('↯');
+  });
+
+  it('puts the interrupting glyph before guard and weight', () => {
+    expect(formatActivityFlowLabel('balance > 0', '5', true)).toBe('↯ [balance > 0] {5}');
+  });
+
+  it('omits the interrupting glyph when false/undefined', () => {
+    expect(formatActivityFlowLabel('balance > 0', undefined, false)).toBe('[balance > 0]');
+    expect(formatActivityFlowLabel('balance > 0', undefined)).toBe('[balance > 0]');
+  });
 });

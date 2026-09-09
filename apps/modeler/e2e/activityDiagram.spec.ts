@@ -168,6 +168,52 @@ test.describe('A2 — decision, fork/join, guard', () => {
     expect(texts.some((t) => t.includes('[else]'))).toBe(true);
   });
 
+  test('double-clicking a fresh control-flow edge opens Flow Properties for the real relation, not a phantom', async ({ page }) => {
+    // Regression for the id-mismatch bug found while building the
+    // interrupting-flow checkbox (§8.8): `handleEdgeDblClick` used to pass
+    // the ViewEdge id straight through to the modal, which looks the id up
+    // as a *relation* id — production always mints two separate UUIDs
+    // (confirmed by this harness too: viewEdge id is `ve-f2`, relation id
+    // is `f2`), so the modal silently rendered nothing.
+    //
+    // Clicked at 80% along the line, not the midpoint: the (separate, still
+    // open) double-click-on-a-selected-edge bug is real here too — the
+    // floating SelectionToolbar that appears on selection is a real DOM
+    // element positioned just above the selection anchor, and for a short
+    // edge it physically covers a wide band of the line (confirmed with
+    // `elementFromPoint` while investigating — a DOM overlap, not only the
+    // Konva ghost-handle same-shape issue §8.8 already documents). Staying
+    // clear of that band isolates the id fix this test targets.
+    const [src, tgt] = await page.evaluate(() => {
+      const api = window.__libreumlE2E!;
+      return [api.edgeEndpoint('ve-f2', 'source'), api.edgeEndpoint('ve-f2', 'target')];
+    });
+    expect(src).not.toBeNull();
+    expect(tgt).not.toBeNull();
+    const pt = { x: src!.x + (tgt!.x - src!.x) * 0.8, y: src!.y + (tgt!.y - src!.y) * 0.8 };
+
+    // The telemetry consent banner (bottom-centered, z-50) can still be up
+    // this early after seeding — dismiss it first so it can't eat either
+    // click, same defensive pattern edgeAnchoring.verify uses.
+    await page.getByRole('button', { name: 'No thanks' }).click().catch(() => {});
+
+    await page.mouse.dblclick(pt.x, pt.y);
+    await expect(page.getByText('Flow Properties')).toBeVisible();
+
+    const guardInput = page.getByText('Guard', { exact: true }).locator('xpath=following-sibling::input');
+    await expect(guardInput).toHaveValue('balance > 0');
+
+    await guardInput.fill('balance >= 100');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    const relations = await page.evaluate(
+      () => (window.__libreumlE2E as never as {
+        modelDump: (c: string) => Record<string, { guard?: string }> | null;
+      }).modelDump('relations'),
+    );
+    expect(relations?.f2?.guard).toBe('balance >= 100');
+  });
+
   test('the branching model — decision, fork and join — survives into the model', async ({ page }) => {
     const nodes = await page.evaluate(
       () => (window.__libreumlE2E as never as {

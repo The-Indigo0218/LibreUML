@@ -26,15 +26,41 @@ import type {
   IRTimeConstraint,
   IRCoregion,
   IRContinuation,
+  IRActivity,
+  IRActivityNode,
+  IRActivityPartition,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
+import { migrateModel } from './migrations/schema';
+import {
+  applyCreateActivity,
+  applyUpdateActivity,
+  applyDeleteActivity,
+  applyCreateActivityNode,
+  applyUpdateActivityNode,
+  applyDeleteActivityNode,
+  applyCreateActivityPartition,
+  applyUpdateActivityPartition,
+  applyDeleteActivityPartition,
+  clearCallsOperationRefs,
+  clearRepresentsRef,
+  clearObjectNodeClassifierRefs,
+} from './activityModelOps';
 
+/**
+ * Backfills absent collections. This is the cheap guard, not the migration
+ * pipeline: it can only handle "a collection is missing", never a change in the
+ * shape of data that is present. Real format changes live in
+ * `migrations/schema.ts` (ADR-0012), which `loadModel` runs first.
+ */
 function normalize(m: SemanticModel): SemanticModel {
   m.enums           = m.enums           ?? {};
   m.dataTypes       = m.dataTypes       ?? {};
   m.actors          = m.actors          ?? {};
   m.useCases        = m.useCases        ?? {};
-  m.activityNodes   = m.activityNodes   ?? {};
+  m.activities         = m.activities         ?? {};
+  m.activityNodes      = m.activityNodes      ?? {};
+  m.activityPartitions = m.activityPartitions ?? {};
   m.objectInstances = m.objectInstances ?? {};
   m.components      = m.components      ?? {};
   m.nodes           = m.nodes           ?? {};
@@ -379,6 +405,21 @@ interface ModelStoreState {
   updateLifeline: (id: string, patch: Partial<IRLifeline>) => void;
   deleteLifeline: (id: string) => void;
 
+  createActivity: (data: Omit<IRActivity, 'id' | 'kind'>) => string;
+  updateActivity: (id: string, patch: Partial<IRActivity>) => void;
+  /** Cascades: takes the activity's nodes, partitions and their flows with it. */
+  deleteActivity: (id: string) => void;
+
+  createActivityNode: (data: Omit<IRActivityNode, 'id' | 'kind'>) => string;
+  updateActivityNode: (id: string, patch: Partial<IRActivityNode>) => void;
+  /** Cascades: takes the flows in and out of the node with it. */
+  deleteActivityNode: (id: string) => void;
+
+  createActivityPartition: (data: Omit<IRActivityPartition, 'id' | 'kind'>) => string;
+  updateActivityPartition: (id: string, patch: Partial<IRActivityPartition>) => void;
+  /** Nodes in the lane survive it, falling back to living outside any lane. */
+  deleteActivityPartition: (id: string) => void;
+
   createMessage: (data: Omit<IRMessage, 'id' | 'kind'>) => string;
   /**
    * Insert a message at the 1-based slot carried in `data.sequenceNumber`,
@@ -501,7 +542,9 @@ export const useModelStore = create<ModelStoreState>()(
 
     loadModel: (model) =>
       set((state) => {
-        state.model = normalize(model);
+        // Migrate before normalizing: the pipeline reshapes data that is
+        // present, normalize only backfills what is absent (ADR-0012).
+        state.model = normalize(migrateModel(model));
       }),
 
     createClass: (data) => {
@@ -563,6 +606,8 @@ export const useModelStore = create<ModelStoreState>()(
         if (!draft.model) return;
         delete draft.model.classes[id];
         cascadeDeleteRelations(draft.model, id);
+        clearRepresentsRef(draft.model, id);
+        clearObjectNodeClassifierRefs(draft.model, id);
         draft.model.updatedAt = Date.now();
       });
     },
@@ -742,19 +787,25 @@ export const useModelStore = create<ModelStoreState>()(
         const cls = draft.model.classes[elementId];
         const iface = draft.model.interfaces[elementId];
         if (cls) {
+          const removedOpIds = new Set<string>(cls.operationIds);
           cls.attributeIds.forEach((id: string) => { delete draft.model.attributes[id]; });
           cls.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
           attributes.forEach((a: IRAttribute) => { draft.model.attributes[a.id] = a; });
           operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
           draft.model.classes[elementId].attributeIds = attributes.map((a: IRAttribute) => a.id);
           draft.model.classes[elementId].operationIds = operations.map((o: IROperation) => o.id);
+          operations.forEach((o) => removedOpIds.delete(o.id));
+          clearCallsOperationRefs(draft.model, removedOpIds);
         } else if (iface) {
+          const removedOpIds = new Set<string>(iface.operationIds);
           (iface.attributeIds ?? []).forEach((id: string) => { delete draft.model.attributes[id]; });
           iface.operationIds.forEach((id: string) => { delete draft.model.operations[id]; });
           attributes.forEach((a: IRAttribute) => { draft.model.attributes[a.id] = a; });
           operations.forEach((o: IROperation) => { draft.model.operations[o.id] = o; });
           draft.model.interfaces[elementId].attributeIds = attributes.map((a: IRAttribute) => a.id);
           draft.model.interfaces[elementId].operationIds = operations.map((o: IROperation) => o.id);
+          operations.forEach((o) => removedOpIds.delete(o.id));
+          clearCallsOperationRefs(draft.model, removedOpIds);
         }
         draft.model.updatedAt = Date.now();
       });
@@ -787,6 +838,81 @@ export const useModelStore = create<ModelStoreState>()(
         delete draft.model.lifelines[id];
         cascadeDeleteMessages(draft.model, id);
         draft.model.updatedAt = Date.now();
+      });
+    },
+
+    createActivity: (data) => {
+      const id = newId();
+      withUndo('model', `Create Activity: ${data.name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        applyCreateActivity(draft.model, id, data);
+      });
+      return id;
+    },
+
+    updateActivity: (id, patch) => {
+      const name = useModelStore.getState().model?.activities?.[id]?.name ?? id;
+      withUndo('model', `Update Activity: ${name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        applyUpdateActivity(draft.model, id, patch);
+      });
+    },
+
+    deleteActivity: (id) => {
+      const name = useModelStore.getState().model?.activities?.[id]?.name ?? id;
+      withUndo('model', `Delete Activity: ${name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        applyDeleteActivity(draft.model, id);
+      });
+    },
+
+    createActivityNode: (data) => {
+      const id = newId();
+      withUndo('model', `Create Activity Node: ${data.name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        applyCreateActivityNode(draft.model, id, data);
+      });
+      return id;
+    },
+
+    updateActivityNode: (id, patch) => {
+      const name = useModelStore.getState().model?.activityNodes?.[id]?.name ?? id;
+      withUndo('model', `Update Activity Node: ${name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        applyUpdateActivityNode(draft.model, id, patch);
+      });
+    },
+
+    deleteActivityNode: (id) => {
+      const name = useModelStore.getState().model?.activityNodes?.[id]?.name ?? id;
+      withUndo('model', `Delete Activity Node: ${name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        applyDeleteActivityNode(draft.model, id);
+      });
+    },
+
+    createActivityPartition: (data) => {
+      const id = newId();
+      withUndo('model', `Create Partition: ${data.name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        applyCreateActivityPartition(draft.model, id, data);
+      });
+      return id;
+    },
+
+    updateActivityPartition: (id, patch) => {
+      const name = useModelStore.getState().model?.activityPartitions?.[id]?.name ?? id;
+      withUndo('model', `Update Partition: ${name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        applyUpdateActivityPartition(draft.model, id, patch);
+      });
+    },
+
+    deleteActivityPartition: (id) => {
+      const name = useModelStore.getState().model?.activityPartitions?.[id]?.name ?? id;
+      withUndo('model', `Delete Partition: ${name}`, 'global', (draft) => {
+        if (!draft.model) return;
+        applyDeleteActivityPartition(draft.model, id);
       });
     },
 

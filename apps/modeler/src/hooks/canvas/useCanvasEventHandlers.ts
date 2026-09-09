@@ -4,6 +4,8 @@ import { useVFSStore } from '../../store/project-vfs.store';
 import { useModelStore } from '../../store/model.store';
 import { useWorkspaceStore } from '../../store/workspace.store';
 import { useToastStore } from '../../store/toast.store';
+import { TOOL_TO_RELATION_KIND } from '../../canvas/interactions/relationKinds';
+import { getDiagramRegistry } from '../../core/registry/diagram-registry';
 import { getLocalModel } from '../../store/standaloneModelOps';
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type {
@@ -26,17 +28,6 @@ import {
   autoAssignFragmentForNewMessage,
 } from './sequenceMessageHelpers';
 
-const TOOL_TO_RELATION_KIND: Record<string, RelationKind> = {
-  ASSOCIATION:    'ASSOCIATION',
-  INHERITANCE:    'GENERALIZATION',
-  IMPLEMENTATION: 'REALIZATION',
-  DEPENDENCY:     'DEPENDENCY',
-  AGGREGATION:    'AGGREGATION',
-  COMPOSITION:    'COMPOSITION',
-  INCLUDE:        'INCLUDE',
-  EXTEND:         'EXTEND',
-  GENERALIZATION: 'GENERALIZATION',
-};
 
 export interface UseCanvasEventHandlersParams {
   activeTabId: string | null;
@@ -337,12 +328,18 @@ export function useCanvasEventHandlers({
       const activeModel = isStandalone ? getLocalModel(activeTabId) : useModelStore.getState().model;
       const sourceIsPkg = !sourceIsNote && !!(activeModel?.packages[sourceElementId]);
       const targetIsPkg = !targetIsNote && !!(activeModel?.packages[targetElementId]);
+      // With no mode picked, fall back to what this diagram type says its
+      // default edge is — an activity flow must not default to ASSOCIATION.
+      const registryDefault =
+        TOOL_TO_RELATION_KIND[
+          getDiagramRegistry((fileNode as VFSFile).diagramType).defaultEdgeType
+        ] ?? 'ASSOCIATION';
       const kind: RelationKind =
         sourceIsNote || targetIsNote
           ? 'DEPENDENCY'
           : sourceIsPkg && targetIsPkg
             ? 'DEPENDENCY'
-            : (TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? 'ASSOCIATION');
+            : (TOOL_TO_RELATION_KIND[rawMode ?? ''] ?? registryDefault);
 
       const SELF_LOOP_FORBIDDEN = new Set<RelationKind>(['GENERALIZATION', 'REALIZATION']);
       if (sourceElementId === targetElementId && SELF_LOOP_FORBIDDEN.has(kind)) {

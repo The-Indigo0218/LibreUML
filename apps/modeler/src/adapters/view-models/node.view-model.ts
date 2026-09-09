@@ -317,6 +317,211 @@ export interface ContinuationViewModel {
   totalMessages: number;
 }
 
+/**
+ * An action: the rounded box that does something (A1). Covers both plain
+ * actions and call-operation actions, which differ only by carrying a trace.
+ */
+export interface ActivityActionViewModel {
+  __brand: 'activityAction';
+  id: string;
+  domainId: string;
+  label: string;
+  /** Manual box size, persisted on the ViewNode; auto when undefined. */
+  manualWidth?: number;
+  manualHeight?: number;
+  /** Set when this is a CALL_OPERATION traced to an operation (ADR-0010). */
+  callsOperationName?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
+export type ActivityControlKindVM = 'INITIAL' | 'ACTIVITY_FINAL' | 'FLOW_FINAL';
+
+/**
+ * Initial / final / flow-final markers (A1). They carry no label — the glyph
+ * is the meaning — and are a fixed size, so there is nothing to resize.
+ */
+export interface ActivityControlNodeViewModel {
+  __brand: 'activityControlNode';
+  id: string;
+  domainId: string;
+  controlKind: ActivityControlKindVM;
+  colorOverride?: string;
+  onOpenProps?: () => void;
+}
+
+/** Decision/merge share one glyph (a rhombus); only the fan direction differs. */
+export type ActivityDecisionKindVM = 'DECISION' | 'MERGE';
+
+/**
+ * Decision / merge (A2): the rhombus that branches or rejoins control flow.
+ * One view model covers both — UML draws them identically, and telling a
+ * decision (should fan out) from a merge (should fan in) is the validator's
+ * job, not the shape's. No label: the branch condition lives on the outgoing
+ * edges as `guard`, not on the node.
+ */
+export interface ActivityDecisionViewModel {
+  __brand: 'activityDecision';
+  id: string;
+  domainId: string;
+  decisionKind: ActivityDecisionKindVM;
+  colorOverride?: string;
+  onOpenProps?: () => void;
+}
+
+/** Fork/join share one glyph (a bar); only the fan direction differs. */
+export type ActivityForkJoinKindVM = 'FORK' | 'JOIN';
+
+/**
+ * Fork / join (A2): the synchronization bar that splits or rejoins concurrent
+ * flows. One view model covers both, oriented by `barOrientation` (persisted
+ * on the IR node, defaults to HORIZONTAL). No label, same reasoning as decision/merge.
+ */
+export interface ActivityForkJoinViewModel {
+  __brand: 'activityForkJoin';
+  id: string;
+  domainId: string;
+  forkJoinKind: ActivityForkJoinKindVM;
+  barOrientation: 'HORIZONTAL' | 'VERTICAL';
+  colorOverride?: string;
+  onOpenProps?: () => void;
+}
+
+/**
+ * Object node (A6/v1.1): the rectangle a value flows through between actions.
+ * Square corners distinguish it from the rounded `ActivityActionViewModel`
+ * box. `classifierName` is the resolved half of the classifier trace
+ * (`IRActivityNode.classifierId`, ADR-0010) — same pattern as
+ * `callsOperationName` on the action.
+ */
+export interface ActivityObjectNodeViewModel {
+  __brand: 'activityObjectNode';
+  id: string;
+  domainId: string;
+  label: string;
+  manualWidth?: number;
+  manualHeight?: number;
+  classifierName?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
+/**
+ * Input or output pin (A6.2/v1.1), or an expansion node (v1.1) — the two
+ * share the same shape/interaction (a small square, floating near an owner,
+ * an arrow glyph for direction, a caption below), so an expansion region's
+ * boundary node reuses this brand rather than growing a parallel one. The
+ * two pairs never mix ownership: a pin's owner is an action, an expansion
+ * node's owner is a region (see `ownerRegionId` on the IR).
+ */
+export type ActivityPinKindVM =
+  | 'INPUT_PIN' | 'OUTPUT_PIN' | 'INPUT_EXPANSION_NODE' | 'OUTPUT_EXPANSION_NODE';
+
+/**
+ * Input/output pin (A6.2): a small square on an action's boundary in real
+ * UML, drawn here as a free-standing node near its owner — same engineering
+ * effort as the object node, which also free-floats rather than snapping to
+ * a border. `parameterLabel` is the resolved half of this node's ADR-0010
+ * trace: a pin's parameter (`IRActivityNode.parameterName`), or — when
+ * `pinKind` is one of the expansion-node kinds — an expansion node's
+ * classifier (`IRActivityNode.classifierId`, same field/modal the object
+ * node uses).
+ */
+export interface ActivityPinViewModel {
+  __brand: 'activityPin';
+  id: string;
+  domainId: string;
+  pinKind: ActivityPinKindVM;
+  label: string;
+  parameterLabel?: string;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
+/**
+ * Swimlane (A3): a band, not a free container (spec §4). `index` is the only
+ * source of truth for order — its own `x` is derived from the whole row's
+ * widths (`partitionLayout.ts`), never dragged. `width` is the one thing the
+ * user resizes by hand; `representsId` (A4) traces the lane to its
+ * responsible class/actor and stays optional until then.
+ */
+export interface ActivityPartitionViewModel {
+  __brand: 'activityPartition';
+  id: string;
+  domainId: string;
+  name: string;
+  index: number;
+  width: number;
+  representsId?: string;
+  /** Resolved name of the class/actor this lane represents (ADR-0010), if any. */
+  representsName?: string;
+  /** Jumps to the diagram where the represented class/actor lives, when one is open. */
+  onNavigateToRepresents?: () => void;
+  colorOverride?: string;
+  /** Whether a left/right neighbour exists — drives the reorder buttons. */
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  onRename?: (name: string) => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
+  onDelete?: () => void;
+  onOpenProps?: () => void;
+}
+
+/** Loop, conditional, sequence, interruptible region, or expansion region (structured nodes, v1.1). */
+export type ActivityStructuredKindVM =
+  | 'LOOP_NODE' | 'CONDITIONAL_NODE' | 'SEQUENCE_NODE' | 'INTERRUPTIBLE_REGION'
+  | 'EXPANSION_REGION';
+
+/** EXPANSION_REGION only (v1.1). Mirrors `ActivityExpansionMode` on the IR. */
+export type ActivityExpansionModeVM = 'PARALLEL' | 'ITERATIVE' | 'STREAM';
+
+/**
+ * A structured activity node (v1.1): a free-floating, resizable container —
+ * unlike the partition above, it is not a row in a fixed axis, so its
+ * geometry follows the package/system-boundary pattern instead (`width`/
+ * `height` set by the user, contained nodes carry `parentPackageId`).
+ * `testExpression` is the free-text stand-in for the real UML sub-regions
+ * (setup/test/body for a loop, per-clause test+body for a conditional) —
+ * unused for SEQUENCE_NODE/INTERRUPTIBLE_REGION/EXPANSION_REGION, none of
+ * which has anything to test. `mode` is EXPANSION_REGION's own subtitle
+ * (parallel/iterative/stream) — the two subtitle fields are mutually
+ * exclusive by kind, same as `barOrientation` only ever applying to FORK/JOIN.
+ */
+export interface ActivityStructuredViewModel {
+  __brand: 'activityStructured';
+  id: string;
+  domainId: string;
+  structuredKind: ActivityStructuredKindVM;
+  name: string;
+  width: number;
+  height: number;
+  testExpression?: string;
+  mode?: ActivityExpansionModeVM;
+  colorOverride?: string;
+  borderWidthOverride?: number;
+  borderStyleOverride?: 'solid' | 'dashed' | 'dotted';
+  fontFamilyOverride?: string;
+  fontSizeOverride?: number;
+  onRename?: (name: string) => void;
+  onOpenProps?: () => void;
+}
+
 export type AnyNodeViewModel =
   | NodeViewModel
   | NoteViewModel
@@ -336,7 +541,15 @@ export type AnyNodeViewModel =
   | GeneralOrderingViewModel
   | TimeConstraintViewModel
   | CoregionViewModel
-  | ContinuationViewModel;
+  | ContinuationViewModel
+  | ActivityActionViewModel
+  | ActivityControlNodeViewModel
+  | ActivityDecisionViewModel
+  | ActivityForkJoinViewModel
+  | ActivityPartitionViewModel
+  | ActivityObjectNodeViewModel
+  | ActivityPinViewModel
+  | ActivityStructuredViewModel;
 
 
 export function isNodeViewModel(vm: AnyNodeViewModel): vm is NodeViewModel {
@@ -411,6 +624,48 @@ export function isCoregionViewModel(vm: AnyNodeViewModel): vm is CoregionViewMod
   return '__brand' in vm && vm.__brand === 'coregion';
 }
 
+export function isActivityActionViewModel(vm: AnyNodeViewModel): vm is ActivityActionViewModel {
+  return '__brand' in vm && vm.__brand === 'activityAction';
+}
+
+export function isActivityControlNodeViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityControlNodeViewModel {
+  return '__brand' in vm && vm.__brand === 'activityControlNode';
+}
+
+export function isActivityDecisionViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityDecisionViewModel {
+  return '__brand' in vm && vm.__brand === 'activityDecision';
+}
+
+export function isActivityForkJoinViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityForkJoinViewModel {
+  return '__brand' in vm && vm.__brand === 'activityForkJoin';
+}
+
 export function isContinuationViewModel(vm: AnyNodeViewModel): vm is ContinuationViewModel {
   return '__brand' in vm && vm.__brand === 'continuation';
+}
+
+export function isActivityObjectNodeViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityObjectNodeViewModel {
+  return '__brand' in vm && vm.__brand === 'activityObjectNode';
+}
+
+export function isActivityPartitionViewModel(
+  vm: AnyNodeViewModel,
+): vm is ActivityPartitionViewModel {
+  return '__brand' in vm && vm.__brand === 'activityPartition';
+}
+
+export function isActivityPinViewModel(vm: AnyNodeViewModel): vm is ActivityPinViewModel {
+  return '__brand' in vm && vm.__brand === 'activityPin';
+}
+
+export function isActivityStructuredViewModel(vm: AnyNodeViewModel): vm is ActivityStructuredViewModel {
+  return '__brand' in vm && vm.__brand === 'activityStructured';
 }

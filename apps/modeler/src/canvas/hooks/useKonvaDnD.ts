@@ -7,10 +7,19 @@ import { useModelStore } from '../../store/model.store';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useToastStore } from '../../store/toast.store';
 import { getLocalModel } from '../../store/standaloneModelOps';
+import {
+  getOrCreateActivityId,
+  applyCreateActivityNode,
+  applyCreateActivityPartition,
+} from '../../store/activityModelOps';
+import { DEFAULT_PARTITION_WIDTH } from '../engine/partitionLayout';
+import { SN_DEFAULT_W, SN_DEFAULT_H } from '../shapes/StructuredNodeShape';
 import { isDiagramView } from '../../features/diagram/hooks/useVFSCanvasController';
 import { getAbsolutePosition } from '../../features/diagram/hooks/controllers/sharedNodeBuilders';
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
-import type { DiagramView, ViewNode, VFSFile, SemanticModel } from '../../core/domain/vfs/vfs.types';
+import type {
+  DiagramView, ViewNode, VFSFile, SemanticModel, ActivityNodeKind,
+} from '../../core/domain/vfs/vfs.types';
 import type { stereotype } from '../../features/diagram/types/diagram.types';
 import { SB_DEFAULT_W, SB_DEFAULT_H } from '../shapes/SystemBoundaryShape';
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from '../shapes/UCModuleShape';
@@ -41,10 +50,40 @@ export function getNextVFSName(existingNames: string[], prefix: string): string 
   return `${prefix} ${max + 1}`;
 }
 
+/**
+ * A control-node drop config for the activity kinds that carry no name — a
+ * filled circle, a rhombus or a bar has nothing to label (A1/A2 precedent:
+ * these kinds render with `editor: 'none'`).
+ */
+function controlNodeDropConfig(activityType: ActivityNodeKind): DropConfig {
+  return {
+    getNextName: () => '',
+    applyToModelDraft: (m, id, _name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType, activityId, name: '' });
+    },
+    applyToLocalModelDraft: (lm, id, _name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType, activityId, name: '' });
+    },
+  };
+}
+
 export interface DropConfig {
   getNextName: (model: SemanticModel) => string;
-  applyToModelDraft: (modelDraft: any, id: string, name: string, isExternal?: boolean) => void;
-  applyToLocalModelDraft: (lm: any, id: string, name: string) => void;
+  /**
+   * `existingViewNodes` is the dropped-on diagram's current nodes — only
+   * Activity needs it, to find the Activity that already owns this diagram
+   * instead of guessing (§ getOrCreateActivityId in activityModelOps.ts).
+   */
+  applyToModelDraft: (
+    modelDraft: any, id: string, name: string, isExternal?: boolean,
+    existingViewNodes?: readonly { elementId: string }[],
+  ) => void;
+  applyToLocalModelDraft: (
+    lm: any, id: string, name: string,
+    existingViewNodes?: readonly { elementId: string }[],
+  ) => void;
   isVisualOnly?: boolean;
   /** Initial ViewNode dimensions — used for resizable containers like SystemBoundary. */
   initialDimensions?: { width: number; height: number };
@@ -242,6 +281,188 @@ export const VFS_DROP_CONFIG: Partial<Record<stereotype, DropConfig>> = {
       };
       lm.updatedAt = Date.now();
     },
+  },
+  // ── Activity Diagram (A2.5) ─────────────────────────────────────────────
+  // Registered in activityDiagramRegistry.tools.nodes since A1, but never
+  // wired into VFS_DROP_CONFIG — dropping any of these tools silently did
+  // nothing (`console.warn('has no VFS semantic mapping')`) until now.
+  action: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'ACTION')
+          .map((n) => n.name),
+        'Action',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'ACTION', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'ACTION', activityId, name });
+    },
+  },
+  call_operation: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'CALL_OPERATION')
+          .map((n) => n.name),
+        'Call Operation',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'CALL_OPERATION', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'CALL_OPERATION', activityId, name });
+    },
+  },
+  initial_node: controlNodeDropConfig('INITIAL'),
+  activity_final: controlNodeDropConfig('ACTIVITY_FINAL'),
+  flow_final: controlNodeDropConfig('FLOW_FINAL'),
+  decision: controlNodeDropConfig('DECISION'),
+  merge: controlNodeDropConfig('MERGE'),
+  fork: controlNodeDropConfig('FORK'),
+  join: controlNodeDropConfig('JOIN'),
+  // ── Activity Diagram (A6/v1.1) ───────────────────────────────────────────
+  object_node: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'OBJECT_NODE')
+          .map((n) => n.name),
+        'Object',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'OBJECT_NODE', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'OBJECT_NODE', activityId, name });
+    },
+  },
+  // ── Activity Diagram (A3) ────────────────────────────────────────────────
+  activity_partition: {
+    getNextName: (model: SemanticModel) =>
+      getNextVFSName(
+        Object.values(model.activityPartitions ?? {}).map((p) => p.name),
+        'Lane',
+      ),
+    applyToModelDraft: (m: SemanticModel, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      const index = Object.values(m.activityPartitions ?? {}).filter(
+        (p) => p.activityId === activityId,
+      ).length;
+      applyCreateActivityPartition(m, id, { activityId, name, index });
+    },
+    applyToLocalModelDraft: (lm: SemanticModel, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      const index = Object.values(lm.activityPartitions ?? {}).filter(
+        (p) => p.activityId === activityId,
+      ).length;
+      applyCreateActivityPartition(lm, id, { activityId, name, index });
+    },
+    // Height is never read for a lane (shared/derived, see partitionLayout.ts)
+    // — only `width` matters here, but the shape requires both.
+    initialDimensions: { width: DEFAULT_PARTITION_WIDTH, height: 200 },
+  },
+  // ── Activity Diagram (structured nodes, v1.1) ────────────────────────────
+  // Unlike pins/object nodes, these DO get a palette tool: an empty
+  // loop/conditional/sequence box is meaningful on its own — drop it, then
+  // drop other tools inside it.
+  loop_node: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'LOOP_NODE')
+          .map((n) => n.name),
+        'Loop',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'LOOP_NODE', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'LOOP_NODE', activityId, name });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
+  },
+  conditional_node: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'CONDITIONAL_NODE')
+          .map((n) => n.name),
+        'Conditional',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'CONDITIONAL_NODE', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'CONDITIONAL_NODE', activityId, name });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
+  },
+  sequence_node: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'SEQUENCE_NODE')
+          .map((n) => n.name),
+        'Sequence',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'SEQUENCE_NODE', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'SEQUENCE_NODE', activityId, name });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
+  },
+  interruptible_region: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'INTERRUPTIBLE_REGION')
+          .map((n) => n.name),
+        'Interruptible Region',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'INTERRUPTIBLE_REGION', activityId, name });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'INTERRUPTIBLE_REGION', activityId, name });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
+  },
+  expansion_region: {
+    getNextName: (model) =>
+      getNextVFSName(
+        Object.values(model.activityNodes ?? {})
+          .filter((n) => n.activityType === 'EXPANSION_REGION')
+          .map((n) => n.name),
+        'Expansion Region',
+      ),
+    applyToModelDraft: (m, id, name, _isExternal, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(m, existingViewNodes, 'Activity');
+      applyCreateActivityNode(m, id, { activityType: 'EXPANSION_REGION', activityId, name, mode: 'PARALLEL' });
+    },
+    applyToLocalModelDraft: (lm, id, name, existingViewNodes = []) => {
+      const activityId = getOrCreateActivityId(lm, existingViewNodes, 'Activity');
+      applyCreateActivityNode(lm, id, { activityType: 'EXPANSION_REGION', activityId, name, mode: 'PARALLEL' });
+    },
+    initialDimensions: { width: SN_DEFAULT_W, height: SN_DEFAULT_H },
   },
 };
 
@@ -1079,6 +1300,9 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
       if (!freshFileNode || freshFileNode.type !== 'FILE') return;
       const freshContent = (freshFileNode as VFSFile).content;
       if (!isDiagramView(freshContent)) return;
+      // Snapshot before either mutation runs — read-only lookup, so the
+      // pre-drop node list is exactly what getOrCreateActivityId needs.
+      const existingViewNodes = freshContent.nodes;
 
       const isStandaloneFile = (freshFileNode as VFSFile).standalone === true;
       const isExternalFile = !!(freshFileNode as VFSFile).isExternal;
@@ -1113,7 +1337,7 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
                     createdAt: now, updatedAt: now,
                   };
                 }
-                dropConfig.applyToLocalModelDraft(node.localModel, newElementId, elementName);
+                dropConfig.applyToLocalModelDraft(node.localModel, newElementId, elementName, existingViewNodes);
               }
               if (isDiagramView(node.content)) {
                 node.content.nodes.push({
@@ -1158,7 +1382,9 @@ export function useKonvaDnD({ stageRef }: UseKonvaDnDParams): UseKonvaDnDResult 
                       packageNames: [], createdAt: now, updatedAt: now,
                     };
                   }
-                  dropConfig.applyToModelDraft(draft.model, newElementId, elementName, isExternalFile || undefined);
+                  dropConfig.applyToModelDraft(
+                    draft.model, newElementId, elementName, isExternalFile || undefined, existingViewNodes,
+                  );
                 },
               },
               {

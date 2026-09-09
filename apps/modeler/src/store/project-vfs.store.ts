@@ -12,6 +12,7 @@ import type {
   SemanticModel,
 } from '../core/domain/vfs/vfs.types';
 import { storageAdapter } from '../adapters/storage/storage.adapter';
+import { migrateModel } from './migrations/schema';
 import { undoManager } from '../core/undo/instance';
 
 type VFSNode = VFSFolder | VFSFile;
@@ -132,6 +133,14 @@ export const useVFSStore = create<VFSStoreState>()(
             project = { ...project, semanticModel: recovered };
           }
         }
+        // Standalone files carry their own `localModel`, which never reaches
+        // useModelStore.loadModel — migrate those here or a sequence/activity
+        // file saved in an older format opens unmigrated (ADR-0012).
+        for (const node of Object.values(project.nodes ?? {})) {
+          const file = node as { type?: string; localModel?: SemanticModel };
+          if (file.type === 'FILE' && file.localModel) migrateModel(file.localModel);
+        }
+
         set({ project, isLoading: false });
         const ms = useModelStore.getState();
         if (project.semanticModel) {

@@ -48,6 +48,11 @@ export interface EdgeDescriptor {
   // «extend» specific
   condition?: string;
   extensionPoint?: string;
+  // CONTROL_FLOW/OBJECT_FLOW specific (A2)
+  guard?: string;
+  weight?: string;
+  // CONTROL_FLOW/OBJECT_FLOW specific (v1.1) — interrupting edge of a region.
+  isInterrupting?: boolean;
   /** Manual user waypoints — when present, the edge routes through them. */
   waypoints?: { x: number; y: number }[];
   /** Line routing style. Undefined = 'straight' (free-form). */

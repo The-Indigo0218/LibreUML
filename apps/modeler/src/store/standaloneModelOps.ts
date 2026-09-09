@@ -40,8 +40,25 @@ import type {
   IRTimeConstraint,
   IRCoregion,
   IRContinuation,
+  IRActivity,
+  IRActivityNode,
+  IRActivityPartition,
 } from '../core/domain/vfs/vfs.types';
 import { getPackageHierarchy } from '../utils/packageHelpers';
+import {
+  applyCreateActivity,
+  applyUpdateActivity,
+  applyDeleteActivity,
+  applyCreateActivityNode,
+  applyUpdateActivityNode,
+  applyDeleteActivityNode,
+  applyCreateActivityPartition,
+  applyUpdateActivityPartition,
+  applyDeleteActivityPartition,
+  clearCallsOperationRefs,
+  clearRepresentsRef,
+  clearObjectNodeClassifierRefs,
+} from './activityModelOps';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -365,6 +382,8 @@ export function standaloneModelOps(fileId: string) {
       update((m) => {
         delete m.classes[id];
         cascadeDeleteRelations(m, id);
+        clearRepresentsRef(m, id);
+        clearObjectNodeClassifierRefs(m, id);
         m.updatedAt = Date.now();
       });
     },
@@ -534,19 +553,25 @@ export function standaloneModelOps(fileId: string) {
         const cls = m.classes[elementId];
         const iface = m.interfaces[elementId];
         if (cls) {
+          const removedOpIds = new Set<string>(cls.operationIds);
           cls.attributeIds.forEach((aid) => { delete m.attributes[aid]; });
           cls.operationIds.forEach((oid) => { delete m.operations[oid]; });
           attributes.forEach((a) => { m.attributes[a.id] = a; });
           operations.forEach((o) => { m.operations[o.id] = o; });
           m.classes[elementId].attributeIds = attributes.map((a) => a.id);
           m.classes[elementId].operationIds = operations.map((o) => o.id);
+          operations.forEach((o) => removedOpIds.delete(o.id));
+          clearCallsOperationRefs(m, removedOpIds);
         } else if (iface) {
+          const removedOpIds = new Set<string>(iface.operationIds);
           (iface.attributeIds ?? []).forEach((aid) => { delete m.attributes[aid]; });
           iface.operationIds.forEach((oid) => { delete m.operations[oid]; });
           attributes.forEach((a) => { m.attributes[a.id] = a; });
           operations.forEach((o) => { m.operations[o.id] = o; });
           m.interfaces[elementId].attributeIds = attributes.map((a) => a.id);
           m.interfaces[elementId].operationIds = operations.map((o) => o.id);
+          operations.forEach((o) => removedOpIds.delete(o.id));
+          clearCallsOperationRefs(m, removedOpIds);
         }
         m.updatedAt = Date.now();
       });
@@ -573,6 +598,50 @@ export function standaloneModelOps(fileId: string) {
         delete m.relations[id];
         m.updatedAt = Date.now();
       });
+    },
+
+    // ── Activities (activity diagrams) ────────────────────────────────────────
+
+    createActivity: (data: Omit<IRActivity, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => applyCreateActivity(m, id, data));
+      return id;
+    },
+
+    updateActivity: (id: string, patch: Partial<IRActivity>) => {
+      update((m) => applyUpdateActivity(m, id, patch));
+    },
+
+    deleteActivity: (id: string) => {
+      update((m) => applyDeleteActivity(m, id));
+    },
+
+    createActivityNode: (data: Omit<IRActivityNode, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => applyCreateActivityNode(m, id, data));
+      return id;
+    },
+
+    updateActivityNode: (id: string, patch: Partial<IRActivityNode>) => {
+      update((m) => applyUpdateActivityNode(m, id, patch));
+    },
+
+    deleteActivityNode: (id: string) => {
+      update((m) => applyDeleteActivityNode(m, id));
+    },
+
+    createActivityPartition: (data: Omit<IRActivityPartition, 'id' | 'kind'>): string => {
+      const id = crypto.randomUUID();
+      update((m) => applyCreateActivityPartition(m, id, data));
+      return id;
+    },
+
+    updateActivityPartition: (id: string, patch: Partial<IRActivityPartition>) => {
+      update((m) => applyUpdateActivityPartition(m, id, patch));
+    },
+
+    deleteActivityPartition: (id: string) => {
+      update((m) => applyDeleteActivityPartition(m, id));
     },
 
     // ── Lifelines (sequence diagrams) ─────────────────────────────────────────

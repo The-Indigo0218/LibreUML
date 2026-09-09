@@ -315,9 +315,117 @@ export interface IRDomainEntity extends IRElement {
   attributeIds: string[];
 }
 
+/**
+ * The behaviour an activity diagram describes. Nodes and partitions always
+ * belong to exactly one.
+ */
+export interface IRActivity extends IRElement {
+  kind: 'ACTIVITY';
+  /** Trace to the use case this activity realizes (ADR-0010). */
+  realizesUseCaseId?: string;
+  /** Trace to the classifier that owns the behaviour. */
+  contextClassifierId?: string;
+}
+
+export type ActivityNodeKind =
+  // v1
+  | 'ACTION'
+  | 'CALL_OPERATION'
+  | 'INITIAL'
+  | 'ACTIVITY_FINAL'
+  | 'DECISION'
+  | 'MERGE'
+  | 'FORK'
+  | 'JOIN'
+  // v1.1
+  | 'FLOW_FINAL'
+  | 'OBJECT_NODE'
+  | 'INPUT_PIN'
+  | 'OUTPUT_PIN'
+  | 'LOOP_NODE'
+  | 'CONDITIONAL_NODE'
+  | 'SEQUENCE_NODE'
+  | 'INTERRUPTIBLE_REGION'
+  | 'EXPANSION_REGION'
+  | 'INPUT_EXPANSION_NODE'
+  | 'OUTPUT_EXPANSION_NODE';
+
+/** EXPANSION_REGION only: how many times/how the body runs per input collection (UML 2.5 §15.6.4). */
+export type ActivityExpansionMode = 'PARALLEL' | 'ITERATIVE' | 'STREAM';
+
 export interface IRActivityNode extends IRElement {
   kind: 'ACTIVITY_NODE';
-  activityType: 'ACTION' | 'DECISION' | 'MERGE' | 'FORK' | 'JOIN' | 'INITIAL' | 'FINAL';
+  activityType: ActivityNodeKind;
+  /** Owning activity. A node always belongs to exactly one. */
+  activityId: string;
+  /** Partition (swimlane) containing it; undefined means outside any lane. */
+  partitionId?: string;
+  /** CALL_OPERATION only: the operation this action invokes (ADR-0010). */
+  callsOperationId?: string;
+  /**
+   * OBJECT_NODE only, or an INPUT_EXPANSION_NODE/OUTPUT_EXPANSION_NODE
+   * (v1.1): classifier of the object/collection element that flows. An
+   * expansion node reuses this exact field — its "Link Classifier…" menu
+   * item opens the same modal an object node does (ADR-0010).
+   */
+  classifierId?: string;
+  /** FORK/JOIN only: bar axis. Defaults to HORIZONTAL. */
+  barOrientation?: 'HORIZONTAL' | 'VERTICAL';
+  /**
+   * INPUT_PIN/OUTPUT_PIN only: the action (ACTION/CALL_OPERATION) this pin
+   * belongs to (A6.2). A pin has no meaning without an owner.
+   */
+  ownerActionId?: string;
+  /**
+   * INPUT_EXPANSION_NODE/OUTPUT_EXPANSION_NODE only (v1.1): the
+   * EXPANSION_REGION this boundary node belongs to — same ownership shape as
+   * a pin's `ownerActionId`, one level up (a region instead of an action).
+   * An expansion node has no meaning without its region.
+   */
+  ownerRegionId?: string;
+  /**
+   * INPUT_PIN/OUTPUT_PIN only: trace to a parameter of the owner's linked
+   * operation (ADR-0010). By name, not id — `IRParameter` carries no id of
+   * its own. The sentinel `PIN_RETURN_VALUE` ('__return__', see
+   * `activityModelOps.ts`) traces an output pin to the operation's return
+   * value instead of a parameter.
+   */
+  parameterName?: string;
+  /**
+   * LOOP_NODE/CONDITIONAL_NODE/SEQUENCE_NODE/INTERRUPTIBLE_REGION/
+   * EXPANSION_REGION only: the structured node (or region) that contains
+   * this node, if any (nesting is allowed — a structured node can itself sit
+   * inside another). Distinct from `partitionId`: a node can be inside a
+   * lane AND inside a structured node at the same time, same as real UML
+   * allows a structured activity node to cross swimlanes.
+   */
+  containerId?: string;
+  /**
+   * LOOP_NODE/CONDITIONAL_NODE only: the test/guard condition shown in the
+   * header (e.g. "i < 10", "amount > 1000"). Free text, not modeled as a
+   * real `OpaqueExpression` graph — same conformance scope cut as guard/
+   * weight on `IRRelation`. Unused for SEQUENCE_NODE (no branching to test).
+   */
+  testExpression?: string;
+  /**
+   * EXPANSION_REGION only (v1.1): its execution mode (UML 2.5 §15.6.4,
+   * `ExpansionKind`). Defaults to `PARALLEL` when unset — same "always has a
+   * sensible default" shape as `barOrientation`.
+   */
+  mode?: ActivityExpansionMode;
+}
+
+/**
+ * A swimlane. Its position comes from `index`, never from pixels: reordering
+ * lanes swaps indices and the geometry follows (ADR-0008).
+ */
+export interface IRActivityPartition extends IRElement {
+  kind: 'ACTIVITY_PARTITION';
+  activityId: string;
+  /** Order along the axis. Determines the lane's position. */
+  index: number;
+  /** Trace to the class or actor responsible for this lane (ADR-0010). */
+  representsId?: string;
 }
 
 export interface IRObjectInstance extends IRElement {
@@ -667,6 +775,7 @@ export type RelationKind =
   | 'TRANSITION'
   | 'CONTROL_FLOW'
   | 'OBJECT_FLOW'
+  | 'EXCEPTION_HANDLER'
   | 'DEPLOYMENT'
   | 'MANIFESTATION'
   | 'PACKAGE_IMPORT'
@@ -694,12 +803,30 @@ export interface IRRelation {
   isExternal?: boolean;
   condition?: string;      // «extend» guard condition
   extensionPoint?: string; // «extend» target extension point name
+  /** CONTROL_FLOW / OBJECT_FLOW guard, e.g. '[balance > 0]'. */
+  guard?: string;
+  /** CONTROL_FLOW / OBJECT_FLOW weight: '*', '1', or an expression. */
+  weight?: string;
+  /**
+   * CONTROL_FLOW / OBJECT_FLOW only (v1.1): marks this flow as the
+   * interrupting edge of the INTERRUPTIBLE_REGION its source belongs to
+   * (`IRActivityNode.containerId`) — UML 2.5 §15.3's zigzag arrow. Rendered
+   * as a dashed line with a `↯` marker in the flow label rather than a real
+   * zigzag stroke; same conformance scope cut as guard/weight above.
+   */
+  isInterrupting?: boolean;
 }
 
 export interface SemanticModel {
   id: string;
   name: string;
+  /** Business version of the model's content. Not the storage format. */
   version: string;
+  /**
+   * Storage format version, driving the migration pipeline (ADR-0012).
+   * Absent means "before migrations existed" and is treated as 0.
+   */
+  schemaVersion?: number;
   packages: Record<string, IRPackage>;
   classes: Record<string, IRClass>;
   interfaces: Record<string, IRInterface>;
@@ -713,7 +840,9 @@ export interface SemanticModel {
   ucModules?: Record<string, IRUCModule>;
   domainEntities?: Record<string, IRDomainEntity>;
   domainAttributes?: Record<string, IRDomainAttribute>;
+  activities?: Record<string, IRActivity>;
   activityNodes: Record<string, IRActivityNode>;
+  activityPartitions?: Record<string, IRActivityPartition>;
   objectInstances: Record<string, IRObjectInstance>;
   components: Record<string, IRComponent>;
   nodes: Record<string, IRNode>;
@@ -754,6 +883,8 @@ export type SemanticKind =
   | 'UC_MODULE'
   | 'DOMAIN_ENTITY'
   | 'LIFELINE'
+  | 'ACTIVITY_NODE'
+  | 'ACTIVITY_PARTITION'
   | 'UNKNOWN';
 
 /**
@@ -772,6 +903,8 @@ export interface ResolvedElement {
     | IRUCModule
     | IRDomainEntity
     | IRLifeline
+    | IRActivityNode
+    | IRActivityPartition
     | null;
   kind: SemanticKind;
 }

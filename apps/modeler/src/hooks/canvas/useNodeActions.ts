@@ -4,6 +4,13 @@ import { useModelStore } from '../../store/model.store';
 import { useToastStore } from '../../store/toast.store';
 import { useSelectionStore } from '../../store/selection.store';
 import { getLocalModel } from '../../store/standaloneModelOps';
+import {
+  clearRealizesUseCaseRef,
+  clearRepresentsRef,
+  applyDeleteActivityNode,
+  applyDeleteActivityPartition,
+  activityNodeDeleteCascadeIds,
+} from '../../store/activityModelOps';
 import { undoTransaction, withUndo } from '../../core/undo/undoBridge';
 import type {
   DiagramView,
@@ -132,7 +139,16 @@ export function useNodeActions({
           localM.useCases?.[elementId]?.name ??
           localM.systemBoundaries?.[elementId]?.name ??
           localM.ucModules?.[elementId]?.name ??
+          (localM.activityNodes?.[elementId]?.name || localM.activityNodes?.[elementId]?.activityType) ??
+          localM.activityPartitions?.[elementId]?.name ??
           'Element';
+
+        // Deleting an activity node can take more than one ViewNode with it
+        // (a pin's owner takes the pin too, A6.2) — computed against the
+        // model as it stands now, before anything below mutates it.
+        const removedElementIds = localM.activityNodes?.[elementId]
+          ? activityNodeDeleteCascadeIds(localM, elementId)
+          : new Set([elementId]);
 
         undoTransaction({
           label: `Delete: ${elementName}`,
@@ -152,10 +168,20 @@ export function useNodeActions({
               else if (lm.useCases?.[elementId])           { delete lm.useCases![elementId]; }
               else if (lm.systemBoundaries?.[elementId])   { delete lm.systemBoundaries![elementId]; }
               else if (lm.ucModules?.[elementId])          { delete lm.ucModules![elementId]; }
+              // Activity nodes/lanes (A1/A3) live in their own collections,
+              // never in the ones above — same gap the pin cascade review
+              // surfaced: this branch never existed, so "Delete from Model"
+              // silently dropped the ViewNode and left the IR node orphaned.
+              else if (lm.activityNodes?.[elementId])      { applyDeleteActivityNode(lm, elementId); }
+              else if (lm.activityPartitions?.[elementId]) { applyDeleteActivityPartition(lm, elementId); }
               cascadeDeleteRelations(lm, elementId);
+              // ADR-0010: a deleted class/actor/use case can't stay traced from a
+              // lane or an activity — same reasoning as cascadeDeleteRelations above.
+              clearRepresentsRef(lm, elementId);
+              clearRealizesUseCaseRef(lm, elementId);
               lm.updatedAt = Date.now();
               if (isDiagramView(node.content)) {
-                node.content.nodes = node.content.nodes.filter((vn: ViewNode) => vn.elementId !== elementId);
+                node.content.nodes = node.content.nodes.filter((vn: ViewNode) => !removedElementIds.has(vn.elementId));
                 node.content.edges = node.content.edges.filter(
                   (ve: any) => !!lm.relations[ve.relationId],
                 );
@@ -178,7 +204,15 @@ export function useNodeActions({
           ms.model.useCases?.[elementId]?.name ??
           ms.model.systemBoundaries?.[elementId]?.name ??
           ms.model.ucModules?.[elementId]?.name ??
+          (ms.model.activityNodes?.[elementId]?.name || ms.model.activityNodes?.[elementId]?.activityType) ??
+          ms.model.activityPartitions?.[elementId]?.name ??
           'Element';
+
+        // Same reasoning as the standalone branch above: computed against
+        // the model as it stands now, before the 'model' mutation below runs.
+        const removedElementIds = ms.model.activityNodes?.[elementId]
+          ? activityNodeDeleteCascadeIds(ms.model, elementId)
+          : new Set([elementId]);
 
         const projectSnapshot = currentProject;
 
@@ -198,7 +232,15 @@ export function useNodeActions({
                 else if (draft.model.useCases?.[elementId])           { delete draft.model.useCases![elementId]; }
                 else if (draft.model.systemBoundaries?.[elementId])   { delete draft.model.systemBoundaries![elementId]; }
                 else if (draft.model.ucModules?.[elementId])          { delete draft.model.ucModules![elementId]; }
+                // See the standalone branch above: activity nodes/lanes never
+                // had a branch here, so the ViewNode vanished from every
+                // diagram while the IR node stayed behind forever.
+                else if (draft.model.activityNodes?.[elementId])      { applyDeleteActivityNode(draft.model, elementId); }
+                else if (draft.model.activityPartitions?.[elementId]) { applyDeleteActivityPartition(draft.model, elementId); }
                 cascadeDeleteRelations(draft.model, elementId);
+                // ADR-0010: same cascade as the standalone branch above.
+                clearRepresentsRef(draft.model, elementId);
+                clearRealizesUseCaseRef(draft.model, elementId);
                 draft.model.updatedAt = Date.now();
               },
             },
@@ -215,9 +257,9 @@ export function useNodeActions({
                 );
                 for (const [nid, node] of Object.entries(draft.project.nodes) as [string, any][]) {
                   if (node.type !== 'FILE' || !isDiagramView(node.content)) continue;
-                  const hasEl = node.content.nodes.some((vn: ViewNode) => vn.elementId === elementId);
+                  const hasEl = node.content.nodes.some((vn: ViewNode) => removedElementIds.has(vn.elementId));
                   if (!hasEl) continue;
-                  node.content.nodes = node.content.nodes.filter((vn: ViewNode) => vn.elementId !== elementId);
+                  node.content.nodes = node.content.nodes.filter((vn: ViewNode) => !removedElementIds.has(vn.elementId));
                   node.content.edges = node.content.edges.filter(
                     (ve: any) => !remainingRelIds.has(ve.relationId) ? false : true,
                   );

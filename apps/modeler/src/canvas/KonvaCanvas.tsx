@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useLayoutEffect, useState, useMemo, useCallback } from 'react';
 import { Stage, Layer, Line, Circle, Rect, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import GridPattern from './engine/GridPattern';
@@ -11,9 +11,18 @@ import { useSettingsStore } from '../store/settingsStore';
 import { useKonvaCanvasController } from './hooks/useKonvaCanvasController';
 import { useKonvaDnD } from './hooks/useKonvaDnD';
 import PackageShape, { getPackageShapeSize } from './shapes/PackageShape';
+import PartitionShape from './shapes/PartitionShape';
 import { SB_MIN_W, SB_MIN_H } from './shapes/SystemBoundaryShape';
+import { SN_MIN_W, SN_MIN_H } from './shapes/StructuredNodeShape';
 import { UCM_MIN_W, UCM_MIN_H } from './shapes/UCModuleShape';
-import { getShapeSize, renderShape } from './ShapeRouter';
+import { getShapeSize, renderShape, type NodeShapeRenderProps } from './ShapeRouter';
+import {
+  NODE_KIND_DESCRIPTORS,
+  type NodeDragEnd,
+  type NodeEditor,
+  type NodeResize,
+} from './nodeKindDescriptors';
+import { getNodeKind } from '../adapters/view-models/node-kind';
 
 // Layout constants mirrored from shape files for inline editor positioning
 const ACTOR_NAME_Y_FROM_TOP = 84; // BODY_BOT(58) + LEG_DY(18) + NAME_GAP(8)
@@ -31,7 +40,10 @@ import { useConnectionDraw, type DropAnchoring } from './interactions/useConnect
 import { useCanvasKeyboard } from './interactions/useCanvasKeyboard';
 import { useRelationShortcuts } from './interactions/useRelationShortcuts';
 import { usePackageDrop } from './interactions/usePackageDrop';
+import { usePartitionDrop } from './interactions/usePartitionDrop';
+import { useStructuredNodeDrop } from './interactions/useStructuredNodeDrop';
 import { commitContainerResize } from './interactions/containerResize';
+import { relayoutPartitionViewNodes, layoutPartitionsHeight, DEFAULT_PARTITION_WIDTH, MIN_PARTITION_HEIGHT } from './engine/partitionLayout';
 import { withUndo, undoTransaction } from '../core/undo/undoBridge';
 import { isDiagramView } from '../features/diagram/hooks/useVFSCanvasController';
 import CanvasOverlay from './CanvasOverlay';
@@ -64,6 +76,7 @@ import UseCaseHoverPopover from '../features/diagram/components/modals/UseCaseHo
 import UseCaseSpecModal from '../features/diagram/components/modals/UseCaseSpecModal';
 import ActorPropsModal from '../features/diagram/components/modals/ActorPropsModal';
 import ExtendEdgePropsModal from '../features/diagram/components/modals/ExtendEdgePropsModal';
+import ControlFlowPropsModal from '../features/diagram/components/modals/ControlFlowPropsModal';
 import FragmentPropertiesModal from '../features/diagram/components/modals/FragmentPropertiesModal';
 import MessagePropertiesModal from '../features/diagram/components/modals/MessagePropertiesModal';
 import StateInvariantPropertiesModal from '../features/diagram/components/modals/StateInvariantPropertiesModal';
@@ -77,6 +90,13 @@ import ContinuationPropertiesModal from '../features/diagram/components/modals/C
 import SelfMessageWarningModal from '../features/diagram/components/modals/SelfMessageWarningModal';
 import DomainEntityPropsModal from '../features/diagram/components/modals/DomainEntityPropsModal';
 import DomainAssociationPropsModal from '../features/diagram/components/modals/DomainAssociationPropsModal';
+import ActivityActionPropsModal from '../features/diagram/components/modals/ActivityActionPropsModal';
+import ActivityPartitionPropsModal from '../features/diagram/components/modals/ActivityPartitionPropsModal';
+import ActivityPropertiesModal from '../features/diagram/components/modals/ActivityPropertiesModal';
+import ActivityObjectNodePropsModal from '../features/diagram/components/modals/ActivityObjectNodePropsModal';
+import ActivityPinPropsModal from '../features/diagram/components/modals/ActivityPinPropsModal';
+import ActivityStructuredNodePropsModal from '../features/diagram/components/modals/ActivityStructuredNodePropsModal';
+import { openDiagramContainingElement } from '../features/diagram/hooks/controllers/traceabilityNav';
 import { useInlineEditorStore } from './store/inlineEditorStore';
 import { useContextMenu } from '../features/diagram/hooks/useContextMenu';
 import { useDiagramMenus } from '../features/diagram/hooks/useDiagramMenus';
@@ -103,17 +123,20 @@ import {
   isLifelineViewModel,
   isFragmentViewModel,
   isMessageViewModel,
-  isActivationViewModel,
   isStateInvariantViewModel,
   isInteractionUseViewModel,
   isGateViewModel,
-  isGeneralOrderingViewModel,
-  isTimeConstraintViewModel,
-  isCoregionViewModel,
   isContinuationViewModel,
+  isActivityActionViewModel,
+  isActivityPartitionViewModel,
+  isActivityObjectNodeViewModel,
+  isActivityPinViewModel,
+  isActivityStructuredViewModel,
   type AnyNodeViewModel,
+  type LifelineViewModel,
   type NodeViewModel,
   type PackageViewModel,
+  type ActivityPartitionViewModel,
 } from '../adapters/view-models/node.view-model';
 import { selectAnchors, anchorPointToHandle, resolveRoutingMode, shouldFloat, ratioFromPoint, type NodeBounds, type LockedHandle } from './edges/geometry';
 import type { AnchorSnapshot } from '../store/uiStore';
@@ -243,6 +266,11 @@ export default function KonvaCanvas() {
         const size = getPackageShapeSize(vm);
         width = size.width;
         height = size.height;
+      } else if (isActivityPartitionViewModel(vm)) {
+        // Same reasoning as the package branch above: a lane sizes itself
+        // from its row/children, not from `getShapeSize`'s ShapeRouter path.
+        width = vm.width;
+        height = MIN_PARTITION_HEIGHT;
       } else {
         ({ width, height } = getShapeSize(vm));
       }
@@ -268,6 +296,31 @@ export default function KonvaCanvas() {
     stageWidth: size.width,
     stageHeight: size.height,
   });
+
+  /**
+   * Konva's hit-testing canvas is a second, separately-drawn canvas that only
+   * repaints on its own schedule (`Node._requestDraw` → `Layer.batchDraw`,
+   * RAF-based). When a diagram's nodes are replaced wholesale on an
+   * already-mounted Stage — switching tabs, opening a file, loading a
+   * project — that schedule can lag a handful of animation frames behind
+   * what's on screen, during which `stage.getIntersection()` still answers
+   * with the previous frame's content: a click/drag on a freshly-shown node
+   * can silently miss and hit the background instead. A synchronous
+   * `stage.draw()` here (layout effect: runs after Konva's children are
+   * committed, before the browser paints) redraws the hit canvas as early as
+   * the render pipeline allows, cutting that lag down substantially.
+   *
+   * Confirmed with a real-mouse-click Playwright repro (see
+   * apps/modeler/e2e/hitCanvasFreshness.spec.ts): the residual gap after
+   * this fix is on the order of a few tens of milliseconds under load, an
+   * order of magnitude below any human click's reaction time, and isn't
+   * reachable by any current production code path either (verified: nothing
+   * outside e2e/ calls `getIntersection` synchronously after a content
+   * swap).
+   */
+  useLayoutEffect(() => {
+    stageRef.current?.draw();
+  }, [shapes, edges, stageRef]);
 
   const { isSpacePressed, isSpacePressedRef } = useSpacePan({ enabled: true });
 
@@ -561,7 +614,7 @@ export default function KonvaCanvas() {
   const boundsMap = useMemo((): Map<string, NodeBounds> => {
     const map = new Map<string, NodeBounds>();
     for (const shape of shapes) {
-      if (shape.type === 'package') continue;
+      if (shape.type === 'package' || isActivityPartitionViewModel(shape.data)) continue;
       const pos =
         dragPositions?.get(shape.id) ??
         positionOverrides.get(shape.id) ??
@@ -569,6 +622,29 @@ export default function KonvaCanvas() {
       const vm = shape.data;
       const { width, height } = getShapeSize(vm);
       map.set(shape.id, { x: pos.x, y: pos.y, width, height });
+    }
+
+    // Lanes: width is per-lane (stored), height is shared by the whole row,
+    // derived from the tallest content across ALL lanes (spec §4) — never
+    // just the one being measured.
+    const partitionShapes = shapes.filter((s) => isActivityPartitionViewModel(s.data));
+    if (partitionShapes.length > 0) {
+      const laneIds = new Set(partitionShapes.map((s) => s.id));
+      const allChildBounds: NodeBounds[] = [];
+      for (const child of shapes) {
+        if (!child.parentPackageId || !laneIds.has(child.parentPackageId)) continue;
+        const cb = map.get(child.id);
+        if (cb) allChildBounds.push(cb);
+      }
+      const sharedHeight = layoutPartitionsHeight(allChildBounds);
+      for (const shape of partitionShapes) {
+        const pos =
+          dragPositions?.get(shape.id) ??
+          positionOverrides.get(shape.id) ??
+          { x: shape.x, y: shape.y };
+        const width = shape.width ?? DEFAULT_PARTITION_WIDTH;
+        map.set(shape.id, { x: pos.x, y: pos.y, width, height: sharedHeight });
+      }
     }
 
     const pkgShapes = shapes
@@ -630,6 +706,28 @@ export default function KonvaCanvas() {
     isStandalone: vfsController.isStandalone,
   });
 
+  const {
+    hoveredPartitionId,
+    onDragMoveDetectPartition,
+    onDragEndWithPartitionDetection,
+  } = usePartitionDrop({
+    shapes,
+    boundsMap,
+    activeTabId: activeTabId ?? '',
+    isStandalone: vfsController.isStandalone,
+  });
+
+  const {
+    hoveredStructuredId,
+    onDragMoveDetectStructured,
+    onDragEndWithStructuredDetection,
+  } = useStructuredNodeDrop({
+    shapes,
+    boundsMap,
+    activeTabId: activeTabId ?? '',
+    isStandalone: vfsController.isStandalone,
+  });
+
   const visibleNodeIds = useViewportCuller(viewport, size.width, size.height, boundsMap, viewportCulling);
 
   const [cullingWarningOpen, setCullingWarningOpen] = useState(false);
@@ -662,15 +760,19 @@ export default function KonvaCanvas() {
     (e: KonvaEventObject<MouseEvent>) => {
       dragHandlers.onDragEnd(e);
       onDragEndWithPackageDetection(e);
+      onDragEndWithPartitionDetection(e);
+      onDragEndWithStructuredDetection(e);
       setHoveredPackageId(null);
       setIsHoverValid(true);
     },
-    [dragHandlers, onDragEndWithPackageDetection],
+    [dragHandlers, onDragEndWithPackageDetection, onDragEndWithPartitionDetection, onDragEndWithStructuredDetection],
   );
 
   const handleDragMove = useCallback(
     (e: KonvaEventObject<MouseEvent>) => {
       dragHandlers.onDragMove(e);
+      onDragMoveDetectPartition(e);
+      onDragMoveDetectStructured(e);
 
       const nodeId = e.target.id();
       if (!nodeId) return;
@@ -712,7 +814,7 @@ export default function KonvaCanvas() {
         setIsHoverValid(!excludeIds.has(foundContainer ?? ''));
       }
     },
-    [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId],
+    [dragHandlers, boundsMap, shapes, collectDescendantIds, hoveredPackageId, onDragMoveDetectPartition, onDragMoveDetectStructured],
   );
 
   const handleMessageDragEnd = useCallback(
@@ -1019,11 +1121,38 @@ export default function KonvaCanvas() {
     [activeTabId],
   );
 
+  const handleStructuredNodeResizeEnd = useCallback(
+    (shapeId: string, newWidth: number, newHeight: number, dx = 0, dy = 0) => {
+      if (!activeTabId) return;
+      const w = Math.max(SN_MIN_W, Math.round(newWidth));
+      const h = Math.max(SN_MIN_H, Math.round(newHeight));
+      withUndo('vfs', 'Resize Structured Node', activeTabId, (draft: any) => {
+        commitContainerResize(draft, activeTabId, shapeId, w, h, Math.round(dx), Math.round(dy));
+      });
+    },
+    [activeTabId],
+  );
+
   const handleDeleteNodes = useCallback(
     (nodeIds: string[]) => {
-      onNodeChange(nodeIds.map((id): KonvaNodeChange => ({ type: 'remove', id })));
+      // A lane isn't a plain ViewNode removal: the generic path clears
+      // children's parentPackageId but never re-derives the row's x, which
+      // would leave a gap where the deleted lane used to be. Route it through
+      // its own onDelete (model cleanup + reparent + relayout) instead.
+      const rest: string[] = [];
+      for (const id of nodeIds) {
+        const shape = shapes.find((s) => s.id === id);
+        if (shape && isActivityPartitionViewModel(shape.data)) {
+          (shape.data as ActivityPartitionViewModel).onDelete?.();
+        } else {
+          rest.push(id);
+        }
+      }
+      if (rest.length > 0) {
+        onNodeChange(rest.map((id): KonvaNodeChange => ({ type: 'remove', id })));
+      }
     },
-    [onNodeChange],
+    [onNodeChange, shapes],
   );
 
   const handleDeleteEdges = useCallback(
@@ -1172,6 +1301,7 @@ export default function KonvaCanvas() {
     openMethodGenerator,
     openExtendProps,
     openDomainAssociationProps,
+    openControlFlowProps,
   } = useUiStore();
 
   const inlineEdgePanelId = useUiStore((s) => s.inlineEdgePanelId);
@@ -1217,6 +1347,71 @@ export default function KonvaCanvas() {
   // (inline panel) from interfaces/enums (full modal) and to resolve the panel.
   const globalModel = useModelStore((s) => s.model);
   const activeModel = vfsController.isStandalone ? vfsController.localModel : globalModel;
+
+  // ADR-0010: activity→use-case trace. An Activity has no node of its own, so
+  // this reads it off whatever node/lane the diagram already has, purely for
+  // display — creating one (if the canvas is still empty) only happens when
+  // the "Activity Properties" pane-menu item is actually clicked.
+  const activityTraceChip = useMemo(() => {
+    if (vfsController.vfsFile?.diagramType !== 'ACTIVITY_DIAGRAM' || !activeModel) return null;
+    const activityId = vfsController.diagramView?.nodes
+      ?.map((vn) => activeModel.activityNodes?.[vn.elementId]?.activityId ?? activeModel.activityPartitions?.[vn.elementId]?.activityId)
+      .find((id): id is string => !!id);
+    if (!activityId) return null;
+    const activity = activeModel.activities?.[activityId];
+    if (!activity?.realizesUseCaseId) return null;
+    const useCaseName = activeModel.useCases?.[activity.realizesUseCaseId]?.name;
+    if (!useCaseName) return null;
+    return { activityId, useCaseName, useCaseId: activity.realizesUseCaseId };
+  }, [vfsController.vfsFile?.diagramType, vfsController.diagramView, activeModel]);
+
+  const handlePartitionResizeEnd = useCallback(
+    (partitionId: string, newWidth: number) => {
+      if (!activeTabId) return;
+      // Width is the only thing a lane resize changes on the model side — index
+      // (and therefore order) is untouched, so this is a single 'vfs' mutation.
+      const partitionsById: Record<string, { index: number }> = {};
+      for (const p of Object.values(activeModel?.activityPartitions ?? {})) {
+        partitionsById[p.id] = { index: p.index };
+      }
+      withUndo('vfs', 'Resize Lane', activeTabId, (draft: any) => {
+        const file = draft.project?.nodes[activeTabId];
+        if (!file || !isDiagramView(file.content)) return;
+        const vn = file.content.nodes.find((n: any) => n.id === partitionId);
+        if (!vn) return;
+        vn.width = newWidth;
+        relayoutPartitionViewNodes(file.content.nodes, partitionsById);
+      });
+    },
+    [activeTabId, activeModel],
+  );
+
+  const handlePartitionDblClick = useCallback(
+    (shapeId: string) => {
+      const shape = shapes.find((s) => s.id === shapeId);
+      if (!shape || !isActivityPartitionViewModel(shape.data)) return;
+      const vm = shape.data as ActivityPartitionViewModel;
+      const stage = stageRef.current;
+      if (!stage) return;
+      const pos = positionOverrides.get(shapeId) ?? { x: shape.x, y: shape.y };
+      const bounds = boundsMap.get(shapeId);
+      const transform = stage.getAbsoluteTransform().copy();
+      const screenPos = transform.point({ x: pos.x, y: pos.y });
+      const scale = stage.scaleX();
+      const width = (bounds?.width ?? vm.width) * scale;
+      if (vm.onRename) {
+        startInlineEditing(
+          shapeId,
+          vm.name,
+          'name',
+          { x: screenPos.x, y: screenPos.y },
+          { width, height: 28 * scale },
+          (text) => vm.onRename!(text),
+        );
+      }
+    },
+    [shapes, stageRef, positionOverrides, boundsMap, startInlineEditing],
+  );
 
   const startUseCaseInlineEdit = useCallback(
     (shapeId: string) => {
@@ -1301,6 +1496,44 @@ export default function KonvaCanvas() {
               { width: labelW, height: MSG_LABEL_H + 4 },
               (text) => vm.onRename!(text));
           }
+        }
+      } else if (isActivityActionViewModel(vm) || isActivityObjectNodeViewModel(vm)) {
+        // The label is centred in the box; edit it in place. Same box layout
+        // as the action, so the same positioning applies to the object node.
+        const { width, height } = getShapeSize(vm);
+        const fontSize = vm.fontSizeOverride ?? 13;
+        const screenPos = transform.point({
+          x: pos.x + 8,
+          y: pos.y + (height - fontSize) / 2,
+        });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.label, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width: width - 16, height: fontSize + 6 },
+            (text) => vm.onRename!(text));
+        }
+      } else if (isActivityStructuredViewModel(vm)) {
+        // Header label, same padding as StructuredNodeShape's title Text.
+        const fontSize = vm.fontSizeOverride ?? 13;
+        const screenPos = transform.point({ x: pos.x + 10, y: pos.y + 4 });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.name, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width: vm.width - 20, height: fontSize + 6 },
+            (text) => vm.onRename!(text));
+        }
+      } else if (isActivityPinViewModel(vm)) {
+        // The caption sits below the pin square, not centred inside a box
+        // (PinShape) — position the editor there instead of reusing the
+        // action/object-node box layout.
+        const { width, height } = getShapeSize(vm);
+        const fontSize = vm.fontSizeOverride ?? 11;
+        const screenPos = transform.point({ x: pos.x, y: pos.y + height - fontSize });
+        if (vm.onRename) {
+          startInlineEditing(shapeId, vm.label, 'name',
+            { x: screenPos.x, y: screenPos.y },
+            { width, height: fontSize + 6 },
+            (text) => vm.onRename!(text));
         }
       } else {
         (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
@@ -1557,7 +1790,7 @@ export default function KonvaCanvas() {
   const { getMenuOptions } = useDiagramMenus({
     onEditNode: (nodeId) => {
       const shape = shapes.find((s) => s.id === nodeId);
-      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data))) {
+      if (shape && (isActorViewModel(shape.data) || isUseCaseViewModel(shape.data) || isSystemBoundaryViewModel(shape.data) || isLifelineViewModel(shape.data) || isActivityActionViewModel(shape.data) || isActivityObjectNodeViewModel(shape.data) || isActivityPinViewModel(shape.data) || isActivityStructuredViewModel(shape.data))) {
         startUseCaseInlineEdit(nodeId);
         closeMenu();
         return;
@@ -1679,6 +1912,12 @@ export default function KonvaCanvas() {
       if (activeModel.ucModules?.[viewNode.elementId]) return 'UC_MODULE';
       if (activeModel.domainEntities?.[viewNode.elementId]) return 'DOMAIN_ENTITY';
       if (activeModel.lifelines?.[viewNode.elementId]) return 'LIFELINE';
+      // Activity diagrams (A4): was falling through to 'NOTE' below, which fed
+      // every activity node/lane into the note-editing menu branch by mistake
+      // — nothing in A0-A3 needed the context menu to tell them apart.
+      const activityNode = activeModel.activityNodes?.[viewNode.elementId];
+      if (activityNode) return activityNode.activityType;
+      if (activeModel.activityPartitions?.[viewNode.elementId]) return 'ACTIVITY_PARTITION';
       return 'NOTE';
     },
     getIsNodeExternal: (nodeId) => {
@@ -1748,7 +1987,37 @@ export default function KonvaCanvas() {
     (edgeId: string) => {
       const edge = edges.find((e) => e.id === edgeId);
       if (!edge) return;
-      if (edge.kind === 'EXTEND') { openExtendProps(edgeId); return; }
+      // KNOWN BUG, still open (found 2026-09-07 while building v1.1's
+      // interrupting-flow checkbox; see PLAN-activity-diagram.md §8.8):
+      // a genuine double-click on an *already-selected* edge never reaches
+      // this handler at all. Selecting an edge (its first click) mounts a
+      // waypoint/segment-drag overlay exactly on top of the line, and
+      // Konva's own dblclick synthesis requires the second click's
+      // hit-test to resolve to the *same* shape as the first
+      // (`Stage._pointerup`, `clickEndShape === shape` in
+      // konva/lib/Stage.js) — with the overlay in the way, it resolves to
+      // a different shape, so the browser never fires `dblclick` on the
+      // Line. Confirmed with a native-event trace, not just the app's own
+      // logs. This breaks double-click editing on *any* edge kind that has
+      // a props modal (guard/weight here, «extend»'s condition too), not
+      // just CONTROL_FLOW/OBJECT_FLOW — a cross-cutting fix (bypassing
+      // Konva's per-shape dblclick synthesis with a stage-level native
+      // listener + our own hit-test), not a one-line patch. Design proposed
+      // to IndigoDev, awaiting go-ahead before touching this shared file.
+      //
+      // The sibling bug (`edgeId` here is the ViewEdge id, but both modals
+      // key their lookup by relation id — production mints two separate
+      // UUIDs) is fixed below: resolve the real domainId first, same as the
+      // DOMAIN_MODEL branch further down already does via `vfsController.edges`.
+      const relationId = vfsController.edges.find((ve) => ve.id === edgeId)?.data.domainId;
+      if (edge.kind === 'EXTEND') {
+        if (relationId) openExtendProps(relationId);
+        return;
+      }
+      if (edge.kind === 'CONTROL_FLOW' || edge.kind === 'OBJECT_FLOW') {
+        if (relationId) openControlFlowProps(relationId);
+        return;
+      }
       // TODO: route through a ShapeRouter
       if (vfsController.vfsFile?.diagramType === 'DOMAIN_MODEL_DIAGRAM') {
         // Association-family edges have the verb·multiplicity·navigability modal;
@@ -1760,7 +2029,7 @@ export default function KonvaCanvas() {
         openVfsEdgeAction(edgeId, buildAnchorSnapshot(edgeId));
       }
     },
-    [edges, openExtendProps, openDomainAssociationProps, openVfsEdgeAction, buildAnchorSnapshot, vfsController.vfsFile?.diagramType, vfsController.edges],
+    [edges, openExtendProps, openControlFlowProps, openDomainAssociationProps, openVfsEdgeAction, buildAnchorSnapshot, vfsController.vfsFile?.diagramType, vfsController.edges],
   );
 
   const handleStageContextMenu = useCallback(
@@ -2374,6 +2643,99 @@ export default function KonvaCanvas() {
     };
   }, [inlineGatePanelId, activeModel, closeInlineGatePanel]);
 
+  /**
+   * A0 (ADR-0009). `NODE_KIND_DESCRIPTORS` says *which* handler a node kind
+   * uses; these tables bind those names to the closures, which can only live
+   * here. Built once per render rather than per node.
+   */
+  const resizeHandlers = useMemo<Record<NodeResize, NodeShapeRenderProps['onResizeEnd']>>(
+    () => ({
+      fragment: handleFragmentResizeEnd,
+      lifelineTimeline: handleLifelineTimelineResizeEnd,
+      interactionUse: handleInteractionUseResizeEnd,
+      stateInvariant: handleStateInvariantResizeEnd,
+      note: handleNoteResizeEnd,
+      ucModule: handleUCModuleResizeEnd,
+      package: handlePackageResizeEnd,
+      activityPartition: handlePartitionResizeEnd,
+      activityStructured: handleStructuredNodeResizeEnd,
+      systemBoundary: handleSystemBoundaryResizeEnd,
+    }),
+    [
+      handleFragmentResizeEnd,
+      handleLifelineTimelineResizeEnd,
+      handleInteractionUseResizeEnd,
+      handleStateInvariantResizeEnd,
+      handleNoteResizeEnd,
+      handleUCModuleResizeEnd,
+      handlePackageResizeEnd,
+      handlePartitionResizeEnd,
+      handleStructuredNodeResizeEnd,
+      handleSystemBoundaryResizeEnd,
+    ],
+  );
+
+  const editorHandlers = useMemo<
+    Record<
+      NodeEditor,
+      ((shapeId: string, vm: AnyNodeViewModel, e: KonvaEventObject<MouseEvent>) => void) | undefined
+    >
+  >(() => {
+    // Every view model reaching an inline panel carries a domainId; the union
+    // as a whole does not declare one.
+    const domainIdOf = (vm: AnyNodeViewModel) => (vm as { domainId: string }).domainId;
+    const ui = () => useUiStore.getState();
+    return {
+      noteInline: (shapeId, _vm, e) => handleNoteDblClick(shapeId, e),
+      useCaseModal: (shapeId) => handleUseCaseDblClickModal(shapeId),
+      lifelineOpenOrRename: (shapeId, vm) => {
+        // C5: a decomposed lifeline navigates to its sub-interaction;
+        // otherwise double-click starts an inline rename.
+        const diagramId = (vm as LifelineViewModel).decomposedDiagramId;
+        if (diagramId && useVFSStore.getState().project?.nodes[diagramId]) {
+          useWorkspaceStore.getState().openTab(diagramId);
+          useWorkspaceStore.getState().setActiveTab(diagramId);
+        } else {
+          startUseCaseInlineEdit(shapeId);
+        }
+      },
+      fragmentPanel: (_shapeId, vm) => openInlineFragmentPanel(domainIdOf(vm)),
+      inlineRename: (shapeId) => startUseCaseInlineEdit(shapeId),
+      stateInvariantPanel: (_shapeId, vm) => openInlineStateInvariantPanel(domainIdOf(vm)),
+      interactionUsePanel: (_shapeId, vm) => openInlineInteractionUsePanel(domainIdOf(vm)),
+      gatePanel: (_shapeId, vm) => openInlineGatePanel(domainIdOf(vm)),
+      generalOrderingProps: (_shapeId, vm) => ui().openGeneralOrderingProps(domainIdOf(vm)),
+      timeConstraintProps: (_shapeId, vm) => ui().openTimeConstraintProps(domainIdOf(vm)),
+      coregionProps: (_shapeId, vm) => ui().openCoregionProps(domainIdOf(vm)),
+      continuationProps: (_shapeId, vm) => ui().openContinuationProps(domainIdOf(vm)),
+      classEditor: (shapeId, _vm, e) => handleClassDblClick(shapeId, e),
+      openProps: (_shapeId, vm) =>
+        (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.(),
+      // Nothing to open: the package draws in its own layer, and a control
+      // node is a filled circle with nothing to edit.
+      none: undefined,
+    };
+  }, [
+    handleNoteDblClick,
+    handleUseCaseDblClickModal,
+    startUseCaseInlineEdit,
+    openInlineFragmentPanel,
+    openInlineStateInvariantPanel,
+    openInlineInteractionUsePanel,
+    openInlineGatePanel,
+    handleClassDblClick,
+  ]);
+
+  const dragEndHandlers = useMemo<Record<NodeDragEnd, NodeShapeRenderProps['onDragEnd']>>(
+    () => ({
+      message: handleMessageDragEnd,
+      derived: handleDerivedDragEnd,
+      fragment: handleFragmentDragEnd,
+      node: handleDragEnd,
+    }),
+    [handleMessageDragEnd, handleDerivedDragEnd, handleFragmentDragEnd, handleDragEnd],
+  );
+
   return (
     <div
       ref={containerRef}
@@ -2386,6 +2748,21 @@ export default function KonvaCanvas() {
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded-md bg-cyan-500/90 text-white text-xs font-medium shadow-lg pointer-events-none">
           {t('sidebar.fragments.drawHint', { kind: armedFragmentKind?.toLowerCase() })}
         </div>
+      )}
+      {activityTraceChip && (
+        // ADR-0010: activity→use-case trace, read-only here — set via the
+        // canvas background context menu's "Activity Properties".
+        <button
+          type="button"
+          onClick={() => openDiagramContainingElement(activityTraceChip.useCaseId)}
+          className="absolute top-3 right-3 z-20 flex items-center gap-1 px-2.5 py-1 rounded-full
+                     bg-[#0c2a3a]/90 border border-[#38bdf8]/50 text-[#7dd3fc] text-xs font-medium
+                     shadow-lg hover:bg-[#0c2a3a] transition-colors"
+          title={t('activityDiagram.realizesUseCase', { name: activityTraceChip.useCaseName })}
+        >
+          <span aria-hidden="true">↗</span>
+          {t('activityDiagram.realizes', { name: activityTraceChip.useCaseName })}
+        </button>
       )}
       {size.width > 0 && size.height > 0 && (
         <Stage
@@ -2419,6 +2796,35 @@ export default function KonvaCanvas() {
                 type={gridType as 'dots' | 'lines' | 'grid'}
               />
             )}
+          </Layer>
+
+          <Layer name="partitions">
+            {sortedShapes
+              .filter((shape) => isActivityPartitionViewModel(shape.data))
+              .map((shape) => {
+                const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
+                const vm = shape.data as ActivityPartitionViewModel;
+                const isVisible = visibleNodeIds.has(shape.id);
+                const bounds = boundsMap.get(shape.id);
+                const dropHighlight = hoveredPartitionId === shape.id ? 'valid' : null;
+
+                return (
+                  <PartitionShape
+                    key={shape.id}
+                    viewModel={vm}
+                    x={pos.x}
+                    y={pos.y}
+                    width={bounds?.width ?? vm.width}
+                    height={bounds?.height ?? 200}
+                    selected={selectedIds.has(shape.id)}
+                    dropHighlight={dropHighlight}
+                    onDblClick={() => handlePartitionDblClick(shape.id)}
+                    onContextMenu={handleNodeContextMenu}
+                    onResizeEnd={handlePartitionResizeEnd}
+                    visible={isVisible}
+                  />
+                );
+              })}
           </Layer>
 
           <Layer name="packages">
@@ -2500,6 +2906,7 @@ export default function KonvaCanvas() {
                 lineStyleOverride={edge.lineStyle}
                 fontFamilyOverride={edge.fontFamily}
                 fontSizeOverride={edge.fontSize}
+                isInterrupting={edge.isInterrupting}
                 isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
@@ -2516,7 +2923,7 @@ export default function KonvaCanvas() {
 
           <Layer name="nodes">
             {sortedShapes
-              .filter((shape) => !isPackageViewModel(shape.data))
+              .filter((shape) => !isPackageViewModel(shape.data) && !isActivityPartitionViewModel(shape.data))
               .map((shape) => {
                 const pos = positionOverrides.get(shape.id) ?? { x: shape.x, y: shape.y };
                 const vm = shape.data;
@@ -2535,43 +2942,14 @@ export default function KonvaCanvas() {
                   }
                 }
                 
-                const onDblClick = isNoteViewModel(vm)
-                  ? (e: KonvaEventObject<MouseEvent>) => handleNoteDblClick(shape.id, e)
-                  : isUseCaseViewModel(vm)
-                  ? () => handleUseCaseDblClickModal(shape.id)
-                  : isLifelineViewModel(vm)
-                  ? () => {
-                      // C5: a decomposed lifeline navigates to its sub-interaction;
-                      // otherwise double-click starts an inline rename.
-                      const diagramId = vm.decomposedDiagramId;
-                      if (diagramId && useVFSStore.getState().project?.nodes[diagramId]) {
-                        useWorkspaceStore.getState().openTab(diagramId);
-                        useWorkspaceStore.getState().setActiveTab(diagramId);
-                      } else {
-                        startUseCaseInlineEdit(shape.id);
-                      }
-                    }
-                  : isFragmentViewModel(vm)
-                  ? () => openInlineFragmentPanel(vm.domainId)
-                  : isMessageViewModel(vm)
-                  ? () => startUseCaseInlineEdit(shape.id)
-                  : isStateInvariantViewModel(vm)
-                  ? () => openInlineStateInvariantPanel(vm.domainId)
-                  : isInteractionUseViewModel(vm)
-                  ? () => openInlineInteractionUsePanel(vm.domainId)
-                  : isGateViewModel(vm)
-                  ? () => openInlineGatePanel(vm.domainId)
-                  : isGeneralOrderingViewModel(vm)
-                  ? () => useUiStore.getState().openGeneralOrderingProps(vm.domainId)
-                  : isTimeConstraintViewModel(vm)
-                  ? () => useUiStore.getState().openTimeConstraintProps(vm.domainId)
-                  : isCoregionViewModel(vm)
-                  ? () => useUiStore.getState().openCoregionProps(vm.domainId)
-                  : isContinuationViewModel(vm)
-                  ? () => useUiStore.getState().openContinuationProps(vm.domainId)
-                  : isNodeViewModel(vm)
-                  ? (e: KonvaEventObject<MouseEvent>) => handleClassDblClick(shape.id, e)
-                  : () => (vm as AnyNodeViewModel & { onOpenProps?: () => void }).onOpenProps?.();
+                // A0 (ADR-0009): what this kind can do is read from its
+                // descriptor; only the closures still live here.
+                const descriptor = NODE_KIND_DESCRIPTORS[getNodeKind(vm) ?? 'class'];
+
+                const editor = editorHandlers[descriptor.editor];
+                const onDblClick = editor
+                  ? (e: KonvaEventObject<MouseEvent>) => editor(shape.id, vm, e)
+                  : undefined;
 
                 const onContextMenu = isUseCaseViewModel(vm)
                   ? (e: KonvaEventObject<PointerEvent>, nodeId: string) => {
@@ -2581,24 +2959,10 @@ export default function KonvaCanvas() {
                     }
                   : handleNodeContextMenu;
 
-                const isMsg = isMessageViewModel(vm);
-                const isLifeline = isLifelineViewModel(vm);
-                const isActivation = isActivationViewModel(vm);
-                const isFragment = isFragmentViewModel(vm);
-                const isInteractionUse = isInteractionUseViewModel(vm);
-                const isStateInvariant = isStateInvariantViewModel(vm);
-                const isNote = isNoteViewModel(vm);
-                const isDerived = isStateInvariantViewModel(vm) || isInteractionUseViewModel(vm) || isGateViewModel(vm) || isContinuationViewModel(vm);
-                // General orderings, timing constraints and coregions have
-                // fully-derived geometry (anchored to occurrences) → not draggable.
-                const isGeneralOrdering =
-                  isGeneralOrderingViewModel(vm) ||
-                  isTimeConstraintViewModel(vm) ||
-                  isCoregionViewModel(vm);
                 // Vertical-only, store-backed drag: messages, the slot-anchored
                 // derived elements, and movable fragment containers lock X and
-                // persist Y. Activations are NOT draggable (system-managed).
-                const isVerticalDrag = isMsg || isDerived || isFragment;
+                // persist Y. The lifeline is the mirror case, locking Y.
+                const isVerticalDrag = descriptor.dragAxis === 'vertical';
                 // Strong highlight: while connecting, dim nodes that are illegal
                 // targets for the active relation so legal ones stand out.
                 const connectDimmed = connectionDraw.candidateValidity?.get(shape.id) === false;
@@ -2608,17 +2972,11 @@ export default function KonvaCanvas() {
                   y: pos.y,
                   selected: selectedIds.has(shape.id),
                   opacity: connectDimmed ? 0.3 : undefined,
-                  draggable: !isGeneralOrdering && !isActivation,
+                  draggable: descriptor.draggable,
                   visible: isVisible && !isDescendantOfCollapsed,
                   onDragStart: isVerticalDrag ? undefined : guardedDragStart,
                   onDragMove: isVerticalDrag ? undefined : handleDragMove,
-                  onDragEnd: isMsg
-                    ? handleMessageDragEnd
-                    : isDerived
-                    ? handleDerivedDragEnd
-                    : isFragment
-                    ? handleFragmentDragEnd
-                    : handleDragEnd,
+                  onDragEnd: dragEndHandlers[descriptor.dragEnd],
                   dragBoundFunc: isVerticalDrag
                     ? (p: { x: number; y: number }) => {
                         // Pin X in screen space (dragBoundFunc is absolute), else
@@ -2628,7 +2986,7 @@ export default function KonvaCanvas() {
                         const stageOffX = stage?.x() ?? 0;
                         return { x: pos.x * scale + stageOffX, y: p.y };
                       }
-                    : isLifeline
+                    : descriptor.dragAxis === 'horizontal'
                     ? (p: { x: number; y: number }) => {
                         const stage = stageRef.current;
                         const scale = stage?.scaleX() ?? 1;
@@ -2641,21 +2999,11 @@ export default function KonvaCanvas() {
                   onContextMenu,
                   onMouseEnter: handleUseCaseMouseEnter,
                   onMouseLeave: handleUseCaseMouseLeave,
-                  onResizeEnd: isFragment
-                    ? handleFragmentResizeEnd
-                    : isLifeline
-                    ? handleLifelineTimelineResizeEnd
-                    : isInteractionUse
-                    ? handleInteractionUseResizeEnd
-                    : isStateInvariant
-                    ? handleStateInvariantResizeEnd
-                    : isNote
-                    ? handleNoteResizeEnd
-                    : isUCModuleViewModel(vm)
-                    ? handleUCModuleResizeEnd
-                    : handleSystemBoundaryResizeEnd,
-                  onResetTimeline: isLifeline ? handleLifelineTimelineReset : undefined,
-                  isDropTarget: hoveredPackageId === shape.id,
+                  onResizeEnd: resizeHandlers[descriptor.resize],
+                  onResetTimeline: descriptor.resetTimeline
+                    ? handleLifelineTimelineReset
+                    : undefined,
+                  isDropTarget: hoveredPackageId === shape.id || hoveredStructuredId === shape.id,
                 });
               })}
           </Layer>
@@ -2692,6 +3040,9 @@ export default function KonvaCanvas() {
                 sourceRole={edge.sourceRole}
                 targetRole={edge.targetRole}
                 condition={edge.condition}
+                guard={edge.guard}
+                weight={edge.weight}
+                isInterrupting={edge.isInterrupting}
                 isHighlighted={highlightedEdgeIds.has(edge.id) || selectedEdgeId === edge.id}
                 isHovered={hoveredEdgeId === edge.id}
                 isDimmed={dimmedEdgeIds.has(edge.id)}
@@ -3001,6 +3352,7 @@ export default function KonvaCanvas() {
       <UseCaseSpecModal />
       <ActorPropsModal />
       <ExtendEdgePropsModal />
+      <ControlFlowPropsModal />
       <DomainEntityPropsModal />
       <DomainAssociationPropsModal />
       <FragmentPropertiesModal />
@@ -3014,6 +3366,12 @@ export default function KonvaCanvas() {
       <LifelinePropertiesModal />
       <ContinuationPropertiesModal />
       <SelfMessageWarningModal />
+      <ActivityActionPropsModal />
+      <ActivityPartitionPropsModal />
+      <ActivityPropertiesModal />
+      <ActivityObjectNodePropsModal />
+      <ActivityPinPropsModal />
+      <ActivityStructuredNodePropsModal />
     </div>
   );
 }

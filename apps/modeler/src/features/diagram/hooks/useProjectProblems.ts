@@ -5,10 +5,14 @@ import { validateModel } from '../utils/validateModel';
 import { resolveSemanticElement } from './controllers/sharedNodeBuilders';
 import { isDiagramView } from './useVFSCanvasController';
 import { addStandaloneToProject } from '../actions/addStandaloneToProject';
+import { getDiagramRegistry, isDiagramTypeRegistered } from '../../../core/registry/diagram-registry';
+import { activityDiagramValidator } from '../../../core/validation/activity-diagram.validator';
+import { resolvedElementToDomainNode, relationToDomainEdge } from './domainNodeAdapter';
+import type { DomainNode } from '../../../core/domain/models/nodes';
 import type { VFSFile, SemanticModel } from '../../../core/domain/vfs/vfs.types';
 
 export type ProblemSeverity = 'error' | 'warning' | 'info';
-export type ProblemCategory = 'model' | 'structure' | 'save';
+export type ProblemCategory = 'model' | 'structure' | 'save' | 'validation';
 
 export interface ProblemFix {
   label: string;
@@ -34,6 +38,78 @@ export interface ProjectProblems {
 }
 
 const EMPTY: ProjectProblems = { problems: [], errorCount: 0, warningCount: 0, infoCount: 0 };
+
+/**
+ * Runs `getDiagramRegistry(file.diagramType).validator` (§16) over every node
+ * and edge of one diagram, via `domainNodeAdapter`. This is what makes each
+ * diagram type's `validateNode`/`validateEdge` reach a surface the user
+ * actually looks at — until A5 they were "inversión hecha y desconectada"
+ * (§16.1): the rules existed, nobody saw them.
+ *
+ * Activity Diagram additionally runs `validateActivityStructure` (fan-in/
+ * fan-out on decision/merge/fork/join), a special entry point BaseValidator
+ * has no room for — same reasoning as `SequenceDiagramValidator.validateMessage`
+ * needing the full model, not just two endpoints.
+ */
+function pushRegistryValidation(
+  problems: Problem[],
+  file: VFSFile,
+  model: SemanticModel,
+): void {
+  if (!isDiagramView(file.content) || !isDiagramTypeRegistered(file.diagramType)) return;
+  const validator = getDiagramRegistry(file.diagramType).validator;
+
+  const nodesById = new Map<string, DomainNode>();
+  let i = 0;
+
+  for (const vn of file.content.nodes) {
+    if (!vn.elementId) continue;
+    const resolved = resolveSemanticElement(model, vn.elementId);
+    const domainNode = resolvedElementToDomainNode(resolved, model);
+    if (!domainNode) continue;
+    nodesById.set(vn.elementId, domainNode);
+
+    const result = validator.validateNode(domainNode);
+    for (const msg of result.errors ?? []) {
+      problems.push({ id: `validation:${file.id}:${i++}`, severity: 'error', category: 'validation', message: msg, diagramId: file.id, diagramName: file.name });
+    }
+    for (const msg of result.warnings ?? []) {
+      problems.push({ id: `validation:${file.id}:${i++}`, severity: 'warning', category: 'validation', message: msg, diagramId: file.id, diagramName: file.name });
+    }
+  }
+
+  for (const ve of file.content.edges) {
+    const rel = model.relations?.[ve.relationId];
+    if (!rel) continue;
+    const domainEdge = relationToDomainEdge(rel, file.diagramType);
+    if (!domainEdge) continue;
+    const src = nodesById.get(rel.sourceId);
+    const tgt = nodesById.get(rel.targetId);
+    if (!src || !tgt) continue; // dangling endpoint — already surfaced by the 'structure' check
+
+    const result = validator.validateEdge(domainEdge, src, tgt);
+    for (const msg of result.errors ?? []) {
+      problems.push({ id: `validation:${file.id}:${i++}`, severity: 'error', category: 'validation', message: msg, diagramId: file.id, diagramName: file.name });
+    }
+    for (const msg of result.warnings ?? []) {
+      problems.push({ id: `validation:${file.id}:${i++}`, severity: 'warning', category: 'validation', message: msg, diagramId: file.id, diagramName: file.name });
+    }
+  }
+
+  if (file.diagramType === 'ACTIVITY_DIAGRAM') {
+    const activityIds = new Set(
+      Object.values(model.activityNodes ?? {})
+        .filter((n) => nodesById.has(n.id))
+        .map((n) => n.activityId),
+    );
+    for (const activityId of activityIds) {
+      const result = activityDiagramValidator.validateActivityStructure(activityId, model);
+      for (const msg of result.warnings ?? []) {
+        problems.push({ id: `validation:${file.id}:activity:${activityId}:${i++}`, severity: 'warning', category: 'validation', message: msg, diagramId: file.id, diagramName: file.name });
+      }
+    }
+  }
+}
 
 /**
  * Project-wide problem aggregation for ALL diagram types.
@@ -115,6 +191,9 @@ export function useProjectProblems(): ProjectProblems {
             diagramName: file.name,
           });
         }
+
+        // ── validation: per-diagram-type registry validator (§16) ──────────────
+        pushRegistryValidation(problems, file, model);
       }
     }
 

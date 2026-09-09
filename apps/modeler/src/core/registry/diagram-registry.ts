@@ -53,6 +53,7 @@ import { classDiagramValidator } from '../validation/class-diagram.validator';
 import { useCaseDiagramValidator } from '../validation/use-case.validator';
 import { domainModelDiagramValidator } from '../validation/domain-model.validator';
 import { sequenceDiagramValidator } from '../validation/sequence-diagram.validator';
+import { activityDiagramValidator } from '../validation/activity-diagram.validator';
 
 
 /**
@@ -990,6 +991,195 @@ const sequenceDiagramRegistry: DiagramTypeRegistry = {
   },
 };
 
+function createActivityDiagramNode(type: string, partial?: Partial<DomainNode>): DomainNode {
+  const now = Date.now();
+  const baseNode = {
+    id: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+    // The owning activity is filled in by the caller that knows the diagram;
+    // the factory cannot invent one.
+    activityId: '',
+    ...partial,
+  };
+
+  const named = (fallback: string) =>
+    (partial && 'name' in partial ? (partial as { name?: string }).name : undefined) || fallback;
+
+  switch (type) {
+    case 'ACTION':
+      return { ...baseNode, type: 'ACTION', name: named('Action') } as DomainNode;
+    case 'CALL_OPERATION':
+      return { ...baseNode, type: 'CALL_OPERATION', name: named('Call Operation') } as DomainNode;
+    // Control nodes carry no name — a filled circle is its own label.
+    case 'INITIAL_NODE':
+      return { ...baseNode, type: 'INITIAL_NODE' } as DomainNode;
+    case 'ACTIVITY_FINAL':
+      return { ...baseNode, type: 'ACTIVITY_FINAL' } as DomainNode;
+    case 'FLOW_FINAL':
+      return { ...baseNode, type: 'FLOW_FINAL' } as DomainNode;
+    case 'DECISION':
+      return { ...baseNode, type: 'DECISION' } as DomainNode;
+    case 'MERGE':
+      return { ...baseNode, type: 'MERGE' } as DomainNode;
+    case 'FORK':
+      return { ...baseNode, type: 'FORK', barOrientation: 'HORIZONTAL' } as DomainNode;
+    case 'JOIN':
+      return { ...baseNode, type: 'JOIN', barOrientation: 'HORIZONTAL' } as DomainNode;
+    case 'OBJECT_NODE':
+      return { ...baseNode, type: 'OBJECT_NODE', name: named('Object') } as DomainNode;
+    case 'INPUT_PIN':
+      return { ...baseNode, type: 'INPUT_PIN', name: named('') } as DomainNode;
+    case 'OUTPUT_PIN':
+      return { ...baseNode, type: 'OUTPUT_PIN', name: named('') } as DomainNode;
+    case 'LOOP_NODE':
+      return { ...baseNode, type: 'LOOP_NODE', name: named('Loop') } as DomainNode;
+    case 'CONDITIONAL_NODE':
+      return { ...baseNode, type: 'CONDITIONAL_NODE', name: named('Conditional') } as DomainNode;
+    case 'SEQUENCE_NODE':
+      return { ...baseNode, type: 'SEQUENCE_NODE', name: named('Sequence') } as DomainNode;
+    case 'INTERRUPTIBLE_REGION':
+      return { ...baseNode, type: 'INTERRUPTIBLE_REGION', name: named('Interruptible Region') } as DomainNode;
+    case 'EXPANSION_REGION':
+      return {
+        ...baseNode, type: 'EXPANSION_REGION', name: named('Expansion Region'), mode: 'PARALLEL',
+      } as DomainNode;
+    case 'INPUT_EXPANSION_NODE':
+      return { ...baseNode, type: 'INPUT_EXPANSION_NODE', name: named('') } as DomainNode;
+    case 'OUTPUT_EXPANSION_NODE':
+      return { ...baseNode, type: 'OUTPUT_EXPANSION_NODE', name: named('') } as DomainNode;
+    case 'ACTIVITY_PARTITION':
+      return {
+        ...baseNode, type: 'ACTIVITY_PARTITION', name: named('Partition'), index: 0,
+      } as DomainNode;
+    case 'NOTE':
+      return {
+        ...baseNode,
+        type: 'NOTE',
+        content: (partial && 'content' in partial ? partial.content : undefined) || 'New note',
+      } as NoteNode;
+    default:
+      throw new Error(`Unknown Activity Diagram node type: ${type}`);
+  }
+}
+
+function createActivityDiagramEdge(
+  type: string,
+  sourceId: string,
+  targetId: string,
+  partial?: Partial<DomainEdge>,
+): DomainEdge {
+  const now = Date.now();
+  const baseEdge = {
+    id: crypto.randomUUID(),
+    sourceNodeId: sourceId,
+    targetNodeId: targetId,
+    createdAt: now,
+    updatedAt: now,
+    ...partial,
+  };
+
+  switch (type) {
+    case 'CONTROL_FLOW':
+      return { ...baseEdge, type: 'CONTROL_FLOW' } as DomainEdge;
+    case 'OBJECT_FLOW':
+      return { ...baseEdge, type: 'OBJECT_FLOW' } as DomainEdge;
+    case 'EXCEPTION_HANDLER':
+      return { ...baseEdge, type: 'EXCEPTION_HANDLER' } as DomainEdge;
+    default:
+      throw new Error(`Unknown Activity Diagram edge type: ${type}`);
+  }
+}
+
+/**
+ * Activity Diagram Registry Entry (A1)
+ */
+const activityDiagramRegistry: DiagramTypeRegistry = {
+  type: 'ACTIVITY_DIAGRAM',
+  displayName: 'Activity Diagram',
+  icon: 'workflow',
+
+  supportedNodeTypes: [
+    'ACTION', 'CALL_OPERATION', 'INITIAL_NODE', 'ACTIVITY_FINAL',
+    'DECISION', 'MERGE', 'FORK', 'JOIN', 'FLOW_FINAL', 'OBJECT_NODE',
+    'INPUT_PIN', 'OUTPUT_PIN',
+    'LOOP_NODE', 'CONDITIONAL_NODE', 'SEQUENCE_NODE', 'INTERRUPTIBLE_REGION',
+    'EXPANSION_REGION', 'INPUT_EXPANSION_NODE', 'OUTPUT_EXPANSION_NODE',
+    'ACTIVITY_PARTITION', 'NOTE',
+  ],
+  supportedEdgeTypes: ['CONTROL_FLOW', 'OBJECT_FLOW', 'EXCEPTION_HANDLER'],
+
+  defaultNodeType: 'ACTION',
+  defaultEdgeType: 'CONTROL_FLOW',
+
+  // Class/use-case nodes inside a flow are never meaningful.
+  hideForeignTools: true,
+
+  tools: {
+    nodes: [
+      { id: 'action', type: 'NODE', category: 'common', label: 'Action', icon: 'Square', color: '#0EA5E9', translationKey: 'sidebar.nodes.action' },
+      { id: 'initial_node', type: 'NODE', category: 'common', label: 'Initial', icon: 'Circle', color: '#0EA5E9', translationKey: 'sidebar.nodes.initialNode' },
+      { id: 'activity_final', type: 'NODE', category: 'common', label: 'Final', icon: 'CircleDot', color: '#0EA5E9', translationKey: 'sidebar.nodes.activityFinal' },
+      { id: 'decision', type: 'NODE', category: 'common', label: 'Decision', icon: 'Diamond', color: '#0EA5E9', translationKey: 'sidebar.nodes.decision' },
+      { id: 'merge', type: 'NODE', category: 'common', label: 'Merge', icon: 'GitMerge', color: '#0EA5E9', translationKey: 'sidebar.nodes.merge' },
+      { id: 'fork', type: 'NODE', category: 'common', label: 'Fork', icon: 'GitFork', color: '#0EA5E9', translationKey: 'sidebar.nodes.fork' },
+      { id: 'join', type: 'NODE', category: 'common', label: 'Join', icon: 'Minus', color: '#0EA5E9', translationKey: 'sidebar.nodes.join' },
+      { id: 'activity_partition', type: 'NODE', category: 'common', label: 'Partition', icon: 'Columns3', color: '#0EA5E9', translationKey: 'sidebar.nodes.activityPartition' },
+      { id: 'call_operation', type: 'NODE', category: 'advanced', label: 'Call Operation', icon: 'SquareFunction', color: '#38BDF8', translationKey: 'sidebar.nodes.callOperation' },
+      { id: 'flow_final', type: 'NODE', category: 'advanced', label: 'Flow Final', icon: 'CircleX', color: '#38BDF8', translationKey: 'sidebar.nodes.flowFinal' },
+      { id: 'object_node', type: 'NODE', category: 'advanced', label: 'Object', icon: 'Package', color: '#38BDF8', translationKey: 'sidebar.nodes.objectNode' },
+      { id: 'loop_node', type: 'NODE', category: 'advanced', label: 'Loop', icon: 'Repeat', color: '#38BDF8', translationKey: 'sidebar.nodes.loopNode' },
+      { id: 'conditional_node', type: 'NODE', category: 'advanced', label: 'Conditional', icon: 'GitBranch', color: '#38BDF8', translationKey: 'sidebar.nodes.conditionalNode' },
+      { id: 'sequence_node', type: 'NODE', category: 'advanced', label: 'Sequence', icon: 'ListOrdered', color: '#38BDF8', translationKey: 'sidebar.nodes.sequenceNode' },
+      { id: 'interruptible_region', type: 'NODE', category: 'advanced', label: 'Interruptible Region', icon: 'Octagon', color: '#38BDF8', translationKey: 'sidebar.nodes.interruptibleRegion' },
+      { id: 'expansion_region', type: 'NODE', category: 'advanced', label: 'Expansion Region', icon: 'Layers', color: '#38BDF8', translationKey: 'sidebar.nodes.expansionRegion' },
+      { id: 'note', type: 'NODE', category: 'common', label: 'Note', icon: 'StickyNote', color: 'var(--color-uml-note-border)', translationKey: 'sidebar.nodes.note' },
+    ],
+    edges: [
+      { id: 'control_flow', type: 'EDGE', category: 'common', label: 'Control Flow', icon: 'ArrowRight', translationKey: 'sidebar.connections.controlFlow' },
+      { id: 'object_flow', type: 'EDGE', category: 'advanced', label: 'Object Flow', icon: 'MoveRight', translationKey: 'sidebar.connections.objectFlow' },
+      { id: 'exception_handler', type: 'EDGE', category: 'advanced', label: 'Exception Handler', icon: 'Zap', translationKey: 'sidebar.connections.exceptionHandler' },
+    ],
+  },
+
+  codeGenerationActions: [],
+
+  exportActions: [
+    {
+      id: 'export-image',
+      label: 'Export Image',
+      translationKey: 'menubar.export.image',
+      icon: 'ImageIcon',
+      enabled: true,
+    },
+    {
+      id: 'export-xmi',
+      label: 'Export XMI',
+      translationKey: 'menubar.export.xmi',
+      icon: 'FileCode2',
+      enabled: true,
+    },
+  ],
+
+  nodeComponents: {},
+  edgeComponents: {},
+
+  validator: activityDiagramValidator,
+
+  factories: {
+    createNode: createActivityDiagramNode,
+    createEdge: createActivityDiagramEdge,
+  },
+
+  semanticLookup: (model: SemanticModel, id: string): ResolvedElement | null => {
+    const node = model.activityNodes?.[id];
+    if (node) return { element: node, kind: 'ACTIVITY_NODE' };
+    const partition = model.activityPartitions?.[id];
+    if (partition) return { element: partition, kind: 'ACTIVITY_PARTITION' };
+    return null;
+  },
+};
+
 /**
  * Global Diagram Registry (Singleton)
  *
@@ -1001,6 +1191,7 @@ export const diagramRegistry: DiagramRegistryMap = {
   USE_CASE_DIAGRAM: useCaseDiagramRegistry,
   DOMAIN_MODEL_DIAGRAM: domainModelDiagramRegistry,
   SEQUENCE_DIAGRAM: sequenceDiagramRegistry,
+  ACTIVITY_DIAGRAM: activityDiagramRegistry,
 };
 
 /**

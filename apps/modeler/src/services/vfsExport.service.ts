@@ -28,9 +28,9 @@ import { XmiConverterService } from './xmiConverter.service';
 
 // ─── Visibility ───────────────────────────────────────────────────────────────
 
-type VisibilitySymbol = '+' | '-' | '#' | '~';
+export type VisibilitySymbol = '+' | '-' | '#' | '~';
 
-function visibilityToSymbol(v?: string): VisibilitySymbol {
+export function visibilityToSymbol(v?: string): VisibilitySymbol {
   switch (v) {
     case 'private':   return '-';
     case 'protected': return '#';
@@ -56,7 +56,7 @@ const RELATION_KIND_MAP: Partial<Record<RelationKind, string>> = {
 
 // ─── IRAttribute → ClassAttribute ─────────────────────────────────────────────
 
-function irAttributeToClassAttribute(attr: IRAttribute): ClassAttribute {
+export function irAttributeToClassAttribute(attr: IRAttribute): ClassAttribute {
   const multiplicity = attr.multiplicity ?? '';
   const isArray = multiplicity.includes('*') || multiplicity.includes('..');
   return {
@@ -72,7 +72,7 @@ function irAttributeToClassAttribute(attr: IRAttribute): ClassAttribute {
 
 // ─── IROperation → ClassMethod ─────────────────────────────────────────────────
 
-function irOperationToClassMethod(op: IROperation): ClassMethod {
+export function irOperationToClassMethod(op: IROperation): ClassMethod {
   const params: MethodParameter[] = op.parameters
     .filter((p) => p.direction !== 'return')
     .map((p) => ({

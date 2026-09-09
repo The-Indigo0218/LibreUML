@@ -43,6 +43,7 @@ const RELATION_LABELS: Record<RelationKind, string> = {
   TRANSITION: 'Transition',
   CONTROL_FLOW: 'Control Flow',
   OBJECT_FLOW: 'Object Flow',
+  EXCEPTION_HANDLER: 'Exception Handler',
   DEPLOYMENT: 'Deployment',
   MANIFESTATION: 'Manifestation',
   PACKAGE_IMPORT: 'Package Import',

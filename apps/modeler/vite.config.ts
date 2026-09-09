@@ -11,7 +11,8 @@ export default defineConfig({
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline'",
         "style-src 'self' 'unsafe-inline'",
-        "connect-src 'self' http://localhost:8080 ws://localhost:5173 https://app.posthog.com",
+        // Exact Sentry ingest host from the project DSN (o4512036491755520).
+        "connect-src 'self' http://localhost:8080 ws://localhost:5173 https://app.posthog.com https://o4512036491755520.ingest.us.sentry.io",
         "img-src 'self' data: blob:",
         "font-src 'self' data:",
       ].join('; '),

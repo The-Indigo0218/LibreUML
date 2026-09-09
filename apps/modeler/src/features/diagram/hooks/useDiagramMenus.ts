@@ -8,7 +8,9 @@ import { standaloneModelOps, getLocalModel, ensureLocalModel } from "../../../st
 import { isDiagramView } from "./useVFSCanvasController";
 import { getNextVFSName } from "../../../canvas/hooks/useKonvaDnD";
 import { undoTransaction } from "../../../core/undo/undoBridge";
+import { getOrCreateActivityId, applyCreateActivityNode } from "../../../store/activityModelOps";
 import { SB_DEFAULT_W, SB_DEFAULT_H } from "../../../canvas/shapes/SystemBoundaryShape";
+import { SN_DEFAULT_W } from "../../../canvas/shapes/StructuredNodeShape";
 import { UCM_DEFAULT_W, UCM_DEFAULT_H } from "../../../canvas/shapes/UCModuleShape";
 import type { DiagramView, ViewNode, VFSFile, FragmentKind } from "../../../core/domain/vfs/vfs.types";
 import {
@@ -80,6 +82,7 @@ export const useDiagramMenus = ({
   const isUseCaseDiagram = diagramType === 'USE_CASE_DIAGRAM';
   const isDomainModelDiagram = diagramType === 'DOMAIN_MODEL_DIAGRAM';
   const isSequenceDiagram = diagramType === 'SEQUENCE_DIAGRAM';
+  const isActivityDiagram = diagramType === 'ACTIVITY_DIAGRAM';
   const { t } = useTranslation();
 
   const openSingleGenerator = useUiStore((s) => s.openSingleGenerator);
@@ -311,6 +314,209 @@ export const useDiagramMenus = ({
     [getElementId],
   );
 
+  // ── Input/output pin insertion (activity diagrams, A6.2) ──────────────────
+  //
+  // Unlike every other activity node, a pin is never dragged from the
+  // palette (VFS_DROP_CONFIG has no entry for it) — it has no meaning without
+  // an owner, so it is created from the owner action's own context menu
+  // instead, one undo step covering both the IR node and its ViewNode, same
+  // bridging pattern as `reorderActivityPartition`.
+
+  const addActivityPin = useCallback(
+    (actionNodeId: string, pinKind: 'INPUT_PIN' | 'OUTPUT_PIN') => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
+
+      const ownerActionId = getElementId(actionNodeId);
+      if (!ownerActionId) return;
+
+      const project = useVFSStore.getState().project;
+      if (!project) return;
+      const fileNode = project.nodes[tabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      const currentView = (fileNode as VFSFile).content;
+      if (!isDiagramView(currentView)) return;
+
+      const ownerViewNode = currentView.nodes.find((vn) => vn.id === actionNodeId);
+      if (!ownerViewNode) return;
+
+      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+      const activeModel = isStandaloneFile ? getLocalModel(tabId) : useModelStore.getState().model;
+      if (!activeModel) return;
+
+      const siblingCount = currentView.nodes.filter(
+        (vn) => activeModel.activityNodes?.[vn.elementId]?.ownerActionId === ownerActionId
+          && activeModel.activityNodes?.[vn.elementId]?.activityType === pinKind,
+      ).length;
+      const position = {
+        x: ownerViewNode.x + (pinKind === 'INPUT_PIN' ? -36 : 140),
+        y: ownerViewNode.y + siblingCount * 26,
+      };
+
+      const pinId = crypto.randomUUID();
+      const viewNode: ViewNode = { id: crypto.randomUUID(), elementId: pinId, ...position };
+      const label = pinKind === 'INPUT_PIN' ? 'Add Input Pin' : 'Add Output Pin';
+
+      if (isStandaloneFile) {
+        undoTransaction({
+          label,
+          scope: tabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const file = draft.project?.nodes[tabId];
+              if (!file || !isDiagramView(file.content) || !file.localModel) return;
+              const activityId = getOrCreateActivityId(file.localModel, file.content.nodes, 'Activity');
+              applyCreateActivityNode(file.localModel, pinId, {
+                activityType: pinKind,
+                activityId,
+                name: '',
+                ownerActionId,
+              });
+              file.content.nodes = [...file.content.nodes, viewNode];
+            },
+          }],
+        });
+      } else {
+        undoTransaction({
+          label,
+          scope: 'global',
+          mutations: [
+            {
+              store: 'model',
+              mutate: (draft: any) => {
+                if (!draft.model) return;
+                const activityId = getOrCreateActivityId(draft.model, currentView.nodes, 'Activity');
+                applyCreateActivityNode(draft.model, pinId, {
+                  activityType: pinKind,
+                  activityId,
+                  name: '',
+                  ownerActionId,
+                });
+              },
+            },
+            {
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const file = draft.project?.nodes[tabId];
+                if (!file || !isDiagramView(file.content)) return;
+                file.content.nodes = [...file.content.nodes, viewNode];
+              },
+            },
+          ],
+        });
+      }
+
+      // Open the parameter picker immediately, same as state invariant opens
+      // its editor right after creation.
+      useUiStore.getState().openActivityPinProps(pinId);
+    },
+    [getElementId],
+  );
+
+  // ── Expansion node insertion (activity diagrams, v1.1) ─────────────────────
+  //
+  // Same reasoning as the pin above, one level up: an expansion node has no
+  // meaning without its region, so it is created from the region's own
+  // context menu instead of dragged from the palette (VFS_DROP_CONFIG has no
+  // entry for it) — `ownerRegionId` instead of `ownerActionId`, and it opens
+  // the classifier picker (reusing the object node's modal/field) instead of
+  // a parameter picker, since a region has no operation to pick parameters
+  // from.
+
+  const addActivityExpansionNode = useCallback(
+    (regionNodeId: string, expansionKind: 'INPUT_EXPANSION_NODE' | 'OUTPUT_EXPANSION_NODE') => {
+      const tabId = useWorkspaceStore.getState().activeTabId;
+      if (!tabId) return;
+
+      const ownerRegionId = getElementId(regionNodeId);
+      if (!ownerRegionId) return;
+
+      const project = useVFSStore.getState().project;
+      if (!project) return;
+      const fileNode = project.nodes[tabId];
+      if (!fileNode || fileNode.type !== 'FILE') return;
+      const currentView = (fileNode as VFSFile).content;
+      if (!isDiagramView(currentView)) return;
+
+      const ownerViewNode = currentView.nodes.find((vn) => vn.id === regionNodeId);
+      if (!ownerViewNode) return;
+
+      const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+      const activeModel = isStandaloneFile ? getLocalModel(tabId) : useModelStore.getState().model;
+      if (!activeModel) return;
+
+      const siblingCount = currentView.nodes.filter(
+        (vn) => activeModel.activityNodes?.[vn.elementId]?.ownerRegionId === ownerRegionId
+          && activeModel.activityNodes?.[vn.elementId]?.activityType === expansionKind,
+      ).length;
+      const regionWidth = ownerViewNode.width ?? SN_DEFAULT_W;
+      const position = {
+        x: ownerViewNode.x + (expansionKind === 'INPUT_EXPANSION_NODE' ? -36 : regionWidth + 20),
+        y: ownerViewNode.y + siblingCount * 26,
+      };
+
+      const nodeId = crypto.randomUUID();
+      const viewNode: ViewNode = { id: crypto.randomUUID(), elementId: nodeId, ...position };
+      const label = expansionKind === 'INPUT_EXPANSION_NODE' ? 'Add Input Expansion Node' : 'Add Output Expansion Node';
+
+      if (isStandaloneFile) {
+        undoTransaction({
+          label,
+          scope: tabId,
+          mutations: [{
+            store: 'vfs',
+            mutate: (draft: any) => {
+              const file = draft.project?.nodes[tabId];
+              if (!file || !isDiagramView(file.content) || !file.localModel) return;
+              const activityId = getOrCreateActivityId(file.localModel, file.content.nodes, 'Activity');
+              applyCreateActivityNode(file.localModel, nodeId, {
+                activityType: expansionKind,
+                activityId,
+                name: '',
+                ownerRegionId,
+              });
+              file.content.nodes = [...file.content.nodes, viewNode];
+            },
+          }],
+        });
+      } else {
+        undoTransaction({
+          label,
+          scope: 'global',
+          mutations: [
+            {
+              store: 'model',
+              mutate: (draft: any) => {
+                if (!draft.model) return;
+                const activityId = getOrCreateActivityId(draft.model, currentView.nodes, 'Activity');
+                applyCreateActivityNode(draft.model, nodeId, {
+                  activityType: expansionKind,
+                  activityId,
+                  name: '',
+                  ownerRegionId,
+                });
+              },
+            },
+            {
+              store: 'vfs',
+              mutate: (draft: any) => {
+                const file = draft.project?.nodes[tabId];
+                if (!file || !isDiagramView(file.content)) return;
+                file.content.nodes = [...file.content.nodes, viewNode];
+              },
+            },
+          ],
+        });
+      }
+
+      // Open the classifier picker immediately, same as the pin above opens
+      // its own parameter picker right after creation.
+      useUiStore.getState().openActivityObjectNodeProps(nodeId);
+    },
+    [getElementId],
+  );
+
   // ── Found / Lost message insertion (sequence diagrams) ────────────────────
 
   const addEndpointMessage = useCallback(
@@ -324,6 +530,49 @@ export const useDiagramMenus = ({
       insertSelfMessageIntoActiveDiagram(getElementId(lifelineNodeId), dropY),
     [getElementId],
   );
+
+  // ── Activity (diagram-level) properties (ADR-0010) ─────────────────────────
+
+  /**
+   * Opens the modal for the Activity behind the active diagram file. Reads
+   * first, without touching the undo stack — an empty canvas has no Activity
+   * yet, and only then does this fall back to creating one (getOrCreateActivityId,
+   * same helper the palette-drop path uses), wrapped in its own transaction.
+   */
+  const openActivityDiagramProps = useCallback(() => {
+    const tabId = useWorkspaceStore.getState().activeTabId;
+    if (!tabId) return;
+    const project = useVFSStore.getState().project;
+    const fileNode = project?.nodes[tabId];
+    if (!fileNode || fileNode.type !== 'FILE' || !isDiagramView((fileNode as VFSFile).content)) return;
+    const view = (fileNode as VFSFile).content as DiagramView;
+    const isStandaloneFile = (fileNode as VFSFile).standalone === true;
+    const model = isStandaloneFile ? getLocalModel(tabId) : useModelStore.getState().model;
+    if (!model) return;
+
+    const existingId = view.nodes
+      .map((vn) => model.activityNodes?.[vn.elementId]?.activityId ?? model.activityPartitions?.[vn.elementId]?.activityId)
+      .find((id): id is string => !!id);
+    if (existingId) {
+      useUiStore.getState().openActivityProps(existingId);
+      return;
+    }
+
+    let createdId = '';
+    undoTransaction({
+      label: 'Create Activity',
+      scope: isStandaloneFile ? tabId : 'global',
+      mutations: [{
+        store: isStandaloneFile ? 'vfs' : 'model',
+        mutate: (draft: any) => {
+          const m = isStandaloneFile ? draft.project?.nodes[tabId]?.localModel : draft.model;
+          if (!m) return;
+          createdId = getOrCreateActivityId(m, view.nodes, 'Activity');
+        },
+      }],
+    });
+    if (createdId) useUiStore.getState().openActivityProps(createdId);
+  }, []);
 
   // ── getMenuOptions ────────────────────────────────────────────────────────
 
@@ -348,6 +597,13 @@ export const useDiagramMenus = ({
             { label: t("contextMenu.pane.addDomainEntity"), onClick: () => addVFSNode("DOMAIN_ENTITY", pos()) },
             { label: t("contextMenu.pane.addNote"),         onClick: () => addVFSNode("NOTE", pos()) },
             { label: t("contextMenu.pane.cleanCanvas"),     onClick: onClearCanvas, danger: true },
+          ];
+        }
+        if (isActivityDiagram) {
+          return [
+            { label: t("contextMenu.pane.activityProperties"), onClick: openActivityDiagramProps },
+            { label: t("contextMenu.pane.addNote"),             onClick: () => addVFSNode("NOTE", pos()) },
+            { label: t("contextMenu.pane.cleanCanvas"),         onClick: onClearCanvas, danger: true },
           ];
         }
         if (isSequenceDiagram) {
@@ -439,13 +695,40 @@ export const useDiagramMenus = ({
           effectiveType === "UC_MODULE";
         const isDomainEntityType = effectiveType === "DOMAIN_ENTITY";
         const isLifelineType = effectiveType === "LIFELINE";
+        // Activity diagrams (A4): the lane renames through its own header
+        // double-click (usePartitionDrop/PartitionShape), not through this menu.
+        const isActivityPartitionType = effectiveType === "ACTIVITY_PARTITION";
+        const isActivityActionType = effectiveType === "ACTION" || effectiveType === "CALL_OPERATION";
+        const isActivityObjectNodeType = effectiveType === "OBJECT_NODE";
+        const isTrueActivityPinType = effectiveType === "INPUT_PIN" || effectiveType === "OUTPUT_PIN";
+        // Expansion nodes (v1.1) share the pin's shape/interaction (small
+        // square, owned, rename-only) but trace to a classifier, not a
+        // parameter — `isActivityPinType` below stays the broad "renders as
+        // a pin square" gate used by generic checks; the two are told apart
+        // below only where the context-menu item itself actually differs.
+        const isActivityExpansionNodeType =
+          effectiveType === "INPUT_EXPANSION_NODE" || effectiveType === "OUTPUT_EXPANSION_NODE";
+        const isActivityPinType = isTrueActivityPinType || isActivityExpansionNodeType;
+        const isActivityExpansionRegionType = effectiveType === "EXPANSION_REGION";
+        const isActivityStructuredType =
+          effectiveType === "LOOP_NODE" || effectiveType === "CONDITIONAL_NODE" || effectiveType === "SEQUENCE_NODE" ||
+          effectiveType === "INTERRUPTIBLE_REGION" || isActivityExpansionRegionType;
+        // SEQUENCE_NODE/INTERRUPTIBLE_REGION/EXPANSION_REGION have nothing to
+        // test — only these two get the modal (EXPANSION_REGION gets its own
+        // "Edit Mode" item below instead).
+        const isTestableStructuredType = effectiveType === "LOOP_NODE" || effectiveType === "CONDITIONAL_NODE";
+        // Control/decision/fork-join glyphs carry no label (nodeKindDescriptors:
+        // "a filled circle has nothing to edit") — nothing for this item to open.
+        const isLabellessActivityType = [
+          "INITIAL", "ACTIVITY_FINAL", "FLOW_FINAL", "DECISION", "MERGE", "FORK", "JOIN",
+        ].includes(effectiveType ?? "");
         const isNodeExternal = getIsNodeExternal(nodeId);
 
         const baseOptions: { label: string; onClick: () => void; danger?: boolean; icon?: string }[] = [];
 
-        if (!isPackageType && !isNoteType && !isLifelineType) {
+        if (!isPackageType && !isNoteType && !isLifelineType && !isActivityPartitionType && !isLabellessActivityType) {
           baseOptions.push({
-            label: (isUseCaseNodeType || isDomainEntityType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
+            label: (isUseCaseNodeType || isDomainEntityType || isActivityActionType || isActivityObjectNodeType || isActivityPinType || isActivityStructuredType) ? t("contextMenu.node.rename") : t("contextMenu.node.edit"),
             onClick: () => onEditNode(nodeId),
           });
         }
@@ -476,6 +759,106 @@ export const useDiagramMenus = ({
             baseOptions.push({
               label: t("contextMenu.node.editActorProperties"),
               onClick: () => useUiStore.getState().openActorProps(elementId),
+            });
+          }
+        }
+
+        // ADR-0010 traceability: action→operation and lane→responsible are
+        // set through their own selector modal, not the inline rename above.
+        if (isActivityActionType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.linkOperation"),
+              onClick: () => useUiStore.getState().openActivityActionProps(elementId),
+            });
+          }
+          // A6.2: pins have no palette tool — an owner is what gives one
+          // meaning, so it is created from here instead of dragged in.
+          baseOptions.push({
+            label: t("contextMenu.node.addInputPin"),
+            onClick: () => addActivityPin(nodeId, 'INPUT_PIN'),
+          });
+          baseOptions.push({
+            label: t("contextMenu.node.addOutputPin"),
+            onClick: () => addActivityPin(nodeId, 'OUTPUT_PIN'),
+          });
+        }
+
+        if (isTrueActivityPinType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.linkParameter"),
+              onClick: () => useUiStore.getState().openActivityPinProps(elementId),
+            });
+          }
+        }
+
+        // Expansion nodes (v1.1) trace to a classifier, not a parameter —
+        // same field/modal as an object node's "Link Classifier…" below.
+        if (isActivityExpansionNodeType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.linkClassifier"),
+              onClick: () => useUiStore.getState().openActivityObjectNodeProps(elementId),
+            });
+          }
+        }
+
+        // Structured nodes (v1.1): the test/guard is free text, set through
+        // its own modal — same reasoning as the pin's parameter trace above.
+        // SEQUENCE_NODE has nothing to test, so it never gets this item.
+        if (isTestableStructuredType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.editTestCondition"),
+              onClick: () => useUiStore.getState().openActivityStructuredProps(elementId),
+            });
+          }
+        }
+
+        // EXPANSION_REGION (v1.1): mode (parallel/iterative/stream) instead
+        // of a test condition, same modal as above, plus the two menu items
+        // that give its boundary expansion nodes a reason to exist — same
+        // "an owner is what gives one meaning" reasoning as the action's pin
+        // items above.
+        if (isActivityExpansionRegionType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.editExpansionMode"),
+              onClick: () => useUiStore.getState().openActivityStructuredProps(elementId),
+            });
+          }
+          baseOptions.push({
+            label: t("contextMenu.node.addInputExpansionNode"),
+            onClick: () => addActivityExpansionNode(nodeId, 'INPUT_EXPANSION_NODE'),
+          });
+          baseOptions.push({
+            label: t("contextMenu.node.addOutputExpansionNode"),
+            onClick: () => addActivityExpansionNode(nodeId, 'OUTPUT_EXPANSION_NODE'),
+          });
+        }
+
+        if (isActivityPartitionType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.editActivityPartitionProperties"),
+              onClick: () => useUiStore.getState().openActivityPartitionProps(elementId),
+            });
+          }
+        }
+
+        if (isActivityObjectNodeType) {
+          const elementId = getElementId(nodeId);
+          if (elementId) {
+            baseOptions.push({
+              label: t("contextMenu.node.linkClassifier"),
+              onClick: () => useUiStore.getState().openActivityObjectNodeProps(elementId),
             });
           }
         }
@@ -640,10 +1023,14 @@ export const useDiagramMenus = ({
       getIsNodeExternal,
       getElementId,
       addStateInvariant,
+      addActivityPin,
+      addActivityExpansionNode,
       addInteractionUse,
       addEndpointMessage,
       addSelfMessage,
       isStandalone,
+      isActivityDiagram,
+      openActivityDiagramProps,
       t,
     ]
   );
